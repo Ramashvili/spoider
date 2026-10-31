@@ -1,10 +1,10 @@
 import json
-import tomllib
 from pathlib import Path
 
 from textual.widgets import Input
 
 from spoider.app import BINDINGS, SpoiderApp
+from spoider.config import load_config
 from spoider.chrome import compose_footer, hint_chunks, pinned_bar
 from spoider.layout import compute
 from spoider.widgets import TopBar, compose_top_bar
@@ -118,7 +118,7 @@ async def test_top_bar_star_appears_and_clears_with_the_edit(tmp_path: Path):
 
 
 async def test_top_bar_never_shows_the_star_under_autosave(tmp_path: Path):
-    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=tmp_path / "e.toml")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=tmp_path / "e.conf")
     async with app.run_test() as pilot:
         app.set_autosave(True)
         await pilot.pause()
@@ -570,8 +570,8 @@ def test_help_text_covers_keys_and_notes(tmp_path: Path):
 
 
 def test_help_follows_a_rebound_chord(tmp_path: Path):
-    config = tmp_path / "editor.toml"
-    config.write_text('[keys]\nmark = "ctrl+m"\n')
+    config = tmp_path / "config.conf"
+    config.write_text("mark = ctrl+m\n")
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
     body = help_text(app).plain
     assert "^M" in body
@@ -638,7 +638,7 @@ async def test_settings_shows_only_the_autosave_toggle(tmp_path: Path):
 
 
 async def test_toggling_autosave_persists_to_the_editor_config(tmp_path: Path):
-    config_path = tmp_path / "editor.toml"
+    config_path = tmp_path / "config.conf"
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
     async with app.run_test() as pilot:
         assert app.autosave is False
@@ -649,7 +649,7 @@ async def test_toggling_autosave_persists_to_the_editor_config(tmp_path: Path):
         assert app.autosave is True
         assert isinstance(app.screen, SettingsScreen)  # stays open to show "on"
 
-    assert tomllib.loads(config_path.read_text())["autosave"] is True
+    assert load_config(config_path).autosave is True
     reopened = SpoiderApp(tmp_path / "map.json", config_path=config_path)
     assert reopened.autosave is True  # and it survives the editor restarting
 
@@ -673,54 +673,79 @@ async def test_toggling_autosave_repaints_the_footer_immediately(tmp_path: Path)
 
 
 def test_marks_are_an_editor_preference(tmp_path: Path):
-    from spoider.config import MAX_MARKS, Config, load_config, write_config
+    from spoider.config import MAX_MARKS, Config, write_config
 
-    path = tmp_path / "editor.toml"
+    path = tmp_path / "config.conf"
     assert load_config(path).marks  # defaults when the file is missing
     write_config(Config(marks=("🔴", "🟢")), path)
     assert load_config(path).marks == ("🔴", "🟢")
 
-    # junk and empty lists fall back rather than breaking ^G
-    path.write_text("marks = []\n")
-    assert len(load_config(path).marks) > 0
-    path.write_text('marks = "not a list"\n')
+    # a blank value falls back rather than breaking ^G
+    path.write_text("marks =\n")
     assert len(load_config(path).marks) > 0
     # and a runaway list is capped
     write_config(Config(marks=tuple(str(i) for i in range(MAX_MARKS + 5))), path)
     assert len(load_config(path).marks) == MAX_MARKS
 
 
-def test_config_is_comment_friendly_toml_with_every_key_prefilled(tmp_path: Path):
-    path = tmp_path / "editor.toml"
+def test_config_is_a_flat_rc_file_with_every_key_prefilled(tmp_path: Path):
+    path = tmp_path / "config.conf"
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=path)
     app._save_config()
     text = path.read_text()
 
-    assert "[keys]" in text
-    assert "{" not in text and "}" not in text  # no JSON braces to wade through
-    assert '# add_child = "tab"' in text  # prefilled, but switched off
-    assert 'marks = ["✅"' in text  # emoji stay emoji
+    assert "{" not in text and "}" not in text and "[" not in text  # no JSON, no sections
+    assert "autosave = false" in text
+    assert "marks = ✅ ❌ ❓ ❗ 🕐" in text  # space separated, no quotes
+    assert "# add_child = tab" in text  # prefilled, but switched off
 
-    parsed = tomllib.loads(text)
-    assert parsed["autosave"] is False
-    assert parsed["keys"] == {}  # everything commented out means defaults apply
+    config = load_config(path)
+    assert config.autosave is False
+    assert config.keys == {}  # everything commented out means defaults apply
 
     # uncommenting one line is all it takes to rebind
-    path.write_text(text.replace('# save = "ctrl+s"', 'save = "ctrl+w"'))
+    path.write_text(text.replace("# save = ctrl+s", "save = ctrl+w"))
+    assert load_config(path).keys["save"] == "ctrl+w"
     assert SpoiderApp(tmp_path / "map.json", config_path=path).keymap["save"] == "ctrl+w"
+
+
+def test_comments_and_loose_spacing_are_tolerated(tmp_path: Path):
+    from spoider.config import parse
+
+    config = parse(
+        "# a comment\n"
+        "autosave   =   yes     # trailing comment\n"
+        "marks = ✅   ❌\n"
+        "\n"
+        "save = ctrl+w\n"
+        "a line with no equals sign\n"
+    )
+    assert config.autosave is True
+    assert config.marks == ("✅", "❌")
+    assert config.keys == {"save": "ctrl+w"}
 
 
 def test_an_old_json_config_is_still_read(tmp_path: Path):
     legacy = tmp_path / "config.json"
     legacy.write_text(json.dumps({"autosave": True, "keys": {"save": "ctrl+w"}}))
 
-    config = SpoiderApp(tmp_path / "map.json", config_path=tmp_path / "config.toml").config
+    config = SpoiderApp(tmp_path / "map.json", config_path=tmp_path / "config.conf").config
     assert config.autosave is True
     assert config.keys["save"] == "ctrl+w"
 
 
+def test_an_old_toml_config_is_still_read(tmp_path: Path):
+    legacy = tmp_path / "config.toml"
+    legacy.write_text('autosave = true\nmarks = ["🔴"]\n[keys]\nsave = "ctrl+w"\n')
+
+    config = SpoiderApp(tmp_path / "map.json", config_path=tmp_path / "config.conf").config
+    assert config.autosave is True
+    assert config.marks == ("🔴",)
+    assert config.keys["save"] == "ctrl+w"
+
+
 async def test_editing_the_marks_from_settings(tmp_path: Path):
-    config_path = tmp_path / "editor.toml"
+    config_path = tmp_path / "config.conf"
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+comma")
@@ -743,7 +768,7 @@ async def test_editing_the_marks_from_settings(tmp_path: Path):
         await pilot.pause()
 
         assert app.marks == ("🔴", "🟢")
-        assert tomllib.loads(config_path.read_text())["marks"] == ["🔴", "🟢"]
+        assert load_config(config_path).marks == ("🔴", "🟢")
         assert isinstance(app.screen, SettingsScreen)  # back on the rows
         assert "🔴 🟢" in settings_text(app, 1).plain
 
@@ -752,7 +777,7 @@ async def test_editing_the_marks_from_settings(tmp_path: Path):
 
 
 async def test_ctrl_g_cycles_the_configured_marks(tmp_path: Path):
-    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=tmp_path / "e.toml")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=tmp_path / "e.conf")
     async with app.run_test() as pilot:
         app.set_marks(["🔴", "🟢"])
         node = app.mm.add_child(app.mm.root.id, "x")
@@ -815,8 +840,8 @@ def test_config_can_rebind_every_chord(tmp_path: Path):
 
 
 async def test_a_rebound_chord_takes_effect(tmp_path: Path):
-    config_path = tmp_path / "editor.toml"
-    config_path.write_text('[keys]\nsave = "ctrl+w"\ndelete = "ctrl+k"\n')
+    config_path = tmp_path / "config.conf"
+    config_path.write_text("save = ctrl+w\ndelete = ctrl+k\n")
 
     path = tmp_path / "map.json"
     app = SpoiderApp(path, demo=False, config_path=config_path)
@@ -840,7 +865,7 @@ async def test_a_rebound_chord_takes_effect(tmp_path: Path):
 def test_the_bar_shows_the_chords_in_force(tmp_path: Path):
     from spoider.chrome import hint_chunks
 
-    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=tmp_path / "e.toml")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=tmp_path / "e.conf")
     app.config.keys["save"] = "ctrl+w"
     bar = compose_footer(160, hint_chunks(BINDINGS, frozenset(), app.keymap)).plain
     assert "^W save" in bar and "^S save" not in bar
@@ -849,14 +874,14 @@ def test_the_bar_shows_the_chords_in_force(tmp_path: Path):
 async def test_settings_opens_the_config_in_an_editor(tmp_path: Path, monkeypatch):
     import contextlib
 
-    config_path = tmp_path / "editor.toml"
+    config_path = tmp_path / "config.conf"
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
 
     opened = []
 
     def fake_editor(path):
         opened.append(path)
-        path.write_text('autosave = true\n[keys]\nsave = "ctrl+w"\n')
+        path.write_text("autosave = true\nsave = ctrl+w\n")
 
     monkeypatch.setattr("spoider.app.edit_in_editor", fake_editor)
     monkeypatch.setattr(SpoiderApp, "suspend", lambda self: contextlib.nullcontext())
@@ -882,17 +907,17 @@ async def test_settings_opens_the_config_in_an_editor(tmp_path: Path, monkeypatc
 def test_the_saved_config_mentions_every_rebindable_chord(tmp_path: Path):
     from spoider.app import default_keymap
 
-    config_path = tmp_path / "editor.toml"
+    config_path = tmp_path / "config.conf"
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
     app._save_config()
     text = config_path.read_text()
     for ident, chord in default_keymap().items():
-        assert f'# {ident} = "{chord}"' in text, ident
+        assert f"# {ident} = {chord}" in text, ident
 
 
 async def test_autosave_writes_after_every_edit(tmp_path: Path):
     path = tmp_path / "map.json"
-    app = SpoiderApp(path, demo=False, config_path=tmp_path / "editor.toml")
+    app = SpoiderApp(path, demo=False, config_path=tmp_path / "config.conf")
     async with app.run_test() as pilot:
         app.set_autosave(True)
         await pilot.pause()
@@ -915,7 +940,7 @@ async def test_autosave_writes_after_every_edit(tmp_path: Path):
 
 async def test_autosave_quits_without_asking(tmp_path: Path):
     path = tmp_path / "map.json"
-    app = SpoiderApp(path, demo=False, config_path=tmp_path / "editor.toml")
+    app = SpoiderApp(path, demo=False, config_path=tmp_path / "config.conf")
     async with app.run_test() as pilot:
         app.set_autosave(True)
         await pilot.pause()

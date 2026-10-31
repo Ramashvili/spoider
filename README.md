@@ -128,48 +128,51 @@ the node you are halfway through naming.
 | --- | --- |
 | `autosave` | write after every cell edit, rearrangement or spacing change, and on exit — so `^X` never stops to ask. While it is on, `^S` leaves the shortcut bar (the chord still works) |
 | `marks` | the emoji `^G` cycles through, space separated and in order, up to eight. Cells that already carry a mark keep it, even if that emoji later leaves the set |
-| `config` | hand the terminal to `$EDITOR` (then `$VISUAL`, then `nano`) on the settings file, and reload it when you close it |
+| `config` | hand the terminal to `$EDITOR` (then `$VISUAL`, then `nano`) on `config.conf`, and reload it when you close it |
 
 Autosave and the mark set are *editor* preferences, not document state: they live
-in `~/.config/spoider/config.toml` and do not travel with the map. Spacing is the
+in `~/.config/spoider/config.conf` and do not travel with the map. Spacing is the
 opposite — it does travel, so a map looks the same wherever you open it.
 
 ## Settings file
 
-The file is TOML, and every rebindable chord is listed and **commented out**, so
-the defaults apply until you uncomment one:
+`~/.config/spoider/config.conf` is a flat rc file — one setting per line, `#`
+starts a comment, no sections, no quotes, no brackets. Every rebindable chord is
+listed and **commented out**, so the defaults apply until you uncomment one:
 
-```toml
+```
+# spoider — editor settings
+#
+# One setting per line. Text after # is a comment, so a line that starts
+# with # is doing nothing.
+
 autosave = false
-marks = ["✅", "❌", "❓", "❗", "🕐"]
+marks = ✅ ❌ ❓ ❗ 🕐
 
-[keys]
+# Chords. Uncomment a line to change it, e.g.  save = ctrl+w
+
 # add a child and type its name
-# add_child = "tab"
-# add a child and type its name (alias)
-# add_child_alt = "ctrl+a"
+# add_child = tab
+
 # rename the selected cell in place
-# edit = "ctrl+e"
-# the emoji ^G cycles
-# mark = "ctrl+g"
+# edit = ctrl+e
 ```
 
 Rebinding is then one edit away:
 
-```toml
-[keys]
-save = "ctrl+w"
-mark = "ctrl+m"
+```
+save = ctrl+w
+mark = ctrl+m
 ```
 
-A value is any key string Textual understands (`ctrl+w`, `alt+up`, `f2`), and a
-binding can take several, comma separated. Unknown names and blank values are
-ignored, so a typo costs you one chord rather than the keymap. The shortcut bar
-and the help screen both read the chords in force, so they never advertise a key
-you no longer have.
+A chord is any key string Textual understands (`ctrl+w`, `alt+up`, `f2`), and one
+line can take several, comma separated (`tab,ctrl+a`). Unknown names and blank
+values are ignored, so a typo costs you one chord rather than the keymap. The
+shortcut bar and the help screen both read the chords in force, so they never
+advertise a key you no longer have.
 
-A `config.json` written before the move to TOML is read once, so nothing is lost;
-the next save writes the new file next to it.
+A `config.json` or `config.toml` from an older build is read once, so nothing is
+lost; the next save writes `config.conf` beside it.
 
 ## Colours
 
