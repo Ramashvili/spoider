@@ -23,12 +23,16 @@ def _head(text: str, limit: int) -> str:
     return text[: max(1, limit - 1)] + "…"
 
 
-def compose_top_bar(width: int, version: str, where: str, cells: int) -> Text:
+def compose_top_bar(
+    width: int, version: str, where: str, cells: int, dirty: bool = False
+) -> Text:
     """One line: name+version left, location centred, cell count right.
 
     Degrades in stages as the terminal narrows: centre out first, then the
     location is truncated from the left (a path's tail is the useful half), then
-    the name itself."""
+    the name itself. The unsaved marker rides on the location, because a window
+    title is not something everyone can see — tiling window managers have no title
+    bar at all."""
     name = f"spoider {version}"
     stat = f"{cells} cell" if cells == 1 else f"{cells} cells"
     if width <= 0:
@@ -37,6 +41,7 @@ def compose_top_bar(width: int, version: str, where: str, cells: int) -> Text:
     if width < stat_width + 2:
         return Text(_head(stat, width), style="bold reverse")
 
+    where = f"{where} *" if dirty else where
     left_room = width - stat_width - 1
     name = _head(name, left_room)
 
@@ -70,7 +75,7 @@ class TopBar(Widget):
         if height <= 0:
             return Text("")
         where = str(app.path) if app.path.exists() else "New Buffer"
-        return compose_top_bar(height, __version__, where, app.mm.count())
+        return compose_top_bar(height, __version__, where, app.mm.count(), app.dirty)
 
 
 class MindMapView(Widget, can_focus=True):

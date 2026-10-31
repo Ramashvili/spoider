@@ -81,6 +81,42 @@ def test_top_bar_layout():
     assert "/tmp" not in narrow
 
 
+def test_top_bar_marks_an_unsaved_buffer():
+    assert compose_top_bar(90, "0.1.0", "/tmp/map.json", 7).plain.count("*") == 0
+    dirty = compose_top_bar(90, "0.1.0", "/tmp/map.json", 7, True).plain
+    assert "map.json *" in dirty
+    assert compose_top_bar(90, "0.1.0", "New Buffer", 1, True).plain.find("New Buffer *") > 0
+
+
+async def test_top_bar_star_appears_and_clears_with_the_edit(tmp_path: Path):
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test() as pilot:
+        bar = app.query_one(TopBar)
+        assert "*" not in bar.render().plain
+
+        await pilot.press("tab")
+        await pilot.press("a", "enter")
+        await pilot.pause()
+        assert "*" in bar.render().plain  # visible without a title bar
+
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        assert "*" not in bar.render().plain
+
+
+async def test_top_bar_never_shows_the_star_under_autosave(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=tmp_path / "e.json")
+    async with app.run_test() as pilot:
+        app.set_autosave(True)
+        await pilot.pause()
+        await pilot.press("tab")
+        await pilot.press("a", "enter")
+        await pilot.pause()
+
+        assert "*" not in app.query_one(TopBar).render().plain
+
+
 def test_top_bar_truncates_a_long_path_from_the_left():
     bar = compose_top_bar(40, "0.1.0", "/very/long/path/to/some/deep/map.json", 4).plain
     assert bar.endswith("4 cells")

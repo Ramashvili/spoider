@@ -237,6 +237,7 @@ class SpoiderApp(App[None]):
             return
         self.dirty = False
         self._set_terminal_title()
+        self._refresh_chrome()
 
     def _mark_dirty(self) -> None:
         self.dirty = True

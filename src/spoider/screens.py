@@ -77,7 +77,7 @@ HELP: tuple[tuple[str, tuple[tuple[tuple[str, ...], str, str], ...]], ...] = (
 
 NOTES = (
     ("Typing", "⏎ keeps the name, esc/^C discards it"),
-    ("Dirty", "a * in the terminal title means unsaved work"),
+    ("Dirty", "a * beside the file name means unsaved work"),
     ("Saving", "nothing is written until ^S or ^O"),
     ("Spacing", "saved in the file, so maps look alike everywhere"),
     ("Mouse", "click selects, double-click renames"),
