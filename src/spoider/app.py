@@ -14,7 +14,7 @@ from textual.binding import Binding
 from . import nav
 from .layout import MAX_SPACING, MIN_SPACING
 from .chrome import FooterBar
-from .config import MAX_MARKS, Config, default_config_path, load_config, save_config
+from .config import MAX_MARKS, Config, default_config_path, load_config, write_config
 from .model import MARKS, MindMap, Node
 from .screens import Confirm, HelpScreen, SettingsScreen, TextPrompt
 from .widgets import MindMapView, TopBar
@@ -63,9 +63,9 @@ BINDINGS: list[Binding] = [
     # tab/enter are the primary keys here; the ctrl chords stay as aliases.
     # tab needs priority to beat Textual's focus-next binding.
     Binding("tab", "add_child", "child", priority=True, id="add_child"),
-    Binding("ctrl+a", "add_child", "child", show=False, id="add_child.alt"),
+    Binding("ctrl+a", "add_child", "child", show=False, id="add_child_alt"),
     Binding("enter", "add_sibling", "sib", id="add_sibling"),
-    Binding("ctrl+j", "add_sibling", "sib", show=False, id="add_sibling.alt"),
+    Binding("ctrl+j", "add_sibling", "sib", show=False, id="add_sibling_alt"),
     Binding("ctrl+e", "edit", "edit", id="edit"),
     Binding("ctrl+d", "delete", "del", id="delete"),
     Binding("ctrl+t", "toggle", "fold", id="toggle"),
@@ -82,10 +82,10 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+f,right", "go_right", "right", show=False, id="right"),
     # vim cursor keys. Hidden from the bar because the ctrl chords already own
     # those labels; nothing else on any screen binds a bare h/j/k/l.
-    Binding("k", "prev", "prev", show=False, id="prev.vim"),
-    Binding("j", "next", "next", show=False, id="next.vim"),
-    Binding("h", "go_left", "left", show=False, id="left.vim"),
-    Binding("l", "go_right", "right", show=False, id="right.vim"),
+    Binding("k", "prev", "prev", show=False, id="prev_vim"),
+    Binding("j", "next", "next", show=False, id="next_vim"),
+    Binding("h", "go_left", "left", show=False, id="left_vim"),
+    Binding("l", "go_right", "right", show=False, id="right_vim"),
     Binding("alt+up", "move_up", "reorder up", show=False, id="move_up"),
     Binding("alt+down", "move_down", "reorder down", show=False, id="move_down"),
     # The key NAMES for the spacing chords are the ones Textual's parser actually
@@ -159,8 +159,6 @@ class SpoiderApp(App[None]):
         super().__init__()
         self.config_path = Path(config_path) if config_path is not None else default_config_path()
         self.config: Config = load_config(self.config_path)
-        # always keep the whole map, so the file lists every rebindable chord
-        self.config.keys = build_keymap(self.config.keys)
         self.theme = "textual-ansi"
         self.path = Path(path) if path is not None else default_path()
         if self.path.exists():
@@ -240,8 +238,24 @@ class SpoiderApp(App[None]):
 
     @property
     def keymap(self) -> dict[str, str]:
-        """binding id -> chord(s) in force, config included."""
-        return self.config.keys
+        """binding id -> chord(s) in force: the defaults with the config on top."""
+        return build_keymap(self.config.keys)
+
+    def _key_entries(self) -> list[tuple[str, str, str]]:
+        """(id, default chord, what it does) for every rebindable binding."""
+        from .screens import describe_action
+
+        entries: list[tuple[str, str, str]] = []
+        seen: set[str] = set()
+        for binding in BINDINGS:
+            if not binding.id:
+                continue
+            description = describe_action(binding.action, binding.description)
+            if binding.action in seen:
+                description = f"{description} (alias)"
+            seen.add(binding.action)
+            entries.append((binding.id, binding.key, description))
+        return entries
 
     def open_config(self) -> None:
         """Hand the terminal to the editor on the config file, then reload it."""
@@ -254,9 +268,7 @@ class SpoiderApp(App[None]):
             self.notify(f"Could not start an editor: {exc}", severity="error", timeout=4)
             return
 
-        reloaded = load_config(self.config_path)
-        reloaded.keys = build_keymap(reloaded.keys)
-        self.config = reloaded
+        self.config = load_config(self.config_path)
         self.set_keymap(self.config.keys)  # new chords take effect straight away
         self._refresh_chrome()
         self.notify("Config reloaded", timeout=2)
@@ -276,7 +288,7 @@ class SpoiderApp(App[None]):
 
     def _save_config(self) -> None:
         try:
-            save_config(self.config, self.config_path)
+            write_config(self.config, self.config_path, self._key_entries())
         except OSError as exc:
             self.notify(f"Could not write config: {exc}", severity="error", timeout=4)
 

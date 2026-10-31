@@ -120,48 +120,56 @@ the caret is a block, and the bar swaps to `⏎ done · esc/^C cancel · ←→ 
 never existed. While typing, every other chord is swallowed, so `^D` cannot delete
 the node you are halfway through naming.
 
-## Autosave
+## Settings
 
-`^,` opens the editor settings. With autosave on, spoider
-writes the map after every cell edit, rearrangement or spacing change, and again
-on exit — so `^X` never stops to ask. While it is on, the manual `^S` leaves the
-shortcut bar (the chord still works); turn it off and the bar gets it back.
+`^,` opens the editor settings:
 
-Autosave is an *editor* preference, not document state: it lives in
-`~/.config/spoider/config.json` and does not travel with the map. Spacing is the
+| Row | What it does |
+| --- | --- |
+| `autosave` | write after every cell edit, rearrangement or spacing change, and on exit — so `^X` never stops to ask. While it is on, `^S` leaves the shortcut bar (the chord still works) |
+| `marks` | the emoji `^G` cycles through, space separated and in order, up to eight. Cells that already carry a mark keep it, even if that emoji later leaves the set |
+| `config` | hand the terminal to `$EDITOR` (then `$VISUAL`, then `nano`) on the settings file, and reload it when you close it |
+
+Autosave and the mark set are *editor* preferences, not document state: they live
+in `~/.config/spoider/config.toml` and do not travel with the map. Spacing is the
 opposite — it does travel, so a map looks the same wherever you open it.
 
-The same screen holds the mark set: `⏎` on the `marks` row opens a prompt with the
-current emoji, space separated and in the order `^G` cycles through them (up to
-eight). Marks already on cells are untouched — a cell keeps whatever it was given,
-even if that emoji has since left the set.
+## Settings file
 
-The third row, `config`, hands the terminal to `$EDITOR` on
-`~/.config/spoider/config.json` (falling back to `$VISUAL`, then `nano`) and
-reloads it when you close the editor, so new chords take effect immediately.
+The file is TOML, and every rebindable chord is listed and **commented out**, so
+the defaults apply until you uncomment one:
 
-## Rebinding
+```toml
+autosave = false
+marks = ["✅", "❌", "❓", "❗", "🕐"]
 
-Every chord is editable — the config file lists all of them on first save:
+[keys]
+# add a child and type its name
+# add_child = "tab"
+# add a child and type its name (alias)
+# add_child_alt = "ctrl+a"
+# rename the selected cell in place
+# edit = "ctrl+e"
+# the emoji ^G cycles
+# mark = "ctrl+g"
+```
 
-```json
-{
-  "autosave": false,
-  "marks": ["✅", "❌", "❓", "❗", "🕐"],
-  "keys": {
-    "add_child": "tab",
-    "add_child.alt": "ctrl+a",
-    "save": "ctrl+w",
-    "mark": "ctrl+m"
-  }
-}
+Rebinding is then one edit away:
+
+```toml
+[keys]
+save = "ctrl+w"
+mark = "ctrl+m"
 ```
 
 A value is any key string Textual understands (`ctrl+w`, `alt+up`, `f2`), and a
-binding can carry several, comma separated. Unknown names and blank values are
+binding can take several, comma separated. Unknown names and blank values are
 ignored, so a typo costs you one chord rather than the keymap. The shortcut bar
-and the help screen both read the chords in force, so they never show a key you
-no longer have.
+and the help screen both read the chords in force, so they never advertise a key
+you no longer have.
+
+A `config.json` written before the move to TOML is read once, so nothing is lost;
+the next save writes the new file next to it.
 
 ## Colours
 

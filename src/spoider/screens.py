@@ -90,6 +90,15 @@ def _pad(text: str, width: int) -> str:
     return text + " " * max(1, width - cell_len(text))
 
 
+def describe_action(action: str, fallback: str = "") -> str:
+    """The one-line explanation for an action, as used by the help screen."""
+    for _, rows in HELP:
+        for actions, explanation in rows:
+            if action in actions:
+                return explanation
+    return fallback or action
+
+
 def keys_for(app: "SpoiderApp", actions: tuple[str, ...]) -> str:
     """Every chord bound to these actions, in binding order, as caps."""
     caps: list[str] = []
