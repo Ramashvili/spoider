@@ -595,6 +595,24 @@ async def test_toggling_autosave_persists_to_the_editor_config(tmp_path: Path):
     assert reopened.autosave is True  # and it survives the editor restarting
 
 
+async def test_toggling_autosave_repaints_the_footer_immediately(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        footer = app.query_one("#footer")
+        repaints = []
+        original = footer.refresh
+
+        def spy(*args, **kwargs):
+            repaints.append(1)
+            return original(*args, **kwargs)
+
+        footer.refresh = spy  # type: ignore[method-assign]
+        app.set_autosave(True)
+        await pilot.pause()
+        assert repaints, "changing autosave must repaint the bar, not wait for a nudge"
+        assert "^S save" not in footer.render().plain
+
+
 async def test_autosave_writes_after_every_edit(tmp_path: Path):
     path = tmp_path / "map.json"
     app = SpoiderApp(path, demo=False, config_path=tmp_path / "editor.json")

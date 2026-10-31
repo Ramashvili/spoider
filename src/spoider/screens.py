@@ -118,7 +118,6 @@ def settings_text(app: "SpoiderApp") -> Text:
     text.append("\n  " + _pad("autosave", 12), style="bold")
     text.append(_pad("on" if app.autosave else "off", 6))
     text.append("after every edit, and on exit", style="dim")
-    text.append("\n\n  ⏎ / space toggles    esc closes", style="dim")
     return text
 
 

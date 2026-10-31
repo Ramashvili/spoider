@@ -221,7 +221,12 @@ class SpoiderApp(App[None]):
         self._redo.clear()
 
     def _refresh_chrome(self) -> None:
+        """Both chrome rows read app state directly, so either can change under
+        them: the top bar counts cells, the footer hides ^S under autosave."""
+        if not self.is_mounted:
+            return
         self.query_one(TopBar).refresh()
+        self.query_one(FooterBar).refresh()
 
     def _autosave(self) -> None:
         """Write silently to the current path; autosave never nags."""
