@@ -18,6 +18,32 @@ GAP_Y = 1
 PAD = 1
 BOX_H = 3
 
+# How far the spacing controls may push the gaps. The floor is the point where
+# gaps_for() stops shrinking (2 columns between boxes, 0 rows between subtrees),
+# so the clamp here and the floor there have to agree.
+MIN_SPACING = -3
+MAX_SPACING = 12
+
+
+@dataclass(frozen=True)
+class Gaps:
+    """Blank columns between a box and its children, and rows between subtrees."""
+
+    x: int = GAP_X
+    y: int = GAP_Y
+
+
+def gaps_for(spacing: int) -> Gaps:
+    """Spacing 0 is the default look; each step adds a column and a row.
+
+    Clamped here as well as in the app, so the layout itself can never be asked
+    for a setting that collapses or explodes."""
+    spacing = max(MIN_SPACING, min(MAX_SPACING, spacing))
+    return Gaps(
+        x=max(2, GAP_X + spacing),
+        y=max(0, GAP_Y + spacing),
+    )
+
 
 def label(node: Node) -> str:
     if node.preview is not None:
@@ -32,11 +58,11 @@ def box_width(node: Node) -> int:
     return cell_len(label(node)) + 2 * PAD + 2
 
 
-def subtree_height(node: Node) -> int:
+def subtree_height(node: Node, gap_y: int = GAP_Y) -> int:
     if node.collapsed or not node.children:
         return BOX_H
-    total = sum(subtree_height(child) for child in node.children)
-    total += GAP_Y * (len(node.children) - 1)
+    total = sum(subtree_height(child, gap_y) for child in node.children)
+    total += gap_y * (len(node.children) - 1)
     return max(BOX_H, total)
 
 
@@ -83,15 +109,19 @@ class Layout:
         return None
 
 
-def compute(root: Node) -> Layout:
+def compute(root: Node, spacing: int = 0) -> Layout:
+    return compute_with(root, gaps_for(spacing))
+
+
+def compute_with(root: Node, gaps: Gaps) -> Layout:
     boxes: dict[str, Placed] = {}
     root_width = box_width(root)
     root_box = Placed(root, -root_width // 2, -(BOX_H // 2), root_width, BOX_H, 0, 1)
     boxes[root.id] = root_box
 
     if root.children and not root.collapsed:
-        _place_children(boxes, root_box, root.children[0::2], 1)
-        _place_children(boxes, root_box, root.children[1::2], -1)
+        _place_children(boxes, root_box, root.children[0::2], 1, gaps)
+        _place_children(boxes, root_box, root.children[1::2], -1, gaps)
 
     min_x = min(box.x for box in boxes.values())
     min_y = min(box.y for box in boxes.values())
@@ -106,25 +136,35 @@ def compute(root: Node) -> Layout:
 
 
 def _place_children(
-    boxes: dict[str, Placed], parent: Placed, children: list[Node], side: int
+    boxes: dict[str, Placed],
+    parent: Placed,
+    children: list[Node],
+    side: int,
+    gaps: Gaps,
 ) -> None:
     if not children:
         return
-    near_x = parent.x + parent.w + GAP_X if side > 0 else parent.x - GAP_X
-    heights = [subtree_height(child) for child in children]
-    total = sum(heights) + GAP_Y * (len(heights) - 1)
+    near_x = parent.x + parent.w + gaps.x if side > 0 else parent.x - gaps.x
+    heights = [subtree_height(child, gaps.y) for child in children]
+    total = sum(heights) + gaps.y * (len(heights) - 1)
     top = parent.cy - total // 2
     for child, height in zip(children, heights):
-        _place_subtree(boxes, child, near_x, top + height // 2, side, parent.depth + 1)
-        top += height + GAP_Y
+        _place_subtree(boxes, child, near_x, top + height // 2, side, parent.depth + 1, gaps)
+        top += height + gaps.y
 
 
 def _place_subtree(
-    boxes: dict[str, Placed], node: Node, x: int, cy: int, side: int, depth: int
+    boxes: dict[str, Placed],
+    node: Node,
+    x: int,
+    cy: int,
+    side: int,
+    depth: int,
+    gaps: Gaps,
 ) -> None:
     width = box_width(node)
     left = x if side > 0 else x - width
     box = Placed(node, left, cy - BOX_H // 2, width, BOX_H, depth, side)
     boxes[node.id] = box
     if node.children and not node.collapsed:
-        _place_children(boxes, box, node.children, side)
+        _place_children(boxes, box, node.children, side, gaps)

@@ -1,4 +1,4 @@
-from spoider.layout import BOX_H, box_width, compute, subtree_height
+from spoider.layout import BOX_H, MAX_SPACING, MIN_SPACING, box_width, compute, subtree_height
 from spoider.model import MindMap
 from spoider.render import build_grid
 
@@ -82,6 +82,31 @@ def test_grid_draws_boxes_and_links():
     chars = {char for char, _ in grid.cells.values()}
     assert {"╭", "╯", "─", "│"} <= chars
     assert grid.width == layout.width and grid.height == layout.height
+
+
+def test_spacing_widens_then_tightens_the_grid():
+    mm = sample()
+    tight = compute(mm.root, -2)
+    base = compute(mm.root, 0)
+    loose = compute(mm.root, 6)
+
+    assert tight.width < base.width < loose.width
+    assert tight.height < base.height < loose.height
+
+
+def test_spacing_is_clamped_at_both_ends():
+    mm = sample()
+    assert compute(mm.root, -99).width == compute(mm.root, MIN_SPACING).width
+    assert compute(mm.root, 99).width == compute(mm.root, MAX_SPACING).width
+
+
+def test_tightest_spacing_still_never_overlaps_boxes():
+    layout = compute(sample().root, MIN_SPACING)
+    boxes = list(layout.boxes.values())
+    for index, a in enumerate(boxes):
+        for b in boxes[index + 1 :]:
+            disjoint = a.right < b.x or b.right < a.x or a.bottom < b.y or b.bottom < a.y
+            assert disjoint, f"{a.node.text} overlaps {b.node.text} at MIN_SPACING"
 
 
 def test_styles_are_ansi_named_never_truecolour():

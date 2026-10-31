@@ -12,6 +12,7 @@ from textual.binding import Binding
 from textual.widgets import Static
 
 from . import nav
+from .layout import MAX_SPACING, MIN_SPACING
 from .model import MindMap, Node
 from .screens import Confirm, TextPrompt
 from .widgets import MindMapView, TopBar
@@ -81,6 +82,22 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+x", "quit", "quit"),
     Binding("ctrl+z", "undo", "undo"),
     Binding("ctrl+y", "redo", "redo", show=False),
+    # Terminals disagree about these two: ^- almost always arrives as ^_ (the
+    # 0x1f control character), while ^+ only exists under the kitty keyboard
+    # protocol — a plain terminal sends nothing for ctrl+shift+equals. So each
+    # direction is bound in every spelling it can arrive as, ctrl and alt.
+    Binding(
+        "ctrl+plus,ctrl+equal,ctrl+shift+equals,alt+plus,alt+equal",
+        "spacing_more",
+        "looser",
+        show=False,
+    ),
+    Binding(
+        "ctrl+minus,ctrl+underscore,alt+minus,alt+underscore",
+        "spacing_less",
+        "tighter",
+        show=False,
+    ),
 ]
 
 BINDING_LEGEND = {"ctrl+": "^", "alt+": "⌥"}
@@ -133,6 +150,7 @@ class SpoiderApp(App[None]):
         else:
             self.mm = MindMap.demo() if demo else MindMap()
         self.selected: str = self.mm.root.id
+        self.spacing = 0
         self.dirty = False
         self._undo: list[dict] = []
         self._redo: list[dict] = []
@@ -437,6 +455,22 @@ class SpoiderApp(App[None]):
 
     def action_move_down(self) -> None:
         self._reorder(+1)
+
+    def action_spacing_more(self) -> None:
+        """^+ — breathe: one more column between boxes and one more row between
+        subtrees."""
+        self._set_spacing(self.spacing + 1)
+
+    def action_spacing_less(self) -> None:
+        """^- — tighten. Stops before boxes would touch or overlap."""
+        self._set_spacing(self.spacing - 1)
+
+    def _set_spacing(self, value: int) -> None:
+        value = max(MIN_SPACING, min(MAX_SPACING, value))
+        if value == self.spacing:
+            return
+        self.spacing = value
+        self.view.refresh_map()
 
     def _reorder(self, delta: int) -> None:
         self._push_undo()

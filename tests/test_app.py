@@ -340,6 +340,41 @@ async def test_write_out_asks_for_a_name(tmp_path: Path):
     assert [child.text for child in reopened.mm.root.children] == ["kept"]
 
 
+async def test_spacing_keys_resize_the_canvas(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        branch = app.mm.add_child(app.mm.root.id, "branch")
+        app.mm.add_child(branch.id, "leaf")
+        app.view.refresh_map()
+        base = app.view.layout_.width
+
+        await pilot.press("ctrl+plus")
+        assert app.spacing == 1
+        assert app.view.layout_.width > base
+
+        await pilot.press("ctrl+minus")
+        assert app.spacing == 0
+        assert app.view.layout_.width == base
+
+        await pilot.press("ctrl+underscore")  # the other spelling of ^-
+        assert app.spacing == -1
+        assert app.view.layout_.width < base
+
+
+async def test_spacing_stops_at_the_limits(tmp_path: Path):
+    from spoider.layout import MAX_SPACING, MIN_SPACING
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test():
+        app._set_spacing(MAX_SPACING)
+        app.action_spacing_more()
+        assert app.spacing == MAX_SPACING
+
+        app._set_spacing(MIN_SPACING)
+        app.action_spacing_less()
+        assert app.spacing == MIN_SPACING
+
+
 async def test_navigation_moves_through_the_tree(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:

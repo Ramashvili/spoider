@@ -91,7 +91,7 @@ class MindMapView(Widget, can_focus=True):
     @property
     def layout_(self) -> Layout:
         if self._layout is None:
-            self._layout = compute(self.spoider.mm.root)
+            self._layout = compute(self.spoider.mm.root, self.spoider.spacing)
         return self._layout
 
     def camera(self, width: int, height: int) -> tuple[int, int]:

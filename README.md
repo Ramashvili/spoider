@@ -59,6 +59,8 @@ keys work too, since they are the cursor keys of the terminal itself.
 | `^S` | save straight to the current file, no questions | the universal save |
 | `^O` | write out — asks which file to write, pre-filled with the current one | nano: write out (save as) |
 | `^X` | quit; if the buffer is modified it asks `y save / n discard / esc cancel` | nano: exit |
+| `^+` | widen the gaps between cells — one column and one row per press | |
+| `^-` | tighten them again, down to boxes that almost touch | |
 
 Horizontal movement is **spatial, not genealogical**: a branch on the right of the
 root has its children further right, and a branch on the left has its children
@@ -68,6 +70,14 @@ on that side.
 
 Reordering a node among its siblings is on `alt+↑` / `alt+↓` — rare enough to stay
 off the shortcut bar.
+
+Spacing (`^+` / `^-`) is a view setting, not part of the document: it is not
+written to the file and resets to the default when you reopen. `^-` always
+arrives as the `^_` control character, but `^+` needs a terminal that speaks the
+kitty keyboard protocol (ghostty, kitty, wezterm) — under a plain terminal
+`ctrl+shift+=` sends nothing at all, so `alt+=` and `alt+-` are bound as
+fallbacks. Both keys also stay off the bar; it is already the width of a
+narrow-ish terminal.
 
 Mouse: click a node to select it, double-click to rename it in place, scroll to
 walk siblings.
