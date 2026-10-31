@@ -71,10 +71,10 @@ BINDINGS: list[Binding] = [
     # nano's cursor keys, kept spatial: ^P/^N walk the branch, ^B/^F move away
     # from the root or towards it — whichever way that happens to be drawn.
     # Arrows and, further down, hjkl are aliases for the same four actions.
-    Binding("ctrl+p,up", "prev", "prev"),
-    Binding("ctrl+n,down", "next", "next"),
-    Binding("ctrl+b,left", "go_left", "left"),
-    Binding("ctrl+f,right", "go_right", "right"),
+    Binding("ctrl+p,up", "prev", "prev", show=False),
+    Binding("ctrl+n,down", "next", "next", show=False),
+    Binding("ctrl+b,left", "go_left", "left", show=False),
+    Binding("ctrl+f,right", "go_right", "right", show=False),
     # vim cursor keys. Hidden from the bar because the ctrl chords already own
     # those labels; nothing else on any screen binds a bare h/j/k/l.
     Binding("k", "prev", "prev", show=False),
@@ -83,6 +83,23 @@ BINDINGS: list[Binding] = [
     Binding("l", "go_right", "right", show=False),
     Binding("alt+up", "move_up", "reorder up", show=False),
     Binding("alt+down", "move_down", "reorder down", show=False),
+    # The key NAMES for the spacing chords are the ones Textual's parser actually
+    # produces, which is not what you would guess: ^+ arrives as
+    # ctrl+shift+equals_sign under the kitty keyboard protocol (which Textual
+    # enables), while a plain terminal sends ^- as the ^_ control character.
+    # Every spelling is bound, plus alt fallbacks for terminals that swallow the
+    # ctrl form.
+    Binding(
+        "ctrl+shift+equals_sign,ctrl+equals_sign,ctrl+plus,ctrl+shift+plus,"
+        "alt+equals_sign,alt+plus",
+        "spacing_more",
+        "looser",
+    ),
+    Binding(
+        "ctrl+minus,ctrl+shift+minus,ctrl+underscore,alt+minus,alt+underscore",
+        "spacing_less",
+        "tighter",
+    ),
     # file first, history last: on a narrow terminal the bar clips its tail,
     # and ^X matters more than ^Z
     Binding("ctrl+s", "save", "save"),
@@ -90,28 +107,19 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+x", "quit", "quit"),
     Binding("ctrl+z", "undo", "undo"),
     Binding("ctrl+y", "redo", "redo", show=False),
-    # The key NAMES here are the ones Textual's parser actually produces, which
-    # is not what you would guess: ^+ arrives as ctrl+shift+equals_sign under the
-    # kitty keyboard protocol (which Textual enables), while a plain terminal
-    # sends ^- as the ^_ control character. Every spelling is bound, plus alt
-    # fallbacks for terminals that swallow the ctrl form.
-    Binding(
-        "ctrl+shift+equals_sign,ctrl+equals_sign,ctrl+plus,ctrl+shift+plus,"
-        "alt+equals_sign,alt+plus",
-        "spacing_more",
-        "looser",
-        show=False,
-    ),
-    Binding(
-        "ctrl+minus,ctrl+shift+minus,ctrl+underscore,alt+minus,alt+underscore",
-        "spacing_less",
-        "tighter",
-        show=False,
-    ),
 ]
 
 BINDING_LEGEND = {"ctrl+": "^", "alt+": "⌥"}
-KEY_GLYPHS = {"tab": "⇥", "enter": "⏎", "space": "␣", "escape": "esc"}
+KEY_GLYPHS = {
+    "tab": "⇥",
+    "enter": "⏎",
+    "space": "␣",
+    "escape": "esc",
+    # The spacing chords parse into names nobody wants to read in a bar, so they
+    # are labelled as the keys people actually press.
+    "ctrl+minus": "^-",
+    "ctrl+shift+equals_sign": "^+",
+}
 
 
 def key_cap(key: str) -> str:

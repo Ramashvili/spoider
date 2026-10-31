@@ -32,9 +32,13 @@ def test_every_shortcut_uses_a_modifier():
 def test_footer_only_lists_visible_bindings():
     bar = footer_bar(SpoiderApp.BINDINGS).plain
     assert "⇥" in bar and "⏎" in bar and "^X" in bar
+    assert "^+ looser" in bar and "^- tighter" in bar
     assert "^Y" not in bar  # redo stays out of the bar
     assert "^A" not in bar and "^J" not in bar  # aliases stay off the bar
-    assert "ctrl" not in bar and "alt" not in bar
+    # basic navigation does not earn bar space
+    for nav in ("^P", "^N", "^B", "^F"):
+        assert nav not in bar, nav
+    assert "ctrl" not in bar and "alt" not in bar and "equals_sign" not in bar
 
 
 def test_top_bar_layout():

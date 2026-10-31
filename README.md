@@ -79,8 +79,11 @@ Marks are part of the document — they are written into the JSON with the node,
 a ✅ survives closing the editor and shows up in a diff as `"mark": "✅"`.
 
 Spacing (`^+` / `^-`) is a view setting, not part of the document: it is not
-written to the file and resets to the default when you reopen. Both keys stay off
-the bar; it is already the width of a narrow-ish terminal.
+written to the file and resets to the default when you reopen.
+
+The bar carries the keys you cannot guess — inserts, edits, spacing, file, undo.
+The four navigation chords are deliberately absent: arrows and `hjkl` cover
+movement without spending that space.
 
 A note on those two chords, because they are the fiddliest keys in the app: they
 are bound by the names Textual's key parser *actually produces*, not by the names
