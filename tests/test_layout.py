@@ -1,4 +1,12 @@
-from spoider.layout import BOX_H, MAX_SPACING, MIN_SPACING, box_width, compute, subtree_height
+from spoider.layout import (
+    BOX_H,
+    MAX_SPACING,
+    MIN_SPACING,
+    box_width,
+    compute,
+    label,
+    subtree_height,
+)
 from spoider.model import MindMap
 from spoider.render import build_grid
 
@@ -73,6 +81,25 @@ def test_hit_test_finds_the_root():
     root_box = layout.boxes[mm.root.id]
     assert layout.hit(root_box.cx, root_box.cy) == mm.root.id
     assert layout.hit(-50, -50) is None
+
+
+def test_mark_prefixes_the_label_and_widens_the_box():
+    mm = MindMap()
+    node = mm.add_child(mm.root.id, "task")
+    plain_width = box_width(node)
+
+    mm.cycle_mark(node.id)
+    assert label(node) == "✅ task"
+    assert box_width(node) > plain_width  # emoji + space take cells
+
+    layout = compute(mm.root)
+    grid = build_grid(layout, mm.root.id)
+    row = "".join(
+        char
+        for (x, y), (char, _) in sorted(grid.cells.items())
+        if y == layout.box(node.id).y + 1
+    )
+    assert "✅" in row and "task" in row
 
 
 def test_grid_draws_boxes_and_links():

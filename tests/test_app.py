@@ -340,6 +340,42 @@ async def test_write_out_asks_for_a_name(tmp_path: Path):
     assert [child.text for child in reopened.mm.root.children] == ["kept"]
 
 
+async def test_mark_cycles_through_the_emoji_then_off(tmp_path: Path):
+    from spoider.model import MARKS
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "thing")
+        app.select(node.id)
+        app.view.refresh_map()
+
+        seen = []
+        for _ in range(len(MARKS) + 1):
+            await pilot.press("ctrl+g")
+            await pilot.pause()
+            seen.append(app.mm.find(node.id).mark)
+        assert seen == [*MARKS, None]
+
+        assert app.dirty is True
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app.mm.find(node.id).mark == MARKS[-1]
+
+
+async def test_marks_survive_a_write(tmp_path: Path):
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "checked")
+        app.select(node.id)
+        await pilot.press("ctrl+g")
+        await pilot.pause()
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+
+    assert SpoiderApp(path).mm.find(node.id).mark == "✅"
+
+
 async def test_spacing_keys_resize_the_canvas(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:

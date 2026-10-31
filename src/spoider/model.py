@@ -9,6 +9,10 @@ from pathlib import Path
 
 DEFAULT_ROOT_TEXT = "Mind map"
 
+# Cycled by ^G; the order is the order you press it.
+MARKS = ("✅", "❌", "❓", "❗", "🕐")
+MARK_CYCLE: tuple[str | None, ...] = (None, *MARKS)
+
 
 def new_id() -> str:
     return uuid.uuid4().hex[:8]
@@ -20,6 +24,7 @@ class Node:
     id: str = field(default_factory=new_id)
     collapsed: bool = False
     children: list["Node"] = field(default_factory=list)
+    mark: str | None = None
     # Live inline-edit buffer. Rendering reads it when set; never serialised.
     preview: str | None = field(default=None, compare=False, repr=False)
 
@@ -33,6 +38,7 @@ class Node:
             "id": self.id,
             "text": self.text,
             "collapsed": self.collapsed,
+            "mark": self.mark,
             "children": [child.to_dict() for child in self.children],
         }
 
@@ -42,6 +48,7 @@ class Node:
             text=str(data.get("text", "")),
             id=str(data.get("id") or new_id()),
             collapsed=bool(data.get("collapsed", False)),
+            mark=data.get("mark") or None,
             children=[cls.from_dict(child) for child in data.get("children", [])],
         )
 
@@ -136,6 +143,18 @@ class MindMap:
         else:
             successor = parent
         return removed, successor.id
+
+    def cycle_mark(self, node_id: str) -> str | None:
+        """Advance this node's mark: none -> check -> cross -> … -> none."""
+        node = self.find(node_id)
+        if node is None:
+            return None
+        try:
+            index = MARK_CYCLE.index(node.mark)
+        except ValueError:
+            index = 0
+        node.mark = MARK_CYCLE[(index + 1) % len(MARK_CYCLE)]
+        return node.mark
 
     def move_sibling(self, node_id: str, delta: int) -> bool:
         parent = self.parent(node_id)

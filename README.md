@@ -50,6 +50,7 @@ keys work too, since they are the cursor keys of the terminal itself.
 | `^C` | escape everywhere: closes a dialog, abandons the node being typed, otherwise inert | |
 | `^D` | delete the branch | nano's delete |
 | `^T` | fold / unfold the branch | **t**oggle |
+| `^G` | cycle the cell's mark: `✅ ❌ ❓ ❗ 🕐` and then off again | **g**lyph |
 | `^P` / `↑` | previous sibling | nano: previous line |
 | `^N` / `↓` | next sibling | nano: next line |
 | `^B` / `←` | left — from the root, its left-hand branch; on a right-hand branch, out to the parent; on a left-hand one, into the first child | nano: back a character |
@@ -70,6 +71,9 @@ on that side.
 
 Reordering a node among its siblings is on `alt+↑` / `alt+↓` — rare enough to stay
 off the shortcut bar.
+
+Marks are part of the document — they are written into the JSON with the node, so
+a ✅ survives closing the editor and shows up in a diff as `"mark": "✅"`.
 
 Spacing (`^+` / `^-`) is a view setting, not part of the document: it is not
 written to the file and resets to the default when you reopen. `^-` always

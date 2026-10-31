@@ -73,6 +73,17 @@ def test_save_and_load(tmp_path: Path):
     assert loaded.root.children[0].text == "saved node"
 
 
+def test_marks_roundtrip_through_json():
+    mm = MindMap()
+    node = mm.add_child(mm.root.id, "marked")
+    mm.cycle_mark(node.id)
+
+    clone = MindMap.from_dict(mm.to_dict())
+    assert clone.find(node.id).mark == "✅"
+
+    assert MindMap().root.mark is None
+
+
 def test_navigation_helpers_use_visible_order():
     mm = MindMap()
     branch = mm.add_child(mm.root.id, "branch")

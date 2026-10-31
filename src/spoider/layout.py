@@ -47,10 +47,13 @@ def gaps_for(spacing: int) -> Gaps:
 
 def label(node: Node) -> str:
     if node.preview is not None:
-        return node.preview
-    text = (node.text or "").strip() or "(untitled)"
-    if node.children and node.collapsed:
-        text = f"{text} +{len(node.children)}"
+        text = node.preview
+    else:
+        text = (node.text or "").strip() or "(untitled)"
+        if node.children and node.collapsed:
+            text = f"{text} +{len(node.children)}"
+    if node.mark:
+        text = f"{node.mark} {text}"
     return text
 
 

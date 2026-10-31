@@ -67,6 +67,7 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+e", "edit", "edit"),
     Binding("ctrl+d", "delete", "del"),
     Binding("ctrl+t", "toggle", "fold"),
+    Binding("ctrl+g", "mark", "mark"),
     # nano's cursor keys, kept spatial: ^P/^N walk the branch, ^B/^F move away
     # from the root or towards it — whichever way that happens to be drawn
     Binding("ctrl+p,up", "prev", "prev"),
@@ -385,6 +386,14 @@ class SpoiderApp(App[None]):
             return
         _, successor = result
         self.selected = successor
+        self._mark_dirty()
+
+    def action_mark(self) -> None:
+        """^G — cycle the cell's mark: none, ✅, ❌, ❓, ❗, 🕐, none."""
+        if self.node is None:
+            return
+        self._push_undo()
+        self.mm.cycle_mark(self.selected)
         self._mark_dirty()
 
     def action_toggle(self) -> None:
