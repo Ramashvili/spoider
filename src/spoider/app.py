@@ -6,15 +6,14 @@ import argparse
 import os
 from pathlib import Path
 
-from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Static
 
 from . import nav
 from .layout import MAX_SPACING, MIN_SPACING
+from .chrome import FooterBar
 from .model import MindMap, Node
-from .screens import Confirm, TextPrompt
+from .screens import Confirm, HelpScreen, SettingsScreen, TextPrompt
 from .widgets import MindMapView, TopBar
 
 # No colours here on purpose: the app runs on Textual's ansi theme, so every
@@ -68,6 +67,9 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+d", "delete", "del"),
     Binding("ctrl+t", "toggle", "fold"),
     Binding("ctrl+g", "mark", "mark"),
+    # rendered as the pinned cluster at the right edge, not among the hints
+    Binding("ctrl+comma", "settings", "settings", show=False),
+    Binding("ctrl+slash", "help", "help", show=False),
     # nano's cursor keys, kept spatial: ^P/^N walk the branch, ^B/^F move away
     # from the root or towards it — whichever way that happens to be drawn.
     # Arrows and, further down, hjkl are aliases for the same four actions.
@@ -109,50 +111,6 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+y", "redo", "redo", show=False),
 ]
 
-BINDING_LEGEND = {"ctrl+": "^", "alt+": "⌥"}
-KEY_GLYPHS = {
-    "tab": "⇥",
-    "enter": "⏎",
-    "space": "␣",
-    "escape": "esc",
-    # The spacing chords parse into names nobody wants to read in a bar, so they
-    # are labelled as the keys people actually press.
-    "ctrl+minus": "^-",
-    "ctrl+shift+equals_sign": "^+",
-}
-
-
-def key_cap(key: str) -> str:
-    """One key as it appears in the bar: ⇥, ⏎, ^D, ⌥↑ …"""
-    key = str(key).split(",")[0]
-    if key in KEY_GLYPHS:
-        return KEY_GLYPHS[key]
-    for prefix, glyph in BINDING_LEGEND.items():
-        if key.startswith(prefix):
-            return glyph + key[len(prefix) :].upper()
-    return key.upper()
-EDIT_HINTS = [("⏎", "done"), ("esc/^C", "cancel"), ("←→", "move"), ("⌫", "erase")]
-
-
-def footer_bar(bindings: list[Binding]) -> Text:
-    """Shortcut bar, built from BINDINGS so it cannot drift out of date."""
-    bar = Text()
-    for binding in bindings:
-        if not binding.show:
-            continue
-        bar.append(f" {key_cap(binding.key)} ", style="bold reverse")
-        bar.append(f"{binding.description} ")
-    return bar
-
-
-def edit_bar() -> Text:
-    bar = Text()
-    for key, label in EDIT_HINTS:
-        bar.append(f" {key} ", style="bold reverse")
-        bar.append(f"{label} ")
-    return bar
-
-
 class SpoiderApp(App[None]):
     CSS = APP_CSS
     TITLE = "spoider"
@@ -181,7 +139,7 @@ class SpoiderApp(App[None]):
     def compose(self) -> ComposeResult:
         yield TopBar(id="topbar")
         yield MindMapView(self)
-        yield Static(footer_bar(BINDINGS), id="footer")
+        yield FooterBar(id="footer")
 
     def on_mount(self) -> None:
         self._set_terminal_title()
@@ -202,6 +160,9 @@ class SpoiderApp(App[None]):
         """Nothing from the app keymap fires while a dialog is open or a node is
         being typed into: ^D must not delete the node you are editing, and ^X
         must not stack another dialog on top."""
+        if action in ("help", "settings"):
+            # reachable while typing, but not stacked on top of another dialog
+            return len(self.screen_stack) == 1
         if len(self.screen_stack) > 1 or self.editing:
             return None
         return True
@@ -299,14 +260,16 @@ class SpoiderApp(App[None]):
         self.view.refresh_map()
 
     def _sync_footer(self) -> None:
-        self.query_one("#footer", Static).update(
-            edit_bar() if self.editing else footer_bar(BINDINGS)
-        )
+        footer = self.query_one("#footer", FooterBar)
+        footer.mode = "edit" if self.editing else "keys"
+        footer.refresh()
 
     def handle_edit_key(self, key: str, character: str | None) -> bool:
         """Every keystroke while typing into a node. Returns True if consumed."""
         if not self.editing:
             return False
+        if key in ("ctrl+slash", "ctrl+comma"):
+            return False  # help and settings stay reachable mid-typing
         if key == "enter":
             self.finish_edit(commit=True)
         elif key in ("escape", "ctrl+c"):
@@ -408,6 +371,18 @@ class SpoiderApp(App[None]):
         _, successor = result
         self.selected = successor
         self._mark_dirty()
+
+    def action_help(self) -> None:
+        """^/ — every key and option, with a line of explanation."""
+        self.push_screen(HelpScreen())
+
+    def action_settings(self) -> None:
+        """^, — the editor settings."""
+        self.push_screen(SettingsScreen())
+
+    def nudge_spacing(self, delta: int) -> int:
+        self._set_spacing(self.mm.spacing + delta)
+        return self.mm.spacing
 
     def action_mark(self) -> None:
         """^G — cycle the cell's mark: none, ✅, ❌, ❓, ❗, 🕐, none."""

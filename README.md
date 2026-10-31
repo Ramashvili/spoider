@@ -65,6 +65,8 @@ one of them.
 | `^X` | quit; if the buffer is modified it asks `y save / n discard / esc cancel` | nano: exit |
 | `^+` | widen the gaps between cells — one column and one row per press (saved with the map) | |
 | `^-` | tighten them again, down to boxes that almost touch | |
+| `^/` | help: every key and option, with a line of explanation | |
+| `^,` | editor settings — spacing, colours, file, cell count | like every other preferences chord |
 
 Horizontal movement is **spatial, not genealogical**: a branch on the right of the
 root has its children further right, and a branch on the left has its children
@@ -91,6 +93,11 @@ siblings still reads as a table rather than a pile of corners.
 The bar carries the keys you cannot guess — inserts, edits, spacing, file, undo.
 The four navigation chords are deliberately absent: arrows and `hjkl` cover
 movement without spending that space.
+
+`^, settings` and `^/ help` sit pinned to the right edge behind a divider and are
+never dropped: as the window narrows, whole hint entries disappear from the end
+first, so the pair that gets you to the documentation and the preferences is
+always reachable. Both stay live while you are typing a name.
 
 A note on those two chords, because they are the fiddliest keys in the app: they
 are bound by the names Textual's key parser *actually produces*, not by the names
@@ -137,8 +144,9 @@ reverse video. That means it looks right on a dark theme, a light theme, or a
 | `src/spoider/render.py` | grid → styled cells (boxes, connectors) → `rich.Text` |
 | `src/spoider/nav.py` | selection movement rules |
 | `src/spoider/widgets.py` | `MindMapView`: camera, hit-testing, clicks |
-| `src/spoider/screens.py` | modal text prompt + yes/no confirm |
-| `src/spoider/app.py` | key bindings, shortcut bar, undo history, write/quit flow |
+| `src/spoider/screens.py` | modals: text prompt, confirm, help, settings |
+| `src/spoider/app.py` | key bindings, undo history, write/quit flow |
+| `src/spoider/chrome.py` | shortcut bar layout, pinned settings/help cluster |
 
 ## Test
 

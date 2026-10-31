@@ -2,10 +2,11 @@ from pathlib import Path
 
 from textual.widgets import Input
 
-from spoider.app import SpoiderApp, footer_bar
+from spoider.app import BINDINGS, SpoiderApp
+from spoider.chrome import compose_footer, hint_chunks, pinned_bar
 from spoider.layout import compute
 from spoider.widgets import TopBar, compose_top_bar
-from spoider.screens import Confirm, TextPrompt
+from spoider.screens import HELP, Confirm, HelpScreen, SettingsScreen, TextPrompt, help_text, settings_text
 
 
 def test_every_shortcut_uses_a_modifier():
@@ -30,16 +31,39 @@ def test_every_shortcut_uses_a_modifier():
             assert key.startswith(("ctrl+", "alt+")) or key in allowed_plain, key
 
 
-def test_footer_only_lists_visible_bindings():
-    bar = footer_bar(SpoiderApp.BINDINGS).plain
-    assert "⇥" in bar and "⏎" in bar and "^X" in bar
-    assert "^+ looser" in bar and "^- tighter" in bar
-    assert "^Y" not in bar  # redo stays out of the bar
-    assert "^A" not in bar and "^J" not in bar  # aliases stay off the bar
-    # basic navigation does not earn bar space
+def test_footer_lists_the_visible_bindings_plus_the_pinned_cluster():
+    line = compose_footer(160, hint_chunks(BINDINGS)).plain
+    assert "⇥ child" in line and "^X quit" in line
+    assert "^, settings" in line and "^/ help" in line
+    assert "^Y" not in line  # redo stays out of the bar
+    assert "^A" not in line and "^J" not in line  # aliases stay off the bar
     for nav in ("^P", "^N", "^B", "^F"):
-        assert nav not in bar, nav
-    assert "ctrl" not in bar and "alt" not in bar and "equals_sign" not in bar
+        assert nav not in line, nav
+    assert "equals_sign" not in line and "COMMA" not in line
+
+
+def test_pinned_cluster_survives_any_width():
+    for width in (40, 55, 70, 90, 120, 200):
+        line = compose_footer(width, hint_chunks(BINDINGS))
+        assert line.plain.rstrip().endswith("^/ help")
+        assert "^, settings" in line.plain
+        assert line.cell_len == width  # fills the row exactly, never overflows
+
+
+def test_hints_are_dropped_before_the_pinned_cluster():
+    wide = compose_footer(200, hint_chunks(BINDINGS)).plain
+    narrow = compose_footer(60, hint_chunks(BINDINGS)).plain
+    assert "^Z undo" in wide and "^Z undo" not in narrow
+    assert "^/ help" in wide and "^/ help" in narrow
+    # whole entries only: no half-drawn cap at the edge
+    assert "loose" not in narrow.split("│")[0] or "looser" in narrow
+
+
+def test_help_documents_every_binding():
+    documented = {action for _, rows in HELP for actions, _, _ in rows for action in actions}
+    bound = {binding.action for binding in BINDINGS}
+    assert bound - documented == set(), f"undocumented: {sorted(bound - documented)}"
+    assert documented - bound == set(), f"stale help entries: {sorted(documented - bound)}"
 
 
 def test_top_bar_layout():
@@ -485,6 +509,76 @@ async def test_spacing_keys_resize_the_canvas(tmp_path: Path):
         # and the spelling a kitty-protocol terminal actually delivers
         await pilot.press("ctrl+shift+equals_sign")
         assert app.spacing == 0
+
+
+def test_help_text_covers_keys_and_notes():
+    body = help_text().plain
+    for expected in ("Making cells", "Moving", "File", "⇥", "⏎", "^D", "^X", "⌥↑", "^/", "^,"):
+        assert expected in body, expected
+    assert "Mouse" in body and "Saving" in body
+
+
+async def test_help_opens_with_ctrl_slash_and_closes(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+slash")
+        await pilot.pause()
+        assert isinstance(app.screen, HelpScreen)
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert not isinstance(app.screen, HelpScreen)
+
+
+async def test_help_closes_on_ctrl_c(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+slash")
+        await pilot.pause()
+        await pilot.press("ctrl+c")
+        await pilot.pause()
+        assert not isinstance(app.screen, HelpScreen)
+        assert app.is_running is True
+
+
+async def test_help_is_reachable_mid_typing(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("tab")
+        await pilot.pause()
+        await pilot.press("a", "b")
+        await pilot.pause()
+
+        await pilot.press("ctrl+slash")
+        await pilot.pause()
+        assert isinstance(app.screen, HelpScreen)
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.editing is True  # the half-typed name survived
+        assert app.mm.root.children[0].preview == "ab▊"
+
+
+async def test_settings_opens_and_nudges_spacing(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+comma")
+        await pilot.pause()
+        assert isinstance(app.screen, SettingsScreen)
+        assert "spacing" in settings_text(app).plain
+
+        await pilot.press("ctrl+minus")
+        await pilot.pause()
+        assert app.spacing == -1
+        assert isinstance(app.screen, SettingsScreen)  # stays open to show the change
+
+        await pilot.press("ctrl+plus")
+        await pilot.pause()
+        assert app.spacing == 0
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert not isinstance(app.screen, SettingsScreen)
 
 
 async def test_spacing_is_saved_with_the_map(tmp_path: Path):
