@@ -42,6 +42,24 @@ def test_top_bar_truncates_a_long_path_from_the_left():
     assert "…" in bar and "map.json" in bar
 
 
+def test_spacing_chords_match_the_names_the_key_parser_produces():
+    """The escape sequences below are what a terminal actually sends; the key
+    NAMES they parse into are not guessable, so pin them against BINDINGS."""
+    from textual._xterm_parser import XTermParser
+
+    bound = {key for binding in SpoiderApp.BINDINGS for key in str(binding.key).split(",")}
+    sequences = {
+        "ctrl+shift+equals_sign": "\x1b[61;6u",  # ^+ under the kitty keyboard protocol
+        "ctrl+equals_sign": "\x1b[61;5u",  # ctrl+= under it
+        "ctrl+minus": "\x1b[45;5u",  # ^- under it
+        "ctrl+underscore": "\x1f",  # ^- on a plain terminal (the ^_ control char)
+    }
+    for expected, sequence in sequences.items():
+        parsed = [key.key for key in XTermParser().feed(sequence) if hasattr(key, "key")]
+        assert parsed == [expected], f"{sequence!r} parses to {parsed}"
+        assert expected in bound, f"{expected} is not bound"
+
+
 def test_no_header_and_no_command_palette():
     assert SpoiderApp.ENABLE_COMMAND_PALETTE is False
     assert SpoiderApp().theme == "textual-ansi"
@@ -395,6 +413,10 @@ async def test_spacing_keys_resize_the_canvas(tmp_path: Path):
         await pilot.press("ctrl+underscore")  # the other spelling of ^-
         assert app.spacing == -1
         assert app.view.layout_.width < base
+
+        # and the spelling a kitty-protocol terminal actually delivers
+        await pilot.press("ctrl+shift+equals_sign")
+        assert app.spacing == 0
 
 
 async def test_spacing_stops_at_the_limits(tmp_path: Path):

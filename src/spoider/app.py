@@ -83,18 +83,20 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+x", "quit", "quit"),
     Binding("ctrl+z", "undo", "undo"),
     Binding("ctrl+y", "redo", "redo", show=False),
-    # Terminals disagree about these two: ^- almost always arrives as ^_ (the
-    # 0x1f control character), while ^+ only exists under the kitty keyboard
-    # protocol — a plain terminal sends nothing for ctrl+shift+equals. So each
-    # direction is bound in every spelling it can arrive as, ctrl and alt.
+    # The key NAMES here are the ones Textual's parser actually produces, which
+    # is not what you would guess: ^+ arrives as ctrl+shift+equals_sign under the
+    # kitty keyboard protocol (which Textual enables), while a plain terminal
+    # sends ^- as the ^_ control character. Every spelling is bound, plus alt
+    # fallbacks for terminals that swallow the ctrl form.
     Binding(
-        "ctrl+plus,ctrl+equal,ctrl+shift+equals,alt+plus,alt+equal",
+        "ctrl+shift+equals_sign,ctrl+equals_sign,ctrl+plus,ctrl+shift+plus,"
+        "alt+equals_sign,alt+plus",
         "spacing_more",
         "looser",
         show=False,
     ),
     Binding(
-        "ctrl+minus,ctrl+underscore,alt+minus,alt+underscore",
+        "ctrl+minus,ctrl+shift+minus,ctrl+underscore,alt+minus,alt+underscore",
         "spacing_less",
         "tighter",
         show=False,

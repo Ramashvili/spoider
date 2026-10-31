@@ -76,12 +76,17 @@ Marks are part of the document — they are written into the JSON with the node,
 a ✅ survives closing the editor and shows up in a diff as `"mark": "✅"`.
 
 Spacing (`^+` / `^-`) is a view setting, not part of the document: it is not
-written to the file and resets to the default when you reopen. `^-` always
-arrives as the `^_` control character, but `^+` needs a terminal that speaks the
-kitty keyboard protocol (ghostty, kitty, wezterm) — under a plain terminal
-`ctrl+shift+=` sends nothing at all, so `alt+=` and `alt+-` are bound as
-fallbacks. Both keys also stay off the bar; it is already the width of a
-narrow-ish terminal.
+written to the file and resets to the default when you reopen. Both keys stay off
+the bar; it is already the width of a narrow-ish terminal.
+
+A note on those two chords, because they are the fiddliest keys in the app: they
+are bound by the names Textual's key parser *actually produces*, not by the names
+you would expect. Under the kitty keyboard protocol (which Textual enables, and
+which kitty, ghostty and wezterm speak) `^+` arrives as `ctrl+shift+equals_sign`;
+on a plain terminal `^-` arrives as the `^_` control character
+(`ctrl+underscore`). Every spelling is bound, with `alt+=` / `alt+-` as fallbacks
+for terminals that swallow the ctrl form — `tests/test_app.py` feeds the real
+escape sequences through the parser and asserts the resulting names are bound.
 
 Mouse: click a node to select it, double-click to rename it in place, scroll to
 walk siblings.
