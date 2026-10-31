@@ -52,7 +52,7 @@ one of them.
 | `^C` | escape everywhere: closes a dialog, abandons the node being typed, otherwise inert | |
 | `^D` | delete the branch | nano's delete |
 | `^T` | fold / unfold the branch | **t**oggle |
-| `^G` | cycle the cell's mark: `✅ ❌ ❓ ❗ 🕐` and then off again | **g**lyph |
+| `^G` | cycle the cell's mark and then off again — the set is editable in `^,` | **g**lyph |
 | `^P` / `↑` | previous sibling | nano: previous line |
 | `^N` / `↓` | next sibling | nano: next line |
 | `^B` / `←` | left — from the root, its left-hand branch; on a right-hand branch, out to the parent; on a left-hand one, into the first child | nano: back a character |
@@ -122,7 +122,7 @@ the node you are halfway through naming.
 
 ## Autosave
 
-`^,` opens the editor settings, which hold one switch. With autosave on, spoider
+`^,` opens the editor settings. With autosave on, spoider
 writes the map after every cell edit, rearrangement or spacing change, and again
 on exit — so `^X` never stops to ask. While it is on, the manual `^S` leaves the
 shortcut bar (the chord still works); turn it off and the bar gets it back.
@@ -130,6 +130,11 @@ shortcut bar (the chord still works); turn it off and the bar gets it back.
 Autosave is an *editor* preference, not document state: it lives in
 `~/.config/spoider/config.json` and does not travel with the map. Spacing is the
 opposite — it does travel, so a map looks the same wherever you open it.
+
+The same screen holds the mark set: `⏎` on the `marks` row opens a prompt with the
+current emoji, space separated and in the order `^G` cycles through them (up to
+eight). Marks already on cells are untouched — a cell keeps whatever it was given,
+even if that emoji has since left the set.
 
 ## Colours
 

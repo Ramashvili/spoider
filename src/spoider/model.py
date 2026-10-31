@@ -4,14 +4,15 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
 DEFAULT_ROOT_TEXT = "Mind map"
 
-# Cycled by ^G; the order is the order you press it.
+# The default set ^G cycles through, in press order. The editor can replace it;
+# see spoider.config. "None" always comes first so the cycle can end.
 MARKS = ("✅", "❌", "❓", "❗", "🕐")
-MARK_CYCLE: tuple[str | None, ...] = (None, *MARKS)
 
 
 def new_id() -> str:
@@ -148,16 +149,17 @@ class MindMap:
             successor = parent
         return removed, successor.id
 
-    def cycle_mark(self, node_id: str) -> str | None:
-        """Advance this node's mark: none -> check -> cross -> … -> none."""
+    def cycle_mark(self, node_id: str, marks: Sequence[str] = MARKS) -> str | None:
+        """Advance this node's mark: none, then each mark in turn, then none."""
         node = self.find(node_id)
         if node is None:
             return None
+        cycle: tuple[str | None, ...] = (None, *marks)
         try:
-            index = MARK_CYCLE.index(node.mark)
+            index = cycle.index(node.mark)
         except ValueError:
-            index = 0
-        node.mark = MARK_CYCLE[(index + 1) % len(MARK_CYCLE)]
+            index = 0  # a mark this document used that is no longer in the set
+        node.mark = cycle[(index + 1) % len(cycle)]
         return node.mark
 
     def move_sibling(self, node_id: str, delta: int) -> bool:

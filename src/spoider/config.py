@@ -9,13 +9,19 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+
+from .model import MARKS
+
+#: More than this and ^G takes too long to come back around.
+MAX_MARKS = 8
 
 
 @dataclass
 class Config:
     autosave: bool = False
+    marks: tuple[str, ...] = field(default_factory=lambda: tuple(MARKS))
 
 
 def default_config_path() -> Path:
@@ -32,7 +38,15 @@ def load_config(path: Path | None = None) -> Config:
         return Config()
     if not isinstance(data, dict):
         return Config()
-    return Config(autosave=bool(data.get("autosave", False)))
+
+    marks: tuple[str, ...] = tuple(MARKS)
+    raw_marks = data.get("marks")
+    if isinstance(raw_marks, list):
+        cleaned = tuple(str(mark) for mark in raw_marks if str(mark).strip())
+        if cleaned:
+            marks = cleaned[:MAX_MARKS]
+
+    return Config(autosave=bool(data.get("autosave", False)), marks=marks)
 
 
 def save_config(config: Config, path: Path | None = None) -> None:

@@ -12,8 +12,8 @@ from textual.binding import Binding
 from . import nav
 from .layout import MAX_SPACING, MIN_SPACING
 from .chrome import FooterBar
-from .config import Config, default_config_path, load_config, save_config
-from .model import MindMap, Node
+from .config import MAX_MARKS, Config, default_config_path, load_config, save_config
+from .model import MARKS, MindMap, Node
 from .screens import Confirm, HelpScreen, SettingsScreen, TextPrompt
 from .widgets import MindMapView, TopBar
 
@@ -199,13 +199,29 @@ class SpoiderApp(App[None]):
         if value == self.config.autosave:
             return
         self.config.autosave = bool(value)
+        self._save_config()
+        if self.config.autosave and self.dirty:
+            self._autosave()  # commit what is on screen the moment you switch it on
+        self._refresh_chrome()
+
+    @property
+    def marks(self) -> tuple[str, ...]:
+        """The emoji ^G cycles through — an editor preference, like autosave."""
+        return self.config.marks
+
+    def set_marks(self, marks) -> None:
+        cleaned = tuple(str(mark).strip() for mark in marks if str(mark).strip())
+        cleaned = cleaned[:MAX_MARKS] or tuple(MARKS)
+        if cleaned == self.config.marks:
+            return
+        self.config.marks = cleaned
+        self._save_config()
+
+    def _save_config(self) -> None:
         try:
             save_config(self.config, self.config_path)
         except OSError as exc:
             self.notify(f"Could not write config: {exc}", severity="error", timeout=4)
-        if self.config.autosave and self.dirty:
-            self._autosave()  # commit what is on screen the moment you switch it on
-        self._refresh_chrome()
 
     @property
     def spacing(self) -> int:
@@ -429,7 +445,7 @@ class SpoiderApp(App[None]):
         if self.node is None:
             return
         self._push_undo()
-        self.mm.cycle_mark(self.selected)
+        self.mm.cycle_mark(self.selected, self.marks)
         self._mark_dirty()
 
     def action_toggle(self) -> None:

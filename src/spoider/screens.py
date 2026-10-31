@@ -29,7 +29,7 @@ HELP: tuple[tuple[str, tuple[tuple[tuple[str, ...], str, str], ...]], ...] = (
             (("add_sibling",), "⏎  ^J", "add a sibling after the selection"),
             (("edit",), "^E", "rename the selected cell in place"),
             (("delete",), "^D", "delete the cell and everything under it"),
-            (("mark",), "^G", "cycle the mark: ✅ ❌ ❓ ❗ 🕐 then off"),
+            (("mark",), "^G", "cycle the cell's mark, then off (edit the set in ^,)"),
             (("toggle",), "^T", "fold or unfold the branch"),
         ),
     ),
@@ -112,12 +112,31 @@ def _clip(text: str, width: int) -> str:
     return "…" + text[-(width - 1) :]
 
 
-def settings_text(app: "SpoiderApp") -> Text:
+def _fit_tokens(tokens: tuple[str, ...], width: int) -> str:
+    """Keep whole tokens while they fit, then an ellipsis — never half an emoji."""
+    shown: list[str] = []
+    for token in tokens:
+        candidate = " ".join([*shown, token])
+        if cell_len(candidate) > width - 1:
+            break
+        shown.append(token)
+    joined = " ".join(shown)
+    return joined + ("…" if len(shown) < len(tokens) else "")
+
+
+def settings_text(app: "SpoiderApp", row: int = 0) -> Text:
+    rows = [
+        ("autosave", "on" if app.autosave else "off", "after every edit, and exit"),
+        ("marks", _fit_tokens(app.marks, 20), "the emojis ^G cycles"),
+    ]
     text = Text()
     text.append("editor settings\n", style="bold")
-    text.append("\n  " + _pad("autosave", 12), style="bold")
-    text.append(_pad("on" if app.autosave else "off", 6))
-    text.append("after every edit, and on exit", style="dim")
+    for index, (label, value, note) in enumerate(rows):
+        selected = index == row
+        text.append("\n " + ("▸" if selected else " "))
+        text.append(_pad(label, 11), style="bold" if selected else "")
+        text.append(_pad(value, 22))
+        text.append(note, style="dim")
     return text
 
 
@@ -266,7 +285,7 @@ class SettingsScreen(ModalScreen[None]):
         align: center middle;
     }
     SettingsScreen #panel {
-        width: 56;
+        width: 68;
         max-width: 96%;
         height: auto;
         padding: 1 2;
@@ -279,21 +298,49 @@ class SettingsScreen(ModalScreen[None]):
         Binding("escape", "close", "close"),
         Binding("ctrl+c", "close", "close", show=False),
         Binding("ctrl+comma", "close", "close", show=False),
-        Binding("enter,space", "toggle", "toggle"),
+        Binding("up,k", "move(-1)", "", show=False),
+        Binding("down,j", "move(+1)", "", show=False),
+        Binding("enter,space", "activate", "activate"),
     ]
 
+    def __init__(self) -> None:
+        super().__init__()
+        self.row = 0
+
     def compose(self) -> ComposeResult:
-        app: "SpoiderApp" = self.app  # type: ignore[assignment]
         with Vertical(id="panel"):
-            yield Static(settings_text(app), id="settings-body")
+            yield Static(self._body(), id="settings-body")
+
+    def _body(self) -> Text:
+        app: "SpoiderApp" = self.app  # type: ignore[assignment]
+        return settings_text(app, self.row)
 
     def _redraw(self) -> None:
-        app: "SpoiderApp" = self.app  # type: ignore[assignment]
-        self.query_one("#settings-body", Static).update(settings_text(app))
+        self.query_one("#settings-body", Static).update(self._body())
 
-    def action_toggle(self) -> None:
+    def action_move(self, delta: int) -> None:
+        self.row = max(0, min(1, self.row + delta))
+        self._redraw()
+
+    def action_activate(self) -> None:
         app: "SpoiderApp" = self.app  # type: ignore[assignment]
-        app.set_autosave(not app.autosave)
+        if self.row == 0:
+            app.set_autosave(not app.autosave)
+            self._redraw()
+            return
+        app.push_screen(self._marks_prompt(), self._apply_marks)
+
+    def _marks_prompt(self) -> "TextPrompt":
+        app: "SpoiderApp" = self.app  # type: ignore[assignment]
+        return TextPrompt(
+            "Marks, in the order ^G cycles (space separated)", " ".join(app.marks)
+        )
+
+    def _apply_marks(self, value: str | None) -> None:
+        if value is None:
+            return
+        app: "SpoiderApp" = self.app  # type: ignore[assignment]
+        app.set_marks(value.split())
         self._redraw()
 
     def action_close(self) -> None:

@@ -660,6 +660,73 @@ async def test_toggling_autosave_repaints_the_footer_immediately(tmp_path: Path)
         assert "^S save" not in footer.render().plain
 
 
+def test_marks_are_an_editor_preference(tmp_path: Path):
+    from spoider.config import MAX_MARKS, load_config, save_config, Config
+
+    path = tmp_path / "editor.json"
+    assert load_config(path).marks  # defaults when the file is missing
+    save_config(Config(marks=("🔴", "🟢")), path)
+    assert load_config(path).marks == ("🔴", "🟢")
+
+    # junk and empty lists fall back rather than breaking ^G
+    path.write_text('{"marks": []}')
+    assert len(load_config(path).marks) > 0
+    path.write_text('{"marks": "not a list"}')
+    assert len(load_config(path).marks) > 0
+    # and a runaway list is capped
+    many = [str(i) for i in range(MAX_MARKS + 5)]
+    save_config(Config(marks=tuple(many)), path)
+    assert len(load_config(path).marks) == MAX_MARKS
+
+
+async def test_editing_the_marks_from_settings(tmp_path: Path):
+    config_path = tmp_path / "editor.json"
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+comma")
+        await pilot.pause()
+        assert isinstance(app.screen, SettingsScreen)
+        screen = app.screen
+
+        await pilot.press("down")  # onto the marks row
+        await pilot.pause()
+        assert screen.row == 1
+
+        await pilot.press("enter")
+        await pilot.pause()
+        assert isinstance(app.screen, TextPrompt)
+        field = app.screen.query_one(Input)
+        assert field.value == " ".join(app.marks)  # pre-filled with the current set
+
+        field.value = "🔴 🟢"
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert app.marks == ("🔴", "🟢")
+        assert json.loads(config_path.read_text())["marks"] == ["🔴", "🟢"]
+        assert isinstance(app.screen, SettingsScreen)  # back on the rows
+        assert "🔴 🟢" in settings_text(app, 1).plain
+
+    # and the next editor start reads them back
+    assert SpoiderApp(tmp_path / "map.json", config_path=config_path).marks == ("🔴", "🟢")
+
+
+async def test_ctrl_g_cycles_the_configured_marks(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=tmp_path / "e.json")
+    async with app.run_test() as pilot:
+        app.set_marks(["🔴", "🟢"])
+        node = app.mm.add_child(app.mm.root.id, "x")
+        app.select(node.id)
+        app.view.refresh_map()
+
+        seen = []
+        for _ in range(4):
+            await pilot.press("ctrl+g")
+            await pilot.pause()
+            seen.append(app.mm.find(node.id).mark)
+        assert seen == ["🔴", "🟢", None, "🔴"]
+
+
 async def test_autosave_writes_after_every_edit(tmp_path: Path):
     path = tmp_path / "map.json"
     app = SpoiderApp(path, demo=False, config_path=tmp_path / "editor.json")
