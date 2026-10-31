@@ -12,6 +12,7 @@ from textual.binding import Binding
 from . import nav
 from .layout import MAX_SPACING, MIN_SPACING
 from .chrome import FooterBar
+from .config import Config, default_config_path, load_config, save_config
 from .model import MindMap, Node
 from .screens import Confirm, HelpScreen, SettingsScreen, TextPrompt
 from .widgets import MindMapView, TopBar
@@ -117,8 +118,16 @@ class SpoiderApp(App[None]):
     BINDINGS = BINDINGS
     ENABLE_COMMAND_PALETTE = False
 
-    def __init__(self, path: Path | None = None, *, demo: bool = True) -> None:
+    def __init__(
+        self,
+        path: Path | None = None,
+        *,
+        demo: bool = True,
+        config_path: Path | None = None,
+    ) -> None:
         super().__init__()
+        self.config_path = Path(config_path) if config_path is not None else default_config_path()
+        self.config: Config = load_config(self.config_path)
         self.theme = "textual-ansi"
         self.path = Path(path) if path is not None else default_path()
         if self.path.exists():
@@ -182,6 +191,23 @@ class SpoiderApp(App[None]):
         return self.mm.find(self.selected)
 
     @property
+    def autosave(self) -> bool:
+        """Editor preference, not document state — written to the config file."""
+        return self.config.autosave
+
+    def set_autosave(self, value: bool) -> None:
+        if value == self.config.autosave:
+            return
+        self.config.autosave = bool(value)
+        try:
+            save_config(self.config, self.config_path)
+        except OSError as exc:
+            self.notify(f"Could not write config: {exc}", severity="error", timeout=4)
+        if self.config.autosave and self.dirty:
+            self._autosave()  # commit what is on screen the moment you switch it on
+        self._refresh_chrome()
+
+    @property
     def spacing(self) -> int:
         """Per-document: it is written to the file, not held in the editor."""
         return self.mm.spacing
@@ -197,11 +223,23 @@ class SpoiderApp(App[None]):
     def _refresh_chrome(self) -> None:
         self.query_one(TopBar).refresh()
 
+    def _autosave(self) -> None:
+        """Write silently to the current path; autosave never nags."""
+        try:
+            self.mm.save(self.path)
+        except OSError as exc:
+            self.notify(f"Could not write {self.path}: {exc}", severity="error", timeout=4)
+            return
+        self.dirty = False
+        self._set_terminal_title()
+
     def _mark_dirty(self) -> None:
         self.dirty = True
         self._set_terminal_title()
         self.view.refresh_map()
         self._refresh_chrome()
+        if self.autosave:
+            self._autosave()
 
     def _write(self, path: Path) -> bool:
         try:
@@ -380,10 +418,6 @@ class SpoiderApp(App[None]):
         """^, — the editor settings."""
         self.push_screen(SettingsScreen())
 
-    def nudge_spacing(self, delta: int) -> int:
-        self._set_spacing(self.mm.spacing + delta)
-        return self.mm.spacing
-
     def action_mark(self) -> None:
         """^G — cycle the cell's mark: none, ✅, ❌, ❓, ❗, 🕐, none."""
         if self.node is None:
@@ -513,6 +547,11 @@ class SpoiderApp(App[None]):
 
     def action_quit(self) -> None:
         """^X — nano's Exit: never throw away a modified buffer silently."""
+        if self.autosave:
+            if self.dirty:
+                self._autosave()
+            self.exit()
+            return
         if not self.dirty:
             self.exit()
             return

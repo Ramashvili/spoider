@@ -6,4 +6,5 @@
 - No search, multi-select, or drag-to-reparent yet.
 - Undo history lives in memory for the session (the file on disk is only the
   current state, and only after a `^O` write).
-- There is no autosave and no backup file: quitting with `n` discards changes.
+- Autosave is off by default; with it off there is no backup file either, so
+  quitting with `n` discards changes for good.

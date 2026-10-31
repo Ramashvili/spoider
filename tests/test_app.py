@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from textual.widgets import Input
@@ -559,26 +560,97 @@ async def test_help_is_reachable_mid_typing(tmp_path: Path):
         assert app.mm.root.children[0].preview == "ab▊"
 
 
-async def test_settings_opens_and_nudges_spacing(tmp_path: Path):
+async def test_settings_shows_only_the_autosave_toggle(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+comma")
         await pilot.pause()
         assert isinstance(app.screen, SettingsScreen)
-        assert "spacing" in settings_text(app).plain
 
-        await pilot.press("ctrl+minus")
-        await pilot.pause()
-        assert app.spacing == -1
-        assert isinstance(app.screen, SettingsScreen)  # stays open to show the change
-
-        await pilot.press("ctrl+plus")
-        await pilot.pause()
-        assert app.spacing == 0
+        body = settings_text(app).plain
+        assert "autosave" in body and "off" in body
+        # and nothing invented beyond the one setting
+        for absent in ("colours", "version", "cells", "spacing"):
+            assert absent not in body, absent
 
         await pilot.press("escape")
         await pilot.pause()
         assert not isinstance(app.screen, SettingsScreen)
+
+
+async def test_toggling_autosave_persists_to_the_editor_config(tmp_path: Path):
+    config_path = tmp_path / "editor.json"
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
+    async with app.run_test() as pilot:
+        assert app.autosave is False
+        await pilot.press("ctrl+comma")
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.autosave is True
+        assert isinstance(app.screen, SettingsScreen)  # stays open to show "on"
+
+    assert json.loads(config_path.read_text())["autosave"] is True
+    reopened = SpoiderApp(tmp_path / "map.json", config_path=config_path)
+    assert reopened.autosave is True  # and it survives the editor restarting
+
+
+async def test_autosave_writes_after_every_edit(tmp_path: Path):
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False, config_path=tmp_path / "editor.json")
+    async with app.run_test() as pilot:
+        app.set_autosave(True)
+        await pilot.pause()
+
+        await pilot.press("tab")
+        await pilot.press("a", "enter")
+        await pilot.pause()
+        assert path.exists()  # no ^S needed
+        assert app.dirty is False
+        assert json.loads(path.read_text())["root"]["children"][0]["text"] == "a"
+
+        await pilot.press("ctrl+minus")  # a view/edit change, same rule
+        await pilot.pause()
+        assert json.loads(path.read_text())["spacing"] == -1
+
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+        assert json.loads(path.read_text())["root"]["children"] == []
+
+
+async def test_autosave_quits_without_asking(tmp_path: Path):
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False, config_path=tmp_path / "editor.json")
+    async with app.run_test() as pilot:
+        app.set_autosave(True)
+        await pilot.pause()
+        await pilot.press("tab")
+        await pilot.press("a", "enter")
+        await pilot.pause()
+
+        await pilot.press("ctrl+x")
+        await pilot.pause()
+        assert app.is_running is False
+        assert not isinstance(app.screen, Confirm)
+
+    assert json.loads(path.read_text())["root"]["children"][0]["text"] == "a"
+
+
+async def test_autosave_hides_manual_save_from_the_bar(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        from spoider.chrome import compose_footer, hint_chunks
+
+        with_save = compose_footer(160, hint_chunks(BINDINGS)).plain
+        assert "^S save" in with_save
+
+        app.set_autosave(True)
+        await pilot.pause()
+        without = compose_footer(160, hint_chunks(BINDINGS, frozenset({"save"}))).plain
+        assert "^S save" not in without
+        # the bar the app actually renders agrees
+        footer = app.query_one("#footer")
+        assert "^S save" not in footer.render().plain
 
 
 async def test_spacing_is_saved_with_the_map(tmp_path: Path):

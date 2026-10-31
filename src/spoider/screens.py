@@ -113,21 +113,12 @@ def _clip(text: str, width: int) -> str:
 
 
 def settings_text(app: "SpoiderApp") -> Text:
-    where = _clip(str(app.path), 18) if app.path.exists() else "New Buffer"
     text = Text()
     text.append("editor settings\n", style="bold")
-    rows = [
-        ("spacing", f"{app.spacing:+d}", "^- / ^+ to change, saved with the map"),
-        ("colours", "terminal", "inherited from your terminal"),
-        ("file", where, "^O writes it somewhere else"),
-        ("cells", str(app.mm.count()), ""),
-        ("version", __import__("spoider").__version__, ""),
-    ]
-    for label, value, note in rows:
-        text.append("\n" + _pad(label, 10), style="bold")
-        text.append(_pad(value, 18))
-        text.append(note, style="dim")
-    text.append("\n\nesc closes this", style="dim")
+    text.append("\n  " + _pad("autosave", 12), style="bold")
+    text.append(_pad("on" if app.autosave else "off", 6))
+    text.append("after every edit, and on exit", style="dim")
+    text.append("\n\n  ⏎ / space toggles    esc closes", style="dim")
     return text
 
 
@@ -276,7 +267,7 @@ class SettingsScreen(ModalScreen[None]):
         align: center middle;
     }
     SettingsScreen #panel {
-        width: 76;
+        width: 56;
         max-width: 96%;
         height: auto;
         padding: 1 2;
@@ -289,14 +280,7 @@ class SettingsScreen(ModalScreen[None]):
         Binding("escape", "close", "close"),
         Binding("ctrl+c", "close", "close", show=False),
         Binding("ctrl+comma", "close", "close", show=False),
-        # the spacing chords stay live in here so the settings can be nudged
-        Binding("ctrl+minus,ctrl+underscore,alt+minus", "narrow", "tighter"),
-        Binding(
-            "ctrl+shift+equals_sign,ctrl+equals_sign,ctrl+plus,ctrl+shift+plus,"
-            "alt+equals_sign,alt+plus",
-            "widen",
-            "looser",
-        ),
+        Binding("enter,space", "toggle", "toggle"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -308,12 +292,9 @@ class SettingsScreen(ModalScreen[None]):
         app: "SpoiderApp" = self.app  # type: ignore[assignment]
         self.query_one("#settings-body", Static).update(settings_text(app))
 
-    def action_narrow(self) -> None:
-        self.app.nudge_spacing(-1)  # type: ignore[attr-defined]
-        self._redraw()
-
-    def action_widen(self) -> None:
-        self.app.nudge_spacing(+1)  # type: ignore[attr-defined]
+    def action_toggle(self) -> None:
+        app: "SpoiderApp" = self.app  # type: ignore[assignment]
+        app.set_autosave(not app.autosave)
         self._redraw()
 
     def action_close(self) -> None:

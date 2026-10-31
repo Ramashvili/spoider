@@ -56,8 +56,11 @@ def entry(key: str, label: str, *, literal: bool = False) -> Text:
     return chunk
 
 
-def hint_chunks(bindings: Iterable) -> list[Text]:
-    return [entry(b.key, b.description) for b in bindings if b.show]
+def hint_chunks(bindings: Iterable, skip: frozenset[str] = frozenset()) -> list[Text]:
+    """`skip` drops whole actions from the bar — autosave hides ^S, for instance."""
+    return [
+        entry(b.key, b.description) for b in bindings if b.show and b.action not in skip
+    ]
 
 
 def pinned_chunks() -> list[Text]:
@@ -115,5 +118,8 @@ class FooterBar(Widget):
         if self.mode == "edit":
             hints = edit_chunks()
         else:
-            hints = hint_chunks(self.app.BINDINGS)  # type: ignore[attr-defined]
+            app = self.app
+            # autosave makes ^S redundant, so it leaves the bar with it on
+            skip = frozenset({"save"}) if getattr(app, "autosave", False) else frozenset()
+            hints = hint_chunks(app.BINDINGS, skip)  # type: ignore[attr-defined]
         return compose_footer(width, hints)

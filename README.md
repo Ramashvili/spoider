@@ -33,7 +33,7 @@ buffer has unsaved changes.
 
 Nothing is written until you ask for it: edits stay in memory, `^S` writes them
 to the current file, `^O` writes them wherever you name, and `^X` refuses to throw
-them away silently.
+them away silently — unless you turn autosave on (see below).
 
 ## Keys
 
@@ -66,7 +66,7 @@ one of them.
 | `^+` | widen the gaps between cells — one column and one row per press (saved with the map) | |
 | `^-` | tighten them again, down to boxes that almost touch | |
 | `^/` | help: every key and option, with a line of explanation | |
-| `^,` | editor settings — spacing, colours, file, cell count | like every other preferences chord |
+| `^,` | editor settings — the autosave switch | like every other preferences chord |
 
 Horizontal movement is **spatial, not genealogical**: a branch on the right of the
 root has its children further right, and a branch on the left has its children
@@ -118,6 +118,17 @@ the caret is a block, and the bar swaps to `⏎ done · esc/^C cancel · ←→ 
 `Enter` commits, `esc` or `^C` abandons, and a node you abandon before naming it
 never existed. While typing, every other chord is swallowed, so `^D` cannot delete
 the node you are halfway through naming.
+
+## Autosave
+
+`^,` opens the editor settings, which hold one switch. With autosave on, spoider
+writes the map after every cell edit, rearrangement or spacing change, and again
+on exit — so `^X` never stops to ask. While it is on, the manual `^S` leaves the
+shortcut bar (the chord still works); turn it off and the bar gets it back.
+
+Autosave is an *editor* preference, not document state: it lives in
+`~/.config/spoider/config.json` and does not travel with the map. Spacing is the
+opposite — it does travel, so a map looks the same wherever you open it.
 
 ## Colours
 
