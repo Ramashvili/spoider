@@ -18,9 +18,9 @@ GAP_Y = 1
 PAD = 1
 BOX_H = 3
 
-# How far the spacing controls may push the gaps. The floor is the point where
-# gaps_for() stops shrinking (2 columns between boxes, 0 rows between subtrees),
-# so the clamp here and the floor there have to agree.
+# How far the spacing controls may push the gaps. The floors live in gaps_for()
+# (2 columns between boxes, -1 rows between subtrees) and the clamp here has to
+# stay in step with them: at MIN_SPACING both floors are reached.
 MIN_SPACING = -3
 MAX_SPACING = 12
 
@@ -41,7 +41,9 @@ def gaps_for(spacing: int) -> Gaps:
     spacing = max(MIN_SPACING, min(MAX_SPACING, spacing))
     return Gaps(
         x=max(2, GAP_X + spacing),
-        y=max(0, GAP_Y + spacing),
+        # -1 lets two boxes share a border row: they touch, but each keeps its own
+        # text row. Below that the text rows themselves would collide.
+        y=max(-1, GAP_Y + spacing),
     )
 
 

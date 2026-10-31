@@ -3,6 +3,7 @@ from pathlib import Path
 from textual.widgets import Input
 
 from spoider.app import SpoiderApp, footer_bar
+from spoider.layout import compute
 from spoider.widgets import TopBar, compose_top_bar
 from spoider.screens import Confirm, TextPrompt
 
@@ -484,6 +485,31 @@ async def test_spacing_keys_resize_the_canvas(tmp_path: Path):
         # and the spelling a kitty-protocol terminal actually delivers
         await pilot.press("ctrl+shift+equals_sign")
         assert app.spacing == 0
+
+
+async def test_spacing_is_saved_with_the_map(tmp_path: Path):
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("tab")
+        await pilot.press("a", "enter")
+        await pilot.pause()
+        await pilot.press("ctrl+minus")
+        await pilot.pause()
+        assert app.dirty is True  # document state, so it needs writing
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+
+    import json
+
+    assert json.loads(path.read_text())["spacing"] == -1
+
+    reopened = SpoiderApp(path)
+    assert reopened.spacing == -1
+    # and the reopened app actually draws with it: one column tighter
+    assert compute(reopened.mm.root, reopened.spacing).width < compute(
+        reopened.mm.root, 0
+    ).width
 
 
 async def test_spacing_stops_at_the_limits(tmp_path: Path):

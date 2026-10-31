@@ -63,7 +63,7 @@ one of them.
 | `^S` | save straight to the current file, no questions | the universal save |
 | `^O` | write out — asks which file to write, pre-filled with the current one | nano: write out (save as) |
 | `^X` | quit; if the buffer is modified it asks `y save / n discard / esc cancel` | nano: exit |
-| `^+` | widen the gaps between cells — one column and one row per press | |
+| `^+` | widen the gaps between cells — one column and one row per press (saved with the map) | |
 | `^-` | tighten them again, down to boxes that almost touch | |
 
 Horizontal movement is **spatial, not genealogical**: a branch on the right of the
@@ -78,8 +78,15 @@ off the shortcut bar.
 Marks are part of the document — they are written into the JSON with the node, so
 a ✅ survives closing the editor and shows up in a diff as `"mark": "✅"`.
 
-Spacing (`^+` / `^-`) is a view setting, not part of the document: it is not
-written to the file and resets to the default when you reopen.
+Spacing (`^+` / `^-`) is part of the document: it is written into the file as
+`"spacing"`, so a map looks the same wherever it is opened — a 40-cell map and a
+4-cell map want different amounts of air. Changing it makes the buffer dirty, and
+`^S` writes it. It stays out of the undo stack, because nudging the air three
+times should not bury the edit you actually want to back out.
+
+At the tight end the boxes end up sharing a border row: they touch, but every
+cell keeps its own text row, and the two rules are merged into one so a stack of
+siblings still reads as a table rather than a pile of corners.
 
 The bar carries the keys you cannot guess — inserts, edits, spacing, file, undo.
 The four navigation chords are deliberately absent: arrows and `hjkl` cover

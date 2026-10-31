@@ -79,7 +79,9 @@ def node_style(depth: int, selected: bool) -> str:
 
 def build_grid(layout: Layout, selected_id: str) -> Grid:
     grid = Grid(width=layout.width, height=layout.height)
-    for box in layout.boxes.values():
+    # Top-to-bottom: when a tight layout makes two boxes share a border row, the
+    # lower box's top edge is drawn last, so each cell keeps a closed top.
+    for box in sorted(layout.boxes.values(), key=lambda placed: (placed.y, placed.x)):
         _draw_box(grid, box, node_style(box.depth, box.node.id == selected_id))
     for box in layout.boxes.values():
         if box.node.collapsed:
@@ -88,7 +90,36 @@ def build_grid(layout: Layout, selected_id: str) -> Grid:
             child_box = layout.boxes.get(child.id)
             if child_box is not None:
                 _draw_link(grid, box, child_box)
+    _flatten_shared_rules(grid, layout)
     return grid.finalize()
+
+
+CORNER_CHARS = "╭╮╰╯"
+
+
+def _flatten_shared_rules(grid: Grid, layout: Layout) -> None:
+    """When the layout is tight enough that two boxes share a border row, their
+    two rules are really one. Corners stranded in the middle of that row read as
+    glitches, so they become plain rule characters."""
+    for y in range(layout.height):
+        edge_boxes = [b for b in layout.boxes.values() if y in (b.y, b.bottom)]
+        if len(edge_boxes) < 2:
+            continue
+        stacked = any(
+            not (a.right < b.x or b.right < a.x)
+            for index, a in enumerate(edge_boxes)
+            for b in edge_boxes[index + 1 :]
+        )
+        if not stacked:  # side-by-side rows share a row, not a rule
+            continue
+        for x in range(layout.width):
+            cell = grid.cells.get((x, y))
+            if cell is None or cell[0] not in CORNER_CHARS:
+                continue
+            left = grid.cells.get((x - 1, y), (" ", ""))[0]
+            right = grid.cells.get((x + 1, y), (" ", ""))[0]
+            if left.strip() and right.strip():
+                grid.cells[(x, y)] = ("─", cell[1])
 
 
 def _draw_box(grid: Grid, box: Placed, style: str) -> None:

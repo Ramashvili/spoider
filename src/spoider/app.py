@@ -168,7 +168,6 @@ class SpoiderApp(App[None]):
         else:
             self.mm = MindMap.demo() if demo else MindMap()
         self.selected: str = self.mm.root.id
-        self.spacing = 0
         self.dirty = False
         self._undo: list[dict] = []
         self._redo: list[dict] = []
@@ -220,6 +219,11 @@ class SpoiderApp(App[None]):
     @property
     def node(self) -> Node | None:
         return self.mm.find(self.selected)
+
+    @property
+    def spacing(self) -> int:
+        """Per-document: it is written to the file, not held in the editor."""
+        return self.mm.spacing
 
     def select(self, node_id: str) -> None:
         self.selected = node_id
@@ -493,10 +497,13 @@ class SpoiderApp(App[None]):
 
     def _set_spacing(self, value: int) -> None:
         value = max(MIN_SPACING, min(MAX_SPACING, value))
-        if value == self.spacing:
+        if value == self.mm.spacing:
             return
-        self.spacing = value
-        self.view.refresh_map()
+        self.mm.spacing = value
+        # Document state, so it makes the buffer dirty — but it stays out of the
+        # undo stack: nudging the air in three steps should not bury the edit you
+        # actually want to undo.
+        self._mark_dirty()
 
     def _reorder(self, delta: int) -> None:
         self._push_undo()

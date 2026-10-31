@@ -27,7 +27,7 @@ def test_every_node_is_placed():
     assert set(layout.boxes) == {node.id for node in mm.nodes()}
 
 
-def test_boxes_never_overlap():
+def test_boxes_never_overlap_at_default_spacing():
     layout = compute(sample().root)
     boxes = list(layout.boxes.values())
     for index, a in enumerate(boxes):
@@ -121,19 +121,69 @@ def test_spacing_widens_then_tightens_the_grid():
     assert tight.height < base.height < loose.height
 
 
+def test_spacing_is_document_state():
+    from spoider.model import MindMap
+
+    mm = sample()
+    mm.spacing = 4
+    clone = MindMap.from_dict(mm.to_dict())
+    assert clone.spacing == 4
+    assert MindMap.from_dict({"root": {}}).spacing == 0  # older files
+    assert MindMap.from_dict({"spacing": "junk", "root": {}}).spacing == 0
+
+
 def test_spacing_is_clamped_at_both_ends():
     mm = sample()
     assert compute(mm.root, -99).width == compute(mm.root, MIN_SPACING).width
     assert compute(mm.root, 99).width == compute(mm.root, MAX_SPACING).width
 
 
-def test_tightest_spacing_still_never_overlaps_boxes():
+def test_tightest_spacing_may_share_a_border_but_never_a_text_row():
     layout = compute(sample().root, MIN_SPACING)
     boxes = list(layout.boxes.values())
     for index, a in enumerate(boxes):
         for b in boxes[index + 1 :]:
-            disjoint = a.right < b.x or b.right < a.x or a.bottom < b.y or b.bottom < a.y
-            assert disjoint, f"{a.node.text} overlaps {b.node.text} at MIN_SPACING"
+            same_columns = not (a.right < b.x or b.right < a.x)
+            if same_columns:
+                # sharing the border row is the point; sharing the text row is not
+                assert a.cy != b.cy, f"{a.node.text} and {b.node.text} share a text row"
+
+
+def test_vertical_gap_reaches_into_the_boxes_at_the_floor():
+    from spoider.layout import GAP_Y, gaps_for
+
+    assert gaps_for(0).y == GAP_Y
+    assert gaps_for(-1).y == 0  # touching
+    assert gaps_for(-2).y == -1  # sharing one row
+    assert gaps_for(-99).y == -1  # and no further
+
+
+def test_tight_layout_flattens_two_rules_into_one():
+    mm = MindMap()
+    branch = mm.add_child(mm.root.id, "branch")
+    mm.add_child(branch.id, "a much longer name than the one below it")
+    mm.add_child(branch.id, "b")
+
+    grid = build_grid(compute(mm.root, MIN_SPACING), mm.root.id)
+    layout = compute(mm.root, MIN_SPACING)
+    for y in range(layout.height):
+        row = "".join(grid.cells.get((x, y), (" ", ""))[0] for x in range(layout.width))
+        assert "╰╭" not in row, row
+        assert "╮╯" not in row, row
+
+
+def test_comfy_layout_keeps_every_corner():
+    layout = compute(sample().root, 0)
+    grid = build_grid(layout, "")
+    for box in layout.boxes.values():
+        top = "".join(
+            grid.cells.get((x, box.y), (" ", ""))[0] for x in range(box.x, box.right + 1)
+        )
+        bottom = "".join(
+            grid.cells.get((x, box.bottom), (" ", ""))[0] for x in range(box.x, box.right + 1)
+        )
+        assert top == "╭" + "─" * (box.w - 2) + "╮", box.node.text
+        assert bottom == "╰" + "─" * (box.w - 2) + "╯", box.node.text
 
 
 def test_styles_are_ansi_named_never_truecolour():
