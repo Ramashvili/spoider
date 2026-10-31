@@ -25,8 +25,9 @@ uv run spoider --empty notes.json
 There is no header bar — the map gets the whole screen and the file name lives in
 your terminal's window title, with a `*` while the buffer has unsaved changes.
 
-Nothing is written until you ask for it, exactly like nano: edits stay in memory,
-`^O` writes them out, and `^X` refuses to throw them away silently.
+Nothing is written until you ask for it: edits stay in memory, `^S` writes them
+to the current file, `^O` writes them wherever you name, and `^X` refuses to throw
+them away silently.
 
 ## Keys
 
@@ -36,7 +37,7 @@ are the cursor keys of the terminal itself.
 | Keys | Action | Why that key |
 | --- | --- | --- |
 | `^A` | add a child under the selection, then name it | **a**dd |
-| `^S` | add a sibling after the selection, then name it | **s**ibling |
+| `^J` | add a sibling after the selection, then name it | vim's `^J`: a new line below |
 | `^E` / `Enter` | edit the selected node | **e**dit |
 | `^D` | delete the branch | nano's delete |
 | `^T` | fold / unfold the branch | **t**oggle |
@@ -46,7 +47,8 @@ are the cursor keys of the terminal itself.
 | `^F` / `→` | into the first child (unfolds it) | nano: forward a character |
 | `^Z` | undo | |
 | `^Y` | redo | |
-| `^O` | write out — asks which file to write, pre-filled with the current one | nano: write out |
+| `^S` | save straight to the current file, no questions | the universal save |
+| `^O` | write out — asks which file to write, pre-filled with the current one | nano: write out (save as) |
 | `^X` | quit; if the buffer is modified it asks `y save / n discard / esc cancel` | nano: exit |
 
 Reordering a node among its siblings is on `alt+↑` / `alt+↓` — rare enough to stay

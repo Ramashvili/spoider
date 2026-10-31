@@ -181,9 +181,9 @@ class MindMap:
     def demo(cls) -> "MindMap":
         root = Node("spoider")
         ideas = {
-            "keys": ["^A child · ^S sibling", "^E edits · ^D deletes", "^T folds a branch"],
+            "keys": ["^A child · ^J sibling", "^E edits · ^D deletes", "^T folds a branch"],
             "canvas": ["auto-centres on selection", "click any node to select", "^P ^N ^B ^F move"],
-            "data": ["json on disk", "^Z undoes · ^Y redoes", "^O writes it out"],
+            "data": ["json on disk", "^Z undoes · ^Y redoes", "^S saves · ^O writes as"],
         }
         for title, leaves in ideas.items():
             branch = Node(title, children=[Node(leaf) for leaf in leaves])

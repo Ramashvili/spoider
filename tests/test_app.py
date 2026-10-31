@@ -172,6 +172,41 @@ async def test_fold_toggles_a_branch(tmp_path: Path):
         assert app.mm.find(branch.id).collapsed is False
 
 
+async def test_save_writes_without_a_prompt(tmp_path: Path):
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "quick")
+        app.select(node.id)
+        app._mark_dirty()
+
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+
+        assert not isinstance(app.screen, TextPrompt)  # no dialog for a plain save
+        assert path.exists()
+        assert app.path == path
+        assert app.dirty is False
+
+    reopened = SpoiderApp(path)
+    assert [child.text for child in reopened.mm.root.children] == ["quick"]
+
+
+async def test_add_sibling_on_ctrl_j(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        first = app.mm.add_child(app.mm.root.id, "first")
+        app.select(first.id)
+        app.view.refresh_map()
+
+        await pilot.press("ctrl+j")
+        await pilot.pause()
+        await pilot.press("s", "e", "c", "o", "n", "d", "enter")
+        await pilot.pause()
+
+        assert [child.text for child in app.mm.root.children] == ["first", "second"]
+
+
 async def test_write_out_asks_for_a_name(tmp_path: Path):
     path = tmp_path / "map.json"
     app = SpoiderApp(path, demo=False)

@@ -38,7 +38,7 @@ MindMapView {
 # Nano-style: every shortcut is a ctrl chord, arrows stay as plain cursor keys.
 BINDINGS: list[Binding] = [
     Binding("ctrl+a", "add_child", "child"),
-    Binding("ctrl+s", "add_sibling", "sib"),
+    Binding("ctrl+j", "add_sibling", "sib"),
     Binding("ctrl+e,enter", "edit", "edit"),
     Binding("ctrl+d", "delete", "del"),
     Binding("ctrl+t", "toggle", "fold"),
@@ -49,10 +49,13 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+f,right", "child", "in"),
     Binding("alt+up", "move_up", "reorder up", show=False),
     Binding("alt+down", "move_down", "reorder down", show=False),
-    Binding("ctrl+z", "undo", "undo"),
-    Binding("ctrl+y", "redo", "redo", show=False),
+    # file first, history last: on a narrow terminal the bar clips its tail,
+    # and ^X matters more than ^Z
+    Binding("ctrl+s", "save", "save"),
     Binding("ctrl+o", "write", "write"),
     Binding("ctrl+x", "quit", "quit"),
+    Binding("ctrl+z", "undo", "undo"),
+    Binding("ctrl+y", "redo", "redo", show=False),
 ]
 
 BINDING_LEGEND = {"ctrl+": "^", "alt+": "⌥"}
@@ -279,6 +282,10 @@ class SpoiderApp(App[None]):
             return
         self._undo.append(self.mm.to_dict())
         self._restore(self._redo.pop())
+
+    def action_save(self) -> None:
+        """^S — write straight back to the current file, no questions."""
+        self._write(self.path)
 
     def action_write(self) -> None:
         """^O — nano's Write Out: always asks which file to write."""
