@@ -13,7 +13,7 @@ from textual.widgets import Static
 
 from . import nav
 from .model import MindMap, Node
-from .screens import TextPrompt
+from .screens import Confirm, TextPrompt
 from .widgets import MindMapView
 
 # No colours here on purpose: the app runs on Textual's ansi theme, so every
@@ -51,7 +51,7 @@ BINDINGS: list[Binding] = [
     Binding("alt+down", "move_down", "reorder down", show=False),
     Binding("ctrl+z", "undo", "undo"),
     Binding("ctrl+y", "redo", "redo", show=False),
-    Binding("ctrl+o", "save", "save"),
+    Binding("ctrl+o", "write", "write"),
     Binding("ctrl+x", "quit", "quit"),
 ]
 
@@ -87,6 +87,7 @@ class SpoiderApp(App[None]):
         else:
             self.mm = MindMap.demo() if demo else MindMap()
         self.selected: str = self.mm.root.id
+        self.dirty = False
         self._undo: list[dict] = []
         self._redo: list[dict] = []
 
@@ -97,21 +98,24 @@ class SpoiderApp(App[None]):
         yield Static(footer_bar(BINDINGS), id="footer")
 
     def on_mount(self) -> None:
-        if not self.path.exists():
-            self._save()
         self._set_terminal_title()
         self.query_one(MindMapView).focus()
 
+    def _title(self) -> str:
+        marker = " *" if self.dirty else ""
+        return f"spoider — {self.path.name}{marker}"
+
     def _set_terminal_title(self) -> None:
-        """No header bar, so the file name lives in the terminal's title."""
+        """No header bar, so the file name (and the modified marker) live in the
+        terminal's title."""
         driver = getattr(self, "_driver", None)
         if driver is not None:
-            driver.write(f"\x1b]2;spoider — {self.path.name}\x07")
+            driver.write(f"\x1b]2;{self._title()}\x07")
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
-        """Only quit is live while a dialog is open — ^D must not delete a node
-        you are in the middle of renaming."""
-        if len(self.screen_stack) > 1 and action != "quit":
+        """Nothing from the app keymap fires while a dialog is open: ^D must not
+        delete the node being renamed, and ^X must not stack another dialog."""
+        if len(self.screen_stack) > 1:
             return None
         return True
 
@@ -133,21 +137,37 @@ class SpoiderApp(App[None]):
         self._undo.append(self.mm.to_dict())
         self._redo.clear()
 
-    def _save(self) -> None:
-        try:
-            self.mm.save(self.path)
-        except OSError as exc:
-            self.notify(f"Could not save: {exc}", severity="error", timeout=4)
-
-    def _changed(self) -> None:
-        self._save()
+    def _mark_dirty(self) -> None:
+        self.dirty = True
+        self._set_terminal_title()
         self.view.refresh_map()
+
+    def _write(self, path: Path) -> bool:
+        try:
+            self.mm.save(path)
+        except OSError as exc:
+            self.notify(f"Could not write {path}: {exc}", severity="error", timeout=4)
+            return False
+        self.path = path
+        self.dirty = False
+        self._set_terminal_title()
+        self.notify(f"Wrote {self.mm.count()} nodes to {path.name}", timeout=2)
+        return True
+
+    def _ask_where_to_write(self, *, then_quit: bool = False) -> None:
+        def apply(value: str | None) -> None:
+            if value is None or not value.strip():
+                return
+            if self._write(Path(value.strip()).expanduser()) and then_quit:
+                self.exit()
+
+        self.push_screen(TextPrompt("File name to write", str(self.path)), apply)
 
     def _restore(self, snapshot: dict) -> None:
         self.mm = MindMap.from_dict(snapshot)
         if self.mm.find(self.selected) is None:
             self.selected = self.mm.root.id
-        self._changed()
+        self._mark_dirty()
 
     def _prompt(self, node_id: str, *, push: bool = True, preselect: bool = False) -> None:
         node = self.mm.find(node_id)
@@ -163,7 +183,7 @@ class SpoiderApp(App[None]):
             if push:
                 self._push_undo()
             target.text = value.strip() or "Untitled"
-            self._changed()
+            self._mark_dirty()
 
         self.push_screen(TextPrompt("Node text", node.text, preselect=preselect), apply)
 
@@ -173,7 +193,7 @@ class SpoiderApp(App[None]):
         self._push_undo()
         node = self.mm.add_child(self.selected)
         self.selected = node.id
-        self._changed()
+        self._mark_dirty()
         self._prompt(node.id, push=False, preselect=True)
 
     def action_add_sibling(self) -> None:
@@ -183,7 +203,7 @@ class SpoiderApp(App[None]):
             return
         self._push_undo()
         self.selected = node.id
-        self._changed()
+        self._mark_dirty()
         self._prompt(node.id, push=False, preselect=True)
 
     def action_edit(self) -> None:
@@ -201,7 +221,7 @@ class SpoiderApp(App[None]):
             return
         _, successor = result
         self.selected = successor
-        self._changed()
+        self._mark_dirty()
 
     def action_toggle(self) -> None:
         node = self.node
@@ -209,7 +229,7 @@ class SpoiderApp(App[None]):
             return
         self._push_undo()
         node.collapsed = not node.collapsed
-        self._changed()
+        self._mark_dirty()
 
     # -- movement -------------------------------------------------------
 
@@ -221,7 +241,7 @@ class SpoiderApp(App[None]):
         if node is not None and node.children and node.collapsed:
             self._push_undo()
             node.collapsed = False
-            self._changed()
+            self._mark_dirty()
             return
         self.select(nav.to_child(self.mm, self.selected))
 
@@ -240,7 +260,7 @@ class SpoiderApp(App[None]):
     def _reorder(self, delta: int) -> None:
         self._push_undo()
         if self.mm.move_sibling(self.selected, delta):
-            self._changed()
+            self._mark_dirty()
         else:
             self._undo.pop()
 
@@ -260,9 +280,23 @@ class SpoiderApp(App[None]):
         self._undo.append(self.mm.to_dict())
         self._restore(self._redo.pop())
 
-    def action_save(self) -> None:
-        self._save()
-        self.notify(f"Saved {self.path.name}", timeout=1)
+    def action_write(self) -> None:
+        """^O — nano's Write Out: always asks which file to write."""
+        self._ask_where_to_write()
+
+    def action_quit(self) -> None:
+        """^X — nano's Exit: never throw away a modified buffer silently."""
+        if not self.dirty:
+            self.exit()
+            return
+
+        def done(choice: str | None) -> None:
+            if choice == "no":
+                self.exit()
+            elif choice == "yes":
+                self._ask_where_to_write(then_quit=True)
+
+        self.push_screen(Confirm("Save modified buffer?"), done)
 
 
 def default_path() -> Path:

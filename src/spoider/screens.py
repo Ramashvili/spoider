@@ -1,4 +1,4 @@
-"""A modal one-line text prompt."""
+"""Modal screens: a one-line text prompt and a yes/no confirm."""
 
 from __future__ import annotations
 
@@ -55,6 +55,50 @@ class TextPrompt(ModalScreen[str | None]):
     def on_input_submitted(self, event: Input.Submitted) -> None:
         event.stop()
         self.dismiss(event.value)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
+class Confirm(ModalScreen[str | None]):
+    """A one-question dialog answering "yes", "no", or None for cancelled."""
+
+    DEFAULT_CSS = """
+    Confirm {
+        align: center middle;
+    }
+    Confirm #dialog {
+        width: 56;
+        height: auto;
+        padding: 1 2;
+        background: $surface;
+        border: round $accent;
+    }
+    Confirm #prompt-label {
+        padding-bottom: 1;
+    }
+    Confirm #hint {
+        color: $text-muted;
+    }
+    """
+
+    BINDINGS = [
+        Binding("y", "answer('yes')", "yes"),
+        Binding("n", "answer('no')", "no"),
+        Binding("escape", "cancel", "cancel"),
+    ]
+
+    def __init__(self, prompt: str) -> None:
+        super().__init__()
+        self._prompt = prompt
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="dialog"):
+            yield Label(self._prompt, id="prompt-label")
+            yield Label("[b]y[/] save  [b]n[/] discard  [b]esc[/] cancel", id="hint")
+
+    def action_answer(self, answer: str) -> None:
+        self.dismiss(answer)
 
     def action_cancel(self) -> None:
         self.dismiss(None)

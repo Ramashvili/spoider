@@ -23,7 +23,10 @@ uv run spoider --empty notes.json
 ```
 
 There is no header bar — the map gets the whole screen and the file name lives in
-your terminal's window title.
+your terminal's window title, with a `*` while the buffer has unsaved changes.
+
+Nothing is written until you ask for it, exactly like nano: edits stay in memory,
+`^O` writes them out, and `^X` refuses to throw them away silently.
 
 ## Keys
 
@@ -43,8 +46,8 @@ are the cursor keys of the terminal itself.
 | `^F` / `→` | into the first child (unfolds it) | nano: forward a character |
 | `^Z` | undo | |
 | `^Y` | redo | |
-| `^O` | save | nano: write out |
-| `^X` | quit | nano: exit |
+| `^O` | write out — asks which file to write, pre-filled with the current one | nano: write out |
+| `^X` | quit; if the buffer is modified it asks `y save / n discard / esc cancel` | nano: exit |
 
 Reordering a node among its siblings is on `alt+↑` / `alt+↓` — rare enough to stay
 off the shortcut bar. Mouse: click a node to select it, double-click to rename,
@@ -78,8 +81,8 @@ reverse video. That means it looks right on a dark theme, a light theme, or a
 | `src/spoider/render.py` | grid → styled cells (boxes, connectors) → `rich.Text` |
 | `src/spoider/nav.py` | selection movement rules |
 | `src/spoider/widgets.py` | `MindMapView`: camera, hit-testing, clicks |
-| `src/spoider/screens.py` | modal text prompt |
-| `src/spoider/app.py` | key bindings, shortcut bar, undo history, autosave |
+| `src/spoider/screens.py` | modal text prompt + yes/no confirm |
+| `src/spoider/app.py` | key bindings, shortcut bar, undo history, write/quit flow |
 
 ## Test
 
