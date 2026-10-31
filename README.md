@@ -38,8 +38,10 @@ them away silently.
 ## Keys
 
 `Tab` and `Return` do the two things you do constantly; everything else is a ctrl
-chord in the spirit of nano (`^A` and `^J` remain as aliases for those two). Arrow
-keys work too, since they are the cursor keys of the terminal itself.
+chord in the spirit of nano (`^A` and `^J` remain as aliases for those two).
+Movement also answers to the arrow keys and, for vim users, to `h` `j` `k` `l` —
+all aliases of the same four actions, so the spatial flipping applies to every
+one of them.
 
 | Keys | Action | Why that key |
 | --- | --- | --- |
@@ -55,6 +57,7 @@ keys work too, since they are the cursor keys of the terminal itself.
 | `^N` / `↓` | next sibling | nano: next line |
 | `^B` / `←` | left — from the root, its left-hand branch; on a right-hand branch, out to the parent; on a left-hand one, into the first child | nano: back a character |
 | `^F` / `→` | right — from the root, its right-hand branch; the mirror of the above elsewhere (unfolds a collapsed branch) | nano: forward a character |
+| `h` `j` `k` `l` | vim cursor keys — aliases for `←` `↓` `↑` `→` | |
 | `^Z` | undo | |
 | `^Y` | redo | |
 | `^S` | save straight to the current file, no questions | the universal save |

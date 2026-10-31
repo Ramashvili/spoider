@@ -8,7 +8,22 @@ from spoider.screens import Confirm, TextPrompt
 
 
 def test_every_shortcut_uses_a_modifier():
-    allowed_plain = {"tab", "enter", "escape", "up", "down", "left", "right", "space"}
+    # Bare keys are only the terminal's own cursor keys, the two ergonomic
+    # inserts, and the vim aliases for those cursor keys — nothing else.
+    allowed_plain = {
+        "tab",
+        "enter",
+        "escape",
+        "space",
+        "up",
+        "down",
+        "left",
+        "right",
+        "h",
+        "j",
+        "k",
+        "l",
+    }
     for binding in SpoiderApp.BINDINGS:
         for key in str(binding.key).split(","):
             assert key.startswith(("ctrl+", "alt+")) or key in allowed_plain, key
@@ -378,6 +393,54 @@ async def test_mark_cycles_through_the_emoji_then_off(tmp_path: Path):
         await pilot.press("ctrl+z")
         await pilot.pause()
         assert app.mm.find(node.id).mark == MARKS[-1]
+
+
+async def test_vim_keys_alias_the_arrows(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        branch = app.mm.add_child(app.mm.root.id, "branch")  # index 0 -> right
+        one = app.mm.add_child(branch.id, "one")
+        two = app.mm.add_child(branch.id, "two")
+        app.view.refresh_map()
+        app.select(branch.id)
+
+        await pilot.press("j")  # down/next sibling from a node with no siblings
+        assert app.selected == branch.id  # root has one child, so nothing to move to
+        await pilot.press("l")  # right = into the first child
+        assert app.selected == one.id
+        await pilot.press("j")
+        assert app.selected == two.id
+        await pilot.press("k")
+        assert app.selected == one.id
+        await pilot.press("h")  # left = out to the parent
+        assert app.selected == branch.id
+
+
+async def test_vim_keys_flip_on_a_left_branch(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        app.mm.add_child(app.mm.root.id, "right")
+        left = app.mm.add_child(app.mm.root.id, "left")
+        leaf = app.mm.add_child(left.id, "leaf")
+        app.view.refresh_map()
+
+        app.select(left.id)
+        await pilot.press("h")  # drawn leftwards, so h goes deeper
+        assert app.selected == leaf.id
+        await pilot.press("l")
+        assert app.selected == left.id
+
+
+async def test_vim_letters_type_while_editing(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("tab")
+        await pilot.pause()
+        await pilot.press("h", "j", "k", "l", "enter")
+        await pilot.pause()
+
+        assert app.mm.root.children[0].text == "hjkl"
+        assert app.selected == app.mm.root.children[0].id
 
 
 async def test_marks_survive_a_write(tmp_path: Path):

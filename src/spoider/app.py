@@ -69,11 +69,18 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+t", "toggle", "fold"),
     Binding("ctrl+g", "mark", "mark"),
     # nano's cursor keys, kept spatial: ^P/^N walk the branch, ^B/^F move away
-    # from the root or towards it — whichever way that happens to be drawn
+    # from the root or towards it — whichever way that happens to be drawn.
+    # Arrows and, further down, hjkl are aliases for the same four actions.
     Binding("ctrl+p,up", "prev", "prev"),
     Binding("ctrl+n,down", "next", "next"),
     Binding("ctrl+b,left", "go_left", "left"),
     Binding("ctrl+f,right", "go_right", "right"),
+    # vim cursor keys. Hidden from the bar because the ctrl chords already own
+    # those labels; nothing else on any screen binds a bare h/j/k/l.
+    Binding("k", "prev", "prev", show=False),
+    Binding("j", "next", "next", show=False),
+    Binding("h", "go_left", "left", show=False),
+    Binding("l", "go_right", "right", show=False),
     Binding("alt+up", "move_up", "reorder up", show=False),
     Binding("alt+down", "move_down", "reorder down", show=False),
     # file first, history last: on a narrow terminal the bar clips its tail,
