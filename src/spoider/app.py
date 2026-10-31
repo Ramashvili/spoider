@@ -48,9 +48,13 @@ MindMapView {
 CARET = "▊"
 
 BINDINGS: list[Binding] = [
-    Binding("ctrl+a", "add_child", "child"),
-    Binding("ctrl+j", "add_sibling", "sib"),
-    Binding("ctrl+e,enter", "edit", "edit"),
+    # tab/enter are the primary keys here; the ctrl chords stay as aliases.
+    # tab needs priority to beat Textual's focus-next binding.
+    Binding("tab", "add_child", "child", priority=True),
+    Binding("ctrl+a", "add_child", "child", show=False),
+    Binding("enter", "add_sibling", "sib"),
+    Binding("ctrl+j", "add_sibling", "sib", show=False),
+    Binding("ctrl+e", "edit", "edit"),
     Binding("ctrl+d", "delete", "del"),
     Binding("ctrl+t", "toggle", "fold"),
     # nano's cursor keys: ^P/^N walk the branch, ^B/^F go up/down the tree
@@ -70,6 +74,18 @@ BINDINGS: list[Binding] = [
 ]
 
 BINDING_LEGEND = {"ctrl+": "^", "alt+": "⌥"}
+KEY_GLYPHS = {"tab": "⇥", "enter": "⏎", "space": "␣", "escape": "esc"}
+
+
+def key_cap(key: str) -> str:
+    """One key as it appears in the bar: ⇥, ⏎, ^D, ⌥↑ …"""
+    key = str(key).split(",")[0]
+    if key in KEY_GLYPHS:
+        return KEY_GLYPHS[key]
+    for prefix, glyph in BINDING_LEGEND.items():
+        if key.startswith(prefix):
+            return glyph + key[len(prefix) :].upper()
+    return key.upper()
 EDIT_HINTS = [("⏎", "done"), ("esc/^C", "cancel"), ("←→", "move"), ("⌫", "erase")]
 
 
@@ -79,10 +95,7 @@ def footer_bar(bindings: list[Binding]) -> Text:
     for binding in bindings:
         if not binding.show:
             continue
-        key = str(binding.key).split(",")[0]
-        for prefix, glyph in BINDING_LEGEND.items():
-            key = key.replace(prefix, glyph)
-        bar.append(f" {key.upper()} ", style="bold reverse")
+        bar.append(f" {key_cap(binding.key)} ", style="bold reverse")
         bar.append(f"{binding.description} ")
     return bar
 

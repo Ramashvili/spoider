@@ -37,14 +37,16 @@ them away silently.
 
 ## Keys
 
-Everything is a ctrl chord, in the spirit of nano. Arrow keys work too, since they
-are the cursor keys of the terminal itself.
+`Tab` and `Return` do the two things you do constantly; everything else is a ctrl
+chord in the spirit of nano (`^A` and `^J` remain as aliases for those two). Arrow
+keys work too, since they are the cursor keys of the terminal itself.
 
 | Keys | Action | Why that key |
 | --- | --- | --- |
-| `^A` | add a child under the selection and type its name in place | **a**dd |
-| `^J` | add a sibling after the selection and type its name in place | vim's `^J`: a new line below |
-| `^E` / `Enter` | edit the selected node in place | **e**dit |
+| `Tab` | add a child under the selection and type its name in place | indenting in, like an outliner |
+| `Return` | add a sibling after the selection and type its name in place | the next line |
+| `^A` / `^J` | aliases for those two, for when your hands are already on ctrl | |
+| `^E` | edit the selected node in place | **e**dit |
 | `^C` | escape everywhere: closes a dialog, abandons the node being typed, otherwise inert | |
 | `^D` | delete the branch | nano's delete |
 | `^T` | fold / unfold the branch | **t**oggle |

@@ -8,7 +8,7 @@ from spoider.screens import Confirm, TextPrompt
 
 
 def test_every_shortcut_uses_a_modifier():
-    allowed_plain = {"enter", "escape", "up", "down", "left", "right", "space"}
+    allowed_plain = {"tab", "enter", "escape", "up", "down", "left", "right", "space"}
     for binding in SpoiderApp.BINDINGS:
         for key in str(binding.key).split(","):
             assert key.startswith(("ctrl+", "alt+")) or key in allowed_plain, key
@@ -16,8 +16,9 @@ def test_every_shortcut_uses_a_modifier():
 
 def test_footer_only_lists_visible_bindings():
     bar = footer_bar(SpoiderApp.BINDINGS).plain
-    assert "^A" in bar and "^X" in bar and "^J" in bar
+    assert "⇥" in bar and "⏎" in bar and "^X" in bar
     assert "^Y" not in bar  # redo stays out of the bar
+    assert "^A" not in bar and "^J" not in bar  # aliases stay off the bar
     assert "ctrl" not in bar and "alt" not in bar
 
 
@@ -67,11 +68,49 @@ async def test_top_bar_tracks_location_and_cell_count(tmp_path: Path):
         assert "2 cells" in rendered
 
 
+async def test_tab_adds_a_child_and_enter_adds_a_sibling(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("tab")
+        await pilot.pause()
+        assert app.editing is True and len(app.mm.root.children) == 1
+
+        await pilot.press("k", "i", "d", "enter")
+        await pilot.pause()
+        child = app.mm.root.children[0]
+        assert child.text == "kid"
+
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.editing is True
+        await pilot.press("s", "i", "b", "enter")
+        await pilot.pause()
+        assert [c.text for c in app.mm.root.children] == ["kid", "sib"]
+
+
+async def test_ctrl_aliases_still_add_nodes(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        branch = app.mm.add_child(app.mm.root.id, "branch")
+        app.select(branch.id)
+        app.view.refresh_map()
+
+        await pilot.press("ctrl+a")
+        await pilot.pause()
+        assert len(app.mm.find(branch.id).children) == 1
+        await pilot.press("escape")
+        await pilot.pause()
+
+        await pilot.press("ctrl+j")
+        await pilot.pause()
+        assert len(app.mm.root.children) == 2
+
+
 async def test_new_node_is_typed_into_directly(tmp_path: Path):
     path = tmp_path / "map.json"
     app = SpoiderApp(path, demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+a")
+        await pilot.press("tab")
         await pilot.pause()
         assert not isinstance(app.screen, TextPrompt)  # no dialog for a new node
         assert app.editing is True
