@@ -343,19 +343,67 @@ async def test_write_out_asks_for_a_name(tmp_path: Path):
 async def test_navigation_moves_through_the_tree(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        first = app.mm.add_child(app.mm.root.id, "first")
-        second = app.mm.add_child(app.mm.root.id, "second")
+        # a right-hand branch with two leaves: in, out, and along the branch
+        branch = app.mm.add_child(app.mm.root.id, "branch")
+        one = app.mm.add_child(branch.id, "one")
+        two = app.mm.add_child(branch.id, "two")
         app.view.refresh_map()
-        app.select(first.id)
+        app.select(branch.id)
 
-        await pilot.press("ctrl+n")
-        assert app.selected == second.id
-        await pilot.press("ctrl+b")
+        await pilot.press("ctrl+f")  # into the first child
+        assert app.selected == one.id
+        await pilot.press("ctrl+n")  # next sibling
+        assert app.selected == two.id
+        await pilot.press("ctrl+p")  # previous sibling
+        assert app.selected == one.id
+        await pilot.press("ctrl+b")  # back out to the parent
+        assert app.selected == branch.id
+
+
+async def test_navigation_flips_on_the_left_hand_branch(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        right = app.mm.add_child(app.mm.root.id, "right")  # index 0 -> drawn right
+        left = app.mm.add_child(app.mm.root.id, "left")  # index 1 -> drawn left
+        leaf = app.mm.add_child(left.id, "leaf")
+        app.view.refresh_map()
+
+        # right-hand branch keeps the original sense
+        app.select(right.id)
+        await pilot.press("left")
         assert app.selected == app.mm.root.id
-        await pilot.press("ctrl+f")
-        assert app.selected == first.id
-        await pilot.press("ctrl+p")
-        assert app.selected == first.id
+        await pilot.press("right")
+        assert app.selected == right.id
+
+        # left-hand branch: towards the root is now RIGHT, deeper is LEFT
+        app.select(left.id)
+        await pilot.press("right")
+        assert app.selected == app.mm.root.id
+
+        app.select(left.id)
+        await pilot.press("left")
+        assert app.selected == leaf.id
+
+        app.select(leaf.id)
+        await pilot.press("right")
+        assert app.selected == left.id
+
+
+async def test_left_branch_flip_applies_to_the_ctrl_chords(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        left = app.mm.add_child(app.mm.root.id, "right-first")
+        left = app.mm.add_child(app.mm.root.id, "left-second")
+        leaf = app.mm.add_child(left.id, "leaf")
+        app.view.refresh_map()
+
+        app.select(left.id)
+        await pilot.press("ctrl+f")  # forward = towards the root on this side
+        assert app.selected == app.mm.root.id
+
+        app.select(left.id)
+        await pilot.press("ctrl+b")  # back = deeper on this side
+        assert app.selected == leaf.id
 
 
 async def test_arrow_keys_alias_the_ctrl_chords(tmp_path: Path):
@@ -366,9 +414,9 @@ async def test_arrow_keys_alias_the_ctrl_chords(tmp_path: Path):
         app.select(first.id)
         app.view.refresh_map()
 
-        await pilot.press("down")
+        await pilot.press("down")  # next sibling (drawn below)
         assert app.selected != first.id
-        await pilot.press("left")
+        await pilot.press("right")  # back towards the root, this branch is left-hand
         assert app.selected == app.mm.root.id
 
 

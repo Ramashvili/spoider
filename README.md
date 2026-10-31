@@ -52,16 +52,22 @@ keys work too, since they are the cursor keys of the terminal itself.
 | `^T` | fold / unfold the branch | **t**oggle |
 | `^P` / `↑` | previous sibling | nano: previous line |
 | `^N` / `↓` | next sibling | nano: next line |
-| `^B` / `←` | out to the parent | nano: back a character |
-| `^F` / `→` | into the first child (unfolds it) | nano: forward a character |
+| `^B` / `←` | left — out to the parent on a right-hand branch, into the first child on a left-hand one | nano: back a character |
+| `^F` / `→` | right — the mirror of the above (unfolds a collapsed branch) | nano: forward a character |
 | `^Z` | undo | |
 | `^Y` | redo | |
 | `^S` | save straight to the current file, no questions | the universal save |
 | `^O` | write out — asks which file to write, pre-filled with the current one | nano: write out (save as) |
 | `^X` | quit; if the buffer is modified it asks `y save / n discard / esc cancel` | nano: exit |
 
+Horizontal movement is **spatial, not genealogical**: a branch on the right of the
+root has its children further right, and a branch on the left has its children
+further left, so `←`/`→` always move the selection the way the screen moves.
+
 Reordering a node among its siblings is on `alt+↑` / `alt+↓` — rare enough to stay
-off the shortcut bar. Mouse: click a node to select it, double-click to rename it in place, scroll to
+off the shortcut bar.
+
+Mouse: click a node to select it, double-click to rename it in place, scroll to
 walk siblings.
 
 ### Typing

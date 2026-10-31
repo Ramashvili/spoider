@@ -66,11 +66,12 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+e", "edit", "edit"),
     Binding("ctrl+d", "delete", "del"),
     Binding("ctrl+t", "toggle", "fold"),
-    # nano's cursor keys: ^P/^N walk the branch, ^B/^F go up/down the tree
+    # nano's cursor keys, kept spatial: ^P/^N walk the branch, ^B/^F move away
+    # from the root or towards it — whichever way that happens to be drawn
     Binding("ctrl+p,up", "prev", "prev"),
     Binding("ctrl+n,down", "next", "next"),
-    Binding("ctrl+b,left", "parent", "out"),
-    Binding("ctrl+f,right", "child", "in"),
+    Binding("ctrl+b,left", "go_left", "left"),
+    Binding("ctrl+f,right", "go_right", "right"),
     Binding("alt+up", "move_up", "reorder up", show=False),
     Binding("alt+down", "move_down", "reorder down", show=False),
     # file first, history last: on a narrow terminal the bar clips its tail,
@@ -378,10 +379,10 @@ class SpoiderApp(App[None]):
 
     # -- movement -------------------------------------------------------
 
-    def action_parent(self) -> None:
+    def _to_parent(self) -> None:
         self.select(nav.to_parent(self.mm, self.selected))
 
-    def action_child(self) -> None:
+    def _into_child(self) -> None:
         node = self.node
         if node is not None and node.children and node.collapsed:
             self._push_undo()
@@ -389,6 +390,21 @@ class SpoiderApp(App[None]):
             self._mark_dirty()
             return
         self.select(nav.to_child(self.mm, self.selected))
+
+    def action_go_left(self) -> None:
+        """^B / ←. On a left-hand branch the children are drawn to the left, so
+        the directions swap: left goes deeper, right goes back towards the root."""
+        if nav.side(self.mm, self.selected) < 0:
+            self._into_child()
+        else:
+            self._to_parent()
+
+    def action_go_right(self) -> None:
+        """^F / →. Mirrors action_go_left."""
+        if nav.side(self.mm, self.selected) < 0:
+            self._to_parent()
+        else:
+            self._into_child()
 
     def action_prev(self) -> None:
         self.select(nav.to_sibling(self.mm, self.selected, -1))
