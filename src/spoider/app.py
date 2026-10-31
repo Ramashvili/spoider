@@ -382,26 +382,46 @@ class SpoiderApp(App[None]):
     def _to_parent(self) -> None:
         self.select(nav.to_parent(self.mm, self.selected))
 
-    def _into_child(self) -> None:
+    def _expand_if_collapsed(self) -> bool:
         node = self.node
         if node is not None and node.children and node.collapsed:
             self._push_undo()
             node.collapsed = False
             self._mark_dirty()
+            return True
+        return False
+
+    def _into_child(self) -> None:
+        if self._expand_if_collapsed():
             return
         self.select(nav.to_child(self.mm, self.selected))
 
+    def _from_root(self, want: int) -> None:
+        """The root branches both ways, so ← and → each pick their own side."""
+        if self._expand_if_collapsed():
+            return
+        self.select(nav.to_child_on_side(self.mm, self.selected, want))
+
+    @property
+    def _at_root(self) -> bool:
+        return self.selected == self.mm.root.id
+
     def action_go_left(self) -> None:
         """^B / ←. On a left-hand branch the children are drawn to the left, so
-        the directions swap: left goes deeper, right goes back towards the root."""
-        if nav.side(self.mm, self.selected) < 0:
+        the directions swap: left goes deeper, right goes back towards the root.
+        From the root itself, left is its left-hand branch."""
+        if self._at_root:
+            self._from_root(-1)
+        elif nav.side(self.mm, self.selected) < 0:
             self._into_child()
         else:
             self._to_parent()
 
     def action_go_right(self) -> None:
         """^F / →. Mirrors action_go_left."""
-        if nav.side(self.mm, self.selected) < 0:
+        if self._at_root:
+            self._from_root(+1)
+        elif nav.side(self.mm, self.selected) < 0:
             self._to_parent()
         else:
             self._into_child()

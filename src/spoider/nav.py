@@ -17,6 +17,18 @@ def to_child(mm: MindMap, node_id: str) -> str:
     return node.children[0].id
 
 
+def to_child_on_side(mm: MindMap, node_id: str, want: int) -> str:
+    """First child drawn on the requested side, or the node itself if that side
+    is empty. Only the root has children on both sides."""
+    node = mm.find(node_id)
+    if node is None or not node.children:
+        return node_id
+    for child in node.children:
+        if side(mm, child.id) == want:
+            return child.id
+    return node_id
+
+
 def to_sibling(mm: MindMap, node_id: str, delta: int) -> str:
     """Previous/next sibling, climbing to the parent's siblings when at an edge."""
     current = node_id

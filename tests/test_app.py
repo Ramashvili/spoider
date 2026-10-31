@@ -389,6 +389,62 @@ async def test_navigation_flips_on_the_left_hand_branch(tmp_path: Path):
         assert app.selected == left.id
 
 
+async def test_root_branches_both_ways(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        right = app.mm.add_child(app.mm.root.id, "right")  # index 0
+        left = app.mm.add_child(app.mm.root.id, "left")  # index 1
+        app.view.refresh_map()
+
+        app.select(app.mm.root.id)
+        await pilot.press("right")
+        assert app.selected == right.id
+
+        app.select(app.mm.root.id)
+        await pilot.press("left")
+        assert app.selected == left.id
+
+        # ^B/^F keep the same meaning
+        app.select(app.mm.root.id)
+        await pilot.press("ctrl+b")
+        assert app.selected == left.id
+        app.select(app.mm.root.id)
+        await pilot.press("ctrl+f")
+        assert app.selected == right.id
+
+
+async def test_root_left_is_inert_when_there_is_no_left_branch(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        app.mm.add_child(app.mm.root.id, "only")  # index 0, so it hangs right
+        app.view.refresh_map()
+
+        app.select(app.mm.root.id)
+        await pilot.press("left")
+        assert app.selected == app.mm.root.id  # nothing on that side to enter
+
+        await pilot.press("right")
+        assert app.selected == app.mm.root.children[0].id
+
+
+async def test_left_from_a_folded_root_unfolds_it(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        app.mm.add_child(app.mm.root.id, "right")
+        left = app.mm.add_child(app.mm.root.id, "left")
+        app.mm.root.collapsed = True
+        app.select(app.mm.root.id)
+        app.view.refresh_map()
+
+        await pilot.press("left")
+        await pilot.pause()
+        assert app.mm.root.collapsed is False
+        assert app.selected == app.mm.root.id  # unfolding is not a move
+
+        await pilot.press("left")
+        assert app.selected == left.id
+
+
 async def test_left_branch_flip_applies_to_the_ctrl_chords(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:

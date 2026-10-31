@@ -52,8 +52,8 @@ keys work too, since they are the cursor keys of the terminal itself.
 | `^T` | fold / unfold the branch | **t**oggle |
 | `^P` / `↑` | previous sibling | nano: previous line |
 | `^N` / `↓` | next sibling | nano: next line |
-| `^B` / `←` | left — out to the parent on a right-hand branch, into the first child on a left-hand one | nano: back a character |
-| `^F` / `→` | right — the mirror of the above (unfolds a collapsed branch) | nano: forward a character |
+| `^B` / `←` | left — from the root, its left-hand branch; on a right-hand branch, out to the parent; on a left-hand one, into the first child | nano: back a character |
+| `^F` / `→` | right — from the root, its right-hand branch; the mirror of the above elsewhere (unfolds a collapsed branch) | nano: forward a character |
 | `^Z` | undo | |
 | `^Y` | redo | |
 | `^S` | save straight to the current file, no questions | the universal save |
@@ -62,7 +62,9 @@ keys work too, since they are the cursor keys of the terminal itself.
 
 Horizontal movement is **spatial, not genealogical**: a branch on the right of the
 root has its children further right, and a branch on the left has its children
-further left, so `←`/`→` always move the selection the way the screen moves.
+further left, so `←`/`→` always move the selection the way the screen moves. The
+root itself branches both ways, so from it `←` and `→` each enter the branch drawn
+on that side.
 
 Reordering a node among its siblings is on `alt+↑` / `alt+↓` — rare enough to stay
 off the shortcut bar.
