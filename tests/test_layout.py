@@ -82,3 +82,20 @@ def test_grid_draws_boxes_and_links():
     chars = {char for char, _ in grid.cells.values()}
     assert {"╭", "╯", "─", "│"} <= chars
     assert grid.width == layout.width and grid.height == layout.height
+
+
+def test_styles_are_ansi_named_never_truecolour():
+    mm = sample()
+    layout = compute(mm.root)
+    grid = build_grid(layout, mm.root.children[0].id)
+    for _, style in grid.cells.values():
+        assert "#" not in style, f"hardcoded colour in style: {style!r}"
+
+
+def test_selection_uses_reverse_video():
+    mm = sample()
+    root_id = mm.root.id
+    grid = build_grid(compute(mm.root), root_id)
+    styles = {style for _, style in grid.cells.values()}
+    assert any("reverse" in style for style in styles)
+    assert all("reverse" not in style for style in styles if "cyan" in style)

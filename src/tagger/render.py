@@ -29,9 +29,8 @@ BOX_CHARS = {
     D: "│",
 }
 
-DEPTH_COLORS = ["#ffcead", "#7d82d9", "#92a593", "#e9bb4f", "#a3bfd1", "#c89dc1"]
-LINK_COLOR = "#6d7db6"
-SELECT_BG = "#2a3350"
+DEPTH_COLORS = ["cyan", "green", "yellow", "magenta", "blue", "red"]
+LINK_COLOR = "bright_black"
 
 
 @dataclass
@@ -66,13 +65,22 @@ class Grid:
         return self
 
 
+def node_style(depth: int, selected: bool) -> str:
+    """ANSI colour names only — the terminal palette decides the actual colour.
+
+    The root stays on the terminal's default foreground; selection is a reverse
+    video block, which inverts whatever fg/bg the terminal is already using.
+    """
+    parts: list[str] = ["bold"] if depth == 0 else [DEPTH_COLORS[(depth - 1) % len(DEPTH_COLORS)]]
+    if selected:
+        parts.append("reverse")
+    return " ".join(parts)
+
+
 def build_grid(layout: Layout, selected_id: str) -> Grid:
     grid = Grid(width=layout.width, height=layout.height)
     for box in layout.boxes.values():
-        colour = DEPTH_COLORS[box.depth % len(DEPTH_COLORS)]
-        selected = box.node.id == selected_id
-        style = f"bold {colour} on {SELECT_BG}" if selected else colour
-        _draw_box(grid, box, style)
+        _draw_box(grid, box, node_style(box.depth, box.node.id == selected_id))
     for box in layout.boxes.values():
         if box.node.collapsed:
             continue

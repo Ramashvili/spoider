@@ -43,6 +43,15 @@ uv run tagger --empty notes.json
 
 Mouse: click a node to select it, scroll to walk siblings.
 
+## Colours
+
+tagger ships no palette and no theme switcher. It runs on Textual's `ansi`
+theme, so the header, footer and every box use whatever your terminal is already
+using: depth picks ANSI colour names (cyan, green, yellow, magenta, blue, red),
+the root stays on the default foreground, links are dim, and the selection is
+reverse video. That means it looks right on a dark theme, a light theme, or a
+16-colour tty.
+
 ## Layout
 
 - Root's children alternate sides: index 0 right, 1 left, 2 right, …

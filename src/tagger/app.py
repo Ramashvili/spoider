@@ -4,40 +4,58 @@ from __future__ import annotations
 
 import argparse
 import os
+from collections.abc import Iterable
 from pathlib import Path
 
-from textual.app import App, ComposeResult
+from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding
-from textual.widgets import Footer, Header
+from textual.screen import Screen
+from textual.widgets import Header, Static
+from rich.text import Text
 
 from . import nav
 from .model import MindMap, Node
 from .screens import TextPrompt
 from .widgets import MindMapView
 
+# No colours here on purpose: the app runs on Textual's ansi theme, so every
+# surface inherits the terminal's palette. `ansi_default` means "whatever the
+# terminal already uses", and `reverse` swaps its own fg/bg.
 APP_CSS = """
-Screen {
-    background: #0a1024;
-    color: #ffcead;
-}
 MindMapView {
     width: 100%;
     height: 1fr;
-    background: #0a1024;
 }
-Header {
-    background: #131a3a;
-    color: #ffcead;
-}
-Footer {
-    background: #131a3a;
-    color: #a3bfd1;
-}
-Footer .footer--key {
-    background: #252e56;
-    color: #ffcead;
+#footer {
+    width: 100%;
+    height: 1;
+    padding: 0 1;
+    background: ansi_default;
+    color: ansi_default;
+    text-wrap: nowrap;
+    text-overflow: clip;
 }
 """
+
+FOOTER_HINTS = [
+    ("tab", "child"),
+    ("⏎", "sibling"),
+    ("e", "edit"),
+    ("d", "delete"),
+    ("space", "fold"),
+    ("←↑↓→", "move"),
+    ("u", "undo"),
+    ("^s", "save"),
+    ("q", "quit"),
+]
+
+
+def footer_bar() -> Text:
+    bar = Text()
+    for key, label in FOOTER_HINTS:
+        bar.append(f" {key} ", style="bold reverse")
+        bar.append(f" {label} ")
+    return bar
 
 
 class TaggerApp(App[None]):
@@ -64,6 +82,7 @@ class TaggerApp(App[None]):
 
     def __init__(self, path: Path | None = None, *, demo: bool = True) -> None:
         super().__init__()
+        self.theme = "textual-ansi"
         self.path = Path(path) if path is not None else default_path()
         if self.path.exists():
             self.mm = MindMap.load(self.path)
@@ -79,12 +98,19 @@ class TaggerApp(App[None]):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
         yield MindMapView(self)
-        yield Footer()
+        yield Static(footer_bar(), id="footer")
 
     def on_mount(self) -> None:
         if not self.path.exists():
             self._save()
         self.query_one(MindMapView).focus()
+
+    def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
+        """Palette contents. Textual's theme picker is deliberately not offered."""
+        yield SystemCommand("Save map", "Write the map to disk", self.action_save)
+        yield SystemCommand("Undo", "Undo the last edit", self.action_undo)
+        yield SystemCommand("Redo", "Redo the last undone edit", self.action_redo)
+        yield SystemCommand("Quit", "Exit tagger", self.action_quit)
 
     # -- state ----------------------------------------------------------
 

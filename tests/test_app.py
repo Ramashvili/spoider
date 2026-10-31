@@ -118,6 +118,15 @@ async def test_space_folds_a_branch(tmp_path: Path):
         assert app.mm.find(branch.id).collapsed is False
 
 
+async def test_palette_offers_no_theme_commands(tmp_path: Path):
+    app = TaggerApp(tmp_path / "map.json", demo=False)
+    async with app.run_test():
+        assert app.theme == "textual-ansi"
+        titles = [command.title.lower() for command in app.get_system_commands(app.screen)]
+        assert titles, "palette should still offer tagger's own commands"
+        assert not any("theme" in title for title in titles)
+
+
 async def test_changes_are_persisted(tmp_path: Path):
     path = tmp_path / "map.json"
     app = TaggerApp(path, demo=False)
