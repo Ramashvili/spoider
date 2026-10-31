@@ -43,6 +43,17 @@ def test_footer_lists_the_visible_bindings_plus_the_pinned_cluster():
     assert "equals_sign" not in line and "COMMA" not in line
 
 
+def test_footer_caps_are_coloured_text_without_a_block():
+    from spoider.chrome import CAP_STYLE, entry
+
+    chunk = entry("ctrl+d", "del")
+    cap = chunk.spans[0]
+    assert str(cap.style) == CAP_STYLE
+    assert "reverse" not in CAP_STYLE
+    assert " on " not in CAP_STYLE  # no background at all
+    assert CAP_STYLE.split()[-1] in {"cyan", "blue", "green", "yellow", "magenta", "red"}
+
+
 def test_pinned_cluster_survives_any_width():
     for width in (40, 55, 70, 90, 120, 200):
         line = compose_footer(width, hint_chunks(BINDINGS))

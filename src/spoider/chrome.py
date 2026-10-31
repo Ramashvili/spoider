@@ -14,6 +14,10 @@ from textual.widget import Widget
 
 BINDING_LEGEND = {"ctrl+": "^", "alt+": "⌥"}
 
+#: Caps are coloured text, never a block: the colour comes from the terminal
+#: palette like everything else in the app.
+CAP_STYLE = "bold cyan"
+
 KEY_GLYPHS = {
     "tab": "⇥",
     "enter": "⏎",
@@ -54,7 +58,7 @@ def entry(key: str, label: str, *, literal: bool = False) -> Text:
     """`literal` prints the string as given — for caps like "esc/^C" that are not
     single keys and cannot be derived from a binding."""
     chunk = Text()
-    chunk.append(f" {key if literal else key_cap(key)} ", style="bold reverse")
+    chunk.append(f" {key if literal else key_cap(key)} ", style=CAP_STYLE)
     chunk.append(f"{label} ")
     return chunk
 
