@@ -63,7 +63,7 @@ one of them.
 | `^S` | save straight to the current file, no questions | the universal save |
 | `^O` | write out — asks which file to write, pre-filled with the current one | nano: write out (save as) |
 | `^X` | quit; if the buffer is modified it asks `y save / n discard / esc cancel` | nano: exit |
-| `^+` | widen the gaps between cells — one column and one row per press (saved with the map) | |
+| `^=` | widen the gaps between cells — one column and one row per press (saved with the map) | |
 | `^-` | tighten them again, down to boxes that almost touch | |
 | `^/` | help: every key and option, with a line of explanation | |
 | `^,` | editor settings — the autosave switch | like every other preferences chord |
@@ -80,7 +80,7 @@ off the shortcut bar.
 Marks are part of the document — they are written into the JSON with the node, so
 a ✅ survives closing the editor and shows up in a diff as `"mark": "✅"`.
 
-Spacing (`^+` / `^-`) is part of the document: it is written into the file as
+Spacing (`^=` / `^-`) is part of the document: it is written into the file as
 `"spacing"`, so a map looks the same wherever it is opened — a 40-cell map and a
 4-cell map want different amounts of air. Changing it makes the buffer dirty, and
 `^S` writes it. It stays out of the undo stack, because nudging the air three
@@ -102,7 +102,8 @@ always reachable. Both stay live while you are typing a name.
 A note on those two chords, because they are the fiddliest keys in the app: they
 are bound by the names Textual's key parser *actually produces*, not by the names
 you would expect. Under the kitty keyboard protocol (which Textual enables, and
-which kitty, ghostty and wezterm speak) `^+` arrives as `ctrl+shift+equals_sign`;
+which kitty, ghostty and wezterm speak) `^=` arrives as `ctrl+equals_sign`, or as
+`ctrl+shift+equals_sign` when you hold shift;
 on a plain terminal `^-` arrives as the `^_` control character
 (`ctrl+underscore`). Every spelling is bound, with `alt+=` / `alt+-` as fallbacks
 for terminals that swallow the ctrl form — `tests/test_app.py` feeds the real

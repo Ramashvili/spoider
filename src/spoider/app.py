@@ -87,7 +87,7 @@ BINDINGS: list[Binding] = [
     Binding("alt+up", "move_up", "reorder up", show=False),
     Binding("alt+down", "move_down", "reorder down", show=False),
     # The key NAMES for the spacing chords are the ones Textual's parser actually
-    # produces, which is not what you would guess: ^+ arrives as
+    # produces, which is not what you would guess: ^= arrives as
     # ctrl+shift+equals_sign under the kitty keyboard protocol (which Textual
     # enables), while a plain terminal sends ^- as the ^_ control character.
     # Every spelling is bound, plus alt fallbacks for terminals that swallow the
@@ -502,7 +502,7 @@ class SpoiderApp(App[None]):
         self._reorder(+1)
 
     def action_spacing_more(self) -> None:
-        """^+ — breathe: one more column between boxes and one more row between
+        """^= — breathe: one more column between boxes and one more row between
         subtrees."""
         self._set_spacing(self.spacing + 1)
 

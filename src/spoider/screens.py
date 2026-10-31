@@ -47,7 +47,7 @@ HELP: tuple[tuple[str, tuple[tuple[tuple[str, ...], str, str], ...]], ...] = (
     (
         "View",
         (
-            (("spacing_more",), "^+", "more air between cells — saved with the map"),
+            (("spacing_more",), "^=", "more air between cells — saved with the map"),
             (("spacing_less",), "^-", "less air, down to cells sharing a border row"),
         ),
     ),

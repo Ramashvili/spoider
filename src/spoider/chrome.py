@@ -22,7 +22,10 @@ KEY_GLYPHS = {
     # The spacing chords parse into names nobody wants to read in a bar, so they
     # are labelled as the keys people actually press.
     "ctrl+minus": "^-",
-    "ctrl+shift+equals_sign": "^+",
+    # both the plain and the shifted form of the key are the same chord for the
+    # person pressing it, so they share one label
+    "ctrl+equals_sign": "^=",
+    "ctrl+shift+equals_sign": "^=",
     "ctrl+comma": "^,",
     "ctrl+slash": "^/",
 }
