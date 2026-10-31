@@ -65,7 +65,16 @@ class MindMapView(Widget, can_focus=True):
         grid = build_grid(layout, self.spoider.selected)
         return render_text(grid, self._offset_x, self._offset_y, width, height)
 
+    def on_key(self, event: events.Key) -> None:
+        """Typing into a node is handled by the app; swallow the key so no
+        binding fires underneath it."""
+        if self.spoider.handle_edit_key(event.key, event.character):
+            event.stop()
+
     def on_click(self, event: events.Click) -> None:
+        if self.spoider.editing:
+            self.spoider.finish_edit(commit=True)
+            return
         layout = self.layout_
         node_id = layout.hit(event.offset.x + self._offset_x, event.offset.y + self._offset_y)
         if node_id is None:
@@ -76,7 +85,9 @@ class MindMapView(Widget, can_focus=True):
             self.spoider.action_edit()
 
     def on_mouse_scroll_down(self, event: events.MouseScrollDown) -> None:
-        self.spoider.action_next()
+        if not self.spoider.editing:
+            self.spoider.action_next()
 
     def on_mouse_scroll_up(self, event: events.MouseScrollUp) -> None:
-        self.spoider.action_prev()
+        if not self.spoider.editing:
+            self.spoider.action_prev()

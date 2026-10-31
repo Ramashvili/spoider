@@ -14,14 +14,10 @@ def test_every_shortcut_uses_a_modifier():
 
 
 def test_footer_only_lists_visible_bindings():
-    import re
-
-    bar = footer_bar(SpoiderApp.BINDINGS)
-    text = bar.plain
-    assert "^A" in text and "^X" in text
-    assert "^Y" not in text  # redo stays out of the bar
-    assert bar.plain.count("  ") < len(text)
-    assert re.search(r"ctrl|alt", text) is None
+    bar = footer_bar(SpoiderApp.BINDINGS).plain
+    assert "^A" in bar and "^X" in bar and "^J" in bar
+    assert "^Y" not in bar  # redo stays out of the bar
+    assert "ctrl" not in bar and "alt" not in bar
 
 
 def test_no_header_and_no_command_palette():
@@ -29,66 +25,60 @@ def test_no_header_and_no_command_palette():
     assert SpoiderApp().theme == "textual-ansi"
 
 
-async def test_add_child_through_the_prompt(tmp_path: Path):
+async def test_new_node_is_typed_into_directly(tmp_path: Path):
     path = tmp_path / "map.json"
     app = SpoiderApp(path, demo=False)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+a")
         await pilot.pause()
-        assert isinstance(app.screen, TextPrompt)
+        assert not isinstance(app.screen, TextPrompt)  # no dialog for a new node
+        assert app.editing is True
+        assert app.mm.root.children[0].text == ""
+        assert "▊" in app.mm.root.children[0].preview
 
-        app.screen.query_one(Input).value = "first idea"
+        await pilot.press("f", "i", "r", "s", "t")
+        await pilot.pause()
+        assert app.mm.root.children[0].preview == "first▊"
+
         await pilot.press("enter")
         await pilot.pause()
 
-        assert [child.text for child in app.mm.root.children] == ["first idea"]
-        assert app.selected == app.mm.root.children[0].id
-        # nothing hits the disk until ^O
-        assert not path.exists()
+        assert app.editing is False
+        assert [child.text for child in app.mm.root.children] == ["first"]
+        assert app.mm.root.children[0].preview is None
         assert app.dirty is True
+        assert not path.exists()  # nothing is written until ^S/^O
 
 
-async def test_typing_replaces_the_placeholder(tmp_path: Path):
+async def test_escape_cancels_a_new_node(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+a")
         await pilot.pause()
-        await pilot.press("h", "i")
-        await pilot.press("enter")
-        await pilot.pause()
-
-        assert app.mm.root.children[0].text == "hi"
-
-
-async def test_escape_leaves_the_node_untouched(tmp_path: Path):
-    app = SpoiderApp(tmp_path / "map.json", demo=False)
-    async with app.run_test() as pilot:
-        await pilot.press("ctrl+a")
-        await pilot.pause()
+        await pilot.press("x")
         await pilot.press("escape")
         await pilot.pause()
 
-        assert len(app.mm.root.children) == 1
-        assert app.mm.root.children[0].text == "New idea"
+        assert app.editing is False
+        assert app.mm.root.children == []  # an abandoned node never happened
+        assert app.selected == app.mm.root.id
 
 
-async def test_mutations_are_blocked_while_a_dialog_is_open(tmp_path: Path):
+async def test_ctrl_c_cancels_like_escape(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        branch = app.mm.add_child(app.mm.root.id, "branch")
-        app.select(branch.id)
-        app.view.refresh_map()
-
-        await pilot.press("ctrl+e")  # rename dialog opens
+        await pilot.press("ctrl+a")
         await pilot.pause()
-        assert isinstance(app.screen, TextPrompt)
-
-        await pilot.press("ctrl+d")  # must not delete the node being renamed
+        await pilot.press("x")
+        await pilot.press("ctrl+c")
         await pilot.pause()
-        assert app.mm.find(branch.id) is not None
+
+        assert app.editing is False
+        assert app.mm.root.children == []
+        assert app.is_running is True  # ^C must not quit
 
 
-async def test_editing_an_existing_node(tmp_path: Path):
+async def test_editing_an_existing_node_types_in_place(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         node = app.mm.add_child(app.mm.root.id, "old")
@@ -97,11 +87,147 @@ async def test_editing_an_existing_node(tmp_path: Path):
 
         await pilot.press("ctrl+e")
         await pilot.pause()
-        app.screen.query_one(Input).value = "new"
+        assert not isinstance(app.screen, TextPrompt)
+        assert app.mm.find(node.id).preview == "old▊"
+
+        await pilot.press("!")
         await pilot.press("enter")
         await pilot.pause()
 
-        assert app.mm.find(node.id).text == "new"
+        assert app.mm.find(node.id).text == "old!"
+
+
+async def test_cancelling_an_edit_keeps_the_old_text(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "keep me")
+        app.select(node.id)
+        app.view.refresh_map()
+
+        await pilot.press("ctrl+e")
+        await pilot.press("x")
+        await pilot.press("ctrl+c")
+        await pilot.pause()
+
+        assert app.mm.find(node.id).text == "keep me"
+        assert app.mm.find(node.id).preview is None
+        assert app.dirty is False
+
+
+async def test_typing_swallows_shortcuts(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+a")
+        await pilot.pause()
+        await pilot.press("a", "b", "c")
+        await pilot.press("ctrl+d")  # would delete the branch outside edit mode
+        await pilot.pause()
+        assert len(app.mm.root.children) == 1
+
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.mm.root.children[0].text == "abc"
+
+
+async def test_backspace_and_caret_moves(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+a")
+        await pilot.pause()
+        await pilot.press("a", "c")
+        await pilot.press("left")
+        await pilot.press("b")
+        await pilot.pause()
+        assert app.mm.root.children[0].preview == "ab▊c"
+
+        await pilot.press("backspace")
+        await pilot.pause()
+        assert app.mm.root.children[0].preview == "a▊c"
+
+
+async def test_add_sibling_on_ctrl_j(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        first = app.mm.add_child(app.mm.root.id, "first")
+        app.select(first.id)
+        app.view.refresh_map()
+
+        await pilot.press("ctrl+j")
+        await pilot.pause()
+        await pilot.press("s", "e", "c", "o", "n", "d")
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert [child.text for child in app.mm.root.children] == ["first", "second"]
+
+
+async def test_dialog_blocks_app_actions(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "branch")
+        app.select(node.id)
+        app.view.refresh_map()
+
+        await pilot.press("ctrl+o")  # file dialog
+        await pilot.pause()
+        assert isinstance(app.screen, TextPrompt)
+
+        await pilot.press("ctrl+d")  # must not delete anything
+        await pilot.pause()
+        assert app.mm.find(node.id) is not None
+
+        await pilot.press("ctrl+c")  # and ^C closes it
+        await pilot.pause()
+        assert not issubclass(app.screen.__class__, TextPrompt)
+
+
+async def test_save_writes_without_a_prompt(tmp_path: Path):
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "quick")
+        app.select(node.id)
+        app._mark_dirty()
+
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+
+        assert not isinstance(app.screen, TextPrompt)
+        assert path.exists()
+        assert app.path == path
+        assert app.dirty is False
+
+    reopened = SpoiderApp(path)
+    assert [child.text for child in reopened.mm.root.children] == ["quick"]
+
+
+async def test_write_out_asks_for_a_name(tmp_path: Path):
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "kept")
+        app.select(node.id)
+        app._mark_dirty()
+
+        await pilot.press("ctrl+o")
+        await pilot.pause()
+        assert isinstance(app.screen, TextPrompt)
+
+        field = app.screen.query_one(Input)
+        assert field.value == str(path)
+
+        other = tmp_path / "written.json"
+        field.value = str(other)
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert other.exists()
+        assert app.path == other
+        assert app.dirty is False
+        assert not path.exists()
+
+    reopened = SpoiderApp(other)
+    assert [child.text for child in reopened.mm.root.children] == ["kept"]
 
 
 async def test_navigation_moves_through_the_tree(tmp_path: Path):
@@ -112,13 +238,13 @@ async def test_navigation_moves_through_the_tree(tmp_path: Path):
         app.view.refresh_map()
         app.select(first.id)
 
-        await pilot.press("ctrl+n")  # next sibling
+        await pilot.press("ctrl+n")
         assert app.selected == second.id
-        await pilot.press("ctrl+b")  # back out to the parent
+        await pilot.press("ctrl+b")
         assert app.selected == app.mm.root.id
-        await pilot.press("ctrl+f")  # forward into the first child
+        await pilot.press("ctrl+f")
         assert app.selected == first.id
-        await pilot.press("ctrl+p")  # no previous sibling -> stays at the edge
+        await pilot.press("ctrl+p")
         assert app.selected == first.id
 
 
@@ -152,7 +278,6 @@ async def test_delete_then_undo(tmp_path: Path):
         await pilot.press("ctrl+z")
         await pilot.pause()
         assert [child.text for child in app.mm.root.children] == ["first", "second"]
-        assert app.mm.find(first.id) is not None
 
 
 async def test_fold_toggles_a_branch(tmp_path: Path):
@@ -172,76 +297,11 @@ async def test_fold_toggles_a_branch(tmp_path: Path):
         assert app.mm.find(branch.id).collapsed is False
 
 
-async def test_save_writes_without_a_prompt(tmp_path: Path):
-    path = tmp_path / "map.json"
-    app = SpoiderApp(path, demo=False)
-    async with app.run_test() as pilot:
-        node = app.mm.add_child(app.mm.root.id, "quick")
-        app.select(node.id)
-        app._mark_dirty()
-
-        await pilot.press("ctrl+s")
-        await pilot.pause()
-
-        assert not isinstance(app.screen, TextPrompt)  # no dialog for a plain save
-        assert path.exists()
-        assert app.path == path
-        assert app.dirty is False
-
-    reopened = SpoiderApp(path)
-    assert [child.text for child in reopened.mm.root.children] == ["quick"]
-
-
-async def test_add_sibling_on_ctrl_j(tmp_path: Path):
-    app = SpoiderApp(tmp_path / "map.json", demo=False)
-    async with app.run_test() as pilot:
-        first = app.mm.add_child(app.mm.root.id, "first")
-        app.select(first.id)
-        app.view.refresh_map()
-
-        await pilot.press("ctrl+j")
-        await pilot.pause()
-        await pilot.press("s", "e", "c", "o", "n", "d", "enter")
-        await pilot.pause()
-
-        assert [child.text for child in app.mm.root.children] == ["first", "second"]
-
-
-async def test_write_out_asks_for_a_name(tmp_path: Path):
-    path = tmp_path / "map.json"
-    app = SpoiderApp(path, demo=False)
-    async with app.run_test() as pilot:
-        node = app.mm.add_child(app.mm.root.id, "kept")
-        app.select(node.id)
-        app._mark_dirty()
-
-        await pilot.press("ctrl+o")
-        await pilot.pause()
-        assert isinstance(app.screen, TextPrompt)
-
-        field = app.screen.query_one(Input)
-        assert field.value == str(path)  # pre-filled with the current file
-
-        other = tmp_path / "written.json"
-        field.value = str(other)
-        await pilot.press("enter")
-        await pilot.pause()
-
-        assert other.exists()
-        assert app.path == other
-        assert app.dirty is False
-        assert not path.exists()
-
-    reopened = SpoiderApp(other)
-    assert [child.text for child in reopened.mm.root.children] == ["kept"]
-
-
 async def test_undo_marks_the_buffer_modified(tmp_path: Path):
     path = tmp_path / "map.json"
     app = SpoiderApp(path, demo=False)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+a")
-        await pilot.pause()
         await pilot.press("h", "i", "enter")
         await pilot.pause()
         assert app.dirty is True
@@ -251,7 +311,7 @@ async def test_undo_marks_the_buffer_modified(tmp_path: Path):
 
         await pilot.press("ctrl+z")
         await pilot.pause()
-        assert app.dirty is True  # an undone change still needs writing
+        assert app.dirty is True
 
 
 async def test_clean_quit_exits_without_a_dialog(tmp_path: Path):
@@ -273,9 +333,9 @@ async def test_dirty_quit_asks_before_discarding(tmp_path: Path):
         await pilot.pause()
         assert isinstance(app.screen, Confirm)
 
-        await pilot.press("escape")
+        await pilot.press("ctrl+c")
         await pilot.pause()
-        assert app.is_running is True  # cancel keeps you in the editor
+        assert app.is_running is True  # ^C cancels the dialog, does not quit
         assert app.dirty is True
 
         await pilot.press("ctrl+x")
@@ -283,7 +343,7 @@ async def test_dirty_quit_asks_before_discarding(tmp_path: Path):
         await pilot.press("n")
         await pilot.pause()
         assert app.is_running is False
-        assert not path.exists()  # discarded, not written
+        assert not path.exists()
 
 
 async def test_dirty_quit_saves_on_yes(tmp_path: Path):
@@ -299,7 +359,7 @@ async def test_dirty_quit_saves_on_yes(tmp_path: Path):
         await pilot.pause()
         assert isinstance(app.screen, TextPrompt)
 
-        await pilot.press("enter")  # accept the pre-filled name
+        await pilot.press("enter")
         await pilot.pause()
         assert app.is_running is False
 

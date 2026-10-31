@@ -20,6 +20,8 @@ BOX_H = 3
 
 
 def label(node: Node) -> str:
+    if node.preview is not None:
+        return node.preview
     text = (node.text or "").strip() or "(untitled)"
     if node.children and node.collapsed:
         text = f"{text} +{len(node.children)}"

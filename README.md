@@ -36,9 +36,10 @@ are the cursor keys of the terminal itself.
 
 | Keys | Action | Why that key |
 | --- | --- | --- |
-| `^A` | add a child under the selection, then name it | **a**dd |
-| `^J` | add a sibling after the selection, then name it | vim's `^J`: a new line below |
-| `^E` / `Enter` | edit the selected node | **e**dit |
+| `^A` | add a child under the selection and type its name in place | **a**dd |
+| `^J` | add a sibling after the selection and type its name in place | vim's `^J`: a new line below |
+| `^E` / `Enter` | edit the selected node in place | **e**dit |
+| `^C` | escape everywhere: closes a dialog, abandons the node being typed, otherwise inert | |
 | `^D` | delete the branch | nano's delete |
 | `^T` | fold / unfold the branch | **t**oggle |
 | `^P` / `↑` | previous sibling | nano: previous line |
@@ -52,11 +53,16 @@ are the cursor keys of the terminal itself.
 | `^X` | quit; if the buffer is modified it asks `y save / n discard / esc cancel` | nano: exit |
 
 Reordering a node among its siblings is on `alt+↑` / `alt+↓` — rare enough to stay
-off the shortcut bar. Mouse: click a node to select it, double-click to rename,
-scroll to walk siblings.
+off the shortcut bar. Mouse: click a node to select it, double-click to rename it in place, scroll to
+walk siblings.
 
-While a rename dialog is open only `^X` stays live, so `^D` can never delete the
-node you are typing into.
+### Typing
+
+Names are typed straight onto the canvas — no dialog. The box widens as you type,
+the caret is a block, and the bar swaps to `⏎ done · esc/^C cancel · ←→ move · ⌫ erase`.
+`Enter` commits, `esc` or `^C` abandons, and a node you abandon before naming it
+never existed. While typing, every other chord is swallowed, so `^D` cannot delete
+the node you are halfway through naming.
 
 ## Colours
 

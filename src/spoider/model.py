@@ -7,7 +7,6 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-NEW_NODE_TEXT = "New idea"
 DEFAULT_ROOT_TEXT = "Mind map"
 
 
@@ -21,6 +20,8 @@ class Node:
     id: str = field(default_factory=new_id)
     collapsed: bool = False
     children: list["Node"] = field(default_factory=list)
+    # Live inline-edit buffer. Rendering reads it when set; never serialised.
+    preview: str | None = field(default=None, compare=False, repr=False)
 
     def walk(self):
         yield self
@@ -105,14 +106,14 @@ class MindMap:
 
     # -- mutation -------------------------------------------------------
 
-    def add_child(self, parent_id: str, text: str = NEW_NODE_TEXT) -> Node:
+    def add_child(self, parent_id: str, text: str = "") -> Node:
         parent = self.find(parent_id) or self.root
         node = Node(text=text)
         parent.children.append(node)
         parent.collapsed = False
         return node
 
-    def add_sibling(self, node_id: str, text: str = NEW_NODE_TEXT) -> Node | None:
+    def add_sibling(self, node_id: str, text: str = "") -> Node | None:
         parent = self.parent(node_id)
         if parent is None:
             return None

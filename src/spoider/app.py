@@ -1,4 +1,4 @@
-"""The spoider application: key handling, undo history, persistence wiring."""
+"""The spoider application: key handling, inline editing, write/quit flow."""
 
 from __future__ import annotations
 
@@ -35,7 +35,9 @@ MindMapView {
 }
 """
 
-# Nano-style: every shortcut is a ctrl chord, arrows stay as plain cursor keys.
+# The character that stands in for the caret while a node is being typed into.
+CARET = "▊"
+
 BINDINGS: list[Binding] = [
     Binding("ctrl+a", "add_child", "child"),
     Binding("ctrl+j", "add_sibling", "sib"),
@@ -59,6 +61,7 @@ BINDINGS: list[Binding] = [
 ]
 
 BINDING_LEGEND = {"ctrl+": "^", "alt+": "⌥"}
+EDIT_HINTS = [("⏎", "done"), ("esc/^C", "cancel"), ("←→", "move"), ("⌫", "erase")]
 
 
 def footer_bar(bindings: list[Binding]) -> Text:
@@ -72,6 +75,14 @@ def footer_bar(bindings: list[Binding]) -> Text:
             key = key.replace(prefix, glyph)
         bar.append(f" {key.upper()} ", style="bold reverse")
         bar.append(f"{binding.description} ")
+    return bar
+
+
+def edit_bar() -> Text:
+    bar = Text()
+    for key, label in EDIT_HINTS:
+        bar.append(f" {key} ", style="bold reverse")
+        bar.append(f"{label} ")
     return bar
 
 
@@ -93,6 +104,10 @@ class SpoiderApp(App[None]):
         self.dirty = False
         self._undo: list[dict] = []
         self._redo: list[dict] = []
+        self._edit_id: str | None = None
+        self._edit_buffer = ""
+        self._edit_cursor = 0
+        self._edit_fresh = False
 
     # -- composition ----------------------------------------------------
 
@@ -116,11 +131,16 @@ class SpoiderApp(App[None]):
             driver.write(f"\x1b]2;{self._title()}\x07")
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
-        """Nothing from the app keymap fires while a dialog is open: ^D must not
-        delete the node being renamed, and ^X must not stack another dialog."""
-        if len(self.screen_stack) > 1:
+        """Nothing from the app keymap fires while a dialog is open or a node is
+        being typed into: ^D must not delete the node you are editing, and ^X
+        must not stack another dialog on top."""
+        if len(self.screen_stack) > 1 or self.editing:
             return None
         return True
+
+    def action_help_quit(self) -> None:
+        """^C is escape in spoider, not Textual's "press ^X to quit" nudge."""
+        return
 
     # -- state ----------------------------------------------------------
 
@@ -172,23 +192,105 @@ class SpoiderApp(App[None]):
             self.selected = self.mm.root.id
         self._mark_dirty()
 
-    def _prompt(self, node_id: str, *, push: bool = True, preselect: bool = False) -> None:
+    # -- inline editing -------------------------------------------------
+
+    @property
+    def editing(self) -> bool:
+        return self._edit_id is not None
+
+    def begin_edit(self, node_id: str, *, fresh: bool = False) -> None:
         node = self.mm.find(node_id)
         if node is None:
             return
+        if not fresh:
+            self._push_undo()
+        self._edit_id = node_id
+        self._edit_fresh = fresh
+        self._edit_buffer = "" if fresh else (node.text or "")
+        self._edit_cursor = len(self._edit_buffer)
+        self._sync_preview()
+        self._sync_footer()
 
-        def apply(value: str | None) -> None:
-            if value is None:
-                return
-            target = self.mm.find(node_id)
-            if target is None:
-                return
-            if push:
-                self._push_undo()
-            target.text = value.strip() or "Untitled"
+    def _sync_preview(self) -> None:
+        node = self.mm.find(self._edit_id) if self._edit_id else None
+        if node is None:
+            return
+        before = self._edit_buffer[: self._edit_cursor]
+        after = self._edit_buffer[self._edit_cursor :]
+        node.preview = f"{before}{CARET}{after}"
+        self.view.refresh_map()
+
+    def _sync_footer(self) -> None:
+        self.query_one("#footer", Static).update(
+            edit_bar() if self.editing else footer_bar(BINDINGS)
+        )
+
+    def handle_edit_key(self, key: str, character: str | None) -> bool:
+        """Every keystroke while typing into a node. Returns True if consumed."""
+        if not self.editing:
+            return False
+        if key == "enter":
+            self.finish_edit(commit=True)
+        elif key in ("escape", "ctrl+c"):
+            self.finish_edit(commit=False)
+        elif key == "backspace" and self._edit_cursor:
+            self._edit_buffer = (
+                self._edit_buffer[: self._edit_cursor - 1] + self._edit_buffer[self._edit_cursor :]
+            )
+            self._edit_cursor -= 1
+            self._sync_preview()
+        elif key == "delete":
+            self._edit_buffer = (
+                self._edit_buffer[: self._edit_cursor] + self._edit_buffer[self._edit_cursor + 1 :]
+            )
+            self._sync_preview()
+        elif key in ("left", "ctrl+b"):
+            self._edit_cursor = max(0, self._edit_cursor - 1)
+            self._sync_preview()
+        elif key in ("right", "ctrl+f"):
+            self._edit_cursor = min(len(self._edit_buffer), self._edit_cursor + 1)
+            self._sync_preview()
+        elif key in ("home", "ctrl+a"):
+            self._edit_cursor = 0
+            self._sync_preview()
+        elif key in ("end", "ctrl+e"):
+            self._edit_cursor = len(self._edit_buffer)
+            self._sync_preview()
+        elif character and character.isprintable():
+            self._edit_buffer = (
+                self._edit_buffer[: self._edit_cursor]
+                + character
+                + self._edit_buffer[self._edit_cursor :]
+            )
+            self._edit_cursor += len(character)
+            self._sync_preview()
+        return True
+
+    def finish_edit(self, *, commit: bool) -> None:
+        node_id = self._edit_id
+        self._edit_id = None
+        node = self.mm.find(node_id) if node_id else None
+        text = self._edit_buffer.strip()
+        fresh = self._edit_fresh
+        if node is not None:
+            node.preview = None
+
+        if node is None or not commit or not text:
+            # An abandoned new node was only ever a promise; take it away again.
+            if fresh and node is not None:
+                result = self.mm.delete(node.id)
+                if result is not None:
+                    self.selected = result[1]
+            self._sync_footer()
+            self.view.refresh_map()
+            return
+
+        if node.text != text:
+            node.text = text
             self._mark_dirty()
-
-        self.push_screen(TextPrompt("Node text", node.text, preselect=preselect), apply)
+        else:
+            self.view.refresh_map()
+        self._sync_footer()
 
     # -- editing actions ------------------------------------------------
 
@@ -196,22 +298,25 @@ class SpoiderApp(App[None]):
         self._push_undo()
         node = self.mm.add_child(self.selected)
         self.selected = node.id
-        self._mark_dirty()
-        self._prompt(node.id, push=False, preselect=True)
+        self.view.refresh_map()
+        self.begin_edit(node.id, fresh=True)
 
     def action_add_sibling(self) -> None:
-        node = self.mm.add_sibling(self.selected)
-        if node is None:
+        if self.mm.parent(self.selected) is None:
             self.action_add_child()
             return
         self._push_undo()
+        node = self.mm.add_sibling(self.selected)
+        if node is None:
+            self._undo.pop()
+            return
         self.selected = node.id
-        self._mark_dirty()
-        self._prompt(node.id, push=False, preselect=True)
+        self.view.refresh_map()
+        self.begin_edit(node.id, fresh=True)
 
     def action_edit(self) -> None:
         if self.node is not None:
-            self._prompt(self.selected)
+            self.begin_edit(self.selected)
 
     def action_delete(self) -> None:
         if self.selected == self.mm.root.id:
@@ -267,7 +372,7 @@ class SpoiderApp(App[None]):
         else:
             self._undo.pop()
 
-    # -- history --------------------------------------------------------
+    # -- history and files ----------------------------------------------
 
     def action_undo(self) -> None:
         if not self._undo:

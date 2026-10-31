@@ -29,7 +29,11 @@ class TextPrompt(ModalScreen[str | None]):
     }
     """
 
-    BINDINGS = [Binding("escape", "cancel", "cancel")]
+    # ^C is escape everywhere in spoider
+    BINDINGS = [
+        Binding("escape", "cancel", "cancel"),
+        Binding("ctrl+c", "cancel", "cancel", show=False),
+    ]
 
     def __init__(
         self, prompt: str, value: str = "", *, preselect: bool = False
@@ -86,6 +90,7 @@ class Confirm(ModalScreen[str | None]):
         Binding("y", "answer('yes')", "yes"),
         Binding("n", "answer('no')", "no"),
         Binding("escape", "cancel", "cancel"),
+        Binding("ctrl+c", "cancel", "cancel", show=False),
     ]
 
     def __init__(self, prompt: str) -> None:
