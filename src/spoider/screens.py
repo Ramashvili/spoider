@@ -50,6 +50,7 @@ class TextPrompt(ModalScreen[str | None]):
 
     def on_mount(self) -> None:
         field = self.query_one(Input)
+        field.cursor_blink = False  # a steady block, like a terminal caret
         field.focus()
         if self._preselect:
             field.select_all()

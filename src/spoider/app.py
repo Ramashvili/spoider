@@ -33,6 +33,15 @@ MindMapView {
     width: 100%;
     height: 1fr;
 }
+/* Textual's ansi theme paints the text cursor ansi_white on ansi_black *and*
+   applies the theme's `reverse` text style on top — two inversions, which land
+   back on a black block on a black terminal. Pure reverse video inverts
+   whatever the terminal already shows, so the caret is visible on any palette. */
+TextPrompt Input > .input--cursor {
+    background: ansi_default;
+    color: ansi_default;
+    text-style: reverse;
+}
 #footer {
     width: 100%;
     height: 1;

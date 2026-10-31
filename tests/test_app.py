@@ -282,6 +282,35 @@ async def test_save_writes_without_a_prompt(tmp_path: Path):
     assert [child.text for child in reopened.mm.root.children] == ["quick"]
 
 
+async def test_write_dialog_caret_is_visible(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+o")
+        await pilot.pause()
+
+        field = app.screen.query_one(Input)
+        assert field.has_focus is True
+        assert field.cursor_blink is False  # steady, not a half-second flash
+
+        caret = field.get_component_rich_style("input--cursor")
+        assert caret.reverse is True  # inverts the terminal's own colours…
+        assert caret.color.is_default and caret.bgcolor.is_default  # …no black block
+
+
+async def test_write_dialog_caret_follows_typing(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+o")
+        await pilot.pause()
+        field = app.screen.query_one(Input)
+
+        await pilot.press("home")
+        await pilot.press("x")
+        await pilot.pause()
+        assert field.value.startswith("x")
+        assert field.cursor_position == 1
+
+
 async def test_write_out_asks_for_a_name(tmp_path: Path):
     path = tmp_path / "map.json"
     app = SpoiderApp(path, demo=False)
