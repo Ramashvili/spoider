@@ -14,12 +14,21 @@ from textual.widgets import Static
 from . import nav
 from .model import MindMap, Node
 from .screens import Confirm, TextPrompt
-from .widgets import MindMapView
+from .widgets import MindMapView, TopBar
 
 # No colours here on purpose: the app runs on Textual's ansi theme, so every
 # surface inherits the terminal's palette. `ansi_default` means "whatever the
 # terminal already uses", and `reverse` swaps its own fg/bg.
 APP_CSS = """
+#topbar {
+    width: 100%;
+    height: 1;
+    padding: 0 1;
+    background: ansi_default;
+    color: ansi_default;
+    text-wrap: nowrap;
+    text-overflow: clip;
+}
 MindMapView {
     width: 100%;
     height: 1fr;
@@ -112,6 +121,7 @@ class SpoiderApp(App[None]):
     # -- composition ----------------------------------------------------
 
     def compose(self) -> ComposeResult:
+        yield TopBar(id="topbar")
         yield MindMapView(self)
         yield Static(footer_bar(BINDINGS), id="footer")
 
@@ -124,8 +134,8 @@ class SpoiderApp(App[None]):
         return f"spoider — {self.path.name}{marker}"
 
     def _set_terminal_title(self) -> None:
-        """No header bar, so the file name (and the modified marker) live in the
-        terminal's title."""
+        """Mirror the buffer into the terminal title, where the unsaved marker is
+        visible even when the top bar is scrolled out of sight."""
         driver = getattr(self, "_driver", None)
         if driver is not None:
             driver.write(f"\x1b]2;{self._title()}\x07")
@@ -160,10 +170,14 @@ class SpoiderApp(App[None]):
         self._undo.append(self.mm.to_dict())
         self._redo.clear()
 
+    def _refresh_chrome(self) -> None:
+        self.query_one(TopBar).refresh()
+
     def _mark_dirty(self) -> None:
         self.dirty = True
         self._set_terminal_title()
         self.view.refresh_map()
+        self._refresh_chrome()
 
     def _write(self, path: Path) -> bool:
         try:
@@ -174,6 +188,7 @@ class SpoiderApp(App[None]):
         self.path = path
         self.dirty = False
         self._set_terminal_title()
+        self._refresh_chrome()
         self.notify(f"Wrote {self.mm.count()} nodes to {path.name}", timeout=2)
         return True
 

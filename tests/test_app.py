@@ -3,6 +3,7 @@ from pathlib import Path
 from textual.widgets import Input
 
 from spoider.app import SpoiderApp, footer_bar
+from spoider.widgets import TopBar, compose_top_bar
 from spoider.screens import Confirm, TextPrompt
 
 
@@ -20,9 +21,50 @@ def test_footer_only_lists_visible_bindings():
     assert "ctrl" not in bar and "alt" not in bar
 
 
+def test_top_bar_layout():
+    bar = compose_top_bar(80, "0.1.0", "/tmp/map.json", 7).plain
+    assert bar.startswith("spoider 0.1.0")
+    assert bar.endswith("7 cells")
+    assert "/tmp/map.json" in bar
+    assert len(bar) == 80
+
+    assert compose_top_bar(70, "0.1.0", "New Buffer", 1).plain.endswith("1 cell")
+    # too narrow for three fields: the location is the one that goes
+    narrow = compose_top_bar(24, "0.1.0", "/tmp/map.json", 3).plain
+    assert narrow.startswith("spoider 0.1.0") and narrow.endswith("3 cells")
+    assert "/tmp" not in narrow
+
+
+def test_top_bar_truncates_a_long_path_from_the_left():
+    bar = compose_top_bar(40, "0.1.0", "/very/long/path/to/some/deep/map.json", 4).plain
+    assert bar.endswith("4 cells")
+    assert "…" in bar and "map.json" in bar
+
+
 def test_no_header_and_no_command_palette():
     assert SpoiderApp.ENABLE_COMMAND_PALETTE is False
     assert SpoiderApp().theme == "textual-ansi"
+
+
+async def test_top_bar_tracks_location_and_cell_count(tmp_path: Path):
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test() as pilot:
+        bar = app.query_one(TopBar)
+        assert "New Buffer" in bar.render().plain
+        assert "1 cell" in bar.render().plain
+
+        await pilot.press("ctrl+a")
+        await pilot.press("x", "enter")
+        await pilot.pause()
+        assert "2 cells" in bar.render().plain
+
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        rendered = bar.render().plain
+        assert "map.json" in rendered  # long path keeps its tail
+        assert "New Buffer" not in rendered
+        assert "2 cells" in rendered
 
 
 async def test_new_node_is_typed_into_directly(tmp_path: Path):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from rich.cells import cell_len
 from rich.text import Text
 from textual import events
 from textual.widget import Widget
@@ -13,6 +14,63 @@ from .render import build_grid, render_text
 
 if TYPE_CHECKING:
     from .app import SpoiderApp
+
+
+def _head(text: str, limit: int) -> str:
+    """Truncate from the right: names and stats lose their tail first."""
+    if cell_len(text) <= limit:
+        return text
+    return text[: max(1, limit - 1)] + "…"
+
+
+def compose_top_bar(width: int, version: str, where: str, cells: int) -> Text:
+    """One line: name+version left, location centred, cell count right.
+
+    Degrades in stages as the terminal narrows: centre out first, then the
+    location is truncated from the left (a path's tail is the useful half), then
+    the name itself."""
+    name = f"spoider {version}"
+    stat = f"{cells} cell" if cells == 1 else f"{cells} cells"
+    if width <= 0:
+        return Text("")
+    stat_width = cell_len(stat)
+    if width < stat_width + 2:
+        return Text(_head(stat, width), style="bold reverse")
+
+    left_room = width - stat_width - 1
+    name = _head(name, left_room)
+
+    # One blank column separates the name from the centre band, and the band
+    # from the stat, so the line always fills exactly `width` cells.
+    band = width - cell_len(name) - stat_width - 2
+    middle = ""
+    if band >= 6:
+        middle = where if cell_len(where) <= band else "…" + where[-(band - 1) :]
+
+    bar = Text(name, style="bold")
+    if middle:
+        pad = (band - cell_len(middle)) // 2
+        bar.append(" " * (1 + pad))
+        bar.append(middle)
+        bar.append(" " * (band - pad - cell_len(middle) + 1))
+    else:
+        bar.append(" " * (width - cell_len(name) - stat_width))
+    bar.append(stat, style="bold reverse")
+    return bar
+
+
+class TopBar(Widget):
+    """Chrome above the map: identity, location, size."""
+
+    def render(self) -> Text:
+        from . import __version__
+
+        app: "SpoiderApp" = self.app  # type: ignore[assignment]
+        height = self.size.width
+        if height <= 0:
+            return Text("")
+        where = str(app.path) if app.path.exists() else "New Buffer"
+        return compose_top_bar(height, __version__, where, app.mm.count())
 
 
 class MindMapView(Widget, can_focus=True):

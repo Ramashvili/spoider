@@ -5,12 +5,16 @@ a central idea, the view follows your selection, and the map is a plain JSON fil
 you can diff and version.
 
 ```
-                    ╭────────────╮
-       ╭────────────┤   spoider  ├────────────╮
-       │            ╰────────────╯            │
-  ╭────┴─────╮                          ╭─────┴────╮
-  │  canvas  │                          │   keys   │
-  ╰──────────╯                          ╰──────────╯
+ spoider 0.1.0                    ~/Projects/spoider/map.json                    14 cells
+
+                      ╭────────────╮
+         ╭────────────┤   spoider  ├────────────╮
+         │            ╰────────────╯            │
+    ╭────┴─────╮                          ╭─────┴────╮
+    │  canvas  │                          │   keys   │
+    ╰──────────╯                          ╰──────────╯
+
+  ^A child  ^J sib  ^E edit  ^D del  ^T fold  ^P prev  ^N next  ^B out  ^F in  ^S save ...
 ```
 
 ## Run it
@@ -22,8 +26,10 @@ uv run spoider my-ideas.json   # or any path
 uv run spoider --empty notes.json
 ```
 
-There is no header bar — the map gets the whole screen and the file name lives in
-your terminal's window title, with a `*` while the buffer has unsaved changes.
+The top line is chrome and nothing more: `spoider` and its version on the left,
+the file path centred (`New Buffer` until the first write), and the total cell
+count on the right. The terminal title carries the same path plus a `*` while the
+buffer has unsaved changes.
 
 Nothing is written until you ask for it: edits stay in memory, `^S` writes them
 to the current file, `^O` writes them wherever you name, and `^X` refuses to throw
