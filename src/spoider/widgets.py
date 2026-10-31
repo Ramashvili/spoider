@@ -12,15 +12,15 @@ from .layout import Layout, compute
 from .render import build_grid, render_text
 
 if TYPE_CHECKING:
-    from .app import TaggerApp
+    from .app import SpoiderApp
 
 
 class MindMapView(Widget, can_focus=True):
     """A camera over the map. The view follows the selection instead of scrolling."""
 
-    def __init__(self, tagger: "TaggerApp") -> None:
+    def __init__(self, spoider: "SpoiderApp") -> None:
         super().__init__()
-        self.tagger = tagger
+        self.spoider = spoider
         self._layout: Layout | None = None
         self._offset_x = 0
         self._offset_y = 0
@@ -33,12 +33,12 @@ class MindMapView(Widget, can_focus=True):
     @property
     def layout_(self) -> Layout:
         if self._layout is None:
-            self._layout = compute(self.tagger.mm.root)
+            self._layout = compute(self.spoider.mm.root)
         return self._layout
 
     def camera(self, width: int, height: int) -> tuple[int, int]:
         layout = self.layout_
-        focus = layout.box(self.tagger.selected)
+        focus = layout.box(self.spoider.selected)
         if focus is not None:
             x = focus.cx - width // 2
             y = focus.cy - height // 2
@@ -62,7 +62,7 @@ class MindMapView(Widget, can_focus=True):
             return Text("")
         layout = self.layout_
         self._offset_x, self._offset_y = self.camera(width, height)
-        grid = build_grid(layout, self.tagger.selected)
+        grid = build_grid(layout, self.spoider.selected)
         return render_text(grid, self._offset_x, self._offset_y, width, height)
 
     def on_click(self, event: events.Click) -> None:
@@ -71,12 +71,12 @@ class MindMapView(Widget, can_focus=True):
         if node_id is None:
             return
         event.stop()
-        self.tagger.select(node_id)
+        self.spoider.select(node_id)
         if event.chain == 2:
-            self.tagger.action_edit()
+            self.spoider.action_edit()
 
     def on_mouse_scroll_down(self, event: events.MouseScrollDown) -> None:
-        self.tagger.action_nav_down()
+        self.spoider.action_next()
 
     def on_mouse_scroll_up(self, event: events.MouseScrollUp) -> None:
-        self.tagger.action_nav_up()
+        self.spoider.action_prev()

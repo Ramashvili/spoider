@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from tagger.model import MindMap, Node
+from spoider.model import MindMap, Node
 
 
 def test_add_child_and_sibling():

@@ -179,11 +179,11 @@ class MindMap:
 
     @classmethod
     def demo(cls) -> "MindMap":
-        root = Node("tagger")
+        root = Node("spoider")
         ideas = {
-            "keys": ["arrows / hjkl move", "tab child · enter sibling", "e edits · d deletes"],
-            "canvas": ["auto-centres on selection", "click any node to select", "space folds a branch"],
-            "data": ["json on disk", "u undoes · ctrl+r redoes", "ctrl+s saves"],
+            "keys": ["^A child · ^S sibling", "^E edits · ^D deletes", "^T folds a branch"],
+            "canvas": ["auto-centres on selection", "click any node to select", "^P ^N ^B ^F move"],
+            "data": ["json on disk", "^Z undoes · ^Y redoes", "^O writes it out"],
         }
         for title, leaves in ideas.items():
             branch = Node(title, children=[Node(leaf) for leaf in leaves])

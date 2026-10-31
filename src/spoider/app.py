@@ -1,17 +1,15 @@
-"""The tagger application: key handling, undo history, persistence wiring."""
+"""The spoider application: key handling, undo history, persistence wiring."""
 
 from __future__ import annotations
 
 import argparse
 import os
-from collections.abc import Iterable
 from pathlib import Path
 
-from textual.app import App, ComposeResult, SystemCommand
-from textual.binding import Binding
-from textual.screen import Screen
-from textual.widgets import Header, Static
 from rich.text import Text
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.widgets import Static
 
 from . import nav
 from .model import MindMap, Node
@@ -37,48 +35,48 @@ MindMapView {
 }
 """
 
-FOOTER_HINTS = [
-    ("tab", "child"),
-    ("⏎", "sibling"),
-    ("e", "edit"),
-    ("d", "delete"),
-    ("space", "fold"),
-    ("←↑↓→", "move"),
-    ("u", "undo"),
-    ("^s", "save"),
-    ("q", "quit"),
+# Nano-style: every shortcut is a ctrl chord, arrows stay as plain cursor keys.
+BINDINGS: list[Binding] = [
+    Binding("ctrl+a", "add_child", "child"),
+    Binding("ctrl+s", "add_sibling", "sib"),
+    Binding("ctrl+e,enter", "edit", "edit"),
+    Binding("ctrl+d", "delete", "del"),
+    Binding("ctrl+t", "toggle", "fold"),
+    # nano's cursor keys: ^P/^N walk the branch, ^B/^F go up/down the tree
+    Binding("ctrl+p,up", "prev", "prev"),
+    Binding("ctrl+n,down", "next", "next"),
+    Binding("ctrl+b,left", "parent", "out"),
+    Binding("ctrl+f,right", "child", "in"),
+    Binding("alt+up", "move_up", "reorder up", show=False),
+    Binding("alt+down", "move_down", "reorder down", show=False),
+    Binding("ctrl+z", "undo", "undo"),
+    Binding("ctrl+y", "redo", "redo", show=False),
+    Binding("ctrl+o", "save", "save"),
+    Binding("ctrl+x", "quit", "quit"),
 ]
 
+BINDING_LEGEND = {"ctrl+": "^", "alt+": "⌥"}
 
-def footer_bar() -> Text:
+
+def footer_bar(bindings: list[Binding]) -> Text:
+    """Shortcut bar, built from BINDINGS so it cannot drift out of date."""
     bar = Text()
-    for key, label in FOOTER_HINTS:
-        bar.append(f" {key} ", style="bold reverse")
-        bar.append(f" {label} ")
+    for binding in bindings:
+        if not binding.show:
+            continue
+        key = str(binding.key).split(",")[0]
+        for prefix, glyph in BINDING_LEGEND.items():
+            key = key.replace(prefix, glyph)
+        bar.append(f" {key.upper()} ", style="bold reverse")
+        bar.append(f"{binding.description} ")
     return bar
 
 
-class TaggerApp(App[None]):
+class SpoiderApp(App[None]):
     CSS = APP_CSS
-    TITLE = "tagger"
-
-    BINDINGS = [
-        Binding("tab", "add_child", "child", priority=True),
-        Binding("enter", "add_sibling", "sibling"),
-        Binding("e", "edit", "edit"),
-        Binding("d", "delete", "delete"),
-        Binding("space", "toggle", "fold"),
-        Binding("left,h", "nav_left", "parent"),
-        Binding("right,l", "nav_right", "child"),
-        Binding("up,k", "nav_up", "prev"),
-        Binding("down,j", "nav_down", "next"),
-        Binding("K", "move_up", "move up"),
-        Binding("J", "move_down", "move down"),
-        Binding("u", "undo", "undo"),
-        Binding("ctrl+r", "redo", "redo"),
-        Binding("ctrl+s", "save", "save"),
-        Binding("q", "quit", "quit"),
-    ]
+    TITLE = "spoider"
+    BINDINGS = BINDINGS
+    ENABLE_COMMAND_PALETTE = False
 
     def __init__(self, path: Path | None = None, *, demo: bool = True) -> None:
         super().__init__()
@@ -91,26 +89,31 @@ class TaggerApp(App[None]):
         self.selected: str = self.mm.root.id
         self._undo: list[dict] = []
         self._redo: list[dict] = []
-        self.sub_title = str(self.path)
 
     # -- composition ----------------------------------------------------
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=False)
         yield MindMapView(self)
-        yield Static(footer_bar(), id="footer")
+        yield Static(footer_bar(BINDINGS), id="footer")
 
     def on_mount(self) -> None:
         if not self.path.exists():
             self._save()
+        self._set_terminal_title()
         self.query_one(MindMapView).focus()
 
-    def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
-        """Palette contents. Textual's theme picker is deliberately not offered."""
-        yield SystemCommand("Save map", "Write the map to disk", self.action_save)
-        yield SystemCommand("Undo", "Undo the last edit", self.action_undo)
-        yield SystemCommand("Redo", "Redo the last undone edit", self.action_redo)
-        yield SystemCommand("Quit", "Exit tagger", self.action_quit)
+    def _set_terminal_title(self) -> None:
+        """No header bar, so the file name lives in the terminal's title."""
+        driver = getattr(self, "_driver", None)
+        if driver is not None:
+            driver.write(f"\x1b]2;spoider — {self.path.name}\x07")
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        """Only quit is live while a dialog is open — ^D must not delete a node
+        you are in the middle of renaming."""
+        if len(self.screen_stack) > 1 and action != "quit":
+            return None
+        return True
 
     # -- state ----------------------------------------------------------
 
@@ -210,10 +213,10 @@ class TaggerApp(App[None]):
 
     # -- movement -------------------------------------------------------
 
-    def action_nav_left(self) -> None:
+    def action_parent(self) -> None:
         self.select(nav.to_parent(self.mm, self.selected))
 
-    def action_nav_right(self) -> None:
+    def action_child(self) -> None:
         node = self.node
         if node is not None and node.children and node.collapsed:
             self._push_undo()
@@ -222,10 +225,10 @@ class TaggerApp(App[None]):
             return
         self.select(nav.to_child(self.mm, self.selected))
 
-    def action_nav_up(self) -> None:
+    def action_prev(self) -> None:
         self.select(nav.to_sibling(self.mm, self.selected, -1))
 
-    def action_nav_down(self) -> None:
+    def action_next(self) -> None:
         self.select(nav.to_sibling(self.mm, self.selected, +1))
 
     def action_move_up(self) -> None:
@@ -265,22 +268,22 @@ class TaggerApp(App[None]):
 def default_path() -> Path:
     base = os.environ.get("XDG_DATA_HOME")
     root = Path(base) if base else Path.home() / ".local" / "share"
-    return root / "tagger" / "map.json"
+    return root / "spoider" / "map.json"
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(prog="tagger", description="TUI mind map editor")
+    parser = argparse.ArgumentParser(prog="spoider", description="TUI mind map editor")
     parser.add_argument(
         "path",
         nargs="?",
-        help="map file (default: ~/.local/share/tagger/map.json)",
+        help="map file (default: ~/.local/share/spoider/map.json)",
     )
     parser.add_argument(
         "--empty", action="store_true", help="start empty instead of seeding a demo map"
     )
     args = parser.parse_args(argv)
     path = Path(args.path).expanduser() if args.path else default_path()
-    TaggerApp(path, demo=not args.empty).run()
+    SpoiderApp(path, demo=not args.empty).run()
 
 
 if __name__ == "__main__":

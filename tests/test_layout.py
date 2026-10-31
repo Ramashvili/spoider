@@ -1,6 +1,6 @@
-from tagger.layout import BOX_H, box_width, compute, subtree_height
-from tagger.model import MindMap
-from tagger.render import build_grid
+from spoider.layout import BOX_H, box_width, compute, subtree_height
+from spoider.model import MindMap
+from spoider.render import build_grid
 
 
 def sample() -> MindMap:
