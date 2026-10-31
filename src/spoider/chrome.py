@@ -43,15 +43,21 @@ PINNED: tuple[tuple[str, str], ...] = (
 DIVIDER = "│"
 
 
+ARROWS = {"up": "↑", "down": "↓", "left": "←", "right": "→"}
+
+
 def key_cap(key: str) -> str:
-    """One key as it appears in the bar: ⇥, ⏎, ^D, ⌥↑ …"""
+    """One key as it appears in the bar: ⇥, ⏎, ^D, ⌥↑, h …"""
     key = str(key).split(",")[0]
     if key in KEY_GLYPHS:
         return KEY_GLYPHS[key]
     for prefix, glyph in BINDING_LEGEND.items():
         if key.startswith(prefix):
-            return glyph + key[len(prefix) :].upper()
-    return key.upper()
+            body = key[len(prefix) :]
+            return glyph + ARROWS.get(body, body.upper())
+    if len(key) == 1 and key.isalpha():
+        return key  # h/j/k/l are letters, not shifted capitals
+    return ARROWS.get(key, key.upper())
 
 
 def entry(key: str, label: str, *, literal: bool = False) -> Text:
@@ -63,10 +69,18 @@ def entry(key: str, label: str, *, literal: bool = False) -> Text:
     return chunk
 
 
-def hint_chunks(bindings: Iterable, skip: frozenset[str] = frozenset()) -> list[Text]:
-    """`skip` drops whole actions from the bar — autosave hides ^S, for instance."""
+def hint_chunks(
+    bindings: Iterable,
+    skip: frozenset[str] = frozenset(),
+    keymap: dict[str, str] | None = None,
+) -> list[Text]:
+    """`skip` drops whole actions from the bar — autosave hides ^S, for instance.
+    `keymap` holds the chords in force after the config has had its say."""
+    keymap = keymap or {}
     return [
-        entry(b.key, b.description) for b in bindings if b.show and b.action not in skip
+        entry(keymap.get(b.id, b.key), b.description)
+        for b in bindings
+        if b.show and b.action not in skip
     ]
 
 
@@ -128,5 +142,5 @@ class FooterBar(Widget):
             app = self.app
             # autosave makes ^S redundant, so it leaves the bar with it on
             skip = frozenset({"save"}) if getattr(app, "autosave", False) else frozenset()
-            hints = hint_chunks(app.BINDINGS, skip)  # type: ignore[attr-defined]
+            hints = hint_chunks(app.BINDINGS, skip, app.keymap)  # type: ignore[attr-defined]
         return compose_footer(width, hints)

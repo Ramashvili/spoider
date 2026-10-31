@@ -136,6 +136,33 @@ current emoji, space separated and in the order `^G` cycles through them (up to
 eight). Marks already on cells are untouched — a cell keeps whatever it was given,
 even if that emoji has since left the set.
 
+The third row, `config`, hands the terminal to `$EDITOR` on
+`~/.config/spoider/config.json` (falling back to `$VISUAL`, then `nano`) and
+reloads it when you close the editor, so new chords take effect immediately.
+
+## Rebinding
+
+Every chord is editable — the config file lists all of them on first save:
+
+```json
+{
+  "autosave": false,
+  "marks": ["✅", "❌", "❓", "❗", "🕐"],
+  "keys": {
+    "add_child": "tab",
+    "add_child.alt": "ctrl+a",
+    "save": "ctrl+w",
+    "mark": "ctrl+m"
+  }
+}
+```
+
+A value is any key string Textual understands (`ctrl+w`, `alt+up`, `f2`), and a
+binding can carry several, comma separated. Unknown names and blank values are
+ignored, so a typo costs you one chord rather than the keymap. The shortcut bar
+and the help screen both read the chords in force, so they never show a key you
+no longer have.
+
 ## Colours
 
 spoider ships no palette and no theme switcher. It runs on Textual's `ansi` theme,
@@ -164,6 +191,7 @@ reverse video. That means it looks right on a dark theme, a light theme, or a
 | `src/spoider/screens.py` | modals: text prompt, confirm, help, settings |
 | `src/spoider/app.py` | key bindings, undo history, write/quit flow |
 | `src/spoider/chrome.py` | shortcut bar layout, pinned settings/help cluster |
+| `src/spoider/config.py` | per-user editor preferences: autosave, marks, keymap |
 
 ## Test
 

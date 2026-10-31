@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import argparse
 import os
+import shlex
+import subprocess
 from pathlib import Path
 
-from textual.app import App, ComposeResult
+from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding
 
 from . import nav
@@ -60,32 +62,32 @@ CARET = "▊"
 BINDINGS: list[Binding] = [
     # tab/enter are the primary keys here; the ctrl chords stay as aliases.
     # tab needs priority to beat Textual's focus-next binding.
-    Binding("tab", "add_child", "child", priority=True),
-    Binding("ctrl+a", "add_child", "child", show=False),
-    Binding("enter", "add_sibling", "sib"),
-    Binding("ctrl+j", "add_sibling", "sib", show=False),
-    Binding("ctrl+e", "edit", "edit"),
-    Binding("ctrl+d", "delete", "del"),
-    Binding("ctrl+t", "toggle", "fold"),
-    Binding("ctrl+g", "mark", "mark"),
+    Binding("tab", "add_child", "child", priority=True, id="add_child"),
+    Binding("ctrl+a", "add_child", "child", show=False, id="add_child.alt"),
+    Binding("enter", "add_sibling", "sib", id="add_sibling"),
+    Binding("ctrl+j", "add_sibling", "sib", show=False, id="add_sibling.alt"),
+    Binding("ctrl+e", "edit", "edit", id="edit"),
+    Binding("ctrl+d", "delete", "del", id="delete"),
+    Binding("ctrl+t", "toggle", "fold", id="toggle"),
+    Binding("ctrl+g", "mark", "mark", id="mark"),
     # rendered as the pinned cluster at the right edge, not among the hints
-    Binding("ctrl+comma", "settings", "settings", show=False),
-    Binding("ctrl+slash", "help", "help", show=False),
+    Binding("ctrl+comma", "settings", "settings", show=False, id="settings"),
+    Binding("ctrl+slash", "help", "help", show=False, id="help"),
     # nano's cursor keys, kept spatial: ^P/^N walk the branch, ^B/^F move away
     # from the root or towards it — whichever way that happens to be drawn.
     # Arrows and, further down, hjkl are aliases for the same four actions.
-    Binding("ctrl+p,up", "prev", "prev", show=False),
-    Binding("ctrl+n,down", "next", "next", show=False),
-    Binding("ctrl+b,left", "go_left", "left", show=False),
-    Binding("ctrl+f,right", "go_right", "right", show=False),
+    Binding("ctrl+p,up", "prev", "prev", show=False, id="prev"),
+    Binding("ctrl+n,down", "next", "next", show=False, id="next"),
+    Binding("ctrl+b,left", "go_left", "left", show=False, id="left"),
+    Binding("ctrl+f,right", "go_right", "right", show=False, id="right"),
     # vim cursor keys. Hidden from the bar because the ctrl chords already own
     # those labels; nothing else on any screen binds a bare h/j/k/l.
-    Binding("k", "prev", "prev", show=False),
-    Binding("j", "next", "next", show=False),
-    Binding("h", "go_left", "left", show=False),
-    Binding("l", "go_right", "right", show=False),
-    Binding("alt+up", "move_up", "reorder up", show=False),
-    Binding("alt+down", "move_down", "reorder down", show=False),
+    Binding("k", "prev", "prev", show=False, id="prev.vim"),
+    Binding("j", "next", "next", show=False, id="next.vim"),
+    Binding("h", "go_left", "left", show=False, id="left.vim"),
+    Binding("l", "go_right", "right", show=False, id="right.vim"),
+    Binding("alt+up", "move_up", "reorder up", show=False, id="move_up"),
+    Binding("alt+down", "move_down", "reorder down", show=False, id="move_down"),
     # The key NAMES for the spacing chords are the ones Textual's parser actually
     # produces, which is not what you would guess: ^= arrives as
     # ctrl+shift+equals_sign under the kitty keyboard protocol (which Textual
@@ -97,20 +99,49 @@ BINDINGS: list[Binding] = [
         "alt+equals_sign,alt+plus",
         "spacing_more",
         "looser",
+        id="spacing_more",
     ),
     Binding(
         "ctrl+minus,ctrl+shift+minus,ctrl+underscore,alt+minus,alt+underscore",
         "spacing_less",
         "tighter",
+        id="spacing_less",
     ),
     # file first, history last: on a narrow terminal the bar clips its tail,
     # and ^X matters more than ^Z
-    Binding("ctrl+s", "save", "save"),
-    Binding("ctrl+o", "write", "write"),
-    Binding("ctrl+x", "quit", "quit"),
-    Binding("ctrl+z", "undo", "undo"),
-    Binding("ctrl+y", "redo", "redo", show=False),
+    Binding("ctrl+s", "save", "save", id="save"),
+    Binding("ctrl+o", "write", "write", id="write"),
+    Binding("ctrl+x", "quit", "quit", id="quit"),
+    Binding("ctrl+z", "undo", "undo", id="undo"),
+    Binding("ctrl+y", "redo", "redo", show=False, id="redo"),
 ]
+
+def default_keymap() -> dict[str, str]:
+    """id -> the chord(s) that action was born with."""
+    return {binding.id: binding.key for binding in BINDINGS if binding.id}
+
+
+def editor_command() -> list[str]:
+    raw = os.environ.get("VISUAL") or os.environ.get("EDITOR") or "nano"
+    return shlex.split(raw) or ["nano"]
+
+
+def edit_in_editor(path: Path) -> None:
+    """Run the user's editor on a file, in the foreground."""
+    subprocess.run([*editor_command(), str(path)], check=False)
+
+
+def build_keymap(overrides: dict[str, str]) -> dict[str, str]:
+    """Defaults, with whatever the config says laid over the top.
+
+    Unknown ids and blank chords are ignored, so a typo in the config cannot take
+    a key away from you."""
+    keymap = default_keymap()
+    for ident, keys in (overrides or {}).items():
+        if ident in keymap and isinstance(keys, str) and keys.strip():
+            keymap[ident] = keys.strip()
+    return keymap
+
 
 class SpoiderApp(App[None]):
     CSS = APP_CSS
@@ -128,6 +159,8 @@ class SpoiderApp(App[None]):
         super().__init__()
         self.config_path = Path(config_path) if config_path is not None else default_config_path()
         self.config: Config = load_config(self.config_path)
+        # always keep the whole map, so the file lists every rebindable chord
+        self.config.keys = build_keymap(self.config.keys)
         self.theme = "textual-ansi"
         self.path = Path(path) if path is not None else default_path()
         if self.path.exists():
@@ -151,6 +184,7 @@ class SpoiderApp(App[None]):
         yield FooterBar(id="footer")
 
     def on_mount(self) -> None:
+        self.set_keymap(self.config.keys)
         self._set_terminal_title()
         self.query_one(MindMapView).focus()
 
@@ -203,6 +237,29 @@ class SpoiderApp(App[None]):
         if self.config.autosave and self.dirty:
             self._autosave()  # commit what is on screen the moment you switch it on
         self._refresh_chrome()
+
+    @property
+    def keymap(self) -> dict[str, str]:
+        """binding id -> chord(s) in force, config included."""
+        return self.config.keys
+
+    def open_config(self) -> None:
+        """Hand the terminal to the editor on the config file, then reload it."""
+        if not self.config_path.exists():
+            self._save_config()
+        try:
+            with self.suspend():
+                edit_in_editor(self.config_path)
+        except (SuspendNotSupported, OSError) as exc:
+            self.notify(f"Could not start an editor: {exc}", severity="error", timeout=4)
+            return
+
+        reloaded = load_config(self.config_path)
+        reloaded.keys = build_keymap(reloaded.keys)
+        self.config = reloaded
+        self.set_keymap(self.config.keys)  # new chords take effect straight away
+        self._refresh_chrome()
+        self.notify("Config reloaded", timeout=2)
 
     @property
     def marks(self) -> tuple[str, ...]:

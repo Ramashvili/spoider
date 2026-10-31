@@ -72,7 +72,7 @@ def test_hints_are_dropped_before_the_pinned_cluster():
 
 
 def test_help_documents_every_binding():
-    documented = {action for _, rows in HELP for actions, _, _ in rows for action in actions}
+    documented = {action for _, rows in HELP for actions, _ in rows for action in actions}
     bound = {binding.action for binding in BINDINGS}
     assert bound - documented == set(), f"undocumented: {sorted(bound - documented)}"
     assert documented - bound == set(), f"stale help entries: {sorted(documented - bound)}"
@@ -559,11 +559,22 @@ async def test_spacing_keys_resize_the_canvas(tmp_path: Path):
         assert app.spacing == 0
 
 
-def test_help_text_covers_keys_and_notes():
-    body = help_text().plain
-    for expected in ("Making cells", "Moving", "File", "⇥", "⏎", "^D", "^X", "⌥↑", "^/", "^,"):
+def test_help_text_covers_keys_and_notes(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    body = help_text(app).plain
+    # chords come from the keymap, so they read as they are actually bound
+    for expected in ("Making cells", "Moving", "File", "⇥", "⏎", "^D", "^X", "⌥↑", "^/", "^,", "h", "j"):
         assert expected in body, expected
     assert "Mouse" in body and "Saving" in body
+
+
+def test_help_follows_a_rebound_chord(tmp_path: Path):
+    config = tmp_path / "editor.json"
+    config.write_text('{"keys": {"mark": "ctrl+m"}}')
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    body = help_text(app).plain
+    assert "^M" in body
+    assert "^G" not in body  # the old chord is gone everywhere, help included
 
 
 async def test_help_opens_with_ctrl_slash_and_closes(tmp_path: Path):
@@ -725,6 +736,128 @@ async def test_ctrl_g_cycles_the_configured_marks(tmp_path: Path):
             await pilot.pause()
             seen.append(app.mm.find(node.id).mark)
         assert seen == ["🔴", "🟢", None, "🔴"]
+
+
+async def test_prompt_supports_undo_and_redo(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+comma")
+        await pilot.pause()
+        await pilot.press("down")  # marks row
+        await pilot.press("enter")
+        await pilot.pause()
+        assert isinstance(app.screen, TextPrompt)
+
+        await pilot.press("home")
+        await pilot.press("a", "b", "c")
+        await pilot.pause()
+        field = app.screen.query_one(Input)
+        assert field.value.startswith("abc")
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert field.value.startswith("ab")
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert field.value.startswith("a")
+
+        await pilot.press("ctrl+z")  # and back to the value it opened with
+        await pilot.pause()
+        assert field.value == " ".join(app.marks)
+
+        await pilot.press("ctrl+y")
+        await pilot.pause()
+        assert field.value.startswith("a")
+
+
+def test_config_can_rebind_every_chord(tmp_path: Path):
+    from spoider.app import build_keymap, default_keymap
+
+    defaults = default_keymap()
+    assert len(defaults) == len({b.id for b in BINDINGS if b.id})  # every binding has an id
+    assert all(binding.id for binding in BINDINGS), "every binding needs an id to be rebindable"
+
+    merged = build_keymap({"save": "ctrl+w", "quit": "  ", "nonsense": "ctrl+k"})
+    assert merged["save"] == "ctrl+w"
+    assert merged["quit"] == defaults["quit"]  # blank is ignored
+    assert "nonsense" not in merged  # unknown ids are ignored
+    assert merged["edit"] == defaults["edit"]
+
+
+async def test_a_rebound_chord_takes_effect(tmp_path: Path):
+    config_path = tmp_path / "editor.json"
+    config_path.write_text(json.dumps({"keys": {"save": "ctrl+w", "delete": "ctrl+k"}}))
+
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False, config_path=config_path)
+    async with app.run_test() as pilot:
+        assert app.keymap["save"] == "ctrl+w"
+
+        await pilot.press("tab")
+        await pilot.press("a", "enter")
+        await pilot.pause()
+
+        await pilot.press("ctrl+w")  # the new save chord
+        await pilot.pause()
+        assert path.exists()
+        assert app.dirty is False
+
+        await pilot.press("ctrl+k")  # the new delete chord
+        await pilot.pause()
+        assert app.mm.root.children == []
+
+
+def test_the_bar_shows_the_chords_in_force(tmp_path: Path):
+    from spoider.chrome import hint_chunks
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=tmp_path / "e.json")
+    app.config.keys["save"] = "ctrl+w"
+    bar = compose_footer(160, hint_chunks(BINDINGS, frozenset(), app.keymap)).plain
+    assert "^W save" in bar and "^S save" not in bar
+
+
+async def test_settings_opens_the_config_in_an_editor(tmp_path: Path, monkeypatch):
+    import contextlib
+
+    config_path = tmp_path / "editor.json"
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
+
+    opened = []
+
+    def fake_editor(path):
+        opened.append(path)
+        path.write_text(json.dumps({"autosave": True, "keys": {"save": "ctrl+w"}}))
+
+    monkeypatch.setattr("spoider.app.edit_in_editor", fake_editor)
+    monkeypatch.setattr(SpoiderApp, "suspend", lambda self: contextlib.nullcontext())
+
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+comma")
+        await pilot.pause()
+        await pilot.press("down")
+        await pilot.press("down")  # config row
+        await pilot.pause()
+        assert app.screen.row == 2
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+    assert opened and opened[0] == config_path
+    assert config_path.exists()
+    # what came back from the editor is reloaded and applied
+    assert app.autosave is True
+    assert app.keymap["save"] == "ctrl+w"
+
+
+def test_the_saved_config_lists_every_rebindable_chord(tmp_path: Path):
+    from spoider.app import default_keymap
+
+    config_path = tmp_path / "editor.json"
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
+    app._save_config()
+    written = json.loads(config_path.read_text())["keys"]
+    assert written == default_keymap()
 
 
 async def test_autosave_writes_after_every_edit(tmp_path: Path):

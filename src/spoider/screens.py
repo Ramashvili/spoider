@@ -18,59 +18,60 @@ if TYPE_CHECKING:
     from .app import SpoiderApp
 
 
-# (heading, ((actions, keys as printed, explanation), …))
-# Every binding action must appear here — tests/test_app.py enforces it, so the
-# help cannot drift away from the keymap.
+# (heading, ((actions, explanation), …))
+# The chords are not written here: they are read from the keymap, so a rebound
+# key cannot leave the help lying. Every binding action must appear — the tests
+# enforce that in both directions.
 HELP: tuple[tuple[str, tuple[tuple[tuple[str, ...], str, str], ...]], ...] = (
     (
         "Making cells",
         (
-            (("add_child",), "⇥  ^A", "add a child and type its name"),
-            (("add_sibling",), "⏎  ^J", "add a sibling after the selection"),
-            (("edit",), "^E", "rename the selected cell in place"),
-            (("delete",), "^D", "delete the cell and everything under it"),
-            (("mark",), "^G", "cycle the cell's mark, then off (edit the set in ^,)"),
-            (("toggle",), "^T", "fold or unfold the branch"),
+            (("add_child",), "add a child and type its name"),
+            (("add_sibling",), "add a sibling after the selection"),
+            (("edit",), "rename the selected cell in place"),
+            (("delete",), "delete the cell and everything under it"),
+            (("mark",), "cycle the mark, then off (set them in ^,)"),
+            (("toggle",), "fold or unfold the branch"),
         ),
     ),
     (
         "Moving",
         (
-            (("prev",), "^P  ↑  k", "previous sibling"),
-            (("next",), "^N  ↓  j", "next sibling"),
-            (("go_left",), "^B  ←  h", "left: out to parent, or deeper on a left branch"),
-            (("go_right",), "^F  →  l", "right: the mirror of the above"),
-            (("move_up",), "⌥↑", "move the cell up among its siblings"),
-            (("move_down",), "⌥↓", "move it down"),
+            (("prev",), "previous sibling"),
+            (("next",), "next sibling"),
+            (("go_left",), "left: out to parent, or deeper on a left branch"),
+            (("go_right",), "right: the mirror of the above"),
+            (("move_up",), "move the cell up among its siblings"),
+            (("move_down",), "move it down"),
         ),
     ),
     (
         "View",
         (
-            (("spacing_more",), "^=", "more air between cells — saved with the map"),
-            (("spacing_less",), "^-", "less air, down to cells sharing a border row"),
+            (("spacing_more",), "more air between cells — saved with the map"),
+            (("spacing_less",), "less air, down to cells sharing a border row"),
         ),
     ),
     (
         "File",
         (
-            (("save",), "^S", "write straight back to the current file"),
-            (("write",), "^O", "write out: asks which file, so it saves as"),
-            (("quit",), "^X", "quit; asks y / n / esc if unsaved"),
+            (("save",), "write straight back to the current file"),
+            (("write",), "write out: asks which file, so it saves as"),
+            (("quit",), "quit; asks y / n / esc if unsaved"),
         ),
     ),
     (
         "History",
         (
-            (("undo",), "^Z", "undo the last edit"),
-            (("redo",), "^Y", "redo the last undone edit"),
+            (("undo",), "undo the last edit"),
+            (("redo",), "redo the last undone edit"),
         ),
     ),
     (
         "This screen",
         (
-            (("help",), "^/", "this help"),
-            (("settings",), "^,", "editor settings"),
+            (("help",), "this help"),
+            (("settings",), "editor settings"),
         ),
     ),
 )
@@ -89,13 +90,27 @@ def _pad(text: str, width: int) -> str:
     return text + " " * max(1, width - cell_len(text))
 
 
-def help_text() -> Text:
+def keys_for(app: "SpoiderApp", actions: tuple[str, ...]) -> str:
+    """Every chord bound to these actions, in binding order, as caps."""
+    caps: list[str] = []
+    for action in actions:
+        for binding in app.BINDINGS:  # type: ignore[attr-defined]
+            if binding.action != action:
+                continue
+            for key in str(app.keymap.get(binding.id, binding.key)).split(","):
+                cap = key_cap(key)
+                if cap not in caps:
+                    caps.append(cap)
+    return "  ".join(caps)
+
+
+def help_text(app: "SpoiderApp") -> Text:
     text = Text()
     text.append("spoider — keys and options\n", style="bold")
     for heading, rows in HELP:
         text.append(f"\n{heading}\n", style="bold reverse")
-        for _, keys, explanation in rows:
-            text.append(f"  {_pad(keys, 14)}", style="bold")
+        for actions, explanation in rows:
+            text.append(f"  {_pad(keys_for(app, actions), 16)}", style="bold")
             text.append(f"{explanation}\n")
     text.append("\nAlso\n", style="bold reverse")
     for head, tail in NOTES:
@@ -128,6 +143,7 @@ def settings_text(app: "SpoiderApp", row: int = 0) -> Text:
     rows = [
         ("autosave", "on" if app.autosave else "off", "after every edit, and exit"),
         ("marks", _fit_tokens(app.marks, 20), "the emojis ^G cycles"),
+        ("config", _clip(str(app.config_path), 20), "⏎ opens it in your editor"),
     ]
     text = Text()
     text.append("editor settings\n", style="bold")
@@ -164,6 +180,8 @@ class TextPrompt(ModalScreen[str | None]):
     BINDINGS = [
         Binding("escape", "cancel", "cancel"),
         Binding("ctrl+c", "cancel", "cancel", show=False),
+        Binding("ctrl+z", "undo", "", show=False),
+        Binding("ctrl+y", "redo", "", show=False),
     ]
 
     def __init__(
@@ -173,6 +191,10 @@ class TextPrompt(ModalScreen[str | None]):
         self._prompt = prompt
         self._value = value
         self._preselect = preselect
+        # Textual's Input has no undo of its own, and ^Z must not reach the map
+        # behind a dialog, so the field keeps its own small history.
+        self._history: list[str] = [value]
+        self._index = 0
 
     def compose(self) -> ComposeResult:
         with Vertical(id="dialog"):
@@ -187,6 +209,29 @@ class TextPrompt(ModalScreen[str | None]):
             field.select_all()
         else:
             field.cursor_position = len(field.value)
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        # Compare rather than guard with a flag: Textual delivers Changed after
+        # the handler returns, so a flag would already be cleared and every undo
+        # would push its own result back onto the stack.
+        if event.value == self._history[self._index]:
+            return
+        self._history = [*self._history[: self._index + 1], event.value]
+        self._index = len(self._history) - 1
+
+    def _restore(self, index: int) -> None:
+        if not 0 <= index < len(self._history):
+            return
+        self._index = index
+        field = self.query_one(Input)
+        field.value = self._history[index]
+        field.cursor_position = len(field.value)
+
+    def action_undo(self) -> None:
+        self._restore(self._index - 1)
+
+    def action_redo(self) -> None:
+        self._restore(self._index + 1)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         event.stop()
@@ -271,7 +316,7 @@ class HelpScreen(ModalScreen[None]):
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="panel"):
-            yield Static(help_text())
+            yield Static(help_text(self.app))  # type: ignore[arg-type]
 
     def action_close(self) -> None:
         self.dismiss(None)
@@ -319,7 +364,7 @@ class SettingsScreen(ModalScreen[None]):
         self.query_one("#settings-body", Static).update(self._body())
 
     def action_move(self, delta: int) -> None:
-        self.row = max(0, min(1, self.row + delta))
+        self.row = max(0, min(2, self.row + delta))
         self._redraw()
 
     def action_activate(self) -> None:
@@ -328,7 +373,11 @@ class SettingsScreen(ModalScreen[None]):
             app.set_autosave(not app.autosave)
             self._redraw()
             return
-        app.push_screen(self._marks_prompt(), self._apply_marks)
+        if self.row == 1:
+            app.push_screen(self._marks_prompt(), self._apply_marks)
+            return
+        app.open_config()
+        self._redraw()
 
     def _marks_prompt(self) -> "TextPrompt":
         app: "SpoiderApp" = self.app  # type: ignore[assignment]

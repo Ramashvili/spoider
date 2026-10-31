@@ -22,6 +22,9 @@ MAX_MARKS = 8
 class Config:
     autosave: bool = False
     marks: tuple[str, ...] = field(default_factory=lambda: tuple(MARKS))
+    # binding id -> its chord(s); filled with the full map on the first save so
+    # the file always lists everything you can rebind
+    keys: dict[str, str] = field(default_factory=dict)
 
 
 def default_config_path() -> Path:
@@ -46,7 +49,13 @@ def load_config(path: Path | None = None) -> Config:
         if cleaned:
             marks = cleaned[:MAX_MARKS]
 
-    return Config(autosave=bool(data.get("autosave", False)), marks=marks)
+    raw_keys = data.get("keys")
+    keys = (
+        {str(k): str(v) for k, v in raw_keys.items() if isinstance(v, str)}
+        if isinstance(raw_keys, dict)
+        else {}
+    )
+    return Config(autosave=bool(data.get("autosave", False)), marks=marks, keys=keys)
 
 
 def save_config(config: Config, path: Path | None = None) -> None:
