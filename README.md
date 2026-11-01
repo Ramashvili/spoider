@@ -59,7 +59,9 @@ one of them.
 | `^A` / `^J` | aliases for those two, for when your hands are already on ctrl | |
 | `e` | edit the selected node in place (`^E` also works) | **e**dit |
 | `^C` | escape everywhere: closes a dialog, abandons the node being typed, otherwise inert | |
-| `^D` | delete the branch | nano's delete |
+| `^K` | cut the branch — it leaves the map and waits for `^U`, as often as you like | nano's cut |
+| `^U` | paste it under the selected cell, as its last child | nano's paste |
+| `^D` | delete the branch for good | nano's delete |
 | `t` | fold / unfold the branch (`^T` also works) | **t**oggle |
 | `g` | cycle the cell's mark and then off again — the set is editable in `^,` (`^G` also works) | **g**lyph |
 | `^P` / `↑` | previous sibling | nano: previous line |
@@ -160,6 +162,24 @@ the caret is a block, and the bar swaps to `⏎ done · esc/^C cancel · ←→ 
 `Enter` commits, `esc` or `^C` abandons, and a node you abandon before naming it
 never existed. While typing, every other chord is swallowed, so `^D` cannot delete
 the node you are halfway through naming.
+
+## Cutting and pasting
+
+`^K` lifts a branch out of the map and `^U` puts it back under whatever is
+selected. It is the way to reparent something: cut a branch, walk to its new
+parent, paste.
+
+The cut cell leaves the map immediately and the selection goes to its parent, so
+you are standing where the branch came from. `^U` appends copies as the last
+child, and the selection stays on the target — pasting is how you build a list of
+the same thing, so a second `^U` adds a sibling of the first rather than nesting
+inside it. The original stays on the clipboard, so one cut can be pasted as many
+times as you like; a pasted branch arrives with its own ids, its marks, its
+folds and its whole subtree. Pasting into a folded cell opens it, since a branch
+you cannot see is a surprise.
+
+The clipboard lives in the session, not in the file: it is editor state like the
+undo stack, and it does not survive a restart.
 
 ## Searching
 

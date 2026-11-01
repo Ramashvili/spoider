@@ -33,6 +33,8 @@ HELP: tuple[HelpSection, ...] = (
             (("add_child",), "add a child and type its name"),
             (("add_sibling",), "add a sibling after the selection"),
             (("edit",), "rename the selected cell in place"),
+            (("cut",), "cut the cell and its branch, to ^U somewhere else"),
+            (("paste",), "paste it under the selection, again and again"),
             (("delete",), "delete the cell and everything under it"),
             (("mark",), "cycle the mark, then off (set them in ^,)"),
             (("fold",), "fold or unfold the branch"),

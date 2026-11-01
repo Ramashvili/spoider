@@ -55,6 +55,16 @@ class Node:
             yield node
             stack.extend(reversed(node.children))
 
+    def clone(self) -> Node:
+        """A detached copy carrying ids of its own.
+
+        Pasting the same cell twice must not put two nodes with the same id in
+        one map, so a copy is a copy all the way down.
+        """
+        copy = Node(text=self.text, collapsed=self.collapsed, mark=self.mark)
+        copy.children = [child.clone() for child in self.children]
+        return copy
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,
@@ -216,6 +226,18 @@ class MindMap:
         self._by_id[node.id] = node
         self._parent_of[node.id] = parent
         return node
+
+    def paste(self, parent_id: str, node: Node) -> Node | None:
+        """Append a copy of `node` under `parent_id`. The original is untouched,
+        so the same cut can be pasted again and again."""
+        parent = self.find(parent_id)
+        if parent is None:
+            return None
+        copy = node.clone()
+        parent.children.append(copy)
+        parent.collapsed = False  # a pasted branch you cannot see is a bad surprise
+        self._reindex()
+        return copy
 
     def delete(self, node_id: str) -> tuple[Node, str] | None:
         """Remove a node and its subtree. Returns (removed, next selection)."""

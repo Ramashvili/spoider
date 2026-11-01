@@ -1915,3 +1915,125 @@ async def test_a_click_cannot_take_the_keys_from_an_open_drawer(tmp_path: Path):
         await pilot.press("down")
         await pilot.pause()
         assert app._settings_row == row + 1
+
+
+# -- cut and paste --------------------------------------------------------
+
+
+def _branch_map(app):
+    """root → alpha (→ leaf), beta."""
+    alpha = app.mm.add_child(app.mm.root.id, "alpha")
+    app.mm.add_child(alpha.id, "leaf")
+    beta = app.mm.add_child(app.mm.root.id, "beta")
+    app.view.refresh_map()
+    return alpha, beta
+
+
+async def test_cut_takes_the_branch_out_and_lands_on_its_parent(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        alpha, _ = _branch_map(app)
+        app.select(alpha.id)
+
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+
+        assert [child.text for child in app.mm.root.children] == ["beta"]
+        assert app.mm.find(alpha.id) is None
+        assert app.selected == app.mm.root.id, "the parent has the focus"
+        assert app.cut_cell is not None and app.cut_cell.text == "alpha"
+        assert [node.text for node in app.cut_cell.walk()] == ["alpha", "leaf"]
+        assert app.dirty
+
+
+async def test_paste_puts_it_under_the_selection_every_time(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        alpha, beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+
+        app.select(beta.id)
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+
+        assert [child.text for child in beta.children] == ["alpha", "alpha"]
+        assert beta.children[0].id != beta.children[1].id
+        # the whole branch came along, and the index knows the copies
+        assert [child.text for child in beta.children[0].children] == ["leaf"]
+        assert app.mm.find(beta.children[1].children[0].id) is not None
+        assert app.selected == beta.id, "the target keeps the selection"
+
+
+async def test_the_clipboard_survives_being_pasted(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        alpha, _ = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+
+        assert app.cut_cell is not None, "still there for another ^U"
+        assert [child.text for child in app.mm.root.children] == ["beta", "alpha"]
+
+
+async def test_paste_with_nothing_cut_changes_nothing(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        _branch_map(app)
+        before = app.mm.to_dict()
+
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+
+        assert app.mm.to_dict() == before
+        assert app._undo == [], "and nothing to undo either"
+
+
+async def test_the_root_cannot_be_cut(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        _branch_map(app)
+        app.select(app.mm.root.id)
+
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+
+        assert app.cut_cell is None
+        assert app.mm.root.text
+
+
+async def test_undo_brings_a_cut_branch_back(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        alpha, _ = _branch_map(app)
+        app.select(alpha.id)
+
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+
+        assert [child.text for child in app.mm.root.children] == ["alpha", "beta"]
+        assert [child.text for child in app.mm.root.children[0].children] == ["leaf"]
+
+
+async def test_paste_keeps_the_mark_it_was_cut_with(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        alpha, beta = _branch_map(app)
+        alpha.mark = "✅"
+        app.select(alpha.id)
+
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+        app.select(beta.id)
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+
+        assert beta.children[0].mark == "✅"

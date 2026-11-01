@@ -92,6 +92,8 @@ BINDINGS: list[BindingType] = [
     # collide with nothing, since h/j/k/l are the only bare letters spoken for.
     Binding("e", "edit", "edit", id="edit"),
     Binding("ctrl+e", "edit", "edit", show=False, id="edit_alt"),
+    Binding("ctrl+k", "cut", "cut", id="cut"),
+    Binding("ctrl+u", "paste", "paste", id="paste"),
     Binding("ctrl+d", "delete", "del", id="delete"),
     Binding("t", "fold", "fold", id="fold"),
     Binding("ctrl+t", "fold", "fold", show=False, id="fold_alt"),
@@ -236,6 +238,10 @@ class SpoiderApp(App[None]):
         self._last_query = ""  # the last one submitted, to know a repeat
         self._search_history: list[str] = []
         self._write_then_quit = False
+        #: The cell taken by ^K, still detached; ^U pastes copies of it. Not
+        #: `clipboard`: Textual already uses that name for the system clipboard
+        #: it bridges over OSC 52.
+        self.cut_cell: Node | None = None
         self._settings_row = 0
         #: keys | search | write | marks | ask | settings | help
         self._mode = "keys"
@@ -837,6 +843,40 @@ class SpoiderApp(App[None]):
             return
         _, successor = result
         self.selected = successor
+        self._mark_dirty()
+
+    def action_cut(self) -> None:
+        """^K — take the cell and its branch out, and hold it for ^U."""
+        if self.selected == self.mm.root.id:
+            self.notify("The root node cannot be cut", timeout=2)
+            return
+        parent = self.mm.parent(self.selected)
+        if parent is None:
+            return
+        self._push_undo()
+        result = self.mm.delete(self.selected)
+        if result is None:
+            self._undo.pop()
+            return
+        self.cut_cell = result[0]
+        # back where the cell came from: the branch now lives on the clipboard,
+        # and the parent is what you would paste it back under
+        self.selected = parent.id
+        self._mark_dirty()
+
+    def action_paste(self) -> None:
+        """^U — paste the cut cell under the selection, as often as you like.
+
+        The selection stays on the parent, so pressing ^U again adds another
+        copy beside the first instead of nesting it inside.
+        """
+        if self.cut_cell is None:
+            self.notify("Nothing cut yet", timeout=2)
+            return
+        self._push_undo()
+        if self.mm.paste(self.selected, self.cut_cell) is None:
+            self._undo.pop()
+            return
         self._mark_dirty()
 
     def action_help(self) -> None:

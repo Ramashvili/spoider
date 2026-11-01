@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from spoider.model import MindMap
+from spoider.model import MindMap, Node
 
 
 def test_add_child_and_sibling():
@@ -114,3 +114,65 @@ def test_the_demo_says_what_a_mind_map_is_and_what_the_app_does():
     assert all(len(text) <= 32 for text in texts)
     assert any(node.mark for node in mm.nodes())
     assert 12 <= mm.count() <= 24
+
+
+# -- cut and paste --------------------------------------------------------
+
+
+def test_a_clone_brings_ids_of_its_own():
+    branch = Node("a", children=[Node("b", children=[Node("c")])])
+    copy = branch.clone()
+
+    assert [node.text for node in copy.walk()] == ["a", "b", "c"]
+    ids = [node.id for node in branch.walk()] + [node.id for node in copy.walk()]
+    assert len(set(ids)) == 6, "no id is shared between the original and the copy"
+
+
+def test_a_clone_keeps_the_mark_and_the_fold():
+    branch = Node("a", collapsed=True, mark="✅", children=[Node("b")])
+    copy = branch.clone()
+
+    assert copy.mark == "✅"
+    assert copy.collapsed is True
+    assert copy.id != branch.id
+
+
+def test_paste_appends_a_copy_and_leaves_the_original_alone():
+    mm = MindMap()
+    cut = mm.add_child(mm.root.id, "cut")
+    cut.children.append(Node("under"))
+    target = mm.add_child(mm.root.id, "target")
+
+    pasted = mm.paste(target.id, cut)
+
+    assert pasted is not None
+    assert [child.text for child in target.children] == ["cut"]
+    assert [child.text for child in pasted.children] == ["under"]
+    # the original is where it was, and the index knows about the copies
+    assert [child.text for child in mm.root.children] == ["cut", "target"]
+    assert mm.find(pasted.id) is pasted
+    assert mm.find(pasted.children[0].id) is pasted.children[0]
+
+
+def test_the_same_cut_pastes_many_times_under_different_ids():
+    mm = MindMap()
+    cut = mm.add_child(mm.root.id, "cut")
+    first = mm.paste(mm.root.id, cut)
+    second = mm.paste(mm.root.id, cut)
+
+    assert first is not None and second is not None
+    assert first.id != second.id
+    assert len(mm.root.children) == 3
+    assert all(mm.find(node.id) is not None for node in (first, second))
+
+
+def test_pasting_into_a_folded_cell_opens_it():
+    mm = MindMap()
+    cut = mm.add_child(mm.root.id, "cut")
+    target = mm.add_child(mm.root.id, "target")
+    mm.add_child(target.id, "existing")
+    target.collapsed = True
+
+    mm.paste(target.id, cut)
+
+    assert target.collapsed is False, "a pasted branch you cannot see is a surprise"
