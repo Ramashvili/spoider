@@ -76,16 +76,6 @@ HELP: tuple[tuple[str, tuple[tuple[tuple[str, ...], str, str], ...]], ...] = (
     ),
 )
 
-NOTES = (
-    ("Typing", "⏎ keeps the name, esc/^C discards it"),
-    ("Dirty", "a * beside the file name means unsaved work"),
-    ("Saving", "nothing is written until ^S or ^O"),
-    ("Spacing", "saved in the file, so maps look alike everywhere"),
-    ("Mouse", "click selects, double-click renames"),
-    ("Colours", "inherited from your terminal; no palette"),
-)
-
-
 def _pad(text: str, width: int) -> str:
     return text + " " * max(1, width - cell_len(text))
 
@@ -121,11 +111,6 @@ def help_text(app: "SpoiderApp") -> Text:
         for actions, explanation in rows:
             text.append(f"  {_pad(keys_for(app, actions), 16)}", style="bold")
             text.append(f"{explanation}\n")
-    text.append("\nAlso\n", style="bold reverse")
-    for head, tail in NOTES:
-        text.append(f"  {_pad(head, 14)}", style="bold")
-        text.append(f"{tail}\n")
-    text.append("\nesc closes this", style="dim")
     return text
 
 
@@ -316,12 +301,11 @@ class HelpScreen(ModalScreen[None]):
     }
     """
 
-    BINDINGS = [
-        Binding("escape", "close", "close"),
-        Binding("ctrl+c", "close", "close", show=False),
-        Binding("ctrl+slash", "close", "close", show=False),
-        Binding("question_mark", "close", "close", show=False),
-    ]
+    # No bindings: any key at all closes this, so there is nothing to learn and
+    # nothing to spell out at the bottom.
+    def on_key(self, event) -> None:
+        event.stop()
+        self.dismiss(None)
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="panel"):

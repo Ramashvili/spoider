@@ -554,13 +554,15 @@ async def test_spacing_keys_resize_the_canvas(tmp_path: Path):
         assert app.view.layout_.width < base
 
 
-def test_help_text_covers_keys_and_notes(tmp_path: Path):
+def test_help_text_covers_keys(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     body = help_text(app).plain
     # chords come from the keymap, so they read as they are actually bound
-    for expected in ("Making cells", "Moving", "File", "⇥", "⏎", "^D", "^X", "⌥↑", "^/", "^,", "h", "j"):
+    for expected in ("Making cells", "Moving", "File", "⇥", "⏎", "^D", "^X", "⌥↑", "^/", "^,"):
         assert expected in body, expected
-    assert "Mouse" in body and "Saving" in body
+    # no lectures: the panel is the keys, nothing else
+    for absent in ("Mouse", "Saving", "Colours", "Also", "esc closes"):
+        assert absent not in body, absent
 
 
 def test_help_follows_a_rebound_chord(tmp_path: Path):
@@ -582,6 +584,19 @@ async def test_help_opens_with_ctrl_slash_and_closes(tmp_path: Path):
         await pilot.press("escape")
         await pilot.pause()
         assert not isinstance(app.screen, HelpScreen)
+
+
+async def test_help_closes_on_any_key(tmp_path: Path):
+    for key in ("x", "space", "f5", "tab"):
+        app = SpoiderApp(tmp_path / "map.json", demo=False)
+        async with app.run_test() as pilot:
+            await pilot.press("ctrl+slash")
+            await pilot.pause()
+            assert isinstance(app.screen, HelpScreen)
+
+            await pilot.press(key)
+            await pilot.pause()
+            assert not isinstance(app.screen, HelpScreen), key
 
 
 async def test_help_closes_on_ctrl_c(tmp_path: Path):

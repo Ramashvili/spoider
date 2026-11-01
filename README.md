@@ -65,7 +65,7 @@ one of them.
 | `^X` | quit; if the buffer is modified it asks `y save / n discard / esc cancel` | nano: exit |
 | `^=` | widen the gaps between cells — one column and one row per press (saved with the map) | |
 | `^-` | tighten them again, down to boxes that almost touch | |
-| `^/` | help: every key and option, with a line of explanation | |
+| `^/` | help: every key, with a line of explanation — any key closes it | |
 | `^,` | editor settings — the autosave switch | like every other preferences chord |
 
 Horizontal movement is **spatial, not genealogical**: a branch on the right of the
