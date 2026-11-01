@@ -5,7 +5,7 @@ a central idea, the view follows your selection, and the map is a plain JSON fil
 you can diff and version.
 
 ```
- spoider 0.1.0                   ~/Projects/spoider/map.json           14 cells  2 cut  spider
+ spoider 0.1.0              ~/Projects/spoider/map.json   14 cells total 2 cuts in stack spider layout
 
                       ╭────────────╮
          ╭────────────┤   spoider  ├────────────╮
@@ -65,10 +65,11 @@ one of them.
 | `e` | edit the selected node in place (`^E` also works) | **e**dit |
 | `^C` | escape everywhere: closes a dialog, abandons the node being typed, otherwise inert | |
 | `^K` | cut the branch — it goes onto a stack, where it waits to be pasted back with `^U` | nano's cut |
+| `^I` | open the stack itself, as a panel of cells in the top right corner, and work on what is waiting there | **i**nspect |
 | `^U` | paste it under the selected cell, as its last child | nano's paste |
 | `^D` | delete the branch for good | nano's delete |
 | `t` | fold / unfold the branch (`^T` also works) | **t**oggle |
-| `g` | cycle the cell's mark and then off again — the set is editable in `^,` (`^G` also works) | **g**lyph |
+| `m` | cycle the cell's mark and then off again — the set is editable in `^,` | **m**ark |
 | `^P` / `↑` | previous sibling | nano: previous line |
 | `^N` / `↓` | next sibling | nano: next line |
 | `^B` / `←` | left — from the root, its left-hand branch; on a right-hand branch, out to the parent; on a left-hand one, into the first child | nano: back a character |
@@ -201,16 +202,25 @@ meaning), `t` folds or unfolds whichever of them have children, and `alt+↑` /
 
 A plain move, or `esc`, drops the run without moving anything else.
 
-The right of the top bar is where counts live: cells, then the cuts waiting on the
-stack, then the shape. Each one is dropped as the terminal narrows — shape first,
-then the cut count — so the cell count is the last thing to go, and a number is
-never cut in half.
+The right of the top bar is where counts live, on a band of the terminal's own
+yellow with black text and one space between the items:
+
+```
+14 cells total 2 cuts in stack spider layout
+```
+
+The cut count is there even at zero: a number that appears and disappears is
+harder to read than one that sits still. Each item is dropped as the terminal
+narrows — the layout first, then the cuts — so the cell count is the last to go,
+and a number is never cut in half.
 
 ## Cutting and pasting
 
 `^K` takes the selected cells out of the map and puts them on a stack; `^U` takes
 the top of that stack and hangs it under the selection. It is the way to reparent
 something: cut a branch, walk to its new parent, paste.
+
+`^I` opens the stack itself. See [The stack as a panel](#the-stack-as-a-panel).
 
 The stack is last in, first out. Cutting one branch, then another, and pressing
 `^U` twice gives them back newest first — the same gesture as undo, but for cells
@@ -249,6 +259,21 @@ So closing the editor does not throw away a cut you were in the middle of making
 and a map carries the scraps you took from it. Undo covers the stack too: undoing
 a paste puts the cell back on top, because the snapshot it restores predates the
 pop.
+
+## The stack as a panel
+
+`^I` shows the cuts in the top right corner of the map, newest at the top, each one
+with its branch still attached and drawn beside it. They float over the map, which
+stays where it was and is not touched while the panel is open.
+
+The panel has the keys. `↑`/`↓` walk the stack, `→` goes into a cell's children and
+`←` comes back out, and the cells can be worked on like any other: `e` renames one,
+`m` marks it, `t` folds its branch, `^K` cuts it again — which puts it back on top
+of the stack, where a cut always goes — and `^D` drops it for good. `^I` closes the
+panel and the map has the keys again.
+
+While it is open the cut count in the top bar is underlined, since all three counts
+are already on yellow and a colour change would say nothing.
 
 ## Searching
 

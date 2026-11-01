@@ -30,7 +30,7 @@ def test_every_shortcut_uses_a_modifier():
         "l",
         "e",
         "t",
-        "g",
+        "m",
         "equals_sign",
         "minus",
     }
@@ -90,11 +90,11 @@ def test_help_documents_every_binding():
 def test_top_bar_layout():
     bar = compose_top_bar(80, "0.1.0", "/tmp/map.json", "7 cells", "bush").plain
     assert bar.startswith("spoider 0.1.0")
-    assert bar.endswith("7 cells  bush")
+    assert bar.endswith("7 cells bush layout")
     assert "/tmp/map.json" in bar
     assert len(bar) == 80
 
-    assert compose_top_bar(70, "0.1.0", "New Buffer", "1 cell", "spider").plain.endswith("1 cell  spider")
+    assert compose_top_bar(70, "0.1.0", "New Buffer", "1 cell", "spider").plain.endswith("1 cell spider layout")
     # too narrow for three fields: the location is the one that goes
     narrow = compose_top_bar(24, "0.1.0", "/tmp/map.json", "3 cells").plain
     # and the shape is the first thing to go when even that does not fit
@@ -469,7 +469,7 @@ async def test_mark_cycles_through_the_emoji_then_off(tmp_path: Path):
 
         seen = []
         for _ in range(len(MARKS) + 1):
-            await pilot.press("ctrl+g")
+            await pilot.press("m")
             await pilot.pause()
             seen.append(app.mm.find(node.id).mark)
         assert seen == [*MARKS, None]
@@ -534,7 +534,7 @@ async def test_marks_survive_a_write(tmp_path: Path):
     async with app.run_test() as pilot:
         node = app.mm.add_child(app.mm.root.id, "checked")
         app.select(node.id)
-        await pilot.press("ctrl+g")
+        await pilot.press("m")
         await pilot.pause()
         await pilot.press("ctrl+s")
         await pilot.pause()
@@ -826,7 +826,7 @@ async def test_editing_the_marks_from_settings(tmp_path: Path):
     assert SpoiderApp(tmp_path / "map.json", config_path=config_path).marks == ("🔴", "🟢")
 
 
-async def test_ctrl_g_cycles_the_configured_marks(tmp_path: Path):
+async def test_the_mark_key_cycles_the_configured_marks(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=tmp_path / "e.conf")
     async with app.run_test() as pilot:
         app.set_marks(["🔴", "🟢"])
@@ -836,7 +836,7 @@ async def test_ctrl_g_cycles_the_configured_marks(tmp_path: Path):
 
         seen = []
         for _ in range(4):
-            await pilot.press("ctrl+g")
+            await pilot.press("m")
             await pilot.pause()
             seen.append(app.mm.find(node.id).mark)
         assert seen == ["🔴", "🟢", None, "🔴"]
@@ -1584,7 +1584,7 @@ async def test_escape_puts_the_cell_count_back(tmp_path: Path):
         await pilot.pause()
         assert app.search_query == ""
         assert app.matches == []
-        assert app.stat_text() == "4 cells"
+        assert app.stat_text() == "4 cells total"
         assert app.query_one(FooterBar).display is True
 
 
@@ -1627,7 +1627,7 @@ def test_the_bar_ranks_its_hints_from_leaving_down_to_the_air():
         "e edit",
         "^D del",
         "t fold",
-        "g mark",
+        "m mark",
         "^L layout",
         "= looser",
         "- tighter",
@@ -1662,7 +1662,7 @@ async def test_the_match_count_lets_go_after_a_moment(tmp_path: Path, monkeypatc
         assert "2 matches" in app.query_one(TopBar).render().plain
 
         await pilot.pause(0.8)
-        assert app.stat_text() == "4 cells", "the count gives the bar back"
+        assert app.stat_text() == "4 cells total", "the count gives the bar back"
         assert app.search_query == "one", "but the search and its marks stay"
         assert len(app.matches) == 2
 
@@ -2202,7 +2202,7 @@ async def test_one_mark_press_marks_the_whole_run(tmp_path: Path):
         app.select(a.id)
         await pilot.press("shift+down")
 
-        await pilot.press("g")
+        await pilot.press("m")
         await pilot.pause()
 
         assert app.marks[0] == "✅"
@@ -2269,18 +2269,18 @@ async def test_the_bar_counts_the_cuts_waiting(tmp_path: Path):
         alpha, beta = _branch_map(app)
         bar = app.query_one(TopBar)
 
-        assert "cut" not in bar.render().plain, "an empty stack says nothing"
+        assert "0 cuts in stack" in bar.render().plain, "an empty stack is a fact too"
 
         app.select(alpha.id)
         await pilot.press("ctrl+k")
         await pilot.pause()
-        assert "1 cut" in bar.render().plain
+        assert "1 cut in stack" in bar.render().plain
 
         # the cut left the cursor on beta; the root itself can never be cut
         app.select(app.mm.root.id)
         await pilot.press("ctrl+k")
         await pilot.pause()
-        assert "1 cut" in bar.render().plain, "so the stack is unchanged"
+        assert "1 cut in stack" in bar.render().plain, "so the stack is unchanged"
 
         app.select(beta.id)
         await pilot.press("ctrl+k")
@@ -2289,7 +2289,7 @@ async def test_the_bar_counts_the_cuts_waiting(tmp_path: Path):
 
         await pilot.press("ctrl+u")
         await pilot.pause()
-        assert "1 cut" in bar.render().plain
+        assert "1 cut in stack" in bar.render().plain
 
 
 async def test_a_cut_is_still_on_the_stack_after_saving_and_reopening(tmp_path: Path):
@@ -2468,10 +2468,179 @@ async def test_undo_lets_go_of_the_selected_run(tmp_path: Path):
         await pilot.press("shift+down")  # a and its sibling
         assert app.anchor == a.id
 
-        await pilot.press("g")  # mark both: an undoable change, run intact
+        await pilot.press("m")  # mark both: an undoable change, run intact
         await pilot.pause()
         await pilot.press("ctrl+z")
         await pilot.pause()
 
         assert app.anchor is None, "the run belonged to the map that was undone"
         assert app.selected_ids == [app.selected]
+
+
+# -- the cut stack, opened with ^I ----------------------------------------
+
+
+async def test_the_stack_panel_opens_on_the_newest_cut(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")  # cuts alpha
+        await pilot.press("ctrl+k")  # cuts beta, the sibling it landed on
+        await pilot.pause()
+        assert [cell.text for cell in app.mm.cut_stack] == ["alpha", "beta"]
+
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        assert app.stack_open
+        assert app._stack_doc().find(app.stack_selected).text == "beta", "newest on top"
+        assert [cell.text for cell in app._stack_entries()] == ["beta", "alpha"]
+
+
+async def test_the_panel_says_nothing_when_the_stack_is_empty(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        assert not app.stack_open
+
+
+async def test_the_panel_is_drawn_in_the_top_right_of_the_map(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        lines = app.view.render().plain.split("\n")
+        row = next(index for index, line in enumerate(lines) if "alpha" in line)
+        assert row <= 4, "it hangs from the top"
+        assert lines[row].index("alpha") > 40, "and from the right"
+
+
+async def test_navigation_inside_the_panel_walks_the_stack(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        await pilot.press("down")  # the older cut, below the newest
+        await pilot.pause()
+        assert app._stack_doc().find(app.stack_selected).text == "alpha"
+
+        await pilot.press("right")  # into its branch
+        await pilot.pause()
+        assert app._stack_doc().find(app.stack_selected).text == "leaf"
+
+        await pilot.press("left")
+        await pilot.pause()
+        assert app._stack_doc().find(app.stack_selected).text == "alpha"
+
+
+async def test_the_map_is_not_touched_while_the_panel_is_open(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+        cells = app.mm.count()
+
+        await pilot.press("ctrl+k")  # cut again: a stack move, not a map one
+        await pilot.press("down")
+        await pilot.pause()
+
+        assert app.mm.count() == cells
+        assert [child.text for child in app.mm.root.children] == ["beta"]
+
+
+async def test_cutting_again_moves_it_to_the_top(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+k")  # the sibling it landed on
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        await pilot.press("down")  # onto the older one
+        await pilot.press("ctrl+k")  # cut it again
+        await pilot.pause()
+
+        assert next(cell.text for cell in app._stack_entries()) == "alpha"
+        assert app._stack_doc().find(app.stack_selected).text == "alpha", "and it is selected"
+
+
+async def test_dropping_the_last_cut_closes_the_panel(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+
+        assert app.mm.cut_stack == []
+        assert not app.stack_open, "there is nothing left to show"
+
+
+async def test_a_cell_can_be_renamed_inside_the_panel(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.press("backspace", "backspace", "backspace", "backspace", "backspace")
+        await pilot.press("o", "m", "e", "g", "a")
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert [cell.text for cell in app.mm.cut_stack] == ["omega"]
+        assert app.mm.count() == 2, "the map itself is untouched"
+
+
+async def test_the_bar_switches_to_the_panel_keys(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        bar = app.query_one("#footer", FooterBar).render().plain
+        assert "^I close" in bar and "again" in bar and "drop" in bar
+
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+        assert "^I close" not in app.query_one("#footer", FooterBar).render().plain
+
+
+def test_the_cut_count_is_marked_when_the_panel_is_open():
+    from spoider.widgets import compose_top_bar
+
+    closed = compose_top_bar(120, "0.1.0", "/tmp/m.json", "5 cells total", "spider", False, "2 cuts in stack")
+    opened = compose_top_bar(
+        120, "0.1.0", "/tmp/m.json", "5 cells total", "spider", False, "2 cuts in stack", True
+    )
+    assert "2 cuts in stack" in closed.plain and "2 cuts in stack" in opened.plain
+    # the active segment is underlined, since all three are yellow already
+    active = [str(span.style) for span in opened.spans if "underline" in str(span.style)]
+    assert active and "underline" not in str(closed.spans[0].style)

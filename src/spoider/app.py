@@ -24,7 +24,7 @@ from .config import (
     write_config,
 )
 from .drawers import AskBar, PanelBar, PromptBar
-from .layout import MAX_SPACING, MIN_SPACING, label
+from .layout import MAX_SPACING, MIN_SPACING, compute_stack, label
 from .model import LAYOUTS, MARKS, MapFileError, MindMap, Node
 from .screens import help_text, settings_text
 from .text import clean, find_all
@@ -124,11 +124,11 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+e", "edit", "edit", show=False, id="edit_alt"),
     Binding("ctrl+k", "cut", "cut", id="cut"),
     Binding("ctrl+u", "paste", "paste", id="paste"),
+    Binding("ctrl+i", "toggle_stack", "stack", id="toggle_stack"),
     Binding("ctrl+d", "delete", "del", id="delete"),
     Binding("t", "fold", "fold", id="fold"),
     Binding("ctrl+t", "fold", "fold", show=False, id="fold_alt"),
-    Binding("g", "mark", "mark", id="mark"),
-    Binding("ctrl+g", "mark", "mark", show=False, id="mark_alt"),
+    Binding("m", "mark", "mark", id="mark"),
     # search sits with the other editing keys: it is what you reach for while
     # reading a map, and the bar has room for one more
     Binding("ctrl+f", "search", "search", id="search"),
@@ -264,6 +264,8 @@ class SpoiderApp(App[None]):
         self.selected: str = self.mm.root.id
         #: The far end of a run of selected siblings; None means one cell.
         self.anchor: str | None = None
+        #: Id of the cell selected inside the stack panel; None when it is shut.
+        self.stack_selected: str | None = None
         self.dirty = False
         #: What was typed into the search prompt; empty means no search is on.
         self.search_query = ""
@@ -360,6 +362,8 @@ class SpoiderApp(App[None]):
         from behind a question."""
         if self._mode not in ("keys", "edit"):
             return None  # the drawer owns the keys, and its bar says so
+        if self.stack_open and action != "toggle_stack":
+            return None  # so does the stack panel
         if action in ("help", "settings"):
             return True  # reachable while typing, without losing the edit
         if self.editing:
@@ -386,6 +390,11 @@ class SpoiderApp(App[None]):
     @property
     def node(self) -> Node | None:
         return self.mm.find(self.selected)
+
+    @property
+    def stack_open(self) -> bool:
+        """True while the cut stack is open in its own panel."""
+        return self.stack_selected is not None
 
     @property
     def selected_ids(self) -> list[str]:
@@ -468,13 +477,11 @@ class SpoiderApp(App[None]):
     MATCH_COUNT_SECONDS = 2.0
 
     def cut_stat(self) -> str:
-        """How many cuts are waiting to be pasted, or nothing when the stack is
-        empty — the stack is part of the document, so it is part of what the bar
-        reports about the document."""
+        """How many cuts are waiting, always shown: an empty stack is a fact about
+        the document too, and a count that appears and disappears is harder to
+        read than one that sits at zero."""
         count = len(self.mm.cut_stack)
-        if not count:
-            return ""
-        return "1 cut" if count == 1 else f"{count} cut"
+        return "1 cut in stack" if count == 1 else f"{count} cuts in stack"
 
     def stat_text(self) -> str:
         """What the top bar counts: the matches just after a search, else cells."""
@@ -482,7 +489,7 @@ class SpoiderApp(App[None]):
             found = len(self.matches)
             return f"{found} match" if found == 1 else f"{found} matches"
         cells = self.mm.count()
-        return f"{cells} cell" if cells == 1 else f"{cells} cells"
+        return "1 cell total" if cells == 1 else f"{cells} cells total"
 
     # -- search ---------------------------------------------------------
 
@@ -697,8 +704,16 @@ class SpoiderApp(App[None]):
     def editing(self) -> bool:
         return self._edit_id is not None
 
+    def _live_node(self, node_id: str) -> Node | None:
+        """A cell by id: from the map, or from the stack when that has the keys."""
+        if self.stack_open:
+            found = self._stack_doc().find(node_id)
+            if found is not None:
+                return found
+        return self.mm.find(node_id)
+
     def begin_edit(self, node_id: str, *, fresh: bool = False) -> None:
-        node = self.mm.find(node_id)
+        node = self._live_node(node_id)
         if node is None:
             return
         if not fresh:
@@ -711,7 +726,7 @@ class SpoiderApp(App[None]):
         self._sync_footer()
 
     def _sync_preview(self) -> None:
-        node = self.mm.find(self._edit_id) if self._edit_id else None
+        node = self._live_node(self._edit_id) if self._edit_id else None
         if node is None:
             return
         before = self._edit_buffer[: self._edit_cursor]
@@ -724,7 +739,12 @@ class SpoiderApp(App[None]):
         footer = self.query_one("#footer", FooterBar)
         mode = self._mode
         if mode in ("keys", "edit"):
-            footer.mode = "edit" if self.editing else "keys"
+            if self.editing:
+                footer.mode = "edit"
+            elif self.stack_open:
+                footer.mode = "stack"
+            else:
+                footer.mode = "keys"
         elif mode == "search":
             footer.mode = "search"
         elif mode in ("write", "marks"):
@@ -831,7 +851,7 @@ class SpoiderApp(App[None]):
     def finish_edit(self, *, commit: bool) -> None:
         node_id = self._edit_id
         self._edit_id = None
-        node = self.mm.find(node_id) if node_id else None
+        node = self._live_node(node_id) if node_id else None
         text = self._edit_buffer.strip()
         fresh = self._edit_fresh
         if node is not None:
@@ -959,6 +979,115 @@ class SpoiderApp(App[None]):
             return
         self._mark_dirty()
         self.notify(f"Pasted {cell.text.strip() or '1 cell'}", severity="warning", timeout=2)
+
+    def action_toggle_stack(self) -> None:
+        """^I — the cut stack, as a panel of cells over the map, or away again."""
+        if self.stack_open:
+            self.stack_selected = None
+            self.view.refresh()
+            self._sync_footer()
+            self._refresh_chrome()
+            return
+        entries = self._stack_entries()
+        if not entries:
+            self.notify("Nothing cut yet", severity="error", timeout=2)
+            return
+        self.stack_selected = entries[0].id  # the top of the stack is the newest
+        self.view.refresh()
+        self._sync_footer()
+        self._refresh_chrome()
+
+    def _stack_entries(self) -> list[Node]:
+        """The stack as the panel reads it: newest first."""
+        return list(reversed(self.mm.cut_stack))
+
+    def stack_layout(self):
+        """The picture of the stack, or None when the panel is shut."""
+        if not self.stack_open:
+            return None
+        return compute_stack(self._stack_entries(), self.mm.spacing)
+
+    def _stack_doc(self) -> MindMap:
+        """The stack as a document, made of the same Node objects.
+
+        Its root is a cell of its own that nothing draws: it is there so the
+        ordinary navigation helpers have a parent to walk up to, and its children
+        are the stack, newest first.
+        """
+        return MindMap(Node("", children=self._stack_entries()))
+
+    def _stack_changed(self) -> None:
+        """Write the panel's state back and let the document know."""
+        self._mark_dirty()
+        self.view.refresh()
+
+    def _stack_select(self, doc: MindMap, node_id: str) -> None:
+        if node_id != doc.root.id:  # the invisible root is not a cell you can be on
+            self.stack_selected = node_id
+        self.view.refresh()
+
+    def handle_stack_key(self, key: str, character: str | None) -> bool:
+        """Every key while the stack panel is open. Navigation is the branch
+        shape's, because that is how the panel is drawn: up and down walk the
+        stack, right goes into a cell's children, left comes back out."""
+        if not self.stack_open:
+            return False
+        if key in ("ctrl+i", "escape", "ctrl+c"):
+            self.action_toggle_stack()
+            return True
+
+        doc = self._stack_doc()
+        selected = self.stack_selected or doc.root.id
+        if key in ("up", "k", "ctrl+p"):
+            self._stack_select(doc, nav.to_sibling(doc, selected, -1))
+        elif key in ("down", "j", "ctrl+n"):
+            self._stack_select(doc, nav.to_sibling(doc, selected, 1))
+        elif key in ("right", "l", "ctrl+f"):
+            self._stack_select(doc, nav.to_child(doc, selected))
+        elif key in ("left", "h", "ctrl+b"):
+            self._stack_select(doc, nav.to_parent(doc, selected))
+        elif key == "e":
+            if doc.find(selected) is not None:
+                self.begin_edit(selected)
+        elif key == "m":
+            doc.cycle_mark(selected, self.marks)
+            self._stack_changed()
+        elif key == "t":
+            node = doc.find(selected)
+            if node is not None and node.children:
+                node.collapsed = not node.collapsed
+                self._stack_changed()
+        elif key in ("ctrl+d", "ctrl+k"):
+            self._stack_take(doc, selected, discard=key == "ctrl+d")
+        else:
+            return False
+        return True
+
+    def _stack_take(self, doc: MindMap, node_id: str, *, discard: bool) -> None:
+        """Take an entry off the stack: throw it away, or cut it again.
+
+        Cutting it again is the whole point of a stack — it goes back on top,
+        which is where a cut always goes, and the panel shows it at the top.
+        """
+        parent = doc.parent(node_id)
+        if parent is None:
+            return
+        index = [child.id for child in parent.children].index(node_id)
+        node = parent.children.pop(index)
+        if not discard:
+            # the panel reads newest first, so the top of the stack is its index 0
+            doc.root.children.insert(0, node)
+        entries = list(reversed(doc.root.children))  # the file's order: oldest first
+        self.mm.cut_stack = entries
+        self._stack_changed()
+        if not entries:  # nothing left to show
+            self.stack_selected = None
+            self.view.refresh()
+            self._sync_footer()
+            self._refresh_chrome()
+            return
+        self.stack_selected = node.id if not discard else entries[min(index, len(entries) - 1)].id
+        self.view.refresh()
 
     def action_help(self) -> None:
         """^/ — every key and option, with a line of explanation."""

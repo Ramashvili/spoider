@@ -413,11 +413,11 @@ class MindMap:
             "making cells": [
                 "tab a child, enter a sibling",
                 "e renames it in place",
-                "g marks it, t folds it away",
+                "m marks it, t folds it away",
             ],
             "moving work": [
                 "^K cuts, ^U pastes it back",
-                "every cut waits on a stack for ^U",
+                "^I shows the stack of cuts",
                 "shift and an arrow pick a run",
                 "^Z takes it all back",
             ],

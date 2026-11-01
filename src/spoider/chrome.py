@@ -52,6 +52,7 @@ BAR_ORDER: tuple[str, ...] = (
     "edit",
     "cut",
     "paste",
+    "toggle_stack",
     "delete",
     "fold",
     "mark",
@@ -205,6 +206,19 @@ def help_chunks() -> list[Text]:
     return [entry("esc", "close", literal=True)]
 
 
+def stack_chunks() -> list[Text]:
+    """The bar while the cut stack has the keys. Closing comes first: it is the
+    one thing a reader who is stuck needs to find."""
+    return [
+        entry("^I", "close", literal=True),
+        entry("↑↓←→", "move", literal=True),
+        entry("e", "edit", literal=True),
+        entry("m", "mark", literal=True),
+        entry("^K", "again", literal=True),
+        entry("^D", "drop", literal=True),
+    ]
+
+
 def settings_chunks() -> list[Text]:
     return [
         entry("↑↓", "move", literal=True),
@@ -234,6 +248,8 @@ class FooterBar(Widget):
         spoider = cast("SpoiderApp", self.app)
         if self.mode == "edit":
             hints = edit_chunks()
+        elif self.mode == "stack":
+            hints = stack_chunks()
         elif self.mode == "search":
             hints = search_chunks()
         elif self.mode == "custom":

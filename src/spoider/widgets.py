@@ -17,6 +17,16 @@ if TYPE_CHECKING:
     from .app import SpoiderApp
 
 
+#: The statistics block: black on the terminal's own yellow, so it reads as a band
+#: rather than as three colours the app invented. One space separates the items —
+#: any more and the block looks like it is falling apart.
+STAT_STYLE = "black on yellow"
+
+#: When the stack panel is open its count is the live one, so it is underlined:
+#: all three are yellow already, and a colour change would say nothing.
+STAT_ACTIVE_STYLE = "bold underline black on yellow"
+
+
 def compose_top_bar(
     width: int,
     version: str,
@@ -25,38 +35,47 @@ def compose_top_bar(
     layout: str = "",
     dirty: bool = False,
     extra: str = "",
+    extra_active: bool = False,
 ) -> Text:
     """One line: name+version left, location centred, statistics right.
 
-    `stat` is whatever the app wants counted — cells, or the matches of a
-    search — and the shape the map is drawn in rides beside it. Degrades in
-    stages as the terminal narrows: the shape goes first, then the centre, then
-    the location is truncated from the left (a path's tail is the useful half),
-    then the name itself. The unsaved marker rides on the location, because a
-    window title is not something everyone can see — tiling window managers have
-    no title bar at all.
+    `stat` is whatever the app wants counted — cells, or the matches of a search —
+    `extra` rides beside it (the cuts waiting on the stack) and the shape the map
+    is drawn in closes the band. They degrade in stages as the terminal narrows:
+    the shape first, then the cuts, then the centre, then the location is
+    truncated from the left (a path's tail is the useful half), then the name. The
+    unsaved marker rides on the location, because a window title is not something
+    everyone can see — tiling window managers have no title bar at all.
     """
     name = f"spoider {version}"
     if width <= 0:
         return Text("")
 
-    # Statistics grow to the right only while there is room: the cell count
-    # stays longest, then whatever `extra` counts, then the shape.
-    right = stat
-    if extra and width >= cell_len(right) + cell_len(extra) + 4:
-        right = f"{right}  {extra}"
-    shaped = bool(layout) and width >= cell_len(right) + cell_len(layout) + 4
-    if shaped:
-        right = f"{right}  {layout}"
-    right_width = cell_len(right)
+    def fits(candidate: str) -> bool:
+        return width >= cell_len(candidate) + 6  # the name, and a gap either side
+
+    segments: list[tuple[str, str]] = [(stat, STAT_STYLE)]
+    joined = stat
+    if extra:
+        candidate = f"{joined} {extra}"
+        if fits(candidate):
+            style = STAT_ACTIVE_STYLE if extra_active else STAT_STYLE
+            segments.append((extra, style))
+            joined = candidate
+    if layout:
+        candidate = f"{joined} {layout} layout"
+        if fits(candidate):
+            segments.append((f"{layout} layout", STAT_STYLE))
+            joined = candidate
+    right_width = cell_len(joined)
     if width < right_width + 2:
-        return Text(clip_head(right, width), style="bold reverse")
+        return Text(clip_head(joined, width), style=STAT_STYLE)
 
     where = f"{where} *" if dirty else where
     name = clip_head(name, width - right_width - 1)
 
-    # One blank column separates the name from the centre band, and the band
-    # from the statistics, so the line always fills exactly `width` cells.
+    # One blank column separates the name from the centre band, and the band from
+    # the statistics, so the line always fills exactly `width` cells.
     band = width - cell_len(name) - right_width - 2
     middle = ""
     if band >= 6:
@@ -70,7 +89,10 @@ def compose_top_bar(
         bar.append(" " * (band - pad - cell_len(middle) + 1))
     else:
         bar.append(" " * (width - cell_len(name) - right_width))
-    bar.append(str(right), style="bold reverse")
+    for index, (text, style) in enumerate(segments):
+        if index:
+            bar.append(" ", style=STAT_STYLE)
+        bar.append(text, style=style)
     return bar
 
 
@@ -95,6 +117,7 @@ class TopBar(Widget):
             app.mm.layout,
             app.dirty,
             extra=app.cut_stat(),
+            extra_active=app.stack_open,
         )
 
 
@@ -160,12 +183,46 @@ class MindMapView(Widget, can_focus=True):
         if self._grid is None or self._grid_key != key:
             self._grid = build_grid(layout, chosen, query, lead=lead)
             self._grid_key = key
-        return render_text(self._grid, self._offset_x, self._offset_y, width, height)
+        grid = self._grid
+        panel = self.spoider.stack_layout()
+        if panel is not None:
+            grid = self._overlay(grid, panel, width)
+        return render_text(grid, self._offset_x, self._offset_y, width, height)
+
+    def _overlay(self, grid: Grid, panel: Layout, width: int) -> Grid:
+        """Draw the stack panel over the map: opaque, top right, one row under the
+        top bar. It is composited cell by cell before the picture is rendered, so
+        the panel keeps its own borders and colours and the map shows around it.
+        """
+        art = build_grid(panel, self.spoider.stack_selected or "", lead=None)
+        panel_width = min(panel.width, max(1, width - 2))
+        left = self._offset_x + width - panel_width - 1
+        top = self._offset_y + 1
+        combined = Grid(
+            width=max(grid.width, left + panel_width),
+            height=max(grid.height, top + panel.height),
+        )
+        combined.cells.update(grid.cells)
+        combined.wide |= grid.wide
+        blank = (" ", "")  # the terminal's own colours, as everywhere else
+        for row in range(panel.height):
+            for column in range(panel_width):
+                combined.cells[(left + column, top + row)] = blank
+        for (x, y), cell in art.cells.items():
+            if x < panel_width:
+                combined.cells[(left + x, top + y)] = cell
+        for x, y in art.wide:
+            if x < panel_width:
+                combined.wide.add((left + x, top + y))
+        return combined
 
     def on_key(self, event: events.Key) -> None:
-        """Typing into a node is handled by the app; swallow the key so no
-        binding fires underneath it."""
+        """Typing into a node, or working inside the stack panel, is handled by the
+        app; swallow the key so no binding fires underneath it."""
         if self.spoider.handle_edit_key(event.key, event.character):
+            event.stop()
+            return
+        if self.spoider.handle_stack_key(event.key, event.character):
             event.stop()
 
     def on_click(self, event: events.Click) -> None:

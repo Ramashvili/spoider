@@ -35,6 +35,7 @@ HELP: tuple[HelpSection, ...] = (
             (("edit",), "rename the selected cell in place"),
             (("cut",), "cut the cells onto a stack; all of them wait to be pasted"),
             (("paste",), "paste the newest cut; the older ones stay on the stack"),
+            (("toggle_stack",), "show the cut stack, and work on what is waiting there"),
             (("delete",), "delete the cell and everything under it"),
             (("mark",), "cycle the mark, then off (the set is in settings)"),
             (("fold",), "fold or unfold the branch"),

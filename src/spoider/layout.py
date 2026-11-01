@@ -18,6 +18,7 @@ uses to draw the link.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from rich.cells import cell_len
@@ -202,6 +203,28 @@ def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout
     width = max(box.right for box in boxes.values()) + 1
     height = max(box.bottom for box in boxes.values()) + 1
     return Layout(boxes, width, height)
+
+
+def compute_stack(entries: Sequence[Node], spacing: int = 0) -> Layout:
+    """The cut stack as a picture: newest at the top, one blank row between
+    entries, and each entry's branch hanging to the right of it.
+
+    Every entry is laid out on its own — with the branch shape, so its children
+    read left to right — and then stacked, which is what makes the panel a list of
+    bubbles rather than a tree with an invisible root.
+    """
+    boxes: dict[str, Placed] = {}
+    width = 0
+    height = 0
+    for entry in entries:
+        layer = compute(entry, spacing, "branch")
+        for box in layer.boxes.values():
+            boxes[box.node.id] = Placed(
+                box.node, box.x, box.y + height, box.w, box.h, box.depth, 1, RIGHT
+            )
+        width = max(width, layer.width)
+        height += layer.height + 1
+    return Layout(boxes, width, max(0, height - 1))
 
 
 def _place_children(
