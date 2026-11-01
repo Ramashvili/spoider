@@ -335,6 +335,7 @@ class SettingsScreen(ModalScreen[None]):
     BINDINGS = [
         Binding("escape", "close", "close"),
         Binding("ctrl+c", "close", "close", show=False),
+        Binding("ctrl+x", "close", "close", show=False),
         Binding("ctrl+comma", "close", "close", show=False),
         Binding("up,k", "move(-1)", "", show=False),
         Binding("down,j", "move(+1)", "", show=False),

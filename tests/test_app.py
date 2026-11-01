@@ -646,6 +646,19 @@ async def test_settings_shows_only_the_autosave_toggle(tmp_path: Path):
         assert not isinstance(app.screen, SettingsScreen)
 
 
+async def test_settings_closes_on_ctrl_x(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+comma")
+        await pilot.pause()
+        assert isinstance(app.screen, SettingsScreen)
+
+        await pilot.press("ctrl+x")
+        await pilot.pause()
+        assert not isinstance(app.screen, SettingsScreen)
+        assert app.is_running is True  # it closed the dialog, it did not quit
+
+
 async def test_toggling_autosave_persists_to_the_editor_config(tmp_path: Path):
     config_path = tmp_path / "config.conf"
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
