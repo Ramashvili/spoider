@@ -122,12 +122,13 @@ def build_grid(layout: Layout, selected_id: str, query: str = "") -> Grid:
 
 
 def _marked(style: str) -> str:
-    """A found word keeps its cell's colour and gains an underline.
+    """A found word is drawn as a block, like a selection.
 
-    Not reverse video: the selection already uses that, and a match inside the
-    selected cell would invert twice and disappear.
+    Inside the selected cell the two blocks cancel out: the reader still sees the
+    cell they picked, and a search that found something there is reported by the
+    counter instead.
     """
-    return style if "underline" in style else f"{style} underline"
+    return style if "reverse" in style else f"{style} reverse"
 
 
 def _mask(row: str, query: str) -> list[bool] | None:

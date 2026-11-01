@@ -221,6 +221,8 @@ class SpoiderApp(App[None]):
         self.matches: list[str] = []
         self._last_query = ""  # the last one submitted, to know a repeat
         self._searching = False
+        self._show_matches = False  # the count sits in the bar only for a while
+        self._count_timer = None
         self._undo: list[dict] = []
         self._redo: list[dict] = []
         self._edit_id: str | None = None
@@ -233,13 +235,15 @@ class SpoiderApp(App[None]):
     def compose(self) -> ComposeResult:
         yield TopBar(id="topbar")
         yield MindMapView(self)
-        yield FooterBar(id="footer")
         yield SearchBar(
             id="search",
             on_change=self._search_changed,
             on_submit=self._search_submitted,
             on_cancel=self._search_cancelled,
         )
+        # the bar is last and always there: the prompt sits above it, the way
+        # nano puts its search line above the shortcuts
+        yield FooterBar(id="footer")
 
     def on_mount(self) -> None:
         # A file written by an older build keeps listing chords that no longer
@@ -364,9 +368,12 @@ class SpoiderApp(App[None]):
         except OSError as exc:
             self.notify(f"Could not write config: {exc}", severity="error", timeout=4)
 
+    #: How long the match count stays up after a search is taken, in seconds.
+    MATCH_COUNT_SECONDS = 2.0
+
     def stat_text(self) -> str:
-        """What the top bar counts: the matches while searching, else the cells."""
-        if self.search_query.strip():
+        """What the top bar counts: the matches just after a search, else cells."""
+        if self._show_matches and self.search_query.strip():
             found = len(self.matches)
             return f"{found} match" if found == 1 else f"{found} matches"
         cells = self.mm.count()
@@ -379,12 +386,15 @@ class SpoiderApp(App[None]):
         if self._searching:
             return
         self._searching = True
-        self.query_one(FooterBar).display = False
+        self._show_matches = True
+        self._stop_count_timer()
         self.query_one(SearchBar).start()
+        self._sync_footer()
         self._refresh_chrome()
 
     def _search_changed(self, value: str) -> None:
         self.search_query = value
+        self._show_matches = True
         self._refresh_matches()
 
     def _search_submitted(self, query: str) -> None:
@@ -394,14 +404,31 @@ class SpoiderApp(App[None]):
         self._refresh_matches()
         self._close_search()
         if not self.matches:
+            self._settle_count()
             self.notify(f"No match for {query!r}" if query else "Nothing to find", timeout=2)
             return
         self._jump_to_match(skip_current=repeat)
+        # the count has made its point: back to the cell count shortly
+        self._stop_count_timer()
+        self._count_timer = self.set_timer(self.MATCH_COUNT_SECONDS, self._settle_count)
+
+    def _settle_count(self) -> None:
+        self._count_timer = None
+        if not self._searching:
+            self._show_matches = False
+        self._refresh_chrome()
+
+    def _stop_count_timer(self) -> None:
+        if self._count_timer is not None:
+            self._count_timer.stop()
+            self._count_timer = None
 
     def _search_cancelled(self) -> None:
         self.search_query = ""
         self._last_query = ""
         self.matches = []
+        self._show_matches = False
+        self._stop_count_timer()
         self._close_search()
         self.view.refresh_map()
         self._refresh_chrome()
@@ -409,7 +436,7 @@ class SpoiderApp(App[None]):
     def _close_search(self) -> None:
         self._searching = False
         self.query_one(SearchBar).stop()
-        self.query_one(FooterBar).display = True
+        self._sync_footer()
         self.view.focus()
         self._refresh_chrome()
 
@@ -557,8 +584,12 @@ class SpoiderApp(App[None]):
         self.view.refresh_map()
 
     def _sync_footer(self) -> None:
+        """The bar never leaves; it swaps to the keys of whatever has them now."""
         footer = self.query_one("#footer", FooterBar)
-        footer.mode = "edit" if self.editing else "keys"
+        if self._searching:
+            footer.mode = "search"
+        else:
+            footer.mode = "edit" if self.editing else "keys"
         footer.refresh()
 
     def handle_edit_key(self, key: str, character: str | None) -> bool:

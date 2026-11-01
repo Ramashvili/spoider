@@ -227,31 +227,37 @@ def test_a_shared_wall_between_siblings_is_one_column():
 # -- search highlights ----------------------------------------------------
 
 
-def test_a_found_word_is_underlined_and_keeps_its_colour():
-    mm = MindMap(Node("root"))
-    mm.add_child(mm.root.id, "alpha one")
-    layout = compute(mm.root, 0, "branch")
-    drawn = render_text(build_grid(layout, mm.root.id, "one"), 0, 0, layout.width, layout.height)
+def _matched(layout, query: str) -> list[str]:
+    """The runs a search marked, rendered with nothing selected."""
+    drawn = render_text(
+        build_grid(layout, "nothing-is-selected", query), 0, 0, layout.width, layout.height
+    )
+    return [drawn.plain[span.start : span.end] for span in drawn.spans if "reverse" in str(span.style)]
 
-    marked = [span for span in drawn.spans if "underline" in str(span.style)]
+
+def _layout_for(text: str, child: str = "alpha one"):
+    mm = MindMap(Node(text))
+    mm.add_child(mm.root.id, child)
+    return compute(mm.root, 0, "branch")
+
+
+def test_a_found_word_is_drawn_as_a_block_in_its_own_colour():
+    layout = _layout_for("root")
+    drawn = render_text(
+        build_grid(layout, "nothing-is-selected", "one"), 0, 0, layout.width, layout.height
+    )
+    marked = [span for span in drawn.spans if "reverse" in str(span.style)]
+
     assert [drawn.plain[span.start : span.end] for span in marked] == ["one"]
-    assert all("cyan" in str(span.style) for span in marked), "the cell keeps its depth colour"
+    assert "cyan" in str(marked[0].style), "the cell keeps the colour of its depth"
 
 
 def test_an_empty_or_absent_query_marks_nothing():
-    mm = MindMap(Node("root"))
-    mm.add_child(mm.root.id, "alpha one")
-    layout = compute(mm.root, 0, "branch")
+    layout = _layout_for("root")
     for query in ("", "   ", "nothing here"):
-        drawn = render_text(
-            build_grid(layout, mm.root.id, query), 0, 0, layout.width, layout.height
-        )
-        assert not [span for span in drawn.spans if "underline" in str(span.style)], query
+        assert _matched(layout, query) == [], query
 
 
 def test_the_search_ignores_case_and_finds_every_occurrence():
-    mm = MindMap(Node("One ONE one"))
-    layout = compute(mm.root, 0, "branch")
-    drawn = render_text(build_grid(layout, mm.root.id, "one"), 0, 0, layout.width, layout.height)
-    marked = "".join(drawn.plain[span.start : span.end] for span in drawn.spans if "underline" in str(span.style))
-    assert marked == "OneONEone"
+    layout = _layout_for("root", child="One ONE one")
+    assert "".join(_matched(layout, "one")) == "OneONEone"

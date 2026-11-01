@@ -1527,8 +1527,11 @@ async def test_ctrl_f_opens_a_prompt_and_counts_matches(tmp_path: Path):
         await pilot.press("ctrl+f")
         await pilot.pause()
         prompt = app.query_one(SearchBar)
-        assert prompt.display, "the prompt takes the last line"
-        assert not app.query_one(FooterBar).display, "and the shortcuts step aside"
+        assert prompt.display, "the prompt takes the line above the bar"
+        footer = app.query_one(FooterBar)
+        assert footer.display, "the bar stays: it is the way out"
+        assert footer.mode == "search", "and it says what the prompt accepts"
+        assert "⏎ search" in footer.render().plain
 
         await pilot.press("o", "n", "e")
         await pilot.pause()
@@ -1549,7 +1552,7 @@ async def test_enter_jumps_to_the_first_match_and_a_repeat_moves_on(tmp_path: Pa
 
         assert app.selected == app.matches[0]
         assert app.query_one(SearchBar).display is False
-        assert app.query_one(FooterBar).display is True
+        assert app.query_one(FooterBar).mode == "keys"
 
         await pilot.press("ctrl+f", "enter")  # the prompt offers the last search
         await pilot.pause()
@@ -1631,3 +1634,55 @@ async def test_a_match_hidden_in_a_folded_branch_is_revealed(tmp_path: Path):
         await pilot.pause()
         assert branch.collapsed is False, "a match you cannot see is no use"
         assert app.selected == needle.id
+
+
+def test_the_bar_ranks_its_hints_from_leaving_down_to_the_air():
+    line = compose_footer(400, hint_chunks(BINDINGS)).plain
+    expected = [
+        "^X quit",
+        "^S save",
+        "^O write",
+        "^Z undo",
+        "^F search",
+        "^E edit",
+        "^D del",
+        "^T fold",
+        "^G mark",
+        "⇥ child",
+        "⏎ sib",
+        "^L layout",
+        "^= looser",
+        "^- tighter",
+    ]
+    positions = [line.index(item) for item in expected]
+    assert positions == sorted(positions), "the bar should read most to least important"
+    # and a narrow bar therefore keeps quitting and drops the spacing keys
+    narrow = compose_footer(40, hint_chunks(BINDINGS)).plain
+    assert "^X quit" in narrow
+    assert "tighter" not in narrow
+
+
+def test_every_visible_binding_has_a_place_in_the_ranking():
+    from textual.binding import Binding
+
+    from spoider.chrome import BAR_ORDER
+
+    visible = {binding.id for binding in BINDINGS if isinstance(binding, Binding) and binding.show}
+    assert visible <= set(BAR_ORDER), f"unranked: {sorted(visible - set(BAR_ORDER))}"
+    assert len(BAR_ORDER) == len(set(BAR_ORDER))
+
+
+async def test_the_match_count_lets_go_after_a_moment(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(SpoiderApp, "MATCH_COUNT_SECONDS", 0.5)
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        _poem(app)
+        await pilot.press("ctrl+f", "o", "n", "e", "enter")
+        await pilot.pause()
+        assert app.stat_text() == "2 matches"
+        assert "2 matches" in app.query_one(TopBar).render().plain
+
+        await pilot.pause(0.8)
+        assert app.stat_text() == "4 cells", "the count gives the bar back"
+        assert app.search_query == "one", "but the search and its marks stay"
+        assert len(app.matches) == 2

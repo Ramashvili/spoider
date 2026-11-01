@@ -45,6 +45,26 @@ KEY_GLYPHS = {
     "ctrl+slash": "^/",
 }
 
+#: The bar shows its hints in this order, and that is a ranking: a narrow
+#: terminal drops the tail of the bar first, so leaving comes before saving,
+#: saving before editing, and nudging the air comes last of all.
+BAR_ORDER: tuple[str, ...] = (
+    "quit",
+    "save",
+    "write",
+    "undo",
+    "search",
+    "edit",
+    "delete",
+    "fold",
+    "mark",
+    "add_child",
+    "add_sibling",
+    "layout",
+    "spacing_more",
+    "spacing_less",
+)
+
 #: Always visible, flush right. Order matters: last one sits closest to the edge.
 PINNED: tuple[tuple[str, str], ...] = (
     ("ctrl+comma", "settings"),
@@ -90,13 +110,19 @@ def hint_chunks(
     from textual.binding import Binding
 
     keymap = keymap or {}
-    chunks: list[Text] = []
+    shown: list[tuple[str, Text]] = []
     for binding in bindings:
         if not isinstance(binding, Binding) or not binding.show or binding.action in skip:
             continue
         key = keymap.get(binding.id or "", binding.key) or binding.key
-        chunks.append(entry(key, binding.description))
-    return chunks
+        shown.append((binding.id or "", entry(key, binding.description)))
+
+    def rank(pair: tuple[str, Text]) -> int:
+        # anything missing from the ranking goes after it, in binding order
+        return BAR_ORDER.index(pair[0]) if pair[0] in BAR_ORDER else len(BAR_ORDER)
+
+    shown.sort(key=rank)
+    return [chunk for _, chunk in shown]
 
 
 def pinned_chunks() -> list[Text]:
@@ -136,12 +162,29 @@ EDIT_HINTS = (
 )
 
 
+#: What the bar offers while the search prompt has the keys.
+SEARCH_HINTS = (
+    ("⏎", "search"),
+    ("esc/^C", "cancel"),
+    ("↑↓", "earlier searches"),
+)
+
+
 def edit_chunks() -> list[Text]:
     return [entry(key, label, literal=True) for key, label in EDIT_HINTS]
 
 
+def search_chunks() -> list[Text]:
+    return [entry(key, label, literal=True) for key, label in SEARCH_HINTS]
+
+
 class FooterBar(Widget):
-    """The bottom line. Switches to typing hints while a node is being named."""
+    """The bottom line, which never goes away.
+
+    Whatever has the keys, the bar says what can be done right now: the map's
+    keys, the keys of the cell being typed into, the keys of the search prompt.
+    A mode that hid it would leave the reader with no way out.
+    """
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -153,6 +196,8 @@ class FooterBar(Widget):
             return Text("")
         if self.mode == "edit":
             hints = edit_chunks()
+        elif self.mode == "search":
+            hints = search_chunks()
         else:
             app = self.app
             # autosave makes ^S redundant, so it leaves the bar with it on

@@ -115,7 +115,15 @@ level and `↑` / `↓` step between siblings. A map is drawn in `spider` unless
 file says otherwise, so maps written before this existed open exactly as they
 did.
 
-The bar carries the keys you cannot guess — inserts, edits, spacing, file, undo.
+The bar never goes away. Whatever has the keys — the map, a cell being typed
+into, the search prompt — the bar shows that mode's keys, because a mode that
+hides the bar leaves you with no way out.
+
+Its order is a ranking, and a narrow terminal drops the tail: `^X quit` first,
+then saving, writing, undo, search, the editing keys, the inserts, and the
+spacing nudges last of all.
+
+It carries the keys you cannot guess — inserts, edits, spacing, file, undo.
 The four navigation chords are deliberately absent: arrows and `hjkl` cover
 movement without spending that space.
 
@@ -143,19 +151,20 @@ the node you are halfway through naming.
 
 ## Searching
 
-`^F` turns the bottom line into a prompt, the way nano does, so the map stays on
-screen and the matches underline themselves as you type. The top bar counts them
-in place of the cell count while a search is on.
+`^F` adds a prompt line above the shortcut bar, the way nano does — the map stays
+on screen, the matches light up as you type, and the bar keeps saying what the
+prompt accepts. The top bar counts the matches in place of the cell count.
 
 `Enter` takes the search and selects the first match; `^F` then `Enter` again
 moves to the next one, wrapping round the map. A match inside a folded branch
-unfolds it, because a match you cannot see is no use. `Esc` drops the search and
-puts the cell count back.
+unfolds it, because a match you cannot see is no use. `Esc` drops the search
+entirely. The match count steps aside for the cell count again two seconds after
+the search is taken — it has made its point — while the marks themselves stay.
 
-Matches keep their cell's colour and gain an underline rather than a reverse
-block: the selection already uses reverse video, so a match inside the selected
-cell would otherwise invert twice and disappear. The count is cells, not
-occurrences: a cell holding "one one" is one match.
+A match is drawn as a reverse block in its cell's own colour, like a selection.
+Inside the selected cell the two blocks cancel out and you see none of it; the
+count is what tells you it is there. The count is cells, not occurrences: a cell
+holding "one one" is one match.
 
 ## Settings
 
