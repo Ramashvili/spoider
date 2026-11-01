@@ -1467,7 +1467,7 @@ class SpoiderApp(App[None]):
         """
         self.mm.colours = "family" if self.mm.colours == "depth" else "depth"
         self._mark_dirty()
-        self.notify(f"Colours: {self.mm.colours}", timeout=1)
+        self.notify(f"Colours by {self.mm.colours}", timeout=1)
 
     def action_layout(self) -> None:
         """^L — cycle the shape of the map: spider, pyramid, bush, branch."""

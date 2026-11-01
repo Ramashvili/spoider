@@ -1,7 +1,7 @@
 {
   "version": 1,
   "spacing": -1,
-  "layout": "branch",
+  "layout": "spider",
   "root": {
     "id": "37df30253785",
     "text": "spoider",
