@@ -96,3 +96,21 @@ def test_navigation_helpers_use_visible_order():
 
     assert mm.depth(leaf.id) == 2
     assert [n.text for n in mm.path(leaf.id)] == [mm.root.text, "branch", "leaf"]
+
+
+def test_the_demo_says_what_a_mind_map_is_and_what_the_app_does():
+    mm = MindMap.demo()
+    texts = [node.text for node in mm.nodes()]
+
+    assert mm.root.text == "spoider"
+    assert any("mind map" in text for text in texts), "it names the thing"
+    # what it is for, and what the keys do
+    assert any("planning" in text or "thinking" in text for text in texts)
+    assert any("tab" in text for text in texts) and any("^F" in text for text in texts)
+    assert any("^S" in text for text in texts), "and where the map goes"
+
+    # short enough to read at a glance, and one cell shows a mark rather than
+    # only talking about them
+    assert all(len(text) <= 32 for text in texts)
+    assert any(node.mark for node in mm.nodes())
+    assert 12 <= mm.count() <= 24

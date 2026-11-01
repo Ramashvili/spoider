@@ -320,13 +320,39 @@ class MindMap:
 
     @classmethod
     def demo(cls) -> MindMap:
+        """The map `--demo` opens: what a mind map is for, and what this can do.
+
+        Short cells on purpose — the point is to be read at a glance and then
+        taken apart with the keys it names.
+        """
         root = Node("spoider")
         ideas = {
-            "keys": ["^A child · ^J sibling", "^E edits · ^D deletes", "^T folds a branch"],
-            "canvas": ["auto-centres on selection", "click any node to select", "^P ^N ^B ^F move"],
-            "data": ["json on disk", "^Z undoes · ^Y redoes", "^S saves · ^O writes as"],
+            "what a mind map is": [
+                "one thought in the middle",
+                "its parts around it",
+                "their parts around those",
+            ],
+            "what it is for": [
+                "planning before building",
+                "thinking a thing through",
+                "notes that keep their shape",
+            ],
+            "what it does": [
+                "tab a child, enter a sibling",
+                "e edits, t folds, g marks",
+                "^F finds a word",
+            ],
+            "and more": [
+                "^L cycles four shapes",
+                "= and - change the air",
+                "^S writes plain json",
+                "^/ lists every key",
+            ],
         }
         for title, leaves in ideas.items():
             branch = Node(title, children=[Node(leaf) for leaf in leaves])
             root.children.append(branch)
+        # the cell that explains marks carries one, so the demo shows rather
+        # than tells
+        root.children[2].children[1].mark = MARKS[0]
         return cls(root)
