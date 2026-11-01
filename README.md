@@ -64,7 +64,7 @@ one of them.
 | `^A` / `^J` | aliases for those two, for when your hands are already on ctrl | |
 | `e` | edit the selected node in place (`^E` also works) | **e**dit |
 | `^C` | escape everywhere: closes a dialog, abandons the node being typed, otherwise inert | |
-| `^K` | cut the branch — it leaves the map and waits for `^U`, as often as you like | nano's cut |
+| `^K` | cut the branch — it goes onto a stack, where it waits to be pasted back with `^U` | nano's cut |
 | `^U` | paste it under the selected cell, as its last child | nano's paste |
 | `^D` | delete the branch for good | nano's delete |
 | `t` | fold / unfold the branch (`^T` also works) | **t**oggle |

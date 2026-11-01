@@ -417,6 +417,7 @@ class MindMap:
             ],
             "moving work": [
                 "^K cuts, ^U pastes it back",
+                "every cut waits on a stack for ^U",
                 "shift and an arrow pick a run",
                 "^Z takes it all back",
             ],
