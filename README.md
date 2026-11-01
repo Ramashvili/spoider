@@ -220,11 +220,13 @@ reverse video. That means it looks right on a dark theme, a light theme, or a
   sideways shape has to fit a connector run between a box and its children; a
   stacked one only needs its siblings not to touch, and a column is the scarcer
   resource when the tree grows down the page. `^=` still widens both.
-- Tightening a stacked shape walks down 2 → 1 → **shared wall**: at the two
-  tightest settings neighbouring siblings occupy one column between them, so a
-  run of them reads as a single row of cells with partitions rather than as
-  cells that happen to sit together. Cells from *different* parents always keep
-  a blank column, so cousins never merge into a group that is not theirs.
+- Tightening a stacked shape walks down 2 columns → **shared wall** → shared
+  wall *and* shared rows. At both tight settings neighbouring siblings occupy one
+  column between them, so a run of them reads as a single row of cells with
+  partitions rather than as cells that happen to sit together. Cells from
+  *different* parents always keep a blank column, so cousins never merge into a
+  group that is not theirs. Each step draws differently; `^-` stops at the last
+  one.
 - A box border is stored as the directions that cell continues in, not as a
   finished glyph, so boxes that end up sharing a row join with `├ ┤ ┬ ┴` instead
   of overwriting each other's corners.

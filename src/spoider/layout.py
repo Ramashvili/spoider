@@ -37,10 +37,10 @@ BOX_H = 3
 #: The direction a box's children hang in.
 RIGHT, LEFT, DOWN, UP = "right", "left", "down", "up"
 
-# How far the spacing controls may push the gaps. The floors live in gaps_for()
-# (2 columns between boxes, -1 rows between subtrees) and the clamp here has to
-# stay in step with them: at MIN_SPACING both floors are reached.
-MIN_SPACING = -3
+# How far the spacing controls may push the gaps. Two steps is all the tight end
+# has room for: a third would draw exactly what the second one draws, because
+# boxes already share their walls and their rows.
+MIN_SPACING = -2
 MAX_SPACING = 12
 
 
@@ -58,7 +58,12 @@ class Gaps:
 
 
 def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
-    """Spacing 0 is the default look; each step adds a column and a row.
+    """The gaps for a spacing setting in a given shape.
+
+    Zero is the default look. Tightening the sideways shapes takes a column out
+    each time. The stacked ones go from two columns straight to a shared wall,
+    because one column between two boxes is just two walls standing apart; the
+    last step then takes the blank row out from between the levels.
 
     Clamped here as well as in the app, so the layout itself can never be asked
     for a setting that collapses or explodes.
@@ -70,12 +75,12 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
         x = max(2, GAP_X + spacing)
     elif spacing >= 0:
         x = STACK_GAP_X + spacing
-    elif spacing == -1:
-        x = 1
     else:
-        # the two tightest settings: siblings share their wall. An adjacent pair
-        # of walls one column apart would read as a mistake, and a shared wall is
-        # what draws a row of cells as one group.
+        # Both tight settings: siblings share their wall, so a row of them reads
+        # as one group. What the last step tightens is the rows — at -1 the
+        # levels still have a blank row between them, at -2 they touch as well.
+        # A gap of one column in between would be an adjacent pair of walls,
+        # which reads as a mistake rather than as either.
         x = -1
     return Gaps(
         x=x,
