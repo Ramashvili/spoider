@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from rich.cells import cell_len
 
 from .model import Node
+from .text import clean
 
 GAP_X = 5
 GAP_Y = 1
@@ -48,14 +49,16 @@ def gaps_for(spacing: int) -> Gaps:
 
 
 def label(node: Node) -> str:
+    """What the cell shows. Cleaned here as well as when the file is read, so a
+    text that reached the model by any other route still cannot emit an escape."""
     if node.preview is not None:
-        text = node.preview
+        text = clean(node.preview)
     else:
-        text = (node.text or "").strip() or "(untitled)"
+        text = clean(node.text or "").strip() or "(untitled)"
         if node.children and node.collapsed:
             text = f"{text} +{len(node.children)}"
     if node.mark:
-        text = f"{node.mark} {text}"
+        text = f"{clean(node.mark)} {text}"
     return text
 
 

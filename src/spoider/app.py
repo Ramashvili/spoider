@@ -6,13 +6,13 @@ import argparse
 import os
 import shlex
 import subprocess
+from collections.abc import Iterable
 from pathlib import Path
 
 from textual.app import App, ComposeResult, SuspendNotSupported
-from textual.binding import Binding
+from textual.binding import Binding, BindingType
 
 from . import nav
-from .layout import MAX_SPACING, MIN_SPACING
 from .chrome import FooterBar
 from .config import (
     MAX_MARKS,
@@ -22,8 +22,10 @@ from .config import (
     load_config,
     write_config,
 )
-from .model import MARKS, MindMap, Node
+from .layout import MAX_SPACING, MIN_SPACING
+from .model import MARKS, MapFileError, MindMap, Node
 from .screens import Confirm, HelpScreen, SettingsScreen, TextPrompt
+from .text import clean
 from .widgets import MindMapView, TopBar
 
 # No colours here on purpose: the app runs on Textual's ansi theme, so every
@@ -66,7 +68,7 @@ TextPrompt Input > .input--cursor {
 # The character that stands in for the caret while a node is being typed into.
 CARET = "▊"
 
-BINDINGS: list[Binding] = [
+BINDINGS: list[BindingType] = [
     # tab/enter are the primary keys here; the ctrl chords stay as aliases.
     # tab needs priority to beat Textual's focus-next binding.
     Binding("tab", "add_child", "child", priority=True, id="add_child"),
@@ -75,7 +77,7 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+j", "add_sibling", "sib", show=False, id="add_sibling_alt"),
     Binding("ctrl+e", "edit", "edit", id="edit"),
     Binding("ctrl+d", "delete", "del", id="delete"),
-    Binding("ctrl+t", "toggle", "fold", id="toggle"),
+    Binding("ctrl+t", "fold", "fold", id="fold"),
     Binding("ctrl+g", "mark", "mark", id="mark"),
     # rendered as the pinned cluster at the right edge, not among the hints
     Binding("ctrl+comma", "settings", "settings", show=False, id="settings"),
@@ -118,12 +120,19 @@ BINDINGS: list[Binding] = [
 
 def default_keymap() -> dict[str, str]:
     """id -> the chord(s) that action was born with."""
-    return {binding.id: binding.key for binding in BINDINGS if binding.id}
+    return {
+        binding.id: binding.key
+        for binding in BINDINGS
+        if isinstance(binding, Binding) and binding.id
+    }
 
 
 def editor_command() -> list[str]:
     raw = os.environ.get("VISUAL") or os.environ.get("EDITOR") or "nano"
-    return shlex.split(raw) or ["nano"]
+    try:
+        return shlex.split(raw) or ["nano"]
+    except ValueError:  # unbalanced quotes in $EDITOR / $VISUAL
+        return ["nano"]
 
 
 def edit_in_editor(path: Path) -> None:
@@ -161,8 +170,17 @@ class SpoiderApp(App[None]):
         self.config: Config = load_config(self.config_path)
         self.theme = "textual-ansi"
         self.path = Path(path) if path is not None else default_path()
-        if self.path.exists():
-            self.mm = MindMap.load(self.path)
+        self.has_file = self.path.exists()
+        self.load_error: str | None = None
+        if self.has_file:
+            try:
+                self.mm = MindMap.load(self.path)
+            except MapFileError as exc:
+                # Starting on an empty map beats a traceback on the terminal; the
+                # reason is reported once the screen exists.
+                self.mm = MindMap()
+                self.has_file = False
+                self.load_error = str(exc)
         else:
             self.mm = MindMap.demo() if demo else MindMap()
         self.selected: str = self.mm.root.id
@@ -186,6 +204,8 @@ class SpoiderApp(App[None]):
         # exist; regenerate it, but only when it is actually out of date.
         if is_stale(self.config_path, self.config, self._key_entries()):
             self._save_config()
+        if self.load_error is not None:
+            self.notify(self.load_error, severity="error", timeout=8)
         self.set_keymap(self.config.keys)
         self._set_terminal_title()
         self.query_one(MindMapView).focus()
@@ -196,10 +216,14 @@ class SpoiderApp(App[None]):
 
     def _set_terminal_title(self) -> None:
         """Mirror the buffer into the terminal title, where the unsaved marker is
-        visible even when the top bar is scrolled out of sight."""
+        visible even when the top bar is scrolled out of sight.
+
+        The file name is untrusted — it can contain an ESC — and this string is
+        written straight to the terminal, so it is cleaned like any other text.
+        """
         driver = getattr(self, "_driver", None)
         if driver is not None:
-            driver.write(f"\x1b]2;{self._title()}\x07")
+            driver.write(f"\x1b]2;{clean(self._title())}\x07")
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         """Nothing from the app keymap fires while a dialog is open or a node is
@@ -252,7 +276,7 @@ class SpoiderApp(App[None]):
         entries: list[tuple[str, str, str]] = []
         seen: set[str] = set()
         for binding in BINDINGS:
-            if not binding.id:
+            if not isinstance(binding, Binding) or not binding.id:
                 continue
             description = describe_action(binding.action, binding.description)
             if binding.action in seen:
@@ -282,8 +306,8 @@ class SpoiderApp(App[None]):
         """The emoji ^G cycles through — an editor preference, like autosave."""
         return self.config.marks
 
-    def set_marks(self, marks) -> None:
-        cleaned = tuple(str(mark).strip() for mark in marks if str(mark).strip())
+    def set_marks(self, marks: Iterable[object]) -> None:
+        cleaned = tuple(seen for mark in marks if (seen := clean(mark).strip()))
         cleaned = cleaned[:MAX_MARKS] or tuple(MARKS)
         if cleaned == self.config.marks:
             return
@@ -317,16 +341,19 @@ class SpoiderApp(App[None]):
         self.query_one(TopBar).refresh()
         self.query_one(FooterBar).refresh()
 
-    def _autosave(self) -> None:
-        """Write silently to the current path; autosave never nags."""
+    def _autosave(self) -> bool:
+        """Write silently to the current path. False when the write failed, which
+        matters to ^X: quitting after a failed autosave would lose the buffer."""
         try:
             self.mm.save(self.path)
         except OSError as exc:
             self.notify(f"Could not write {self.path}: {exc}", severity="error", timeout=4)
-            return
+            return False
         self.dirty = False
+        self.has_file = True
         self._set_terminal_title()
         self._refresh_chrome()
+        return True
 
     def _mark_dirty(self) -> None:
         self.dirty = True
@@ -343,6 +370,7 @@ class SpoiderApp(App[None]):
             self.notify(f"Could not write {path}: {exc}", severity="error", timeout=4)
             return False
         self.path = path
+        self.has_file = True
         self.dirty = False
         self._set_terminal_title()
         self._refresh_chrome()
@@ -353,13 +381,21 @@ class SpoiderApp(App[None]):
         def apply(value: str | None) -> None:
             if value is None or not value.strip():
                 return
-            if self._write(Path(value.strip()).expanduser()) and then_quit:
+            target = Path(value.strip()).expanduser()
+            if target.is_dir():
+                self.notify(f"{target} is a directory", severity="error", timeout=4)
+                return
+            if self._write(target) and then_quit:
                 self.exit()
 
         self.push_screen(TextPrompt("File name to write", str(self.path)), apply)
 
     def _restore(self, snapshot: dict) -> None:
-        self.mm = MindMap.from_dict(snapshot)
+        try:
+            self.mm = MindMap.from_dict(snapshot)
+        except MapFileError as exc:  # only reachable if a snapshot were corrupt
+            self.notify(f"Cannot restore that state: {exc}", severity="error", timeout=4)
+            return
         if self.mm.find(self.selected) is None:
             self.selected = self.mm.root.id
         self._mark_dirty()
@@ -521,7 +557,7 @@ class SpoiderApp(App[None]):
         self.mm.cycle_mark(self.selected, self.marks)
         self._mark_dirty()
 
-    def action_toggle(self) -> None:
+    def action_fold(self) -> None:
         node = self.node
         if node is None or not node.children:
             return
@@ -640,11 +676,11 @@ class SpoiderApp(App[None]):
         """^O — nano's Write Out: always asks which file to write."""
         self._ask_where_to_write()
 
-    def action_quit(self) -> None:
+    async def action_quit(self) -> None:
         """^X — nano's Exit: never throw away a modified buffer silently."""
         if self.autosave:
-            if self.dirty:
-                self._autosave()
+            if self.dirty and not self._autosave():
+                return  # the write failed; keep the buffer and stay
             self.exit()
             return
         if not self.dirty:

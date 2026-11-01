@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from itertools import pairwise
 
 from rich.cells import cell_len
 from rich.text import Text
@@ -55,7 +56,7 @@ class Grid:
     def add_link(self, x: int, y: int, bits: int) -> None:
         self.links[(x, y)] = self.links.get((x, y), 0) | bits
 
-    def finalize(self) -> "Grid":
+    def finalize(self) -> Grid:
         for (x, y), bits in self.links.items():
             if (x, y) in self.cells:
                 continue
@@ -101,8 +102,14 @@ def _flatten_shared_rules(grid: Grid, layout: Layout) -> None:
     """When the layout is tight enough that two boxes share a border row, their
     two rules are really one. Corners stranded in the middle of that row read as
     glitches, so they become plain rule characters."""
-    for y in range(layout.height):
-        edge_boxes = [b for b in layout.boxes.values() if y in (b.y, b.bottom)]
+    # Bucket the boxes by the rows they own a border on. Scanning every box for
+    # every row made this quadratic, and it was 40 of the 60 ms a 500-cell map
+    # spent drawing a frame.
+    rows: dict[int, list[Placed]] = {}
+    for box in layout.boxes.values():
+        rows.setdefault(box.y, []).append(box)
+        rows.setdefault(box.bottom, []).append(box)
+    for y, edge_boxes in rows.items():
         if len(edge_boxes) < 2:
             continue
         stacked = any(
@@ -144,7 +151,7 @@ def _draw_link(grid: Grid, parent: Placed, child: Placed) -> None:
         mid = max(start - 2, min(start - 1, end))
 
     points = [(start, parent.cy), (mid, parent.cy), (mid, child.cy), (end, child.cy)]
-    for (x1, y1), (x2, y2) in zip(points, points[1:]):
+    for (x1, y1), (x2, y2) in pairwise(points):
         if y1 == y2:
             _horizontal(grid, x1, x2, y1)
         else:

@@ -10,7 +10,7 @@ dependencies = ["textual>=1.0,<7"]
 spoider = "spoider.app:main"
 
 [dependency-groups]
-dev = ["pytest>=8,<9", "pytest-asyncio>=0.24,<2"]
+dev = ["pytest>=8,<9", "pytest-asyncio>=0.24,<2", "ruff>=0.14,<1"]
 
 [build-system]
 requires = ["hatchling"]
@@ -22,3 +22,10 @@ packages = ["src/spoider"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "RUF"]

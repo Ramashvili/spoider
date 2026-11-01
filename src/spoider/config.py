@@ -22,7 +22,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .files import write_atomic
 from .model import MARKS
+from .text import clean
 
 #: More than this and ^G takes too long to come back around.
 MAX_MARKS = 8
@@ -70,9 +72,9 @@ def parse(text: str) -> Config:
         if name == "autosave":
             config.autosave = value.lower() in TRUE_WORDS
         elif name == "marks":
-            marks = tuple(token for token in value.split() if token)[:MAX_MARKS]
+            marks = tuple(cleaned for token in value.split() if (cleaned := clean(token)))
             if marks:
-                config.marks = marks
+                config.marks = marks[:MAX_MARKS]
         elif value:
             # anything else is a chord override; unknown names are ignored later
             config.keys[name] = value
@@ -152,13 +154,14 @@ def is_stale(
         text = path.read_text()
     except (OSError, UnicodeDecodeError):
         return True
+    lines = {line.strip() for line in text.splitlines()}
     for ident, default, _ in key_entries:
         wanted = (
             f"{ident} = {config.keys[ident]}"
             if ident in config.keys
             else f"# {ident} = {default}"
         )
-        if wanted not in text:
+        if wanted not in lines:
             return True
     return False
 
@@ -169,7 +172,4 @@ def write_config(
     key_entries: Sequence[tuple[str, str, str]] = (),
 ) -> None:
     path = Path(path) if path is not None else default_config_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(render_config(config, key_entries))
-    tmp.replace(path)
+    write_atomic(path, render_config(config, key_entries))

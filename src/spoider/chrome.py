@@ -8,9 +8,13 @@ never cut in half.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, cast
 
 from rich.text import Text
 from textual.widget import Widget
+
+if TYPE_CHECKING:
+    from .app import SpoiderApp
 
 BINDING_LEGEND = {"ctrl+": "^", "alt+": "⌥"}
 
@@ -76,12 +80,16 @@ def hint_chunks(
 ) -> list[Text]:
     """`skip` drops whole actions from the bar — autosave hides ^S, for instance.
     `keymap` holds the chords in force after the config has had its say."""
+    from textual.binding import Binding
+
     keymap = keymap or {}
-    return [
-        entry(keymap.get(b.id, b.key), b.description)
-        for b in bindings
-        if b.show and b.action not in skip
-    ]
+    chunks: list[Text] = []
+    for binding in bindings:
+        if not isinstance(binding, Binding) or not binding.show or binding.action in skip:
+            continue
+        key = keymap.get(binding.id or "", binding.key) or binding.key
+        chunks.append(entry(key, binding.description))
+    return chunks
 
 
 def pinned_chunks() -> list[Text]:
@@ -142,5 +150,6 @@ class FooterBar(Widget):
             app = self.app
             # autosave makes ^S redundant, so it leaves the bar with it on
             skip = frozenset({"save"}) if getattr(app, "autosave", False) else frozenset()
-            hints = hint_chunks(app.BINDINGS, skip, app.keymap)  # type: ignore[attr-defined]
+            spoider = cast("SpoiderApp", app)
+            hints = hint_chunks(spoider.BINDINGS, skip, spoider.keymap)
         return compose_footer(width, hints)

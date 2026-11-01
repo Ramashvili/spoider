@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from rich.cells import cell_len
 from rich.text import Text
@@ -10,17 +10,11 @@ from textual import events
 from textual.widget import Widget
 
 from .layout import Layout, compute
-from .render import build_grid, render_text
+from .render import Grid, build_grid, render_text
+from .text import clip_head
 
 if TYPE_CHECKING:
     from .app import SpoiderApp
-
-
-def _head(text: str, limit: int) -> str:
-    """Truncate from the right: names and stats lose their tail first."""
-    if cell_len(text) <= limit:
-        return text
-    return text[: max(1, limit - 1)] + "…"
 
 
 def compose_top_bar(
@@ -39,11 +33,11 @@ def compose_top_bar(
         return Text("")
     stat_width = cell_len(stat)
     if width < stat_width + 2:
-        return Text(_head(stat, width), style="bold reverse")
+        return Text(clip_head(stat, width), style="bold reverse")
 
     where = f"{where} *" if dirty else where
     left_room = width - stat_width - 1
-    name = _head(name, left_room)
+    name = clip_head(name, left_room)
 
     # One blank column separates the name from the centre band, and the band
     # from the stat, so the line always fills exactly `width` cells.
@@ -70,27 +64,33 @@ class TopBar(Widget):
     def render(self) -> Text:
         from . import __version__
 
-        app: "SpoiderApp" = self.app  # type: ignore[assignment]
+        app = cast("SpoiderApp", self.app)
         height = self.size.width
         if height <= 0:
             return Text("")
-        where = str(app.path) if app.path.exists() else "New Buffer"
+        # No stat() per frame: the app tracks whether a file exists, so a file
+        # deleted mid-session does not silently become "New Buffer".
+        where = str(app.path) if app.has_file else "New Buffer"
         return compose_top_bar(height, __version__, where, app.mm.count(), app.dirty)
 
 
 class MindMapView(Widget, can_focus=True):
     """A camera over the map. The view follows the selection instead of scrolling."""
 
-    def __init__(self, spoider: "SpoiderApp") -> None:
+    def __init__(self, spoider: SpoiderApp) -> None:
         super().__init__()
         self.spoider = spoider
         self._layout: Layout | None = None
+        self._grid: Grid | None = None
+        self._grid_key: tuple[int, str] | None = None
         self._offset_x = 0
         self._offset_y = 0
 
     def refresh_map(self) -> None:
-        """Drop the cached layout; call after any document change."""
+        """Drop the cached layout and picture; call after any document change."""
         self._layout = None
+        self._grid = None
+        self._grid_key = None
         self.refresh()
 
     @property
@@ -125,8 +125,14 @@ class MindMapView(Widget, can_focus=True):
             return Text("")
         layout = self.layout_
         self._offset_x, self._offset_y = self.camera(width, height)
-        grid = build_grid(layout, self.spoider.selected)
-        return render_text(grid, self._offset_x, self._offset_y, width, height)
+        # Drawing the whole map costs ~25 ms on a 500-cell document, and moving
+        # the camera does not change a single cell — only a new layout or a new
+        # selection does (selection is reverse video).
+        key = (id(layout), self.spoider.selected)
+        if self._grid is None or self._grid_key != key:
+            self._grid = build_grid(layout, self.spoider.selected)
+            self._grid_key = key
+        return render_text(self._grid, self._offset_x, self._offset_y, width, height)
 
     def on_key(self, event: events.Key) -> None:
         """Typing into a node is handled by the app; swallow the key so no

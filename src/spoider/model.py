@@ -4,19 +4,32 @@ from __future__ import annotations
 
 import json
 import uuid
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .files import write_atomic
+from .text import clean
+
 DEFAULT_ROOT_TEXT = "Mind map"
 
-# The default set ^G cycles through, in press order. The editor can replace it;
-# see spoider.config. "None" always comes first so the cycle can end.
+#: The default set ^G cycles through, in press order. The editor can replace it;
+#: see spoider.config. "None" always comes first so the cycle can end.
 MARKS = ("✅", "❌", "❓", "❗", "🕐")
+
+#: A map nested deeper than this is either a mistake or an attack: the loader is
+#: recursive, so an unbounded document would exhaust the stack (RecursionError).
+MAX_DEPTH = 400
+
+
+class MapFileError(Exception):
+    """A map file that cannot be read: bad JSON, wrong shape, or far too deep."""
 
 
 def new_id() -> str:
-    return uuid.uuid4().hex[:8]
+    """A node id. Twelve hex characters: short enough to read, long enough that
+    a document with a few thousand cells will not collide."""
+    return uuid.uuid4().hex[:12]
 
 
 @dataclass
@@ -24,15 +37,18 @@ class Node:
     text: str = DEFAULT_ROOT_TEXT
     id: str = field(default_factory=new_id)
     collapsed: bool = False
-    children: list["Node"] = field(default_factory=list)
+    children: list[Node] = field(default_factory=list)
     mark: str | None = None
     # Live inline-edit buffer. Rendering reads it when set; never serialised.
     preview: str | None = field(default=None, compare=False, repr=False)
 
-    def walk(self):
-        yield self
-        for child in self.children:
-            yield from child.walk()
+    def walk(self) -> Iterator[Node]:
+        """Depth-first, without recursion: a deep map must not blow the stack."""
+        stack: list[Node] = [self]
+        while stack:
+            node = stack.pop()
+            yield node
+            stack.extend(reversed(node.children))
 
     def to_dict(self) -> dict:
         return {
@@ -44,25 +60,70 @@ class Node:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Node":
-        return cls(
-            text=str(data.get("text", "")),
-            id=str(data.get("id") or new_id()),
+    def from_dict(cls, data: dict) -> Node:
+        """Build a tree from parsed JSON.
+
+        Tolerant of a hand-edited file: a node that is not a mapping, a missing
+        or duplicated id, a `mark` that is not a string, and `children` that is
+        not a list are all repaired rather than raised. Text is cleaned of
+        control characters here, at the door, because it is untrusted input.
+        """
+        root = cls._build(data, 0)
+        assert root is not None
+        return root
+
+    @classmethod
+    def _build(cls, data: object, depth: int, seen: set[str] | None = None) -> Node | None:
+        seen = set() if seen is None else seen
+        if not isinstance(data, dict):
+            return None
+        if depth > MAX_DEPTH:
+            raise MapFileError(f"the map is nested more than {MAX_DEPTH} levels deep")
+
+        node_id = clean(data.get("id") or "")
+        if not node_id or node_id in seen:
+            node_id = new_id()
+        seen.add(node_id)
+
+        raw_text = data.get("text")
+        raw_mark = data.get("mark")
+        node = cls(
+            text=clean("" if raw_text is None else raw_text),
+            id=node_id,
             collapsed=bool(data.get("collapsed", False)),
-            mark=data.get("mark") or None,
-            children=[cls.from_dict(child) for child in data.get("children", [])],
+            mark=clean(raw_mark) or None if isinstance(raw_mark, str) else None,
         )
+        children = data.get("children")
+        if isinstance(children, list):
+            for child in children:
+                built = cls._build(child, depth + 1, seen)
+                if built is not None:
+                    node.children.append(built)
+        return node
 
 
 class MindMap:
     """The whole document. Mutations are by node id so the UI can stay stateless."""
 
     def __init__(self, root: Node | None = None, spacing: int = 0) -> None:
-        self.root = root if root is not None else Node(DEFAULT_ROOT_TEXT)
+        self.root = root if root is not None else Node(clean(DEFAULT_ROOT_TEXT))
         # Presentation that belongs to the document: a map with 40 cells wants a
         # different amount of air than one with 4, and it should look the same
         # wherever it is opened.
         self.spacing = spacing
+        # Lookups by id, so a keystroke does not walk the tree. `_reindex` is
+        # also the repair path: `find`/`parent` rebuild when they miss, which
+        # covers any caller that appends to `node.children` behind our back.
+        self._by_id: dict[str, Node] = {}
+        self._parent_of: dict[str, Node] = {}
+        self._reindex()
+
+    def _reindex(self) -> None:
+        self._by_id.clear()
+        self._parent_of.clear()
+        for node in self.root.walk():
+            self._by_id[node.id] = node
+            self._parent_of.update({child.id: node for child in node.children})
 
     # -- lookup ---------------------------------------------------------
 
@@ -70,27 +131,27 @@ class MindMap:
         return list(self.root.walk())
 
     def find(self, node_id: str) -> Node | None:
-        for node in self.root.walk():
-            if node.id == node_id:
-                return node
-        return None
+        node = self._by_id.get(node_id)
+        if node is None:
+            self._reindex()
+            node = self._by_id.get(node_id)
+        return node
 
     def parent(self, node_id: str) -> Node | None:
-        for node in self.root.walk():
-            if any(child.id == node_id for child in node.children):
-                return node
-        return None
+        parent = self._parent_of.get(node_id)
+        if parent is None:
+            self._reindex()
+            parent = self._parent_of.get(node_id)
+        return parent
 
     def visible(self) -> list[Node]:
         out: list[Node] = []
-
-        def visit(node: Node) -> None:
+        stack = [self.root]
+        while stack:
+            node = stack.pop()
             out.append(node)
             if not node.collapsed:
-                for child in node.children:
-                    visit(child)
-
-        visit(self.root)
+                stack.extend(reversed(node.children))
         return out
 
     def depth(self, node_id: str) -> int:
@@ -114,24 +175,28 @@ class MindMap:
         return list(reversed(chain))
 
     def count(self) -> int:
-        return len(self.nodes())
+        return len(self._by_id)
 
     # -- mutation -------------------------------------------------------
 
     def add_child(self, parent_id: str, text: str = "") -> Node:
         parent = self.find(parent_id) or self.root
-        node = Node(text=text)
+        node = Node(text=clean(text))
         parent.children.append(node)
         parent.collapsed = False
+        self._by_id[node.id] = node
+        self._parent_of[node.id] = parent
         return node
 
     def add_sibling(self, node_id: str, text: str = "") -> Node | None:
         parent = self.parent(node_id)
         if parent is None:
             return None
-        node = Node(text=text)
+        node = Node(text=clean(text))
         index = self._index(parent, node_id)
         parent.children.insert(index + 1, node)
+        self._by_id[node.id] = node
+        self._parent_of[node.id] = parent
         return node
 
     def delete(self, node_id: str) -> tuple[Node, str] | None:
@@ -141,6 +206,9 @@ class MindMap:
             return None
         index = self._index(parent, node_id)
         removed = parent.children.pop(index)
+        for node in removed.walk():
+            self._by_id.pop(node.id, None)
+            self._parent_of.pop(node.id, None)
         if index < len(parent.children):
             successor = parent.children[index]
         elif index > 0:
@@ -186,8 +254,13 @@ class MindMap:
         return {"version": 1, "spacing": self.spacing, "root": self.root.to_dict()}
 
     @classmethod
-    def from_dict(cls, data: dict) -> "MindMap":
-        root = Node.from_dict(data.get("root") or {})
+    def from_dict(cls, data: dict) -> MindMap:
+        if not isinstance(data, dict):
+            raise MapFileError("a map file must hold a JSON object at the top level")
+        root_data = data.get("root")
+        if not isinstance(root_data, dict):
+            raise MapFileError("the map has no root node")
+        root = Node.from_dict(root_data)
         try:
             spacing = int(data.get("spacing") or 0)
         except (TypeError, ValueError):
@@ -195,20 +268,34 @@ class MindMap:
         return cls(root, spacing)
 
     def save(self, path: Path) -> None:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(path.suffix + ".tmp")
-        tmp.write_text(json.dumps(self.to_dict(), indent=2, ensure_ascii=False) + "\n")
-        tmp.replace(path)
+        write_atomic(path, json.dumps(self.to_dict(), indent=2, ensure_ascii=False) + "\n")
 
     @classmethod
-    def load(cls, path: Path) -> "MindMap":
-        return cls.from_dict(json.loads(Path(path).read_text()))
+    def load(cls, path: Path) -> MindMap:
+        """Read a map file, raising MapFileError for anything the app can report
+        instead of crashing on: unreadable, not JSON, wrong shape, too deep."""
+        path = Path(path)
+        try:
+            raw = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise MapFileError(f"cannot read {path.name}: {exc.strerror or exc}") from exc
+        except UnicodeDecodeError as exc:
+            raise MapFileError(f"{path.name} is not UTF-8 text") from exc
+        try:
+            data = json.loads(raw)
+        except RecursionError as exc:
+            raise MapFileError(f"{path.name} is nested far too deeply") from exc
+        except ValueError as exc:
+            raise MapFileError(f"{path.name} is not valid JSON: {exc}") from exc
+        try:
+            return cls.from_dict(data)
+        except RecursionError as exc:  # belt and braces: _build is bounded too
+            raise MapFileError(f"{path.name} is nested far too deeply") from exc
 
     # -- fixtures -------------------------------------------------------
 
     @classmethod
-    def demo(cls) -> "MindMap":
+    def demo(cls) -> MindMap:
         root = Node("spoider")
         ideas = {
             "keys": ["^A child · ^J sibling", "^E edits · ^D deletes", "^T folds a branch"],

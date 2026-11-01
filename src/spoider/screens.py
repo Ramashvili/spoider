@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from rich.cells import cell_len
 from rich.text import Text
@@ -13,16 +13,20 @@ from textual.screen import ModalScreen
 from textual.widgets import Input, Label, Static
 
 from .chrome import key_cap
+from .text import clip_tail
 
 if TYPE_CHECKING:
     from .app import SpoiderApp
 
 
-# (heading, ((actions, explanation), …))
+#: (heading, ((actions, explanation), …))
+HelpRow = tuple[tuple[str, ...], str]
+HelpSection = tuple[str, tuple[HelpRow, ...]]
+
 # The chords are not written here: they are read from the keymap, so a rebound
 # key cannot leave the help lying. Every binding action must appear — the tests
 # enforce that in both directions.
-HELP: tuple[tuple[str, tuple[tuple[tuple[str, ...], str, str], ...]], ...] = (
+HELP: tuple[HelpSection, ...] = (
     (
         "Making cells",
         (
@@ -31,7 +35,7 @@ HELP: tuple[tuple[str, tuple[tuple[tuple[str, ...], str, str], ...]], ...] = (
             (("edit",), "rename the selected cell in place"),
             (("delete",), "delete the cell and everything under it"),
             (("mark",), "cycle the mark, then off (set them in ^,)"),
-            (("toggle",), "fold or unfold the branch"),
+            (("fold",), "fold or unfold the branch"),
         ),
     ),
     (
@@ -89,21 +93,24 @@ def describe_action(action: str, fallback: str = "") -> str:
     return fallback or action
 
 
-def keys_for(app: "SpoiderApp", actions: tuple[str, ...]) -> str:
+def keys_for(app: SpoiderApp, actions: tuple[str, ...]) -> str:
     """Every chord bound to these actions, in binding order, as caps."""
     caps: list[str] = []
     for action in actions:
-        for binding in app.BINDINGS:  # type: ignore[attr-defined]
+        for binding in app.BINDINGS:
+            if not isinstance(binding, Binding):
+                continue
             if binding.action != action:
                 continue
-            for key in str(app.keymap.get(binding.id, binding.key)).split(","):
+            chord = app.keymap.get(binding.id or "", binding.key) or binding.key
+            for key in chord.split(","):
                 cap = key_cap(key)
                 if cap not in caps:
                     caps.append(cap)
     return "  ".join(caps)
 
 
-def help_text(app: "SpoiderApp") -> Text:
+def help_text(app: SpoiderApp) -> Text:
     text = Text()
     text.append("spoider — keys and options\n", style="bold")
     for heading, rows in HELP:
@@ -112,13 +119,6 @@ def help_text(app: "SpoiderApp") -> Text:
             text.append(f"  {_pad(keys_for(app, actions), 16)}", style="bold")
             text.append(f"{explanation}\n")
     return text
-
-
-def _clip(text: str, width: int) -> str:
-    """Keep the tail of a long path; the leaf is the useful half."""
-    if cell_len(text) <= width:
-        return text
-    return "…" + text[-(width - 1) :]
 
 
 def _fit_tokens(tokens: tuple[str, ...], width: int) -> str:
@@ -133,11 +133,11 @@ def _fit_tokens(tokens: tuple[str, ...], width: int) -> str:
     return joined + ("…" if len(shown) < len(tokens) else "")
 
 
-def settings_text(app: "SpoiderApp", row: int = 0) -> Text:
+def settings_text(app: SpoiderApp, row: int = 0) -> Text:
     rows = [
         ("autosave", "on" if app.autosave else "off", "after every edit, and exit"),
         ("marks", _fit_tokens(app.marks, 20), "the emojis ^G cycles"),
-        ("config", _clip(str(app.config_path), 20), "⏎ opens it in your editor"),
+        ("config", clip_tail(str(app.config_path), 20), "⏎ opens it in your editor"),
     ]
     text = Text()
     text.append("editor settings\n", style="bold")
@@ -171,7 +171,7 @@ class TextPrompt(ModalScreen[str | None]):
     """
 
     # ^C is escape everywhere in spoider
-    BINDINGS = [
+    BINDINGS: ClassVar[list[Binding]] = [
         Binding("escape", "cancel", "cancel"),
         Binding("ctrl+c", "cancel", "cancel", show=False),
         Binding("ctrl+z", "undo", "", show=False),
@@ -257,7 +257,7 @@ class Confirm(ModalScreen[str | None]):
     }
     """
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list[Binding]] = [
         Binding("y", "answer('yes')", "yes"),
         Binding("n", "answer('no')", "no"),
         Binding("escape", "cancel", "cancel"),
@@ -309,10 +309,7 @@ class HelpScreen(ModalScreen[None]):
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="panel"):
-            yield Static(help_text(self.app))  # type: ignore[arg-type]
-
-    def action_close(self) -> None:
-        self.dismiss(None)
+            yield Static(help_text(cast("SpoiderApp", self.app)))
 
 
 class SettingsScreen(ModalScreen[None]):
@@ -332,7 +329,7 @@ class SettingsScreen(ModalScreen[None]):
     }
     """
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list[Binding]] = [
         Binding("escape", "close", "close"),
         Binding("ctrl+c", "close", "close", show=False),
         Binding("ctrl+x", "close", "close", show=False),
@@ -351,8 +348,7 @@ class SettingsScreen(ModalScreen[None]):
             yield Static(self._body(), id="settings-body")
 
     def _body(self) -> Text:
-        app: "SpoiderApp" = self.app  # type: ignore[assignment]
-        return settings_text(app, self.row)
+        return settings_text(cast("SpoiderApp", self.app), self.row)
 
     def _redraw(self) -> None:
         self.query_one("#settings-body", Static).update(self._body())
@@ -362,7 +358,7 @@ class SettingsScreen(ModalScreen[None]):
         self._redraw()
 
     def action_activate(self) -> None:
-        app: "SpoiderApp" = self.app  # type: ignore[assignment]
+        app = cast("SpoiderApp", self.app)
         if self.row == 0:
             app.set_autosave(not app.autosave)
             self._redraw()
@@ -373,8 +369,8 @@ class SettingsScreen(ModalScreen[None]):
         app.open_config()
         self._redraw()
 
-    def _marks_prompt(self) -> "TextPrompt":
-        app: "SpoiderApp" = self.app  # type: ignore[assignment]
+    def _marks_prompt(self) -> TextPrompt:
+        app = cast("SpoiderApp", self.app)
         return TextPrompt(
             "Marks, in the order ^G cycles (space separated)", " ".join(app.marks)
         )
@@ -382,7 +378,7 @@ class SettingsScreen(ModalScreen[None]):
     def _apply_marks(self, value: str | None) -> None:
         if value is None:
             return
-        app: "SpoiderApp" = self.app  # type: ignore[assignment]
+        app = cast("SpoiderApp", self.app)
         app.set_marks(value.split())
         self._redraw()
 

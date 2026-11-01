@@ -4,11 +4,19 @@ from pathlib import Path
 from textual.widgets import Input
 
 from spoider.app import BINDINGS, SpoiderApp
+from spoider.chrome import compose_footer, hint_chunks
 from spoider.config import load_config
-from spoider.chrome import compose_footer, hint_chunks, pinned_bar
 from spoider.layout import compute
+from spoider.screens import (
+    HELP,
+    Confirm,
+    HelpScreen,
+    SettingsScreen,
+    TextPrompt,
+    help_text,
+    settings_text,
+)
 from spoider.widgets import TopBar, compose_top_bar
-from spoider.screens import HELP, Confirm, HelpScreen, SettingsScreen, TextPrompt, help_text, settings_text
 
 
 def test_every_shortcut_uses_a_modifier():
@@ -1316,3 +1324,78 @@ async def test_dirty_quit_saves_on_yes(tmp_path: Path):
 
     written = SpoiderApp(path)
     assert [child.text for child in written.mm.root.children] == ["rescued"]
+
+
+# -- a file that cannot be read must not take the editor down --------------
+
+
+async def test_a_corrupt_file_starts_empty_and_keeps_the_file_untouched(tmp_path: Path):
+    path = tmp_path / "bad.json"
+    path.write_text("{not json")
+
+    app = SpoiderApp(path, demo=False)
+    assert app.load_error is not None
+    assert app.has_file is False
+    async with app.run_test():
+        assert app.mm.count() == 1
+        assert path.read_text() == "{not json"  # never overwritten on the way in
+
+
+async def test_the_top_bar_says_new_buffer_when_the_file_could_not_be_opened(tmp_path: Path):
+    path = tmp_path / "bad.json"
+    path.write_text("{oops")
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test():
+        assert "New Buffer" in app.query_one(TopBar).render().plain
+
+
+async def test_the_path_survives_the_file_disappearing(tmp_path: Path):
+    path = tmp_path / "map.json"
+    path.write_text('{"root": {"text": "x"}}')
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test():
+        assert "map.json" in app.query_one(TopBar).render().plain
+        path.unlink()
+        # the bar reads state, not stat(): no mid-session flip to "New Buffer"
+        assert "map.json" in app.query_one(TopBar).render().plain
+
+
+async def test_quit_stays_put_when_autosave_cannot_write(tmp_path: Path, monkeypatch):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        app.set_autosave(True)
+        app.mm.add_child(app.selected, "work that must not vanish")
+        app.dirty = True
+
+        def refuse(path):
+            raise OSError(28, "No space left on device")
+
+        monkeypatch.setattr(app.mm, "save", refuse)
+        await pilot.press("ctrl+x")
+        await pilot.pause()
+        assert app.is_running  # the buffer is still here
+        assert app.dirty
+
+
+def test_the_terminal_title_cannot_carry_an_escape_sequence(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "plain.json", demo=False)
+    app.path = tmp_path / "map\x1b]52;c;SGVsbG8=\x07.json"
+    written: list[str] = []
+
+    class Driver:
+        def write(self, data: str) -> None:
+            written.append(data)
+
+    app._driver = Driver()
+    app._set_terminal_title()
+    assert written == ["\x1b]2;spoider — map]52;c;SGVsbG8=.json\x07"]
+
+
+async def test_a_saved_map_reaches_the_disk_without_a_temp_file(tmp_path: Path):
+    target = tmp_path / "out.json"
+    app = SpoiderApp(tmp_path / "fresh.json", demo=False)
+    async with app.run_test():
+        app.mm.add_child(app.selected, "hello")
+        app._write(target)
+    assert json.loads(target.read_text())["root"]["children"][0]["text"] == "hello"
+    assert [e.name for e in tmp_path.iterdir() if e.name != "config-home"] == ["out.json"]
