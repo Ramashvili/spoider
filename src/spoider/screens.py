@@ -13,7 +13,6 @@ from rich.text import Text
 from textual.binding import Binding
 
 from .chrome import key_cap
-from .presets import DESCRIPTIONS, PRESETS
 from .text import clip_tail
 
 if TYPE_CHECKING:
@@ -149,28 +148,6 @@ def help_text(app: SpoiderApp) -> Text:
     return text
 
 
-def presets_text(app: SpoiderApp, row: int = 0) -> Text:
-    """The four layouts, one line each, with the one in force under the cursor."""
-    text = Text()
-    text.append("bindings preset\n", style="bold")
-    for index, (name, chords) in enumerate(PRESETS.items()):
-        selected = index == row
-        text.append("\n " + ("▸" if selected else " "))
-        text.append(_pad(name, 8), style="bold" if selected else "")
-        text.append(DESCRIPTIONS[name])
-    text.append("\n\n ")
-    count = len(app.config.keys)
-    if count:
-        plural = "chord" if count == 1 else "chords"
-        text.append(
-            f"selecting a preset comments out your {count} custom {plural} in config.conf",
-            style="dim",
-        )
-    else:
-        text.append("selecting a preset writes it into config.conf", style="dim")
-    return text
-
-
 def _fit_tokens(tokens: tuple[str, ...], width: int) -> str:
     """Keep whole tokens while they fit, then an ellipsis — never half an emoji."""
     shown: list[str] = []
@@ -187,7 +164,6 @@ def settings_text(app: SpoiderApp, row: int = 0) -> Text:
     rows = [
         ("autosave", "on" if app.autosave else "off", "after every edit, and exit"),
         ("marks", _fit_tokens(app.marks, 20), "the emojis ^G cycles"),
-        ("bindings", app.config.preset, "⏎ picks a preset: nano, vim, emacs, mcedit"),
         ("config", clip_tail(str(app.config_path), 20), "⏎ opens it in your editor"),
     ]
     text = Text()

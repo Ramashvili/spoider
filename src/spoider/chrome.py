@@ -46,11 +46,6 @@ KEY_GLYPHS = {
     "ctrl+shift+equals_sign": "^=",
     "ctrl+comma": "^,",
     "ctrl+slash": "^/",
-    # punctuation keeps its own face — SLASH is not a key anyone has pressed
-    "slash": "/",
-    "underscore": "_",
-    "ctrl+underscore": "^_",
-    "alt+underscore": "M-_",
 }
 
 #: The bar shows its hints in this order, and that is a ranking: a narrow
@@ -80,8 +75,11 @@ BAR_ORDER: tuple[str, ...] = (
 #: Bare keys need their own caps: `=` and `-` do not spell themselves.
 BAR_GLYPHS = {"equals_sign": "=", "minus": "-"}
 
+#: Always visible, flush right. Order matters: last one sits closest to the edge.
 #: Always visible, flush right: binding id, the chord it has by default, and its
-#: label. The chords move with the preset like every other key.
+#: label. Order matters — the last one sits closest to the edge. Rebinding either in
+#: the config moves the label with it: a pinned key that no longer exists is worse
+#: than no hint at all.
 PINNED: tuple[tuple[str, str, str], ...] = (
     ("settings", "ctrl+comma", "settings"),
     ("help", "ctrl+slash", "help"),
@@ -206,18 +204,10 @@ def prompt_chunks(verb: str) -> list[Text]:
     ]
 
 
-def ask_chunks(kind: str = "save") -> list[Text]:
-    """A yes/no question, worded for what is actually being asked: the save
-    question offers to save or discard, anything else just yes or no."""
-    if kind == "save":
-        return [
-            entry("y", "save", literal=True),
-            entry("n", "discard", literal=True),
-            entry("esc", "cancel", literal=True),
-        ]
+def ask_chunks() -> list[Text]:
     return [
-        entry("y", "yes", literal=True),
-        entry("n", "no", literal=True),
+        entry("y", "save", literal=True),
+        entry("n", "discard", literal=True),
         entry("esc", "cancel", literal=True),
     ]
 
@@ -254,6 +244,7 @@ class FooterBar(Widget):
         width = self.size.width
         if width <= 0:
             return Text("")
+        spoider = cast("SpoiderApp", self.app)
         if self.mode == "edit":
             hints = edit_chunks()
         elif self.mode == "search":
@@ -261,13 +252,12 @@ class FooterBar(Widget):
         elif self.mode == "custom":
             hints = self.custom
         else:
-            app = self.app
             # autosave makes ^S redundant, so it leaves the bar with it on
-            skip = frozenset({"save"}) if getattr(app, "autosave", False) else frozenset()
-            spoider = cast("SpoiderApp", app)
+            skip = frozenset({"save"}) if getattr(self.app, "autosave", False) else frozenset()
             hints = hint_chunks(spoider.BINDINGS, skip, spoider.keymap)
-        keymap = getattr(self.app, "keymap", None)
-        return compose_footer(width, hints, pinned_bar(keymap if isinstance(keymap, dict) else None))
+        # the pinned cluster is two keys the user may have rebound: it reads the
+        # same keymap the hints do, in every mode
+        return compose_footer(width, hints, pinned_bar(spoider.keymap))
 
 
 SEARCH_PROMPT = "Search: "

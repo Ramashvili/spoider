@@ -276,37 +276,11 @@ map still visible above it:
 | --- | --- |
 | `autosave` | write after every cell edit, rearrangement or spacing change, and on exit — so `^X` never stops to ask. While it is on, `^S` leaves the shortcut bar (the chord still works) |
 | `marks` | the emoji `^G` cycles through, space separated and in order, up to eight. Cells that already carry a mark keep it, even if that emoji later leaves the set |
-| `bindings` | which key preset is in force — see below |
 | `config` | hand the terminal to `$EDITOR` (then `$VISUAL`, then `nano`) on `config.conf`, and reload it when you close it |
 
 Autosave and the mark set are *editor* preferences, not document state: they live
 in `~/.config/spoider/config.conf` and do not travel with the map. Spacing is the
 opposite — it does travel, so a map looks the same wherever you open it.
-
-### Bindings presets
-
-`⏎` on the bindings row lists four layouts, with the cursor on the one in force:
-
-| Preset | What it changes |
-| --- | --- |
-| `nano` | nothing — it *is* the default: `^K` cut, `^U` paste, `^X` quit, `^S` save |
-| `vim` | `h j k l` move, `i`/`a` insert, `o` a sibling below, `x` cut, `p` paste, `D` delete, `u` undo, `^R` redo, `/` search, `m` mark, `z` fold |
-| `emacs` | `^K` kill, `^Y` yank, `M-s` search, `^_` undo, `M-_` redo, `^G` let go of a selection |
-| `mcedit` | the whole F-row: `F1` help, `F2` save, `F3` mark, `F5` cut, `F6` paste, `F7` search, `F8` delete, `F9` settings, `F10` quit, `F12` write out; `^U` undo, `M-r` redo |
-
-The mcedit row is mc's own default keymap, read from `misc/mc.default.keymap` in
-its source rather than guessed at: F5 is Copy there, F6 is Move, F9 is the menu and
-F12 is Save As, which is this editor's cut, paste, settings and write-out.
-
-They are idioms, not emulations: a binding is a single chord here, so emacs'
-`C-x C-s` and vim's `dd` cannot be expressed at all. Each preset keeps the shape of
-the habit — vim's `x` deletes into the register, which is exactly what a cut does,
-and emacs' `^K`/`^Y` are a kill ring, which is what the cut stack is — and the keys
-a preset does not name, including the ctrl form of every key it moves, keep working.
-
-Choosing a preset **comments out any chords you had set yourself**. Nothing is
-deleted: they move to a section at the bottom of `config.conf`, and removing one
-`#` puts that chord back in force.
 
 ## Settings file
 
@@ -322,7 +296,6 @@ listed and **commented out**, so the defaults apply until you uncomment one:
 
 autosave = false
 marks = ✅ ❌ ❓ ❗ 🕐
-bindings = nano
 
 # Chords. Uncomment a line to change it, e.g.  save = ctrl+w
 
@@ -345,13 +318,6 @@ line can take several, comma separated (`tab,ctrl+a`). Unknown names and blank
 values are ignored, so a typo costs you one chord rather than the keymap. The
 shortcut bar and the help screen both read the chords in force, so they never
 advertise a key you no longer have.
-
-A chord you set yourself becomes a comment when you choose another preset:
-
-```
-# Chords put aside when a preset was chosen. Remove the # to use one again.
-# save = ctrl+w
-```
 
 A `config.json` or `config.toml` from an older build is read once, so nothing is
 lost; the next save writes `config.conf` beside it.

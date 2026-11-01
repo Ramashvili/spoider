@@ -964,10 +964,9 @@ async def test_settings_opens_the_config_in_an_editor(tmp_path: Path, monkeypatc
         await pilot.press("ctrl+comma")
         await pilot.pause()
         await pilot.press("down")
-        await pilot.press("down")
-        await pilot.press("down")  # config row: autosave, marks, bindings, config
+        await pilot.press("down")  # config row
         await pilot.pause()
-        assert app._settings_row == 3
+        assert app._settings_row == 2
 
         await pilot.press("enter")
         await pilot.pause()
@@ -2444,204 +2443,12 @@ async def test_saving_toasts_green_and_a_failure_toasts_red(tmp_path: Path):
         assert "Nothing to paste" in str(newest.render())
 
 
-# -- binding presets ------------------------------------------------------
-
-
-async def test_a_preset_in_the_config_changes_the_chords(tmp_path: Path):
+async def test_the_pinned_cluster_follows_a_rebound_chord(tmp_path: Path):
     config = tmp_path / "config.conf"
-    config.write_text("bindings = vim\n")
+    config.write_text("settings = ctrl+p\n")
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
-    async with app.run_test() as pilot:
-        _four(app)
-        assert app.keymap["edit"] == "i,a"
-        assert app.keymap["paste"] == "p"
-
-        await pilot.press("i")
-        await pilot.pause()
-        assert app.editing, "i is insert under the vim preset"
-
-
-async def test_an_unknown_preset_falls_back_to_the_default(tmp_path: Path):
-    config = tmp_path / "config.conf"
-    config.write_text("bindings = wordperfect\n")
-    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
-
-    assert app.keymap["save"] == "ctrl+s"
-    assert app.config.preset == "nano"
-
-
-async def test_the_settings_row_opens_the_four_presets(tmp_path: Path):
-    config = tmp_path / "config.conf"
-    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
-    async with app.run_test() as pilot:
-        await pilot.press("ctrl+comma")
-        await pilot.pause()
-        assert "nano" in app.query_one(PanelBar).render().plain
-
-        await pilot.press("down")
-        await pilot.press("down")  # the bindings row
-        await pilot.press("enter")
-        await pilot.pause()
-
-        assert app.mode == "presets"
-        body = app.query_one(PanelBar).render().plain
-        for name in ("nano", "vim", "emacs", "mcedit"):
-            assert name in body
-        assert "writes it into config.conf" in body
-
-
-async def test_choosing_a_preset_says_so_and_writes_it_down(tmp_path: Path):
-    config = tmp_path / "config.conf"
-    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
-    async with app.run_test() as pilot:
-        await pilot.press("ctrl+comma")
-        await pilot.pause()
-        await pilot.press("down")
-        await pilot.press("down")
-        await pilot.press("enter")  # the preset list
-        await pilot.pause()
-        await pilot.press("down")  # vim
-        await pilot.press("enter")
-        await pilot.pause()
-
-        assert app.config.preset == "vim"
-        assert app.mode == "settings", "back to the rows it came from"
-        assert app.keymap["cut"] == "x"
-        assert "bindings = vim" in config.read_text()
-        assert "# cut = x" in config.read_text(), "the file documents the chords in force"
-
-
-async def test_custom_chords_are_asked_about_and_then_parked(tmp_path: Path):
-    config = tmp_path / "config.conf"
-    config.write_text("save = ctrl+w\n")
-    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
-    async with app.run_test() as pilot:
-        await pilot.press("ctrl+comma")
-        await pilot.pause()
-        await pilot.press("down")
-        await pilot.press("down")
-        await pilot.press("enter")
-        await pilot.pause()
-        assert "comments out your 1 custom chord" in app.query_one(PanelBar).render().plain
-
-        await pilot.press("down")  # vim
-        await pilot.press("enter")
-        await pilot.pause()
-
-        assert app.mode == "ask", "nothing is thrown away without being asked"
-        assert "Comment out 1 custom chord" in app.query_one(AskBar).render().plain
-        assert "yes" in app.query_one("#footer", FooterBar).render().plain
-
-        await pilot.press("n")
-        await pilot.pause()
-        assert app.config.preset == "nano", "no means no"
-        assert app.mode == "settings", "and you are back on the rows"
-
-        await pilot.press("enter")  # the bindings row is still selected
-        await pilot.pause()
-        await pilot.press("down")
-        await pilot.press("enter")
-        await pilot.pause()
-        await pilot.press("y")
-        await pilot.pause()
-
-        assert app.config.preset == "vim"
-        assert app.config.keys == {}, "the custom chord is no longer in force"
-        assert app.config.parked == {"save": "ctrl+w"}, "but it is kept, parked"
-        saved = config.read_text()
-        assert "bindings = vim" in saved
-        assert "# save = ctrl+w" in saved, "the custom chord is kept, commented out"
-
-
-def _app_with_preset(tmp_path: Path, preset: str) -> SpoiderApp:
-    config = tmp_path / "config.conf"
-    config.write_text(f"bindings = {preset}\n")
-    return SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
-
-
-async def test_the_vim_preset_opens_and_closes_like_vim(tmp_path: Path):
-    app = _app_with_preset(tmp_path, "vim")
-    async with app.run_test() as pilot:
-        a, _b, _c, _d = _four(app)
-        app.select(a.id)
-
-        await pilot.press("o")  # open a line below: a new sibling
-        await pilot.press("v", "i", "m", "enter")
-        await pilot.pause()
-        assert [child.text for child in app.mm.root.children] == ["a", "vim", "b", "c", "d"]
-
-        await pilot.press("x")  # cut into the register
-        await pilot.pause()
-        assert app.mm.cut_stack and app.cut_stat() == "1 cut"
-
-        app.select(app.mm.root.id)  # a cut leaves you on a sibling, so walk back
-        await pilot.press("p")  # and put it back
-        await pilot.pause()
-        assert app.mm.cut_stack == []
-        assert "vim" in [child.text for child in app.mm.root.children]
-
-
-async def test_the_vim_preset_keeps_enter_for_new_siblings(tmp_path: Path):
-    app = _app_with_preset(tmp_path, "vim")
-    assert app.keymap["add_sibling"] == "enter,o", "o is added, enter is not taken away"
-
-
-async def test_the_mcedit_preset_has_the_f_row(tmp_path: Path):
-    app = _app_with_preset(tmp_path, "mcedit")
-    keymap = app.keymap
-
-    assert keymap["help"] == "f1"
-    assert keymap["save"] == "f2"
-    assert keymap["mark"] == "f3"
-    assert keymap["cut"] == "f5"
-    assert keymap["paste"] == "f6"
-    assert keymap["search"] == "f7"
-    assert keymap["delete"] == "f8"
-    assert keymap["settings"] == "f9"
-    assert keymap["quit"] == "f10"
-    assert keymap["write"] == "f12"
-    assert keymap["undo"] == "ctrl+u"
-    assert keymap["redo"] == "alt+r"
-
-
-async def test_the_mcedit_f_keys_do_what_mc_does_with_them(tmp_path: Path):
-    app = _app_with_preset(tmp_path, "mcedit")
-    async with app.run_test() as pilot:
-        a, b, _c, _d = _four(app)
-        app.select(a.id)
-
-        await pilot.press("f5")  # Copy, here: cut
-        await pilot.pause()
-        assert [child.text for child in app.mm.root.children] == ["b", "c", "d"]
-        assert [cell.text for cell in app.mm.cut_stack] == ["a"]
-
-        app.select(b.id)
-        await pilot.press("f6")  # Move, here: paste
-        await pilot.pause()
-        assert [child.text for child in b.children] == ["a"]
-
-        await pilot.press("f9")  # the menu, here: settings
-        await pilot.pause()
-        assert app.mode == "settings"
-
-        await pilot.press("escape")
-        await pilot.pause()
-        await pilot.press("f1")  # help
-        await pilot.pause()
-        assert app.mode == "help"
-
-
-async def test_the_emacs_preset_uses_ctrl_g_to_let_go(tmp_path: Path):
-    app = _app_with_preset(tmp_path, "emacs")
-    assert app.keymap["clear_selection"] == "escape,ctrl+g"
-    assert app.keymap["paste"] == "ctrl+y"
-    assert app.keymap["search"] == "alt+s"
-
-
-async def test_the_pinned_cluster_moves_with_the_preset(tmp_path: Path):
-    app = _app_with_preset(tmp_path, "mcedit")
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         bar = app.query_one("#footer", FooterBar).render().plain
-        assert "F9 settings" in bar and "F1 help" in bar, "mcedit moved them to the F-row"
+        assert "^P settings" in bar, "the pinned key moved, so the label moves"
         assert "^, settings" not in bar

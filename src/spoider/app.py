@@ -26,8 +26,7 @@ from .config import (
 from .drawers import AskBar, PanelBar, PromptBar
 from .layout import MAX_SPACING, MIN_SPACING, label
 from .model import LAYOUTS, MARKS, MapFileError, MindMap, Node
-from .presets import PRESETS, chords_for
-from .screens import help_text, presets_text, settings_text
+from .screens import help_text, settings_text
 from .text import clean, find_all
 from .widgets import MindMapView, TopBar
 
@@ -279,10 +278,7 @@ class SpoiderApp(App[None]):
         self._search_history: list[str] = []
         self._write_then_quit = False
         self._settings_row = 0
-        self._preset_row = 0
-        self._pending_preset: str | None = None
-        self._ask_kind = "save"  # which words the y/n bar uses
-        #: keys | search | write | marks | ask | settings | presets | help
+        #: keys | search | write | marks | ask | settings | help
         self._mode = "keys"
         self._show_matches = False  # the count sits in the bar only for a while
         self._count_timer = None
@@ -312,7 +308,7 @@ class SpoiderApp(App[None]):
             self._save_config()
         if self.load_error is not None:
             self.notify(self.load_error, severity="error", timeout=8)
-        self.set_keymap(self.keymap)
+        self.set_keymap(self.config.keys)
         self._set_terminal_title()
         self.query_one(MindMapView).focus()
 
@@ -338,7 +334,7 @@ class SpoiderApp(App[None]):
             return self.query_one(PromptBar)
         if self._mode == "ask":
             return self.query_one(AskBar)
-        if self._mode in ("settings", "presets", "help"):
+        if self._mode in ("settings", "help"):
             return self.query_one(PanelBar)
         return None
 
@@ -423,18 +419,13 @@ class SpoiderApp(App[None]):
 
     @property
     def keymap(self) -> dict[str, str]:
-        """binding id -> chord(s) in force.
-
-        The app's defaults, then the preset's chords over them, then whatever the
-        config file says — a hand-set chord always wins over both.
-        """
-        return build_keymap({**chords_for(self.config.preset), **self.config.keys})
+        """binding id -> chord(s) in force: the defaults with the config on top."""
+        return build_keymap(self.config.keys)
 
     def _key_entries(self) -> list[tuple[str, str, str]]:
         """(id, default chord, what it does) for every rebindable binding."""
         from .screens import describe_action
 
-        preset = chords_for(self.config.preset)
         entries: list[tuple[str, str, str]] = []
         seen: set[str] = set()
         for binding in BINDINGS:
@@ -444,7 +435,7 @@ class SpoiderApp(App[None]):
             if binding.action in seen:
                 description = f"{description} (alias)"
             seen.add(binding.action)
-            entries.append((binding.id, preset.get(binding.id, binding.key), description))
+            entries.append((binding.id, binding.key, description))
         return entries
 
     def open_config(self) -> None:
@@ -459,7 +450,7 @@ class SpoiderApp(App[None]):
             return
 
         self.config = load_config(self.config_path)
-        self.set_keymap(self.keymap)  # new chords take effect straight away
+        self.set_keymap(self.config.keys)  # new chords take effect straight away
         self._refresh_chrome()
         self.notify("Config reloaded", timeout=2)
 
@@ -750,8 +741,8 @@ class SpoiderApp(App[None]):
             footer.custom = prompt_chunks("write" if mode == "write" else "save")
         elif mode == "ask":
             footer.mode = "custom"
-            footer.custom = ask_chunks(self._ask_kind)
-        elif mode in ("settings", "presets"):
+            footer.custom = ask_chunks()
+        elif mode == "settings":
             footer.mode = "custom"
             footer.custom = settings_chunks()
         else:  # help
@@ -1003,7 +994,6 @@ class SpoiderApp(App[None]):
 
     def _ask_to_save(self) -> None:
         self._mode = "ask"
-        self._ask_kind = "save"
         self._hide_drawers(AskBar)
         self.query_one(AskBar).ask("Save modified buffer?", self._save_answered)
         self._sync_footer()
@@ -1015,7 +1005,7 @@ class SpoiderApp(App[None]):
             self._settings_row = max(0, self._settings_row - 1)
             self._draw_settings()
         elif key in ("down", "j"):
-            self._settings_row = min(3, self._settings_row + 1)
+            self._settings_row = min(2, self._settings_row + 1)
             self._draw_settings()
         elif key in ("enter", "space"):
             self._settings_activate()
@@ -1034,81 +1024,9 @@ class SpoiderApp(App[None]):
                 submit=self._marks_submitted,
                 cancel=self._open_settings,
             )
-        elif row == 2:
-            self._open_presets()
         else:
             self.open_config()
             self._open_settings()  # back to the list you left
-
-    def _open_presets(self) -> None:
-        """The four layouts, with the cursor on the one in force."""
-        names = list(PRESETS)
-        self._preset_row = names.index(self.config.preset) if self.config.preset in names else 0
-        self._mode = "presets"
-        self._draw_presets()
-
-    def _draw_presets(self) -> None:
-        text = presets_text(self, self._preset_row)
-        text.append("\n")  # one line of air above the bar, like the settings rows
-        self._hide_drawers(PanelBar)
-        self.query_one(PanelBar).show(text, self._preset_key)
-        self._sync_footer()
-
-    def _preset_key(self, key: str) -> None:
-        if key in ("escape", "ctrl+c", "ctrl+comma", "ctrl+x"):
-            self._open_settings()  # back to the list you came from
-        elif key in ("up", "k"):
-            self._preset_row = max(0, self._preset_row - 1)
-            self._draw_presets()
-        elif key in ("down", "j"):
-            self._preset_row = min(len(PRESETS) - 1, self._preset_row + 1)
-            self._draw_presets()
-        elif key in ("enter", "space"):
-            self._choose_preset(list(PRESETS)[self._preset_row])
-
-    def _choose_preset(self, name: str) -> None:
-        if name == self.config.preset:
-            self._open_settings()
-            return
-        if not self.config.keys:
-            self.set_preset(name)
-            self._open_settings()
-            return
-        # custom chords are about to be parked, so ask before doing it
-        count = len(self.config.keys)
-        plural = "" if count == 1 else "s"
-        self._pending_preset = name
-        self._mode = "ask"
-        self._ask_kind = "question"
-        self._hide_drawers(AskBar)
-        self.query_one(AskBar).ask(
-            f"Comment out {count} custom chord{plural} and use the {name} preset?",
-            self._preset_answered,
-        )
-        self._sync_footer()
-
-    def _preset_answered(self, choice: str | None) -> None:
-        name, self._pending_preset = self._pending_preset, None
-        if choice == "yes" and name:
-            self.set_preset(name)
-        self._open_settings()
-
-    def set_preset(self, name: str) -> None:
-        """Put a preset's chords in force.
-
-        Custom chords are not thrown away: they move into `parked`, which the file
-        writes back as comments, so a single # removal brings them back.
-        """
-        if name not in PRESETS or name == self.config.preset:
-            return
-        if self.config.keys:
-            self.config.parked = {**self.config.parked, **self.config.keys}
-            self.config.keys = {}
-        self.config.preset = name
-        self.set_keymap(self.keymap)  # the preset's chords are live at once
-        self._save_config()
-        self._refresh_chrome()
-        self.notify(f"Bindings: {name}", timeout=2)
 
     def _marks_submitted(self, value: str) -> None:
         self.set_marks(value.split())
