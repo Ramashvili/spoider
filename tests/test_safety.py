@@ -94,3 +94,59 @@ def test_saving_leaves_no_temporary_files_behind(tmp_path):
     path = tmp_path / "map.json"
     MindMap().save(path)
     assert [entry.name for entry in tmp_path.iterdir()] == ["map.json"]
+
+
+def test_the_depth_cap_counts_nodes_on_the_path():
+    def chain(depth: int) -> dict:
+        node: dict = {"text": "leaf"}
+        for index in range(depth - 1):
+            node = {"text": f"level {index}", "children": [node]}
+        return {"root": node}
+
+    assert MindMap.from_dict(chain(MAX_DEPTH)).count() == MAX_DEPTH, "the cap itself must load"
+    with pytest.raises(MapFileError):
+        MindMap.from_dict(chain(MAX_DEPTH + 1))
+
+
+async def test_a_map_named_with_escapes_does_not_write_them_out(tmp_path):
+    from spoider.app import SpoiderApp
+    from spoider.widgets import TopBar
+
+    evil = tmp_path / "map\x1b]0;PWNED\x07.json"
+    evil.write_text('{"version": 1, "root": {"text": "r"}}')
+    app = SpoiderApp(evil, demo=False)
+    async with app.run_test(size=(100, 20)) as pilot:
+        await pilot.pause()
+        bar = str(app.query_one(TopBar).render())
+        assert "\x1b" not in bar and "\x07" not in bar, "the path is cleaned where it is drawn"
+        assert "PWNED" in bar, "cleaned, not hidden"
+
+
+async def test_notifications_are_cleaned_before_they_reach_the_terminal(tmp_path):
+    from textual.widgets._toast import Toast
+
+    from spoider.app import SpoiderApp
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(notifications=True) as pilot:
+        app.notify("bad \x1b]52;c;aGVsbG8=\x07 name", severity="error", timeout=8)
+        await pilot.pause()
+        toast = app.query(Toast).last()
+        rendered = str(toast.render())
+        assert "\x1b" not in rendered and "\x07" not in rendered
+        assert "name" in rendered
+
+
+async def test_a_prompt_does_not_write_escapes_from_a_file_name(tmp_path):
+    from spoider.app import SpoiderApp
+    from spoider.drawers import PromptBar
+
+    evil = tmp_path / "map\x1b]0;PWNED\x07.json"
+    evil.write_text('{"version": 1, "root": {"text": "r"}}')
+    app = SpoiderApp(evil, demo=False)
+    async with app.run_test(size=(100, 20)) as pilot:
+        await pilot.press("ctrl+o")
+        await pilot.pause()
+        line = str(app.query_one(PromptBar).render())
+        assert "\x1b" not in line and "\x07" not in line
+        assert "PWNED" in line

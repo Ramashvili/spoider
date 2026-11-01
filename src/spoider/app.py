@@ -12,6 +12,7 @@ from pathlib import Path
 from textual import events
 from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding, BindingType
+from textual.notifications import SeverityLevel
 
 from . import nav
 from .chrome import CARET, FooterBar, ask_chunks, help_chunks, prompt_chunks, settings_chunks
@@ -355,6 +356,22 @@ class SpoiderApp(App[None]):
         driver = getattr(self, "_driver", None)
         if driver is not None:
             driver.write(f"\x1b]2;{clean(self._title())}\x07")
+
+    def notify(
+        self,
+        message: str,
+        *,
+        title: str = "",
+        severity: SeverityLevel = "information",
+        timeout: float | None = None,
+        markup: bool = True,
+    ) -> None:
+        """A toast is written straight to the terminal, and some of what goes into
+        one is untrusted — a file name, a cell's text, a parse error quoting the
+        file. Clean it here so no call site has to remember."""
+        super().notify(
+            clean(message), title=clean(title), severity=severity, timeout=timeout, markup=markup
+        )
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         """Nothing from the app keymap fires while a drawer or a cell has the

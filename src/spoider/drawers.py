@@ -16,7 +16,7 @@ from textual import events
 from textual.widget import Widget
 
 from .chrome import CARET
-from .text import clip_tail
+from .text import clean, clip_tail
 
 
 class Drawer(Widget, can_focus=True):
@@ -188,7 +188,8 @@ class PromptBar(Drawer):
         width = self.size.width
         if width <= 0 or not self.display:
             return Text("")
-        line = self.value[: self.cursor] + CARET + self.value[self.cursor :]
+        # Cleaned on the way out only: the value itself is what gets written.
+        line = clean(self.value[: self.cursor]) + CARET + clean(self.value[self.cursor :])
         room = max(0, width - cell_len(self.label) - 2)
         if cell_len(line) > room:
             line = clip_tail(line, room)
@@ -224,7 +225,7 @@ class AskBar(Drawer):
         width = self.size.width
         if width <= 0 or not self.display:
             return Text("")
-        return Text(clip_tail(self.question, width - 1))
+        return Text(clip_tail(clean(self.question), width - 1))
 
 
 class PanelBar(Drawer):

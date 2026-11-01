@@ -92,7 +92,7 @@ class Node:
         seen = set() if seen is None else seen
         if not isinstance(data, dict):
             return None
-        if depth > MAX_DEPTH:
+        if depth >= MAX_DEPTH:  # depth 0 is the root, so this caps the chain at MAX_DEPTH
             raise MapFileError(f"the map is nested more than {MAX_DEPTH} levels deep")
 
         node_id = clean(data.get("id") or "")

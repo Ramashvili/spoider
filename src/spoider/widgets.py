@@ -12,7 +12,7 @@ from textual.widget import Widget
 from .chrome import DIVIDER
 from .layout import BOX_H, Layout, compute
 from .render import Grid, build_grid, render_text
-from .text import clip_head
+from .text import clean, clip_head
 
 if TYPE_CHECKING:
     from .app import SpoiderApp
@@ -72,7 +72,7 @@ def compose_top_bar(
     if width < right_width + 2:
         return Text(clip_head(joined, width), style=STAT_STYLE)
 
-    where = f"{where} *" if dirty else where
+    where = clean(f"{where} *") if dirty else clean(where)
     name = clip_head(name, width - right_width - 1)
 
     # One blank column separates the name from the centre band, and the band from
