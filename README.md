@@ -106,3 +106,7 @@ uv run pytest
 
 Changing it? [AGENTS.md](AGENTS.md) has the layout, the rules the code is held to and
 the traps — written for people and for coding agents alike.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
