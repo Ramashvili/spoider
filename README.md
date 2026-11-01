@@ -112,7 +112,7 @@ cell is what `↑` goes to. In `pyramid` that is the parent and in `bush` it is 
 children; in `spider` and `branch` the levels run sideways, so `←` / `→` cross a
 level and `↑` / `↓` step between siblings. A map is drawn in `spider` unless the
 file says otherwise, so maps written before this existed open exactly as they
-did — as do the two shapes' earlier names, `tree` and `outline`.
+did.
 
 The bar carries the keys you cannot guess — inserts, edits, spacing, file, undo.
 The four navigation chords are deliberately absent: arrows and `hjkl` cover
@@ -211,6 +211,10 @@ reverse video. That means it looks right on a dark theme, a light theme, or a
   `bush` pack them horizontally (children sit in a row, below or above).
 - In `spider` the root's children alternate sides by index: 0 right, 1 left,
   2 right, …, and a whole branch keeps its side.
+- Stacked shapes start with a narrower column gap than the sideways ones. A
+  sideways shape has to fit a connector run between a box and its children; a
+  stacked one only needs its siblings not to touch, and a column is the scarcer
+  resource when the tree grows down the page. `^=` still widens both.
 - A box border is stored as the directions that cell continues in, not as a
   finished glyph, so boxes that end up sharing a row join with `├ ┤ ┬ ┴` instead
   of overwriting each other's corners.

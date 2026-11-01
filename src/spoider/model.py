@@ -26,10 +26,6 @@ MAX_DEPTH = 400
 LAYOUTS = ("spider", "pyramid", "bush", "branch")
 DEFAULT_LAYOUT = "spider"
 
-#: Names these shapes had before they were renamed; a map saved then still opens
-#: the way it was left.
-RENAMED_LAYOUTS = {"tree": "bush", "outline": "branch"}
-
 
 class MapFileError(Exception):
     """A map file that cannot be read: bad JSON, wrong shape, or far too deep."""
@@ -145,9 +141,7 @@ class MindMap:
 
     @layout.setter
     def layout(self, value: str) -> None:
-        self._layout = RENAMED_LAYOUTS.get(value, value)
-        if self._layout not in LAYOUTS:
-            self._layout = DEFAULT_LAYOUT
+        self._layout = value if value in LAYOUTS else DEFAULT_LAYOUT
 
     # -- lookup ---------------------------------------------------------
 

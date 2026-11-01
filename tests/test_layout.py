@@ -159,6 +159,35 @@ def test_vertical_gap_reaches_into_the_boxes_at_the_floor():
     assert gaps_for(-99).y == -1  # and no further
 
 
+def test_stacked_shapes_keep_their_siblings_closer_together():
+    from spoider.layout import GAP_X, STACK_GAP_X
+
+    assert GAP_X > STACK_GAP_X, "sideways shapes need the columns for a connector"
+    # the spider spends columns between a box and its children; a pyramid or a
+    # bush spends them between siblings standing side by side, so it starts close
+    assert gaps_for(0, "spider").x == GAP_X
+    assert gaps_for(0, "branch").x == GAP_X
+    assert gaps_for(0, "pyramid").x == STACK_GAP_X
+    assert gaps_for(0, "bush").x == STACK_GAP_X
+
+
+def test_stacked_shapes_may_tighten_one_column_further():
+    assert gaps_for(-1, "pyramid").x == 1
+    assert gaps_for(-99, "pyramid").x == 1
+    # a sideways shape never goes below two: the connector needs the column
+    assert gaps_for(-99, "spider").x == 2
+
+
+def test_the_stacked_gap_is_what_makes_a_pyramid_narrow():
+    from spoider.layout import GAP_X, Gaps, compute_with
+
+    mm, _alpha, _beta, _a1, _a2 = _shaped()
+    tight = compute(mm.root, 0, "pyramid").width
+    wide = compute_with(mm.root, Gaps(x=GAP_X, y=1), "pyramid").width
+    assert tight < wide
+    assert wide - tight == 2 * 3  # three sibling gaps, three columns each
+
+
 def test_tight_layout_flattens_two_rules_into_one():
     mm = MindMap()
     branch = mm.add_child(mm.root.id, "branch")

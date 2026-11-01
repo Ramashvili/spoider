@@ -24,7 +24,12 @@ from rich.cells import cell_len
 from .model import DEFAULT_LAYOUT, LAYOUTS, Node
 from .text import clean
 
+#: Columns between a box and what hangs off it, and rows between siblings.
+#: Sideways shapes need the columns: that is where the connector runs. Stacked
+#: shapes put the siblings side by side, where a column is expensive, so they
+#: start twice as close and spend the extra space on the rows instead.
 GAP_X = 5
+STACK_GAP_X = 2
 GAP_Y = 1
 PAD = 1
 BOX_H = 3
@@ -47,15 +52,19 @@ class Gaps:
     y: int = GAP_Y
 
 
-def gaps_for(spacing: int) -> Gaps:
+def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
     """Spacing 0 is the default look; each step adds a column and a row.
 
     Clamped here as well as in the app, so the layout itself can never be asked
     for a setting that collapses or explodes.
     """
     spacing = max(MIN_SPACING, min(MAX_SPACING, spacing))
+    sideways = layout in ("spider", "branch")
+    across = GAP_X if sideways else STACK_GAP_X
     return Gaps(
-        x=max(2, GAP_X + spacing),
+        # a sideways shape needs two columns to run a connector through; a
+        # stacked one only needs the boxes not to touch, so it may go to one
+        x=max(2 if sideways else 1, across + spacing),
         # -1 lets two boxes share a border row: they touch, but each keeps its own
         # text row. Below that the text rows themselves would collide.
         y=max(-1, GAP_Y + spacing),
@@ -146,7 +155,7 @@ class Layout:
 
 
 def compute(root: Node, spacing: int = 0, layout: str = DEFAULT_LAYOUT) -> Layout:
-    return compute_with(root, gaps_for(spacing), layout)
+    return compute_with(root, gaps_for(spacing, layout), layout)
 
 
 def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout:
