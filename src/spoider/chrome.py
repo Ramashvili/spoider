@@ -21,8 +21,9 @@ if TYPE_CHECKING:
 #: can name.
 BINDING_LEGEND = {"ctrl+": "^", "alt+": "M-", "shift+": "S-"}
 
-#: The block that stands in for a cursor, here and in the inline editor.
-CARET = "▊"
+#: The caret is not a character: it inverts the cell it is on, here and in the
+#: inline editor alike, so it never widens what it is sitting in.
+CARET_STYLE = "reverse"
 
 #: Caps are coloured text, never a block: the colour comes from the terminal
 #: palette like everything else in the app.

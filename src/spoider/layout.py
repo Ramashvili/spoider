@@ -106,8 +106,27 @@ def label(node: Node) -> str:
     return text
 
 
+def caret_index(node: Node) -> int | None:
+    """Where the renaming caret sits inside `label(node)`, in cells, or None.
+
+    The caret takes no column of its own: it hangs over the character it is on and
+    inverts it, the way nano's does, so a word is never split by a character that is
+    not in it. At the end of the text there is nothing to hang over, which is why
+    `box_width` adds a column for that one case.
+    """
+    if node.preview is None or node.caret is None:
+        return None
+    offset = cell_len(f"{clean(node.mark)} ") if node.mark else 0
+    return offset + cell_len(clean(node.preview)[: node.caret])
+
+
 def box_width(node: Node) -> int:
-    return cell_len(label(node)) + 2 * PAD + 2
+    text = label(node)
+    width = cell_len(text) + 2 * PAD + 2
+    if node.preview is not None:
+        width += 1  # the caret's column, kept even when it hangs over a character:
+        # a box that changes width as the caret moves re-centres the whole map
+    return width
 
 
 def subtree_height(node: Node, gap_y: int = GAP_Y) -> int:

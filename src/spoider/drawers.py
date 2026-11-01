@@ -15,7 +15,7 @@ from rich.text import Text
 from textual import events
 from textual.widget import Widget
 
-from .chrome import CARET
+from .chrome import CARET_STYLE
 from .text import clean, clip_tail
 
 
@@ -189,10 +189,18 @@ class PromptBar(Drawer):
         if width <= 0 or not self.display:
             return Text("")
         # Cleaned on the way out only: the value itself is what gets written.
-        line = clean(self.value[: self.cursor]) + CARET + clean(self.value[self.cursor :])
+        value = clean(self.value)
+        caret = len(clean(self.value[: self.cursor]))
+        if caret >= len(value):
+            value += " "  # past the last character the caret sits on a blank
         room = max(0, width - cell_len(self.label) - 2)
-        if cell_len(line) > room:
-            line = clip_tail(line, room)
+        if cell_len(value) > room:
+            kept = clip_tail(value, room)
+            caret -= len(value) - len(kept) + 1  # the ellipsis stands for the rest
+            value = kept
+        caret = max(0, min(caret, len(value) - 1))
+        line = Text(value)
+        line.stylize(CARET_STYLE, caret, caret + 1)
         bar = Text(self.label, style="bold")
         bar.append(line)
         return bar

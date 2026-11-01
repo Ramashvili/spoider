@@ -46,6 +46,9 @@ class Node:
     mark: str | None = None
     # Live inline-edit buffer. Rendering reads it when set; never serialised.
     preview: str | None = field(default=None, compare=False, repr=False)
+    # Live inline-edit caret: an index into `preview`. It does not take a column —
+    # the renderer hangs it over the character it is on. Never serialised.
+    caret: int | None = field(default=None, compare=False, repr=False)
 
     def walk(self) -> Iterator[Node]:
         """Depth-first, without recursion: a deep map must not blow the stack."""

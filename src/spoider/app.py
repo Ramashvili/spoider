@@ -15,7 +15,7 @@ from textual.binding import Binding, BindingType
 from textual.notifications import SeverityLevel
 
 from . import nav
-from .chrome import CARET, FooterBar, ask_chunks, help_chunks, prompt_chunks, settings_chunks
+from .chrome import FooterBar, ask_chunks, help_chunks, prompt_chunks, settings_chunks
 from .config import (
     MAX_MARKS,
     Config,
@@ -746,9 +746,8 @@ class SpoiderApp(App[None]):
         node = self._live_node(self._edit_id) if self._edit_id else None
         if node is None:
             return
-        before = self._edit_buffer[: self._edit_cursor]
-        after = self._edit_buffer[self._edit_cursor :]
-        node.preview = f"{before}{CARET}{after}"
+        node.preview = self._edit_buffer
+        node.caret = self._edit_cursor
         self.view.refresh_map()
 
     def _sync_footer(self) -> None:
@@ -873,6 +872,7 @@ class SpoiderApp(App[None]):
         fresh = self._edit_fresh
         if node is not None:
             node.preview = None
+            node.caret = None
 
         if node is None or not commit or not text:
             # An abandoned new node was only ever a promise; take it away again.

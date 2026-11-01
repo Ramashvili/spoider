@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 from spoider.app import BINDINGS, SpoiderApp
-from spoider.chrome import CARET, FooterBar, compose_footer, hint_chunks
+from spoider.chrome import FooterBar, compose_footer, hint_chunks
 from spoider.config import load_config
 from spoider.drawers import AskBar, PanelBar, PromptBar
 from spoider.layout import compute
@@ -233,11 +233,13 @@ async def test_new_node_is_typed_into_directly(tmp_path: Path):
         assert app.mode not in ("write", "marks")  # no dialog for a new node
         assert app.editing is True
         assert app.mm.root.children[0].text == ""
-        assert "▊" in app.mm.root.children[0].preview
+        cell = app.mm.root.children[0]
+        assert cell.preview == "" and cell.caret == 0, "typed onto the cell, caret at its start"
 
         await pilot.press("f", "i", "r", "s", "t")
         await pilot.pause()
-        assert app.mm.root.children[0].preview == "first▊"
+        assert app.mm.root.children[0].preview == "first"
+        assert app.mm.root.children[0].caret == 5
 
         await pilot.press("enter")
         await pilot.pause()
@@ -287,7 +289,8 @@ async def test_editing_an_existing_node_types_in_place(tmp_path: Path):
         await pilot.press("ctrl+e")
         await pilot.pause()
         assert app.mode not in ("write", "marks")
-        assert app.mm.find(node.id).preview == "old▊"
+        assert app.mm.find(node.id).preview == "old"
+        assert app.mm.find(node.id).caret == 3, "the caret starts after the existing name"
 
         await pilot.press("!")
         await pilot.press("enter")
@@ -337,11 +340,13 @@ async def test_backspace_and_caret_moves(tmp_path: Path):
         await pilot.press("left")
         await pilot.press("b")
         await pilot.pause()
-        assert app.mm.root.children[0].preview == "ab▊c"
+        assert app.mm.root.children[0].preview == "abc"
+        assert app.mm.root.children[0].caret == 2
 
         await pilot.press("backspace")
         await pilot.pause()
-        assert app.mm.root.children[0].preview == "a▊c"
+        assert app.mm.root.children[0].preview == "ac"
+        assert app.mm.root.children[0].caret == 1
 
 
 async def test_add_sibling_on_ctrl_j(tmp_path: Path):
@@ -408,9 +413,12 @@ async def test_the_write_prompt_shows_where_the_caret_is(tmp_path: Path):
 
         prompt = app.query_one(PromptBar)
         assert prompt.has_focus is True
-        line = prompt.render().plain
-        assert line.startswith("File name to write:")
-        assert line.endswith(CARET), "the caret sits at the end of the offered name"
+        line = prompt.render()
+        assert line.plain.startswith("File name to write:")
+        # the caret hangs over the blank after the name, reversing one cell
+        reversed_cell = [span for span in line.spans if "reverse" in str(span.style)]
+        assert reversed_cell, "the caret is drawn"
+        assert line.plain.endswith(" "), "it sits past the name, on a blank"
 
 
 async def test_write_dialog_caret_follows_typing(tmp_path: Path):
@@ -426,7 +434,9 @@ async def test_write_dialog_caret_follows_typing(tmp_path: Path):
         assert prompt.value.startswith("x")
         assert prompt.cursor == 1
         # and the caret is drawn where it is, not at the end
-        assert prompt.render().plain.startswith(f"File name to write: x{CARET}")
+        typed = prompt.render()
+        assert typed.plain.startswith("File name to write: x")
+        assert "reverse" in str(typed.spans[-1].style), "the caret follows the typing"
 
 
 async def test_write_out_asks_for_a_name(tmp_path: Path):
@@ -636,7 +646,8 @@ async def test_help_is_reachable_mid_typing(tmp_path: Path):
         await pilot.press("escape")
         await pilot.pause()
         assert app.editing is True  # the half-typed name survived
-        assert app.mm.root.children[0].preview == "ab▊"
+        assert app.mm.root.children[0].preview == "ab"
+        assert app.mm.root.children[0].caret == 2
 
 
 async def test_settings_shows_only_the_autosave_toggle(tmp_path: Path):

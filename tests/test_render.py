@@ -38,11 +38,11 @@ def test_control_characters_in_a_mark_never_reach_the_grid():
 
 def test_the_inline_edit_buffer_is_cleaned_too():
     node = Node("cell")
-    node.preview = "typ\x1b[2Jing▊"
+    node.preview = "typ\x1b[2Jing"
     drawn = _render(MindMap(node))
     # dropping the ESC is enough to defuse the sequence; the rest is plain text
     assert "\x1b" not in drawn
-    assert "typ[2Jing▊" in drawn
+    assert "typ[2Jing" in drawn
 
 
 def test_a_pasted_line_break_cannot_break_the_box():
@@ -261,3 +261,52 @@ def test_an_empty_or_absent_query_marks_nothing():
 def test_the_search_ignores_case_and_finds_every_occurrence():
     layout = _layout_for("root", child="One ONE one")
     assert "".join(_matched(layout, "one")) == "OneONEone"
+
+
+def _styled(mm: MindMap):
+    """Rendered with nothing selected, so the only reverse video is the caret."""
+    layout = compute(mm.root, mm.spacing)
+    grid = build_grid(layout, ())
+    text = render_text(grid, 0, 0, max(80, layout.width), max(12, layout.height))
+    return layout, text
+
+
+def test_the_caret_inverts_its_character_and_does_not_split_the_word():
+    plain = Node("alpha")
+    typed = Node("alpha")
+    typed.preview, typed.caret = "alpha", 2  # between the l and the p
+
+    settled = compute(MindMap(plain).root, 0)
+    editing = compute(MindMap(typed).root, 0)
+    settled_box = settled.box(plain.id)
+    editing_box = editing.box(typed.id)
+    assert editing_box is not None and settled_box is not None
+    assert editing_box.w == settled_box.w + 1, "one reserved column, wherever the caret is"
+
+    _, text = _styled(MindMap(typed))
+    assert "alpha" in text.plain, "the word is whole"
+    reversed_cells = [span for span in text.spans if "reverse" in str(span.style)]
+    assert len(reversed_cells) == 1, "exactly one cell is inverted, and it is the caret"
+    assert text.plain[reversed_cells[0].start] == "p", "the character under the caret"
+    assert text.plain.index("alpha") > 0
+
+
+def test_the_caret_at_the_end_takes_one_blank_column():
+    settled = Node("alpha")
+    plain = compute(MindMap(settled).root, 0)
+    typed = Node("alpha")
+    typed.preview, typed.caret = "alpha", 5
+    editing = compute(MindMap(typed).root, 0)
+    assert editing.box(typed.id).w == plain.box(settled.id).w + 1
+
+    _, text = _styled(MindMap(typed))
+    assert any("reverse" in str(span.style) for span in text.spans)
+
+
+def test_the_cells_width_does_not_change_as_the_caret_moves():
+    widths = []
+    for caret in range(6):
+        node = Node("alpha")
+        node.preview, node.caret = "alpha", caret
+        widths.append(compute(MindMap(node).root, 0).box(node.id).w)
+    assert len(set(widths)) == 1, "moving the caret must not re-centre the map"

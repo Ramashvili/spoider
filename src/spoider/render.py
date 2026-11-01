@@ -9,7 +9,8 @@ from itertools import pairwise
 from rich.cells import cell_len
 from rich.text import Text
 
-from .layout import DOWN, PAD, RIGHT, UP, Layout, Placed, label
+from .chrome import CARET_STYLE
+from .layout import DOWN, PAD, RIGHT, UP, Layout, Placed, caret_index, label
 from .text import find_all
 
 R, D, L, U = 1, 2, 4, 8
@@ -124,7 +125,12 @@ def build_grid(
     chosen = {selected} if isinstance(selected, str) else set(selected)
     grid = Grid(width=layout.width, height=layout.height)
     for box in sorted(layout.boxes.values(), key=lambda placed: (placed.y, placed.x)):
-        style = node_style(box.depth, box.node.id in chosen, lead=box.node.id == lead)
+        # A cell being renamed drops its selection block: the caret is the highlight
+        # there, and a reverse-on-reverse caret would be invisible.
+        editing = box.node.preview is not None
+        style = node_style(
+            box.depth, box.node.id in chosen and not editing, lead=box.node.id == lead
+        )
         _draw_box(grid, box, style, query)
     for box in layout.boxes.values():
         if box.node.collapsed:
@@ -186,6 +192,20 @@ def _draw_box(grid: Grid, box: Placed, style: str, query: str = "") -> None:
     text = label(box.node)
     row = " " * PAD + text + " " * (inner - PAD - cell_len(text))
     grid.put_text(left + 1, middle, row, style, _mask(row, query))
+    at = caret_index(box.node)
+    if at is not None:
+        _hang_caret(grid, left + 1 + PAD + at, middle, style)
+
+
+def _hang_caret(grid: Grid, x: int, y: int, style: str) -> None:
+    """Invert the cell the renaming caret is over rather than giving it a column.
+
+    The character stays where it is and only its colours change, so a word is never
+    pushed apart by a cursor that is not part of it — nano's block, drawn the same
+    way a mark or a search hit is.
+    """
+    ch, under = grid.cells.get((x, y), (" ", style))
+    grid.put(x, y, ch, f"{under} {CARET_STYLE}".strip())
 
 
 def _draw_link(grid: Grid, parent: Placed, child: Placed) -> None:
