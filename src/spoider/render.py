@@ -9,6 +9,7 @@ from rich.cells import cell_len
 from rich.text import Text
 
 from .layout import DOWN, PAD, RIGHT, UP, Layout, Placed, label
+from .text import find_all
 
 R, D, L, U = 1, 2, 4, 8
 
@@ -55,10 +56,14 @@ class Grid:
     def put(self, x: int, y: int, ch: str, style: str) -> None:
         self.cells[(x, y)] = (ch, style)
 
-    def put_text(self, x: int, y: int, text: str, style: str) -> None:
-        for ch in text:
+    def put_text(
+        self, x: int, y: int, text: str, style: str, mask: list[bool] | None = None
+    ) -> None:
+        """Draw a run; `mask` marks the characters a search found."""
+        for index, ch in enumerate(text):
             width = cell_len(ch)
-            self.put(x, y, ch, style)
+            found = mask is not None and index < len(mask) and mask[index]
+            self.put(x, y, ch, _marked(style) if found else style)
             if width == 2:
                 self.wide.add((x + 1, y))
             x += max(width, 1)
@@ -102,10 +107,10 @@ def node_style(depth: int, selected: bool) -> str:
     return " ".join(parts)
 
 
-def build_grid(layout: Layout, selected_id: str) -> Grid:
+def build_grid(layout: Layout, selected_id: str, query: str = "") -> Grid:
     grid = Grid(width=layout.width, height=layout.height)
     for box in sorted(layout.boxes.values(), key=lambda placed: (placed.y, placed.x)):
-        _draw_box(grid, box, node_style(box.depth, box.node.id == selected_id))
+        _draw_box(grid, box, node_style(box.depth, box.node.id == selected_id), query)
     for box in layout.boxes.values():
         if box.node.collapsed:
             continue
@@ -116,7 +121,27 @@ def build_grid(layout: Layout, selected_id: str) -> Grid:
     return grid.finalize()
 
 
-def _draw_box(grid: Grid, box: Placed, style: str) -> None:
+def _marked(style: str) -> str:
+    """A found word keeps its cell's colour and gains an underline.
+
+    Not reverse video: the selection already uses that, and a match inside the
+    selected cell would invert twice and disappear.
+    """
+    return style if "underline" in style else f"{style} underline"
+
+
+def _mask(row: str, query: str) -> list[bool] | None:
+    spans = find_all(row, query)
+    if not spans:
+        return None
+    mask = [False] * len(row)
+    for start, end in spans:
+        for index in range(start, min(end, len(row))):
+            mask[index] = True
+    return mask
+
+
+def _draw_box(grid: Grid, box: Placed, style: str, query: str = "") -> None:
     """Draw a box as four walls that know which way they continue.
 
     Nothing here picks a glyph: a corner is "right and down", a side is "up and
@@ -143,8 +168,8 @@ def _draw_box(grid: Grid, box: Placed, style: str) -> None:
 
     inner = box.w - 2
     text = label(box.node)
-    pad = " " * (inner - PAD - cell_len(text))
-    grid.put_text(left + 1, middle, " " * PAD + text + pad, style)
+    row = " " * PAD + text + " " * (inner - PAD - cell_len(text))
+    grid.put_text(left + 1, middle, row, style, _mask(row, query))
 
 
 def _draw_link(grid: Grid, parent: Placed, child: Placed) -> None:

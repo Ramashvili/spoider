@@ -18,30 +18,39 @@ if TYPE_CHECKING:
 
 
 def compose_top_bar(
-    width: int, version: str, where: str, cells: int, dirty: bool = False
+    width: int,
+    version: str,
+    where: str,
+    stat: str,
+    layout: str = "",
+    dirty: bool = False,
 ) -> Text:
-    """One line: name+version left, location centred, cell count right.
+    """One line: name+version left, location centred, statistics right.
 
-    Degrades in stages as the terminal narrows: centre out first, then the
-    location is truncated from the left (a path's tail is the useful half), then
-    the name itself. The unsaved marker rides on the location, because a window
-    title is not something everyone can see — tiling window managers have no title
-    bar at all."""
+    `stat` is whatever the app wants counted — cells, or the matches of a
+    search — and the shape the map is drawn in rides beside it. Degrades in
+    stages as the terminal narrows: the shape goes first, then the centre, then
+    the location is truncated from the left (a path's tail is the useful half),
+    then the name itself. The unsaved marker rides on the location, because a
+    window title is not something everyone can see — tiling window managers have
+    no title bar at all.
+    """
     name = f"spoider {version}"
-    stat = f"{cells} cell" if cells == 1 else f"{cells} cells"
     if width <= 0:
         return Text("")
-    stat_width = cell_len(stat)
-    if width < stat_width + 2:
-        return Text(clip_head(stat, width), style="bold reverse")
+
+    shaped = bool(layout) and width >= cell_len(stat) + cell_len(layout) + 4
+    right = f"{stat}  {layout}" if shaped else stat
+    right_width = cell_len(right)
+    if width < right_width + 2:
+        return Text(clip_head(right, width), style="bold reverse")
 
     where = f"{where} *" if dirty else where
-    left_room = width - stat_width - 1
-    name = clip_head(name, left_room)
+    name = clip_head(name, width - right_width - 1)
 
     # One blank column separates the name from the centre band, and the band
-    # from the stat, so the line always fills exactly `width` cells.
-    band = width - cell_len(name) - stat_width - 2
+    # from the statistics, so the line always fills exactly `width` cells.
+    band = width - cell_len(name) - right_width - 2
     middle = ""
     if band >= 6:
         middle = where if cell_len(where) <= band else "…" + where[-(band - 1) :]
@@ -53,8 +62,10 @@ def compose_top_bar(
         bar.append(middle)
         bar.append(" " * (band - pad - cell_len(middle) + 1))
     else:
-        bar.append(" " * (width - cell_len(name) - stat_width))
+        bar.append(" " * (width - cell_len(name) - right_width))
     bar.append(stat, style="bold reverse")
+    if shaped:
+        bar.append(f"  {layout}")
     return bar
 
 
@@ -71,7 +82,9 @@ class TopBar(Widget):
         # No stat() per frame: the app tracks whether a file exists, so a file
         # deleted mid-session does not silently become "New Buffer".
         where = str(app.path) if app.has_file else "New Buffer"
-        return compose_top_bar(height, __version__, where, app.mm.count(), app.dirty)
+        return compose_top_bar(
+            height, __version__, where, app.stat_text(), app.mm.layout, app.dirty
+        )
 
 
 class MindMapView(Widget, can_focus=True):
@@ -82,7 +95,7 @@ class MindMapView(Widget, can_focus=True):
         self.spoider = spoider
         self._layout: Layout | None = None
         self._grid: Grid | None = None
-        self._grid_key: tuple[int, str] | None = None
+        self._grid_key: tuple[int, str, str] | None = None
         self._offset_x = 0
         self._offset_y = 0
 
@@ -129,9 +142,10 @@ class MindMapView(Widget, can_focus=True):
         # Drawing the whole map costs ~25 ms on a 500-cell document, and moving
         # the camera does not change a single cell — only a new layout or a new
         # selection does (selection is reverse video).
-        key = (id(layout), self.spoider.selected)
+        query = self.spoider.search_query
+        key = (id(layout), self.spoider.selected, query)
         if self._grid is None or self._grid_key != key:
-            self._grid = build_grid(layout, self.spoider.selected)
+            self._grid = build_grid(layout, self.spoider.selected, query)
             self._grid_key = key
         return render_text(self._grid, self._offset_x, self._offset_y, width, height)
 

@@ -222,3 +222,36 @@ def test_a_shared_wall_between_siblings_is_one_column():
     assert grid.cells[(second.x, second.cy)][0] == "│"
     assert grid.cells[(second.x, second.y)][0] == "┬"
     assert grid.cells[(second.x, second.bottom)][0] == "┴"
+
+
+# -- search highlights ----------------------------------------------------
+
+
+def test_a_found_word_is_underlined_and_keeps_its_colour():
+    mm = MindMap(Node("root"))
+    mm.add_child(mm.root.id, "alpha one")
+    layout = compute(mm.root, 0, "branch")
+    drawn = render_text(build_grid(layout, mm.root.id, "one"), 0, 0, layout.width, layout.height)
+
+    marked = [span for span in drawn.spans if "underline" in str(span.style)]
+    assert [drawn.plain[span.start : span.end] for span in marked] == ["one"]
+    assert all("cyan" in str(span.style) for span in marked), "the cell keeps its depth colour"
+
+
+def test_an_empty_or_absent_query_marks_nothing():
+    mm = MindMap(Node("root"))
+    mm.add_child(mm.root.id, "alpha one")
+    layout = compute(mm.root, 0, "branch")
+    for query in ("", "   ", "nothing here"):
+        drawn = render_text(
+            build_grid(layout, mm.root.id, query), 0, 0, layout.width, layout.height
+        )
+        assert not [span for span in drawn.spans if "underline" in str(span.style)], query
+
+
+def test_the_search_ignores_case_and_finds_every_occurrence():
+    mm = MindMap(Node("One ONE one"))
+    layout = compute(mm.root, 0, "branch")
+    drawn = render_text(build_grid(layout, mm.root.id, "one"), 0, 0, layout.width, layout.height)
+    marked = "".join(drawn.plain[span.start : span.end] for span in drawn.spans if "underline" in str(span.style))
+    assert marked == "OneONEone"

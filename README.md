@@ -56,7 +56,8 @@ one of them.
 | `^P` / `↑` | previous sibling | nano: previous line |
 | `^N` / `↓` | next sibling | nano: next line |
 | `^B` / `←` | left — from the root, its left-hand branch; on a right-hand branch, out to the parent; on a left-hand one, into the first child | nano: back a character |
-| `^F` / `→` | right — from the root, its right-hand branch; the mirror of the above elsewhere (unfolds a collapsed branch) | nano: forward a character |
+| `→` | right — from the root, its right-hand branch; the mirror of the above elsewhere (unfolds a collapsed branch) | nano: forward a character |
+| `^F` | search the cells: the prompt opens on the last line, matches are underlined as you type, `↑` recalls an earlier search | nano's find |
 | `h` `j` `k` `l` | vim cursor keys — aliases for `←` `↓` `↑` `→` | |
 | `^Z` | undo | |
 | `^Y` | redo | |
@@ -139,6 +140,22 @@ the caret is a block, and the bar swaps to `⏎ done · esc/^C cancel · ←→ 
 `Enter` commits, `esc` or `^C` abandons, and a node you abandon before naming it
 never existed. While typing, every other chord is swallowed, so `^D` cannot delete
 the node you are halfway through naming.
+
+## Searching
+
+`^F` turns the bottom line into a prompt, the way nano does, so the map stays on
+screen and the matches underline themselves as you type. The top bar counts them
+in place of the cell count while a search is on.
+
+`Enter` takes the search and selects the first match; `^F` then `Enter` again
+moves to the next one, wrapping round the map. A match inside a folded branch
+unfolds it, because a match you cannot see is no use. `Esc` drops the search and
+puts the cell count back.
+
+Matches keep their cell's colour and gain an underline rather than a reverse
+block: the selection already uses reverse video, so a match inside the selected
+cell would otherwise invert twice and disappear. The count is cells, not
+occurrences: a cell holding "one one" is one match.
 
 ## Settings
 

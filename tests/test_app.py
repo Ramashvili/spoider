@@ -4,7 +4,7 @@ from pathlib import Path
 from textual.widgets import Input
 
 from spoider.app import BINDINGS, SpoiderApp
-from spoider.chrome import compose_footer, hint_chunks
+from spoider.chrome import FooterBar, SearchBar, compose_footer, hint_chunks
 from spoider.config import load_config
 from spoider.layout import compute
 from spoider.screens import (
@@ -48,8 +48,10 @@ def test_footer_lists_the_visible_bindings_plus_the_pinned_cluster():
     assert "^, settings" in line and "^/ help" in line
     assert "^Y" not in line  # redo stays out of the bar
     assert "^A" not in line and "^J" not in line  # aliases stay off the bar
-    for nav in ("^P", "^N", "^B", "^F"):
+    for nav in ("^P", "^N", "^B"):
         assert nav not in line, nav
+    # ^F is the search now, so it has earned its place in the bar
+    assert "^F search" in line
     assert "equals_sign" not in line and "COMMA" not in line
 
 
@@ -89,24 +91,25 @@ def test_help_documents_every_binding():
 
 
 def test_top_bar_layout():
-    bar = compose_top_bar(80, "0.1.0", "/tmp/map.json", 7).plain
+    bar = compose_top_bar(80, "0.1.0", "/tmp/map.json", "7 cells", "bush").plain
     assert bar.startswith("spoider 0.1.0")
-    assert bar.endswith("7 cells")
+    assert bar.endswith("7 cells  bush")
     assert "/tmp/map.json" in bar
     assert len(bar) == 80
 
-    assert compose_top_bar(70, "0.1.0", "New Buffer", 1).plain.endswith("1 cell")
+    assert compose_top_bar(70, "0.1.0", "New Buffer", "1 cell", "spider").plain.endswith("1 cell  spider")
     # too narrow for three fields: the location is the one that goes
-    narrow = compose_top_bar(24, "0.1.0", "/tmp/map.json", 3).plain
+    narrow = compose_top_bar(24, "0.1.0", "/tmp/map.json", "3 cells").plain
+    # and the shape is the first thing to go when even that does not fit
     assert narrow.startswith("spoider 0.1.0") and narrow.endswith("3 cells")
     assert "/tmp" not in narrow
 
 
 def test_top_bar_marks_an_unsaved_buffer():
-    assert compose_top_bar(90, "0.1.0", "/tmp/map.json", 7).plain.count("*") == 0
-    dirty = compose_top_bar(90, "0.1.0", "/tmp/map.json", 7, True).plain
+    assert compose_top_bar(90, "0.1.0", "/tmp/map.json", "7 cells").plain.count("*") == 0
+    dirty = compose_top_bar(90, "0.1.0", "/tmp/map.json", "7 cells", "", True).plain
     assert "map.json *" in dirty
-    assert compose_top_bar(90, "0.1.0", "New Buffer", 1, True).plain.find("New Buffer *") > 0
+    assert compose_top_bar(90, "0.1.0", "New Buffer", "1 cell", "", True).plain.find("New Buffer *") > 0
 
 
 async def test_top_bar_star_appears_and_clears_with_the_edit(tmp_path: Path):
@@ -139,7 +142,7 @@ async def test_top_bar_never_shows_the_star_under_autosave(tmp_path: Path):
 
 
 def test_top_bar_truncates_a_long_path_from_the_left():
-    bar = compose_top_bar(40, "0.1.0", "/very/long/path/to/some/deep/map.json", 4).plain
+    bar = compose_top_bar(40, "0.1.0", "/very/long/path/to/some/deep/map.json", "4 cells").plain
     assert bar.endswith("4 cells")
     assert "…" in bar and "map.json" in bar
 
@@ -1096,7 +1099,7 @@ async def test_navigation_moves_through_the_tree(tmp_path: Path):
         app.view.refresh_map()
         app.select(branch.id)
 
-        await pilot.press("ctrl+f")  # into the first child
+        await pilot.press("right")  # into the first child
         assert app.selected == one.id
         await pilot.press("ctrl+n")  # next sibling
         assert app.selected == two.id
@@ -1155,7 +1158,7 @@ async def test_root_branches_both_ways(tmp_path: Path):
         await pilot.press("ctrl+b")
         assert app.selected == left.id
         app.select(app.mm.root.id)
-        await pilot.press("ctrl+f")
+        await pilot.press("right")
         assert app.selected == right.id
 
 
@@ -1200,7 +1203,7 @@ async def test_left_branch_flip_applies_to_the_ctrl_chords(tmp_path: Path):
         app.view.refresh_map()
 
         app.select(left.id)
-        await pilot.press("ctrl+f")  # forward = towards the root on this side
+        await pilot.press("right")  # forward = towards the root on this side
         assert app.selected == app.mm.root.id
 
         app.select(left.id)
@@ -1500,3 +1503,131 @@ def test_up_and_down_mean_what_is_drawn():
     # sideways shapes keep the siblings on the up/down arrows
     for name in ("spider", "branch"):
         assert (UP_MEANING[name], DOWN_MEANING[name]) == ("prev", "next")
+
+
+# -- searching ------------------------------------------------------------
+
+
+def _poem(app) -> dict[str, object]:
+    """A tiny map with two cells that say 'one' and one that says 'two'."""
+    alpha = app.mm.add_child(app.selected, "alpha one")
+    beta = app.mm.add_child(app.selected, "beta one")
+    gamma = app.mm.add_child(app.selected, "gamma two")
+    app.view.refresh_map()
+    app._refresh_chrome()
+    return {"alpha": alpha, "beta": beta, "gamma": gamma}
+
+
+async def test_ctrl_f_opens_a_prompt_and_counts_matches(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        _poem(app)
+        assert "4 cells" in app.query_one(TopBar).render().plain
+
+        await pilot.press("ctrl+f")
+        await pilot.pause()
+        prompt = app.query_one(SearchBar)
+        assert prompt.display, "the prompt takes the last line"
+        assert not app.query_one(FooterBar).display, "and the shortcuts step aside"
+
+        await pilot.press("o", "n", "e")
+        await pilot.pause()
+        assert app.search_query == "one"
+        assert len(app.matches) == 2
+        # the top bar reports the matches in place of the cell count
+        assert app.stat_text() == "2 matches"
+        assert "2 matches" in app.query_one(TopBar).render().plain
+
+
+async def test_enter_jumps_to_the_first_match_and_a_repeat_moves_on(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        nodes = _poem(app)
+        await pilot.press("ctrl+f")
+        await pilot.press("o", "n", "e", "enter")
+        await pilot.pause()
+
+        assert app.selected == app.matches[0]
+        assert app.query_one(SearchBar).display is False
+        assert app.query_one(FooterBar).display is True
+
+        await pilot.press("ctrl+f", "enter")  # the prompt offers the last search
+        await pilot.pause()
+        assert app.selected == app.matches[1]
+        assert app.selected != nodes["gamma"].id
+
+
+async def test_searching_wraps_around_the_map(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        _poem(app)
+        await pilot.press("ctrl+f", "o", "n", "e", "enter")
+        await pilot.pause()
+        first = str(app.selected)
+        await pilot.press("ctrl+f", "enter")  # second match
+        await pilot.pause()
+        await pilot.press("ctrl+f", "enter")  # and round again
+        await pilot.pause()
+        assert app.selected == first
+
+
+async def test_up_arrow_recalls_an_earlier_search(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        _poem(app)
+        await pilot.press("ctrl+f", "t", "w", "o", "enter")
+        await pilot.pause()
+        await pilot.press("ctrl+f", "o", "n", "e", "enter")
+        await pilot.pause()
+        assert app.search_query == "one"
+
+        await pilot.press("ctrl+f")  # offers the last search again
+        await pilot.pause()
+        assert app.query_one(SearchBar).value == "one"
+
+        await pilot.press("up")
+        await pilot.pause()
+        assert app.query_one(SearchBar).value == "two"
+        assert app.search_query == "two", "the count follows the recalled word"
+
+
+async def test_escape_puts_the_cell_count_back(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        _poem(app)
+        await pilot.press("ctrl+f", "o", "n", "e")
+        await pilot.pause()
+        assert app.stat_text() == "2 matches"
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.search_query == ""
+        assert app.matches == []
+        assert app.stat_text() == "4 cells"
+        assert app.query_one(FooterBar).display is True
+
+
+async def test_typing_in_the_prompt_does_not_touch_the_map(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        _poem(app)
+        before = app.mm.count()
+        await pilot.press("ctrl+f")
+        await pilot.press("d", "e", "ctrl+d", "ctrl+t")
+        await pilot.pause()
+        assert app.mm.count() == before, "a chord must not delete a cell behind the prompt"
+        assert app.search_query == "de"
+
+
+async def test_a_match_hidden_in_a_folded_branch_is_revealed(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        branch = app.mm.add_child(app.selected, "branch")
+        needle = app.mm.add_child(branch.id, "the needle")
+        branch.collapsed = True
+        app.view.refresh_map()
+
+        await pilot.press("ctrl+f", "n", "e", "e", "d", "l", "e", "enter")
+        await pilot.pause()
+        assert branch.collapsed is False, "a match you cannot see is no use"
+        assert app.selected == needle.id

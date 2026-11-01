@@ -8,6 +8,7 @@ opened. `clean` is applied both when a document is read and when it is drawn.
 
 from __future__ import annotations
 
+import re
 import unicodedata
 
 from rich.cells import cell_len
@@ -60,3 +61,15 @@ def clip_tail(text: str, limit: int) -> str:
         kept.append(char)
         used += width
     return "…" + "".join(reversed(kept))
+
+
+def find_all(haystack: str, needle: str) -> list[tuple[int, int]]:
+    """Spans where `needle` occurs in `haystack`, case-insensitively.
+
+    An empty needle matches nothing — a search prompt with nothing typed in it is
+    not a search for everything. The spans index the original string, so they can
+    be used to mark up exactly what was found.
+    """
+    if not needle:
+        return []
+    return [(hit.start(), hit.end()) for hit in re.finditer(re.escape(needle), haystack, re.IGNORECASE)]

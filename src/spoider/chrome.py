@@ -7,16 +7,23 @@ never cut in half.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from typing import TYPE_CHECKING, cast
 
+from rich.cells import cell_len
 from rich.text import Text
+from textual import events
 from textual.widget import Widget
+
+from .text import clip_tail
 
 if TYPE_CHECKING:
     from .app import SpoiderApp
 
 BINDING_LEGEND = {"ctrl+": "^", "alt+": "⌥"}
+
+#: The block that stands in for a cursor, here and in the inline editor.
+CARET = "▊"
 
 #: Caps are coloured text, never a block: the colour comes from the terminal
 #: palette like everything else in the app.
@@ -153,3 +160,138 @@ class FooterBar(Widget):
             spoider = cast("SpoiderApp", app)
             hints = hint_chunks(spoider.BINDINGS, skip, spoider.keymap)
         return compose_footer(width, hints)
+
+
+SEARCH_PROMPT = "Search: "
+
+
+class SearchBar(Widget, can_focus=True):
+    """Nano's search prompt: the bottom line becomes the prompt, the map stays.
+
+    It is a prompt and not a dialog because the point of searching here is to see
+    the matches light up while you type. Up and down walk the searches already
+    made, newest first, with the draft you had before kept at the bottom.
+    """
+
+    def __init__(
+        self,
+        *,
+        on_change: Callable[[str], None],
+        on_submit: Callable[[str], None],
+        on_cancel: Callable[[], None],
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self._on_change = on_change
+        self._on_submit = on_submit
+        self._on_cancel = on_cancel
+        self.value = ""
+        self.cursor = 0
+        self.history: list[str] = []
+        self._history_index = -1  # -1 is the line being typed, not a recall
+        self._draft = ""
+        self._fresh = False  # the offered search has not been edited yet
+
+    # -- opening and closing ------------------------------------------
+
+    def start(self) -> None:
+        """Open the prompt, offering the last search again."""
+        self.value = self.history[0] if self.history else ""
+        self.cursor = len(self.value)
+        # the offered search *is* the newest history entry, so that is where the
+        # walk starts: up moves to the one before it
+        self._history_index = 0 if self.value else -1
+        self._draft = ""
+        self._fresh = bool(self.value)
+        self.display = True
+        self.focus()
+        self.refresh()
+
+    def stop(self) -> None:
+        self.display = False
+
+    # -- keys ---------------------------------------------------------
+
+    def on_key(self, event: events.Key) -> None:
+        """The prompt owns every key while it is open: a stray ^D must not
+        delete the cell behind it, and a stray ^X must not quit."""
+        event.stop()
+        event.prevent_default()
+
+        key = event.key
+        if key == "enter":
+            self._submit()
+        elif key in ("escape", "ctrl+c"):
+            self._on_cancel()
+        elif key == "backspace" and self.cursor:
+            self._replace(self.value[: self.cursor - 1] + self.value[self.cursor :], self.cursor - 1)
+        elif key == "delete":
+            self._replace(self.value[: self.cursor] + self.value[self.cursor + 1 :], self.cursor)
+        elif key in ("left", "ctrl+b"):
+            self.cursor = max(0, self.cursor - 1)
+        elif key in ("right", "ctrl+f"):
+            self.cursor = min(len(self.value), self.cursor + 1)
+        elif key in ("home", "ctrl+a"):
+            self.cursor = 0
+        elif key in ("end", "ctrl+e"):
+            self.cursor = len(self.value)
+        elif key == "up":
+            self._recall(+1)
+        elif key == "down":
+            self._recall(-1)
+        elif event.character and event.character.isprintable():
+            character = event.character
+            if self._fresh:
+                # typing replaces the search it offered, rather than appending to
+                # it; Enter alone is what repeats the search
+                self._replace(character, len(character))
+            else:
+                self._replace(
+                    self.value[: self.cursor] + character + self.value[self.cursor :],
+                    self.cursor + len(character),
+                )
+        self.refresh()
+
+    def _replace(self, value: str, cursor: int) -> None:
+        self.value = value
+        self.cursor = cursor
+        self._history_index = -1  # editing starts a new line, not a recall
+        self._fresh = False
+        self._on_change(value)
+
+    def _submit(self) -> None:
+        query = self.value.strip()
+        if query:
+            if query in self.history:
+                self.history.remove(query)
+            self.history.insert(0, query)
+        self._on_submit(query)
+
+    def _recall(self, step: int) -> None:
+        """step +1 walks back through older searches, -1 returns towards the draft."""
+        if not self.history:
+            return
+        if self._history_index == -1:
+            self._draft = self.value
+        target = self._history_index + step
+        if target < -1 or target >= len(self.history):
+            return
+        self._history_index = target
+        self._fresh = False
+        self.value = self._draft if target == -1 else self.history[target]
+        self.cursor = len(self.value)
+        self._on_change(self.value)
+
+    # -- drawing -------------------------------------------------------
+
+    def render(self) -> Text:
+        width = self.size.width
+        if width <= 0 or not self.display:
+            return Text("")
+        line = self.value[: self.cursor] + CARET + self.value[self.cursor :]
+        room = max(0, width - cell_len(SEARCH_PROMPT) - 2)
+        if cell_len(line) > room:
+            line = clip_tail(line, room)
+        bar = Text(SEARCH_PROMPT, style="bold")
+        bar.append(line)
+        return bar

@@ -13,7 +13,7 @@ from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding, BindingType
 
 from . import nav
-from .chrome import FooterBar
+from .chrome import CARET, FooterBar, SearchBar
 from .config import (
     MAX_MARKS,
     Config,
@@ -22,10 +22,10 @@ from .config import (
     load_config,
     write_config,
 )
-from .layout import MAX_SPACING, MIN_SPACING
+from .layout import MAX_SPACING, MIN_SPACING, label
 from .model import LAYOUTS, MARKS, MapFileError, MindMap, Node
 from .screens import Confirm, HelpScreen, SettingsScreen, TextPrompt
-from .text import clean
+from .text import clean, find_all
 from .widgets import MindMapView, TopBar
 
 # No colours here on purpose: the app runs on Textual's ansi theme, so every
@@ -63,10 +63,16 @@ TextPrompt Input > .input--cursor {
     text-wrap: nowrap;
     text-overflow: clip;
 }
+/* The search prompt takes the footer's row while it is open, like nano's. */
+#search {
+    width: 100%;
+    height: 1;
+    padding: 0 1;
+    background: ansi_default;
+    color: ansi_default;
+    display: none;
+}
 """
-
-# The character that stands in for the caret while a node is being typed into.
-CARET = "▊"
 
 BINDINGS: list[BindingType] = [
     # tab/enter are the primary keys here; the ctrl chords stay as aliases.
@@ -79,6 +85,9 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+d", "delete", "del", id="delete"),
     Binding("ctrl+t", "fold", "fold", id="fold"),
     Binding("ctrl+g", "mark", "mark", id="mark"),
+    # search sits with the other editing keys: it is what you reach for while
+    # reading a map, and the bar has room for one more
+    Binding("ctrl+f", "search", "search", id="search"),
     # rendered as the pinned cluster at the right edge, not among the hints
     Binding("ctrl+comma", "settings", "settings", show=False, id="settings"),
     Binding("ctrl+slash", "help", "help", show=False, id="help"),
@@ -88,7 +97,7 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+p,up", "prev", "prev", show=False, id="prev"),
     Binding("ctrl+n,down", "next", "next", show=False, id="next"),
     Binding("ctrl+b,left", "go_left", "left", show=False, id="left"),
-    Binding("ctrl+f,right", "go_right", "right", show=False, id="right"),
+    Binding("right", "go_right", "right", show=False, id="right"),
     # vim cursor keys. Hidden from the bar because the ctrl chords already own
     # those labels; nothing else on any screen binds a bare h/j/k/l.
     Binding("k", "prev", "prev", show=False, id="prev_vim"),
@@ -206,6 +215,12 @@ class SpoiderApp(App[None]):
             self.mm = MindMap.demo() if demo else MindMap()
         self.selected: str = self.mm.root.id
         self.dirty = False
+        #: What was typed into the search prompt; empty means no search is on.
+        self.search_query = ""
+        #: Ids of the cells that contain it, in document order.
+        self.matches: list[str] = []
+        self._last_query = ""  # the last one submitted, to know a repeat
+        self._searching = False
         self._undo: list[dict] = []
         self._redo: list[dict] = []
         self._edit_id: str | None = None
@@ -219,6 +234,12 @@ class SpoiderApp(App[None]):
         yield TopBar(id="topbar")
         yield MindMapView(self)
         yield FooterBar(id="footer")
+        yield SearchBar(
+            id="search",
+            on_change=self._search_changed,
+            on_submit=self._search_submitted,
+            on_cancel=self._search_cancelled,
+        )
 
     def on_mount(self) -> None:
         # A file written by an older build keeps listing chords that no longer
@@ -250,6 +271,8 @@ class SpoiderApp(App[None]):
         """Nothing from the app keymap fires while a dialog is open or a node is
         being typed into: ^D must not delete the node you are editing, and ^X
         must not stack another dialog on top."""
+        if self._searching:
+            return None  # the prompt owns the keys, and says what it accepts
         if action in ("help", "settings"):
             # reachable while typing, but not stacked on top of another dialog
             return len(self.screen_stack) == 1
@@ -341,6 +364,88 @@ class SpoiderApp(App[None]):
         except OSError as exc:
             self.notify(f"Could not write config: {exc}", severity="error", timeout=4)
 
+    def stat_text(self) -> str:
+        """What the top bar counts: the matches while searching, else the cells."""
+        if self.search_query.strip():
+            found = len(self.matches)
+            return f"{found} match" if found == 1 else f"{found} matches"
+        cells = self.mm.count()
+        return f"{cells} cell" if cells == 1 else f"{cells} cells"
+
+    # -- search ---------------------------------------------------------
+
+    def action_search(self) -> None:
+        """^F — find cells by their words, nano style: a prompt on the last line."""
+        if self._searching:
+            return
+        self._searching = True
+        self.query_one(FooterBar).display = False
+        self.query_one(SearchBar).start()
+        self._refresh_chrome()
+
+    def _search_changed(self, value: str) -> None:
+        self.search_query = value
+        self._refresh_matches()
+
+    def _search_submitted(self, query: str) -> None:
+        repeat = bool(self.matches) and query.casefold() == self._last_query.casefold()
+        self._last_query = query
+        self.search_query = query
+        self._refresh_matches()
+        self._close_search()
+        if not self.matches:
+            self.notify(f"No match for {query!r}" if query else "Nothing to find", timeout=2)
+            return
+        self._jump_to_match(skip_current=repeat)
+
+    def _search_cancelled(self) -> None:
+        self.search_query = ""
+        self._last_query = ""
+        self.matches = []
+        self._close_search()
+        self.view.refresh_map()
+        self._refresh_chrome()
+
+    def _close_search(self) -> None:
+        self._searching = False
+        self.query_one(SearchBar).stop()
+        self.query_one(FooterBar).display = True
+        self.view.focus()
+        self._refresh_chrome()
+
+    def _refresh_matches(self) -> None:
+        query = self.search_query.strip()
+        self.matches = [node.id for node in self.mm.nodes() if find_all(label(node), query)]
+        self.view.refresh_map()
+        self._refresh_chrome()
+
+    def _jump_to_match(self, *, skip_current: bool) -> None:
+        """Select the next match from here, wrapping — nano's forward search."""
+        order = [node.id for node in self.mm.nodes()]
+        if not order or not self.matches:
+            return
+        try:
+            start = order.index(self.selected)
+        except ValueError:
+            start = 0
+        offset = 1 if skip_current else 0
+        for step in range(offset, len(order) + offset):
+            candidate = order[(start + step) % len(order)]
+            if candidate in self.matches:
+                self._reveal(candidate)
+                return
+
+    def _reveal(self, node_id: str) -> None:
+        """Open the folds above a match, so that selecting it actually shows it."""
+        opened = False
+        for node in self.mm.path(node_id)[:-1]:
+            if node.collapsed:
+                node.collapsed = False
+                opened = True
+        if opened:
+            self._mark_dirty()
+        self.select(node_id)
+
     @property
     def spacing(self) -> int:
         """Per-document: it is written to the file, not held in the editor."""
@@ -378,6 +483,8 @@ class SpoiderApp(App[None]):
 
     def _mark_dirty(self) -> None:
         self.dirty = True
+        if self.search_query:
+            self._refresh_matches()
         self._set_terminal_title()
         self.view.refresh_map()
         self._refresh_chrome()
