@@ -14,7 +14,14 @@ from textual.binding import Binding
 from . import nav
 from .layout import MAX_SPACING, MIN_SPACING
 from .chrome import FooterBar
-from .config import MAX_MARKS, Config, default_config_path, load_config, write_config
+from .config import (
+    MAX_MARKS,
+    Config,
+    default_config_path,
+    is_stale,
+    load_config,
+    write_config,
+)
 from .model import MARKS, MindMap, Node
 from .screens import Confirm, HelpScreen, SettingsScreen, TextPrompt
 from .widgets import MindMapView, TopBar
@@ -175,6 +182,10 @@ class SpoiderApp(App[None]):
         yield FooterBar(id="footer")
 
     def on_mount(self) -> None:
+        # A file written by an older build keeps listing chords that no longer
+        # exist; regenerate it, but only when it is actually out of date.
+        if is_stale(self.config_path, self.config, self._key_entries()):
+            self._save_config()
         self.set_keymap(self.config.keys)
         self._set_terminal_title()
         self.query_one(MindMapView).focus()

@@ -141,6 +141,28 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
     return "\n".join(lines).rstrip() + "\n"
 
 
+def is_stale(
+    path: Path, config: Config, key_entries: Sequence[tuple[str, str, str]]
+) -> bool:
+    """True when the file's lines do not match the bindings this build has.
+
+    Only the lines the app writes are checked, so a file that is already current
+    is left untouched — along with any comments the user added themselves."""
+    try:
+        text = path.read_text()
+    except (OSError, UnicodeDecodeError):
+        return True
+    for ident, default, _ in key_entries:
+        wanted = (
+            f"{ident} = {config.keys[ident]}"
+            if ident in config.keys
+            else f"# {ident} = {default}"
+        )
+        if wanted not in text:
+            return True
+    return False
+
+
 def write_config(
     config: Config,
     path: Path | None = None,

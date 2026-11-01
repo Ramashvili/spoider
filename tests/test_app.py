@@ -703,6 +703,44 @@ def test_config_is_a_flat_rc_file_with_every_key_prefilled(tmp_path: Path):
     assert SpoiderApp(tmp_path / "map.json", config_path=path).keymap["save"] == "ctrl+w"
 
 
+async def test_a_stale_config_file_is_regenerated_on_start(tmp_path: Path):
+    path = tmp_path / "config.conf"
+    # what an older build wrote: six spellings apiece and a chord that is gone
+    path.write_text(
+        "autosave = true\n"
+        "marks = 🔴 🟢\n"
+        "\n"
+        "# spacing_more = ctrl+shift+equals_sign,ctrl+equals_sign,ctrl+plus\n"
+        "# gone_action = ctrl+y\n"
+    )
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+    text = path.read_text()
+    assert "# spacing_more = ctrl+equals_sign\n" in text
+    assert "ctrl+plus" not in text and "gone_action" not in text
+    # and nothing of the user's was lost
+    assert "autosave = true" in text
+    assert "marks = 🔴 🟢" in text
+
+
+async def test_a_current_config_file_is_left_alone(tmp_path: Path):
+    path = tmp_path / "config.conf"
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+    app._save_config()
+    # a note of the user's own
+    note = "# my own note\n"
+    path.write_text(path.read_text() + note)
+
+    async with SpoiderApp(tmp_path / "map.json", demo=False, config_path=path).run_test():
+        pass
+    assert "# my own note" in path.read_text()  # untouched, comment included
+
+
 def test_comments_and_loose_spacing_are_tolerated(tmp_path: Path):
     from spoider.config import parse
 
