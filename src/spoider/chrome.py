@@ -178,6 +178,31 @@ def search_chunks() -> list[Text]:
     return [entry(key, label, literal=True) for key, label in SEARCH_HINTS]
 
 
+def prompt_chunks(verb: str) -> list[Text]:
+    """The keys of a one-line prompt: answer it, back out, or undo the typing."""
+    return [
+        entry("⏎", verb, literal=True),
+        entry("esc/^C", "cancel", literal=True),
+        entry("^Z", "undo", literal=True),
+    ]
+
+
+def ask_chunks() -> list[Text]:
+    return [
+        entry("y", "save", literal=True),
+        entry("n", "discard", literal=True),
+        entry("esc", "cancel", literal=True),
+    ]
+
+
+def settings_chunks() -> list[Text]:
+    return [
+        entry("↑↓", "move", literal=True),
+        entry("⏎", "change", literal=True),
+        entry("esc", "close", literal=True),
+    ]
+
+
 class FooterBar(Widget):
     """The bottom line, which never goes away.
 
@@ -189,6 +214,8 @@ class FooterBar(Widget):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.mode = "keys"
+        #: hints for the drawer modes, which know their own keys
+        self.custom: list[Text] = []
 
     def render(self) -> Text:
         width = self.size.width
@@ -198,6 +225,8 @@ class FooterBar(Widget):
             hints = edit_chunks()
         elif self.mode == "search":
             hints = search_chunks()
+        elif self.mode == "custom":
+            hints = self.custom
         else:
             app = self.app
             # autosave makes ^S redundant, so it leaves the bar with it on

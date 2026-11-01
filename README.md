@@ -115,9 +115,11 @@ level and `↑` / `↓` step between siblings. A map is drawn in `spider` unless
 file says otherwise, so maps written before this existed open exactly as they
 did.
 
-The bar never goes away. Whatever has the keys — the map, a cell being typed
-into, the search prompt — the bar shows that mode's keys, because a mode that
-hides the bar leaves you with no way out.
+The bar never goes away, and nothing opens a window over the map. Every prompt,
+question and list — the search line, a file name, the save question, the settings
+rows, the help page — appears on the lines just above the bar, the way nano does
+it. The bar underneath then says what that drawer accepts, because it is the only
+footer there is and it always describes what has the keys.
 
 Its order is a ranking, and a narrow terminal drops the tail: `^X quit` first,
 then saving, writing, undo, search, the editing keys, the inserts, and the
@@ -168,7 +170,8 @@ holding "one one" is one match.
 
 ## Settings
 
-`^,` opens the editor settings:
+`^,` opens the editor settings, as a panel at the bottom of the screen with the
+map still visible above it:
 
 | Row | What it does |
 | --- | --- |
@@ -271,7 +274,8 @@ reverse video. That means it looks right on a dark theme, a light theme, or a
 | `src/spoider/text.py` | strips control characters; one-line truncation helpers |
 | `src/spoider/files.py` | atomic write: temp file, fsync, rename |
 | `src/spoider/widgets.py` | `MindMapView`: camera, hit-testing, clicks |
-| `src/spoider/screens.py` | modals: text prompt, confirm, help, settings |
+| `src/spoider/drawers.py` | the bottom drawers: one-line prompt, question, panel |
+| `src/spoider/screens.py` | the text the help and settings panels show |
 | `src/spoider/app.py` | key bindings, undo history, write/quit flow |
 | `src/spoider/chrome.py` | shortcut bar layout, pinned settings/help cluster |
 | `src/spoider/config.py` | per-user editor preferences: autosave, marks, keymap |

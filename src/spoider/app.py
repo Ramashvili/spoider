@@ -13,7 +13,7 @@ from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding, BindingType
 
 from . import nav
-from .chrome import CARET, FooterBar, SearchBar
+from .chrome import CARET, FooterBar, ask_chunks, prompt_chunks, settings_chunks
 from .config import (
     MAX_MARKS,
     Config,
@@ -22,9 +22,10 @@ from .config import (
     load_config,
     write_config,
 )
+from .drawers import AskBar, PanelBar, PromptBar
 from .layout import MAX_SPACING, MIN_SPACING, label
 from .model import LAYOUTS, MARKS, MapFileError, MindMap, Node
-from .screens import Confirm, HelpScreen, SettingsScreen, TextPrompt
+from .screens import help_text, settings_text
 from .text import clean, find_all
 from .widgets import MindMapView, TopBar
 
@@ -45,14 +46,19 @@ MindMapView {
     width: 100%;
     height: 1fr;
 }
-/* Textual's ansi theme paints the text cursor ansi_white on ansi_black *and*
-   applies the theme's `reverse` text style on top — two inversions, which land
-   back on a black block on a black terminal. Pure reverse video inverts
-   whatever the terminal already shows, so the caret is visible on any palette. */
-TextPrompt Input > .input--cursor {
+/* The drawers sit above the bar, never over the map. One of them is shown at a
+   time and each takes only the rows it needs. */
+#panel, #ask, #prompt {
+    width: 100%;
+    padding: 0 1;
     background: ansi_default;
     color: ansi_default;
-    text-style: reverse;
+    display: none;
+    text-wrap: nowrap;
+    text-overflow: clip;
+}
+#ask, #prompt {
+    height: 1;
 }
 #footer {
     width: 100%;
@@ -220,7 +226,11 @@ class SpoiderApp(App[None]):
         #: Ids of the cells that contain it, in document order.
         self.matches: list[str] = []
         self._last_query = ""  # the last one submitted, to know a repeat
-        self._searching = False
+        self._search_history: list[str] = []
+        self._write_then_quit = False
+        self._settings_row = 0
+        #: keys | search | write | marks | ask | settings | help
+        self._mode = "keys"
         self._show_matches = False  # the count sits in the bar only for a while
         self._count_timer = None
         self._undo: list[dict] = []
@@ -235,14 +245,11 @@ class SpoiderApp(App[None]):
     def compose(self) -> ComposeResult:
         yield TopBar(id="topbar")
         yield MindMapView(self)
-        yield SearchBar(
-            id="search",
-            on_change=self._search_changed,
-            on_submit=self._search_submitted,
-            on_cancel=self._search_cancelled,
-        )
-        # the bar is last and always there: the prompt sits above it, the way
-        # nano puts its search line above the shortcuts
+        # whatever the app has to ask is asked here, above the bar, and never in
+        # a window over the map: one bar, and it says what the question accepts
+        yield PanelBar(id="panel")
+        yield AskBar(id="ask")
+        yield PromptBar(id="prompt")
         yield FooterBar(id="footer")
 
     def on_mount(self) -> None:
@@ -272,17 +279,27 @@ class SpoiderApp(App[None]):
             driver.write(f"\x1b]2;{clean(self._title())}\x07")
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
-        """Nothing from the app keymap fires while a dialog is open or a node is
-        being typed into: ^D must not delete the node you are editing, and ^X
-        must not stack another dialog on top."""
-        if self._searching:
-            return None  # the prompt owns the keys, and says what it accepts
+        """Nothing from the app keymap fires while a drawer or a cell has the
+        keys: ^D must not delete the node you are editing, and ^X must not quit
+        from behind a question."""
+        if self._mode not in ("keys", "edit"):
+            return None  # the drawer owns the keys, and its bar says so
         if action in ("help", "settings"):
-            # reachable while typing, but not stacked on top of another dialog
-            return len(self.screen_stack) == 1
-        if len(self.screen_stack) > 1 or self.editing:
+            return True  # reachable while typing, without losing the edit
+        if self.editing:
             return None
         return True
+
+    @property
+    def _searching(self) -> bool:
+        return self._mode == "search"
+
+    @property
+    def mode(self) -> str:
+        """Who has the keys: the map, a cell being typed into, or a drawer."""
+        if self._mode == "keys" and self.editing:
+            return "edit"
+        return self._mode
 
     def action_help_quit(self) -> None:
         """^C is escape in spoider, not Textual's "press ^X to quit" nudge."""
@@ -383,14 +400,21 @@ class SpoiderApp(App[None]):
 
     def action_search(self) -> None:
         """^F — find cells by their words, nano style: a prompt on the last line."""
-        if self._searching:
+        if self._mode not in ("keys", "edit"):
             return
-        self._searching = True
         self._show_matches = True
         self._stop_count_timer()
-        self.query_one(SearchBar).start()
-        self._sync_footer()
-        self._refresh_chrome()
+        offered = self._search_history[0] if self._search_history else ""
+        self._show_prompt(
+            "search",
+            "Search: ",
+            offered,
+            preselect=True,
+            recall=self._search_history,
+            change=self._search_changed,
+            submit=self._search_submitted,
+            cancel=self._search_cancelled,
+        )
 
     def _search_changed(self, value: str) -> None:
         self.search_query = value
@@ -402,7 +426,7 @@ class SpoiderApp(App[None]):
         self._last_query = query
         self.search_query = query
         self._refresh_matches()
-        self._close_search()
+        self._close_drawers()
         if not self.matches:
             self._settle_count()
             self.notify(f"No match for {query!r}" if query else "Nothing to find", timeout=2)
@@ -414,7 +438,7 @@ class SpoiderApp(App[None]):
 
     def _settle_count(self) -> None:
         self._count_timer = None
-        if not self._searching:
+        if self._mode != "search":
             self._show_matches = False
         self._refresh_chrome()
 
@@ -429,15 +453,8 @@ class SpoiderApp(App[None]):
         self.matches = []
         self._show_matches = False
         self._stop_count_timer()
-        self._close_search()
+        self._close_drawers()
         self.view.refresh_map()
-        self._refresh_chrome()
-
-    def _close_search(self) -> None:
-        self._searching = False
-        self.query_one(SearchBar).stop()
-        self._sync_footer()
-        self.view.focus()
         self._refresh_chrome()
 
     def _refresh_matches(self) -> None:
@@ -533,17 +550,26 @@ class SpoiderApp(App[None]):
         return True
 
     def _ask_where_to_write(self, *, then_quit: bool = False) -> None:
-        def apply(value: str | None) -> None:
-            if value is None or not value.strip():
-                return
-            target = Path(value.strip()).expanduser()
-            if target.is_dir():
-                self.notify(f"{target} is a directory", severity="error", timeout=4)
-                return
-            if self._write(target) and then_quit:
-                self.exit()
+        self._write_then_quit = then_quit
+        self._show_prompt(
+            "write",
+            "File name to write: ",
+            str(self.path),
+            preselect=True,
+            submit=self._write_submitted,
+            cancel=self._close_drawers,
+        )
 
-        self.push_screen(TextPrompt("File name to write", str(self.path)), apply)
+    def _write_submitted(self, value: str) -> None:
+        self._close_drawers()
+        if not value.strip():
+            return
+        target = Path(value).expanduser()
+        if target.is_dir():
+            self.notify(f"{target} is a directory", severity="error", timeout=4)
+            return
+        if self._write(target) and self._write_then_quit:
+            self.exit()
 
     def _restore(self, snapshot: dict) -> None:
         try:
@@ -586,11 +612,68 @@ class SpoiderApp(App[None]):
     def _sync_footer(self) -> None:
         """The bar never leaves; it swaps to the keys of whatever has them now."""
         footer = self.query_one("#footer", FooterBar)
-        if self._searching:
-            footer.mode = "search"
-        else:
+        mode = self._mode
+        if mode in ("keys", "edit"):
             footer.mode = "edit" if self.editing else "keys"
+        elif mode == "search":
+            footer.mode = "search"
+        elif mode in ("write", "marks"):
+            footer.mode = "custom"
+            footer.custom = prompt_chunks("write" if mode == "write" else "save")
+        elif mode == "ask":
+            footer.mode = "custom"
+            footer.custom = ask_chunks()
+        elif mode == "settings":
+            footer.mode = "custom"
+            footer.custom = settings_chunks()
+        else:  # help closes on any key, and saying so is the one thing it need not
+            footer.mode = "custom"
+            footer.custom = []
         footer.refresh()
+
+    # -- the drawers themselves ------------------------------------------
+
+    def _hide_drawers(self, *keep: type) -> None:
+        """Only one drawer is ever on screen: they share the bottom lines."""
+        for drawer in (PromptBar, AskBar, PanelBar):
+            if drawer not in keep:
+                self.query_one(drawer).close()
+
+    def _show_prompt(
+        self,
+        mode: str,
+        label: str,
+        value: str = "",
+        *,
+        preselect: bool = False,
+        recall: list[str] | None = None,
+        change=None,
+        submit,
+        cancel,
+    ) -> None:
+        self._mode = mode
+        self._hide_drawers(PromptBar)
+        self.query_one(PromptBar).ask(
+            label,
+            value,
+            preselect=preselect,
+            recall=recall,
+            submit=submit,
+            cancel=cancel,
+            change=change,
+        )
+        self._sync_footer()
+        self._refresh_chrome()
+
+    def _close_drawers(self) -> None:
+        """Put the drawers away and give the keys back — to the cell being typed
+        into, or to the map."""
+        for drawer in (PromptBar, AskBar, PanelBar):
+            self.query_one(drawer).close()
+        self._mode = "keys"
+        self._sync_footer()
+        self.view.focus()
+        self._refresh_chrome()
 
     def handle_edit_key(self, key: str, character: str | None) -> bool:
         """Every keystroke while typing into a node. Returns True if consumed."""
@@ -702,11 +785,65 @@ class SpoiderApp(App[None]):
 
     def action_help(self) -> None:
         """^/ — every key and option, with a line of explanation."""
-        self.push_screen(HelpScreen())
+        self._mode = "help"
+        self._hide_drawers(PanelBar)
+        self.query_one(PanelBar).show(help_text(self), lambda key: self._close_drawers())
+        self._sync_footer()
 
     def action_settings(self) -> None:
         """^, — the editor settings."""
-        self.push_screen(SettingsScreen())
+        self._settings_row = 0
+        self._open_settings()
+
+    def _open_settings(self) -> None:
+        self._mode = "settings"
+        self._draw_settings()
+
+    def _draw_settings(self) -> None:
+        row = settings_text(self, self._settings_row)
+        self._hide_drawers(PanelBar)
+        self.query_one(PanelBar).show(row, self._settings_key)
+        self._sync_footer()
+
+    def _ask_to_save(self) -> None:
+        self._mode = "ask"
+        self._hide_drawers(AskBar)
+        self.query_one(AskBar).ask("Save modified buffer?", self._save_answered)
+        self._sync_footer()
+
+    def _settings_key(self, key: str) -> None:
+        if key in ("escape", "ctrl+c", "ctrl+comma", "ctrl+x"):
+            self._close_drawers()
+        elif key in ("up", "k"):
+            self._settings_row = max(0, self._settings_row - 1)
+            self._draw_settings()
+        elif key in ("down", "j"):
+            self._settings_row = min(2, self._settings_row + 1)
+            self._draw_settings()
+        elif key in ("enter", "space"):
+            self._settings_activate()
+
+    def _settings_activate(self) -> None:
+        row = self._settings_row
+        if row == 0:
+            self.set_autosave(not self.autosave)
+            self._draw_settings()
+        elif row == 1:
+            self._show_prompt(
+                "marks",
+                "Marks, in the order ^G cycles: ",
+                " ".join(self.marks),
+                preselect=True,
+                submit=self._marks_submitted,
+                cancel=self._open_settings,
+            )
+        else:
+            self.open_config()
+            self._open_settings()  # back to the list you left
+
+    def _marks_submitted(self, value: str) -> None:
+        self.set_marks(value.split())
+        self._open_settings()
 
     def action_mark(self) -> None:
         """^G — cycle the cell's mark: none, ✅, ❌, ❓, ❗, 🕐, none."""
@@ -879,13 +1016,14 @@ class SpoiderApp(App[None]):
             self.exit()
             return
 
-        def done(choice: str | None) -> None:
-            if choice == "no":
-                self.exit()
-            elif choice == "yes":
-                self._ask_where_to_write(then_quit=True)
+        self._ask_to_save()
 
-        self.push_screen(Confirm("Save modified buffer?"), done)
+    def _save_answered(self, choice: str | None) -> None:
+        self._close_drawers()
+        if choice == "no":
+            self.exit()
+        elif choice == "yes":
+            self._ask_where_to_write(then_quit=True)
 
 
 def default_path() -> Path:

@@ -1,22 +1,12 @@
 import json
 from pathlib import Path
 
-from textual.widgets import Input
-
 from spoider.app import BINDINGS, SpoiderApp
-from spoider.chrome import FooterBar, SearchBar, compose_footer, hint_chunks
+from spoider.chrome import CARET, FooterBar, compose_footer, hint_chunks
 from spoider.config import load_config
+from spoider.drawers import AskBar, PromptBar
 from spoider.layout import compute
-from spoider.screens import (
-    HELP,
-    Confirm,
-    HelpScreen,
-    SettingsScreen,
-    TextPrompt,
-    help_text,
-    keys_for,
-    settings_text,
-)
+from spoider.screens import HELP, help_text, keys_for, settings_text
 from spoider.widgets import TopBar, compose_top_bar
 
 
@@ -233,7 +223,7 @@ async def test_new_node_is_typed_into_directly(tmp_path: Path):
     async with app.run_test() as pilot:
         await pilot.press("tab")
         await pilot.pause()
-        assert not isinstance(app.screen, TextPrompt)  # no dialog for a new node
+        assert app.mode not in ("write", "marks")  # no dialog for a new node
         assert app.editing is True
         assert app.mm.root.children[0].text == ""
         assert "▊" in app.mm.root.children[0].preview
@@ -289,7 +279,7 @@ async def test_editing_an_existing_node_types_in_place(tmp_path: Path):
 
         await pilot.press("ctrl+e")
         await pilot.pause()
-        assert not isinstance(app.screen, TextPrompt)
+        assert app.mode not in ("write", "marks")
         assert app.mm.find(node.id).preview == "old▊"
 
         await pilot.press("!")
@@ -372,7 +362,7 @@ async def test_dialog_blocks_app_actions(tmp_path: Path):
 
         await pilot.press("ctrl+o")  # file dialog
         await pilot.pause()
-        assert isinstance(app.screen, TextPrompt)
+        assert app.mode in ("write", "marks")
 
         await pilot.press("ctrl+d")  # must not delete anything
         await pilot.pause()
@@ -380,7 +370,7 @@ async def test_dialog_blocks_app_actions(tmp_path: Path):
 
         await pilot.press("ctrl+c")  # and ^C closes it
         await pilot.pause()
-        assert not issubclass(app.screen.__class__, TextPrompt)
+        assert app.mode not in ("write", "marks")
 
 
 async def test_save_writes_without_a_prompt(tmp_path: Path):
@@ -394,7 +384,7 @@ async def test_save_writes_without_a_prompt(tmp_path: Path):
         await pilot.press("ctrl+s")
         await pilot.pause()
 
-        assert not isinstance(app.screen, TextPrompt)
+        assert app.mode not in ("write", "marks")
         assert path.exists()
         assert app.path == path
         assert app.dirty is False
@@ -403,19 +393,17 @@ async def test_save_writes_without_a_prompt(tmp_path: Path):
     assert [child.text for child in reopened.mm.root.children] == ["quick"]
 
 
-async def test_write_dialog_caret_is_visible(tmp_path: Path):
+async def test_the_write_prompt_shows_where_the_caret_is(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+o")
         await pilot.pause()
 
-        field = app.screen.query_one(Input)
-        assert field.has_focus is True
-        assert field.cursor_blink is False  # steady, not a half-second flash
-
-        caret = field.get_component_rich_style("input--cursor")
-        assert caret.reverse is True  # inverts the terminal's own colours…
-        assert caret.color.is_default and caret.bgcolor.is_default  # …no black block
+        prompt = app.query_one(PromptBar)
+        assert prompt.has_focus is True
+        line = prompt.render().plain
+        assert line.startswith("File name to write:")
+        assert line.endswith(CARET), "the caret sits at the end of the offered name"
 
 
 async def test_write_dialog_caret_follows_typing(tmp_path: Path):
@@ -423,13 +411,15 @@ async def test_write_dialog_caret_follows_typing(tmp_path: Path):
     async with app.run_test() as pilot:
         await pilot.press("ctrl+o")
         await pilot.pause()
-        field = app.screen.query_one(Input)
+        prompt = app.query_one(PromptBar)
 
         await pilot.press("home")
         await pilot.press("x")
         await pilot.pause()
-        assert field.value.startswith("x")
-        assert field.cursor_position == 1
+        assert prompt.value.startswith("x")
+        assert prompt.cursor == 1
+        # and the caret is drawn where it is, not at the end
+        assert prompt.render().plain.startswith(f"File name to write: x{CARET}")
 
 
 async def test_write_out_asks_for_a_name(tmp_path: Path):
@@ -442,9 +432,9 @@ async def test_write_out_asks_for_a_name(tmp_path: Path):
 
         await pilot.press("ctrl+o")
         await pilot.pause()
-        assert isinstance(app.screen, TextPrompt)
+        assert app.mode in ("write", "marks")
 
-        field = app.screen.query_one(Input)
+        field = app.query_one(PromptBar)
         assert field.value == str(path)
 
         other = tmp_path / "written.json"
@@ -591,11 +581,11 @@ async def test_help_opens_with_ctrl_slash_and_closes(tmp_path: Path):
     async with app.run_test() as pilot:
         await pilot.press("ctrl+slash")
         await pilot.pause()
-        assert isinstance(app.screen, HelpScreen)
+        assert app.mode == "help"
 
         await pilot.press("escape")
         await pilot.pause()
-        assert not isinstance(app.screen, HelpScreen)
+        assert app.mode != "help"
 
 
 async def test_help_closes_on_any_key(tmp_path: Path):
@@ -604,11 +594,11 @@ async def test_help_closes_on_any_key(tmp_path: Path):
         async with app.run_test() as pilot:
             await pilot.press("ctrl+slash")
             await pilot.pause()
-            assert isinstance(app.screen, HelpScreen)
+            assert app.mode == "help"
 
             await pilot.press(key)
             await pilot.pause()
-            assert not isinstance(app.screen, HelpScreen), key
+            assert app.mode != "help", key
 
 
 async def test_help_closes_on_ctrl_c(tmp_path: Path):
@@ -618,7 +608,7 @@ async def test_help_closes_on_ctrl_c(tmp_path: Path):
         await pilot.pause()
         await pilot.press("ctrl+c")
         await pilot.pause()
-        assert not isinstance(app.screen, HelpScreen)
+        assert app.mode != "help"
         assert app.is_running is True
 
 
@@ -632,7 +622,7 @@ async def test_help_is_reachable_mid_typing(tmp_path: Path):
 
         await pilot.press("ctrl+slash")
         await pilot.pause()
-        assert isinstance(app.screen, HelpScreen)
+        assert app.mode == "help"
 
         await pilot.press("escape")
         await pilot.pause()
@@ -645,7 +635,7 @@ async def test_settings_shows_only_the_autosave_toggle(tmp_path: Path):
     async with app.run_test() as pilot:
         await pilot.press("ctrl+comma")
         await pilot.pause()
-        assert isinstance(app.screen, SettingsScreen)
+        assert app.mode == "settings"
 
         body = settings_text(app).plain
         assert "autosave" in body and "off" in body
@@ -655,7 +645,7 @@ async def test_settings_shows_only_the_autosave_toggle(tmp_path: Path):
 
         await pilot.press("escape")
         await pilot.pause()
-        assert not isinstance(app.screen, SettingsScreen)
+        assert app.mode != "settings"
 
 
 async def test_settings_closes_on_ctrl_x(tmp_path: Path):
@@ -663,11 +653,11 @@ async def test_settings_closes_on_ctrl_x(tmp_path: Path):
     async with app.run_test() as pilot:
         await pilot.press("ctrl+comma")
         await pilot.pause()
-        assert isinstance(app.screen, SettingsScreen)
+        assert app.mode == "settings"
 
         await pilot.press("ctrl+x")
         await pilot.pause()
-        assert not isinstance(app.screen, SettingsScreen)
+        assert app.mode != "settings"
         assert app.is_running is True  # it closed the dialog, it did not quit
 
 
@@ -681,7 +671,7 @@ async def test_toggling_autosave_persists_to_the_editor_config(tmp_path: Path):
         await pilot.press("enter")
         await pilot.pause()
         assert app.autosave is True
-        assert isinstance(app.screen, SettingsScreen)  # stays open to show "on"
+        assert app.mode == "settings"  # stays open to show "on"
 
     assert load_config(config_path).autosave is True
     reopened = SpoiderApp(tmp_path / "map.json", config_path=config_path)
@@ -822,17 +812,15 @@ async def test_editing_the_marks_from_settings(tmp_path: Path):
     async with app.run_test() as pilot:
         await pilot.press("ctrl+comma")
         await pilot.pause()
-        assert isinstance(app.screen, SettingsScreen)
-        screen = app.screen
-
+        assert app.mode == "settings"
         await pilot.press("down")  # onto the marks row
         await pilot.pause()
-        assert screen.row == 1
+        assert app._settings_row == 1
 
         await pilot.press("enter")
         await pilot.pause()
-        assert isinstance(app.screen, TextPrompt)
-        field = app.screen.query_one(Input)
+        assert app.mode in ("write", "marks")
+        field = app.query_one(PromptBar)
         assert field.value == " ".join(app.marks)  # pre-filled with the current set
 
         field.value = "🔴 🟢"
@@ -841,7 +829,7 @@ async def test_editing_the_marks_from_settings(tmp_path: Path):
 
         assert app.marks == ("🔴", "🟢")
         assert load_config(config_path).marks == ("🔴", "🟢")
-        assert isinstance(app.screen, SettingsScreen)  # back on the rows
+        assert app.mode == "settings"  # back on the rows
         assert "🔴 🟢" in settings_text(app, 1).plain
 
     # and the next editor start reads them back
@@ -872,12 +860,12 @@ async def test_prompt_supports_undo_and_redo(tmp_path: Path):
         await pilot.press("down")  # marks row
         await pilot.press("enter")
         await pilot.pause()
-        assert isinstance(app.screen, TextPrompt)
+        assert app.mode in ("write", "marks")
 
         await pilot.press("home")
         await pilot.press("a", "b", "c")
         await pilot.pause()
-        field = app.screen.query_one(Input)
+        field = app.query_one(PromptBar)
         assert field.value.startswith("abc")
 
         await pilot.press("ctrl+z")
@@ -969,7 +957,7 @@ async def test_settings_opens_the_config_in_an_editor(tmp_path: Path, monkeypatc
         await pilot.press("down")
         await pilot.press("down")  # config row
         await pilot.pause()
-        assert app.screen.row == 2
+        assert app._settings_row == 2
 
         await pilot.press("enter")
         await pilot.pause()
@@ -1028,7 +1016,7 @@ async def test_autosave_quits_without_asking(tmp_path: Path):
         await pilot.press("ctrl+x")
         await pilot.pause()
         assert app.is_running is False
-        assert not isinstance(app.screen, Confirm)
+        assert app.mode != "ask"
 
     assert json.loads(path.read_text())["root"]["children"][0]["text"] == "a"
 
@@ -1294,7 +1282,7 @@ async def test_dirty_quit_asks_before_discarding(tmp_path: Path):
 
         await pilot.press("ctrl+x")
         await pilot.pause()
-        assert isinstance(app.screen, Confirm)
+        assert app.mode == "ask"
 
         await pilot.press("ctrl+c")
         await pilot.pause()
@@ -1320,7 +1308,7 @@ async def test_dirty_quit_saves_on_yes(tmp_path: Path):
         await pilot.pause()
         await pilot.press("y")
         await pilot.pause()
-        assert isinstance(app.screen, TextPrompt)
+        assert app.mode in ("write", "marks")
 
         await pilot.press("enter")
         await pilot.pause()
@@ -1526,7 +1514,7 @@ async def test_ctrl_f_opens_a_prompt_and_counts_matches(tmp_path: Path):
 
         await pilot.press("ctrl+f")
         await pilot.pause()
-        prompt = app.query_one(SearchBar)
+        prompt = app.query_one(PromptBar)
         assert prompt.display, "the prompt takes the line above the bar"
         footer = app.query_one(FooterBar)
         assert footer.display, "the bar stays: it is the way out"
@@ -1551,7 +1539,7 @@ async def test_enter_jumps_to_the_first_match_and_a_repeat_moves_on(tmp_path: Pa
         await pilot.pause()
 
         assert app.selected == app.matches[0]
-        assert app.query_one(SearchBar).display is False
+        assert app.query_one(PromptBar).display is False
         assert app.query_one(FooterBar).mode == "keys"
 
         await pilot.press("ctrl+f", "enter")  # the prompt offers the last search
@@ -1586,11 +1574,11 @@ async def test_up_arrow_recalls_an_earlier_search(tmp_path: Path):
 
         await pilot.press("ctrl+f")  # offers the last search again
         await pilot.pause()
-        assert app.query_one(SearchBar).value == "one"
+        assert app.query_one(PromptBar).value == "one"
 
         await pilot.press("up")
         await pilot.pause()
-        assert app.query_one(SearchBar).value == "two"
+        assert app.query_one(PromptBar).value == "two"
         assert app.search_query == "two", "the count follows the recalled word"
 
 
@@ -1686,3 +1674,77 @@ async def test_the_match_count_lets_go_after_a_moment(tmp_path: Path, monkeypatc
         assert app.stat_text() == "4 cells", "the count gives the bar back"
         assert app.search_query == "one", "but the search and its marks stay"
         assert len(app.matches) == 2
+
+
+# -- the drawers: dialogs at the bottom, one bar --------------------------
+
+
+async def test_nothing_opens_over_the_map(tmp_path: Path):
+    from spoider.widgets import MindMapView
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        for key, mode in (
+            ("ctrl+o", "write"),
+            ("ctrl+slash", "help"),
+            ("ctrl+comma", "settings"),
+        ):
+            await pilot.press(key)
+            await pilot.pause()
+            assert app.mode == mode
+            assert len(app.screen_stack) == 1, "a drawer, not a screen on top"
+            assert app.query_one(FooterBar).display is True, "one bar, still there"
+            assert app.query_one(MindMapView).size.height > 0, "the map is still on screen"
+            await pilot.press("escape")
+            await pilot.pause()
+            assert app.mode == "keys"
+
+
+async def test_the_bar_says_what_each_drawer_accepts(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        bar = app.query_one(FooterBar)
+
+        await pilot.press("ctrl+o")  # a file name
+        await pilot.pause()
+        line = bar.render().plain
+        assert "⏎ write" in line and "esc/^C cancel" in line and "^Z undo" in line
+        await pilot.press("escape")
+        await pilot.pause()
+
+        await pilot.press("ctrl+comma")  # the settings list
+        await pilot.pause()
+        line = bar.render().plain
+        assert "↑↓ move" in line and "⏎ change" in line and "esc close" in line
+        await pilot.press("escape")
+        await pilot.pause()
+
+        await pilot.press("ctrl+slash")  # help: any key closes, nothing to say
+        await pilot.pause()
+        line = bar.render().plain
+        assert "move" not in line and "cancel" not in line
+        assert "settings" in line, "the pinned cluster stays"
+        await pilot.press("x")
+        await pilot.pause()
+        assert app.mode == "keys"
+
+
+async def test_the_quit_question_is_a_line_not_a_dialog(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        app.mm.add_child(app.selected, "unsaved")
+        app._mark_dirty()
+
+        await pilot.press("ctrl+x")
+        await pilot.pause()
+
+        assert app.mode == "ask"
+        assert app.query_one(AskBar).display
+        assert "Save modified buffer?" in app.query_one(AskBar).render().plain
+        line = app.query_one(FooterBar).render().plain
+        assert "y save" in line and "n discard" in line and "esc cancel" in line
+
+        await pilot.press("escape")  # cancel: the buffer stays
+        await pilot.pause()
+        assert app.is_running
+        assert app.mode == "keys"
