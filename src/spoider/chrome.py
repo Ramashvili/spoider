@@ -203,6 +203,12 @@ def ask_chunks() -> list[Text]:
     ]
 
 
+def help_chunks() -> list[Text]:
+    """The bar while help is open. Any key closes it, so there is one thing to
+    say — and the bar stays, like everywhere else."""
+    return [entry("esc", "close", literal=True)]
+
+
 def settings_chunks() -> list[Text]:
     return [
         entry("↑↓", "move", literal=True),

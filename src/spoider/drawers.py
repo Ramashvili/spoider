@@ -260,7 +260,10 @@ class PanelBar(Drawer):
         if width <= 0 or not self.display:
             return Text("")
         panel = Text()
-        for index, line in enumerate(self._text.split("\n")[: self._rows]):
+        # allow_blank keeps a trailing empty line: a panel that asks for air
+        # above the bar gets it, rather than being silently trimmed
+        lines = self._text.split("\n", allow_blank=True)
+        for index, line in enumerate(lines[: self._rows]):
             if index:
                 panel.append("\n")
             if cell_len(line.plain) > width:

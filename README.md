@@ -130,7 +130,10 @@ The bar never goes away, and nothing opens a window over the map. Every prompt,
 question and list — the search line, a file name, the save question, the settings
 rows, the help page — appears on the lines just above the bar, the way nano does
 it. The bar underneath then says what that drawer accepts, because it is the only
-footer there is and it always describes what has the keys.
+footer there is and it always describes what has the keys. Even the help page,
+which accepts one thing, leaves `esc close` there: a bar with nothing in it looks
+like a bug, and the panels keep a line of air above it so the last row is not
+glued to the edge.
 
 Its order is a ranking, and a narrow terminal drops the tail: the two inserts
 first, because that is what you do most; then `^X quit`, so a cramped bar never

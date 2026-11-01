@@ -14,7 +14,7 @@ from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding, BindingType
 
 from . import nav
-from .chrome import CARET, FooterBar, ask_chunks, prompt_chunks, settings_chunks
+from .chrome import CARET, FooterBar, ask_chunks, help_chunks, prompt_chunks, settings_chunks
 from .config import (
     MAX_MARKS,
     Config,
@@ -688,9 +688,9 @@ class SpoiderApp(App[None]):
         elif mode == "settings":
             footer.mode = "custom"
             footer.custom = settings_chunks()
-        else:  # help closes on any key, and saying so is the one thing it need not
+        else:  # help
             footer.mode = "custom"
-            footer.custom = []
+            footer.custom = help_chunks()
         footer.refresh()
 
     # -- the drawers themselves ------------------------------------------
@@ -897,6 +897,7 @@ class SpoiderApp(App[None]):
 
     def _draw_settings(self) -> None:
         row = settings_text(self, self._settings_row)
+        row.append("\n")  # one line of air between the rows and the bar
         self._hide_drawers(PanelBar)
         self.query_one(PanelBar).show(row, self._settings_key)
         self._sync_footer()

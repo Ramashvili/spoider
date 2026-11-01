@@ -2037,3 +2037,29 @@ async def test_paste_keeps_the_mark_it_was_cut_with(tmp_path: Path):
         await pilot.pause()
 
         assert beta.children[0].mark == "✅"
+
+
+# -- the bar under the panels --------------------------------------------
+
+
+async def test_help_keeps_the_bar_and_says_how_to_leave(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+slash")
+        await pilot.pause()
+
+        assert app.mode == "help"
+        bar = app.query_one("#footer", FooterBar).render().plain
+        assert "esc" in bar and "close" in bar, "the bar says what help accepts"
+        assert "settings" in bar, "and the pinned cluster is still there"
+
+
+async def test_settings_leave_a_line_between_the_rows_and_the_bar(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+comma")
+        await pilot.pause()
+
+        lines = app.query_one(PanelBar).render().plain.split("\n")
+        assert lines[-2].strip(), "the last row is a row"
+        assert lines[-1] == "", "and there is one empty line above the bar"
