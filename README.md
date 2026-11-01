@@ -5,16 +5,16 @@ a central idea, the view follows your selection, and the map is a plain JSON fil
 you can diff and version.
 
 ```
- spoider 0.1.0              ~/Projects/spoider/map.json   14 cells total 2 cuts in stack spider layout
+ spoider 0.1.0            ~/Projects/spoider/map.json      3 cells total 0 cuts in stack spider layout
 
-                      ╭────────────╮
-         ╭────────────┤   spoider  ├────────────╮
-         │            ╰────────────╯            │
-    ╭────┴─────╮                          ╭─────┴────╮
-    │  canvas  │                          │   keys   │
-    ╰──────────╯                          ╰──────────╯
+                     ╭────────────╮
+        ╭────────────┤  spoider   ├────────────╮
+        │            ╰────────────╯            │
+   ╭────┴─────╮                          ╭─────┴────╮
+   │  canvas  │                          │   keys   │
+   ╰──────────╯                          ╰──────────╯
 
-  ^A child  ^J sib  ^E edit  ^D del  ^T fold  ^P prev  ^N next  ^B out  ^F in  ^S save ...
+  ⇥ child  ⏎ sib  ^X quit  ^S save  ^O write  ^Z undo  ^F search  e edit >  │  ^, settings  ^/ help
 ```
 
 ## Run it
@@ -23,8 +23,11 @@ you can diff and version.
 cd ~/Projects/spoider
 uv run spoider                 # a new, empty buffer
 uv run spoider my-ideas.json   # opens that map (or starts one there)
-uv run spoider --demo          # a new buffer with the demo map in it
+uv run spoider --demo          # a new buffer holding the manual, as a map
 ```
+
+`--demo` is the manual written as a map: ten branches covering what a mind map is
+and every key there is, so the program documents itself in the window it runs in.
 
 Without a file named, spoider starts a new buffer and never goes looking for one:
 where it ends up is your decision, and `^S` asks for a name the way nano does. If
@@ -33,10 +36,10 @@ something already lives there, the prompt is left empty rather than inviting you
 to write over it.
 
 The top line is chrome and nothing more: `spoider` and its version on the left,
-the file path centred (`New Buffer` until the first write), and what it counts on
-the right — the cells, or the matches of a search — with the map's shape beside
-it. The terminal title carries the same path plus a `*` while the buffer has
-unsaved changes.
+the file path centred (`New Buffer` until the first write), and three counts on
+the right — cells, cuts waiting on the stack, and the map's shape — each in its own
+block (see [the top line](#the-top-line)). The terminal title carries the same path
+plus a `*` while the buffer has unsaved changes.
 
 Nothing is written until you ask for it: edits stay in memory, `^S` writes them
 to the current file, `^O` writes them wherever you name, and `^X` refuses to throw
@@ -46,8 +49,10 @@ them away silently — unless you turn autosave on (see below).
 
 `Tab` and `Return` do the two things you do constantly, and five more keys are
 bare because they are reached for just as often and collide with nothing: `e`,
-`t`, `g`, `=` and `-`. Everything else is a ctrl chord in the spirit of nano, and
-the ctrl forms of those five (`^E`, `^T`, `^G`, `^=`, `^-`) still work as aliases.
+`t`, `m`, `=` and `-`. Everything else is a ctrl chord in the spirit of nano.
+`e` and `t` keep their ctrl forms as aliases; `m`, `=` and `-` do not, and `^M`
+cannot — on a terminal that does not speak the kitty protocol it arrives as
+`Return`, which would add a sibling instead of marking one.
 
 Chords are spelled nano's way wherever help and the bar name them: `^` for ctrl,
 `M-` for meta (alt) — `M-↑`, `M-↓` — and `S-` for shift, `S-←↑↓→`. Glyphs like ⌥ and
@@ -65,7 +70,7 @@ one of them.
 | `e` | edit the selected node in place (`^E` also works) | **e**dit |
 | `^C` | escape everywhere: closes a dialog, abandons the node being typed, otherwise inert | |
 | `^K` | cut the branch — it goes onto a stack, where it waits to be pasted back with `^U` | nano's cut |
-| `^I` | open the stack itself, as a panel of cells in the top right corner, and work on what is waiting there | **i**nspect |
+| `^I` | open the stack itself, as a column on the right of the screen, and work on what is waiting there | **i**nspect |
 | `^U` | paste it under the selected cell, as its last child | nano's paste |
 | `^D` | delete the branch for good | nano's delete |
 | `t` | fold / unfold the branch (`^T` also works) | **t**oggle |
@@ -74,7 +79,7 @@ one of them.
 | `^N` / `↓` | next sibling | nano: next line |
 | `^B` / `←` | left — from the root, its left-hand branch; on a right-hand branch, out to the parent; on a left-hand one, into the first child | nano: back a character |
 | `→` | right — from the root, its right-hand branch; the mirror of the above elsewhere (unfolds a collapsed branch) | nano: forward a character |
-| `^F` | search the cells: the prompt opens on the last line, matches are underlined as you type, `↑` recalls an earlier search | nano's find |
+| `^F` | search the cells: the prompt opens on the last line, matches light up as you type, `↑` recalls an earlier search | nano's find |
 | `h` `j` `k` `l` | vim cursor keys — aliases for `←` `↓` `↑` `→` | |
 | `^Z` | undo | |
 | `^Y` | redo | |
@@ -85,7 +90,7 @@ one of them.
 | `-` | tighten them again, down to boxes that almost touch | |
 | `^L` | cycle the shape of the map: spider → pyramid → bush → branch (saved with the map) | **l**ayout |
 | `^/` | help: every key, with a line of explanation — any key closes it | |
-| `^,` | editor settings — the autosave switch | like every other preferences chord |
+| `^,` | editor settings: autosave, the mark set, and your config file | like every other preferences chord |
 
 Horizontal movement is **spatial, not genealogical**: a branch on the right of the
 root has its children further right, and a branch on the left has its children
@@ -98,13 +103,13 @@ off the shortcut bar.
 
 Hold `shift` while pressing the arrow that walks between siblings — `↑`/`↓` in
 spider and branch, `←`/`→` in pyramid and bush — to select a run of them. The bar
-spells the hint for the shape you are in, because describing keys that do nothing
-in this drawing would be worse than saying nothing.
+does not spend a place on it (it is a rare key, and the arrow depends on the
+shape); help spells it out, once, for the shape you are in.
 
 Marks are part of the document — they are written into the JSON with the node, so
 a ✅ survives closing the editor and shows up in a diff as `"mark": "✅"`.
 
-Spacing (`^=` / `^-`) is part of the document: it is written into the file as
+Spacing (`=` / `-`) is part of the document: it is written into the file as
 `"spacing"`, so a map looks the same wherever it is opened — a 40-cell map and a
 4-cell map want different amounts of air. Changing it makes the buffer dirty, and
 `^S` writes it. It stays out of the undo stack, because nudging the air three
@@ -137,11 +142,13 @@ level and `↑` / `↓` step between siblings. A map is drawn in `spider` unless
 file says otherwise, so maps written before this existed open exactly as they
 did.
 
-The bar never goes away, and nothing opens a window over the map. Every prompt,
-question and list — the search line, a file name, the save question, the settings
-rows, the help page — appears on the lines just above the bar, the way nano does
-it. The bar underneath then says what that drawer accepts, because it is the only
-footer there is and it always describes what has the keys. Even the help page,
+The bar never goes away, and nothing floats over the map: every prompt, question
+and list — the search line, a file name, the save question, the settings rows, the
+help page — appears on the lines just above the bar, the way nano does it. The one
+thing that takes screen space is the stack panel, and it takes it as a column
+rather than a window: the map is framed beside it, not covered by it. The bar
+underneath then says what that drawer accepts, because it is the only footer there
+is and it always describes what has the keys. Even the help page,
 which accepts one thing, leaves `esc close` there: a bar with nothing in it looks
 like a bug, and the panels keep a line of air above it so the last row is not
 glued to the edge.
@@ -166,11 +173,11 @@ never dropped: as the window narrows, whole hint entries disappear from the end
 first, so the pair that gets you to the documentation and the preferences is
 always reachable. Both stay live while you are typing a name.
 
-Those two chords are one chord each: `^=` and `^-`. Terminals encode them oddly
-— under the kitty keyboard protocol `^=` arrives as `ctrl+equals_sign`, and a
-plain terminal sends `^-` as the `^_` control character — but only the canonical
-spelling is bound, so the bar, the help and the config all show the same single
-key. If your terminal cannot send one of them, rebind it in the config file.
+`=` and `-` are bare, so every terminal sends them the same way and there is
+nothing to encode oddly. The one chord that still depends on the terminal is `^I`:
+it is `Tab` to a terminal that does not speak the kitty keyboard protocol, which is
+why the stack opens on a chord that also exists as a key on your keyboard. If your
+terminal cannot tell them apart, rebind `toggle_stack` in the config file.
 
 Mouse: click a node to select it, double-click to rename it in place, scroll to
 walk siblings.
@@ -196,11 +203,13 @@ standing on also carries an underline: the camera is centred on it, and `e`,
 same name, so `e` is deliberately the one key that ignores the rest.
 
 The other keys take the whole run: `^D` deletes it, `^K` cuts it, `^U` pastes all
-of it back in order, `g` gives every cell the same next mark (one press, one
+of it back in order, `m` gives every cell the same next mark (one press, one
 meaning), `t` folds or unfolds whichever of them have children, and `alt+↑` /
 `alt+↓` move the block as one while keeping its order. All of it is one undo step.
 
 A plain move, or `esc`, drops the run without moving anything else.
+
+## The top line
 
 The right of the top bar is where the counts live: three blocks in reverse video,
 one space apart, so each reads as an item rather than as a sentence.
@@ -234,7 +243,7 @@ newest-first, so it comes back in the order it was cut, one cell per `^U`.
 
 Each paste consumes its entry: a cut is used once and then it is gone. That is
 the trade for the stack, and it is what makes the count in the top bar mean
-something — `2 cut` is two branches you can still get back, not two branches you
+something — `2 cuts in stack` is two branches you can still get back, not two branches you
 could paste forever.
 
 The cut leaves the map immediately and the cursor stays with the branch: on the
@@ -289,13 +298,16 @@ all and leaves the stack as it was.
 
 Everything done here is one undo step, like a change to the map — `^Z` and `^Y`
 work in the panel — and the stack is document state, so a cut that was rearranged
-here is rearranged in the file too. `^K` cuts the cell again — which puts it back on top of the stack, where a
-cut always goes — and `^D` drops it for good. `^I` hides the panel and the map has
-the keys again.
+here is rearranged in the file too.
 
-The bar says the same words here as on the map: `^K` is "cut" in both, `^D` is
-"del" in both, and only the first hint is new. While the panel is open the cut
-count in the top bar turns yellow.
+`^K` cuts the cell again, which puts it back on top of the stack, where a cut
+always goes; `^D` drops it for good. `^I` hides the panel and the map has the keys
+again.
+
+The bar says the same words here as on the map — `^K` cut, `^U` paste, `^D` del,
+`^Z` undo, `^m` mark — and only `^I hide stack` is new, because only it means
+something different here. While the panel is open the cut count in the top bar
+turns yellow.
 
 ## Searching
 
@@ -322,7 +334,7 @@ map still visible above it:
 | Row | What it does |
 | --- | --- |
 | `autosave` | write after every cell edit, rearrangement or spacing change, and on exit — so `^X` never stops to ask. While it is on, `^S` leaves the shortcut bar (the chord still works) |
-| `marks` | the emoji `^G` cycles through, space separated and in order, up to eight. Cells that already carry a mark keep it, even if that emoji later leaves the set |
+| `marks` | the emoji `m` cycles through, space separated and in order, up to eight. Cells that already carry a mark keep it, even if that emoji later leaves the set |
 | `config` | hand the terminal to `$EDITOR` (then `$VISUAL`, then `nano`) on `config.conf`, and reload it when you close it |
 
 Autosave and the mark set are *editor* preferences, not document state: they live
@@ -395,7 +407,7 @@ reverse video. That means it looks right on a dark theme, a light theme, or a
 - Stacked shapes start with a narrower column gap than the sideways ones. A
   sideways shape has to fit a connector run between a box and its children; a
   stacked one only needs its siblings not to touch, and a column is the scarcer
-  resource when the tree grows down the page. `^=` still widens both.
+  resource when the tree grows down the page. `=` still widens both.
 - Tightening a stacked shape walks down 2 columns → **shared wall** → shared
   wall *and* shared rows. At both tight settings neighbouring siblings occupy one
   column between them, so a run of them reads as a single row of cells with
@@ -420,11 +432,11 @@ reverse video. That means it looks right on a dark theme, a light theme, or a
 | `src/spoider/nav.py` | selection movement rules |
 | `src/spoider/text.py` | strips control characters; one-line truncation helpers |
 | `src/spoider/files.py` | atomic write: temp file, fsync, rename |
-| `src/spoider/widgets.py` | `MindMapView`: camera, hit-testing, clicks |
+| `src/spoider/widgets.py` | `MindMapView`: camera, hit-testing, clicks, the stack column |
 | `src/spoider/drawers.py` | the bottom drawers: one-line prompt, question, panel |
 | `src/spoider/screens.py` | the text the help and settings panels show |
-| `src/spoider/app.py` | key bindings, undo history, write/quit flow |
-| `src/spoider/chrome.py` | shortcut bar layout, pinned settings/help cluster |
+| `src/spoider/app.py` | key bindings, the stack and its panel, undo history, write/quit flow |
+| `src/spoider/chrome.py` | shortcut bar layout and its ranking, pinned settings/help cluster |
 | `src/spoider/config.py` | per-user editor preferences: autosave, marks, keymap |
 
 ## Test
