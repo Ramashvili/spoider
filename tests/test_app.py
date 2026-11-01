@@ -12,9 +12,10 @@ from spoider.widgets import TopBar, compose_top_bar
 
 
 def test_every_shortcut_uses_a_modifier():
-    # Bare keys are the terminal's own cursor keys, the five letters that are
-    # reached for constantly and collide with nothing, the two inserts, the vim
-    # aliases, and the two spacing keys.
+    # Bare keys are the terminal's own cursor keys, the letters that are reached for
+    # constantly and collide with nothing, the two inserts, the vim aliases, the two
+    # spacing keys — and `c` for the colouring, because the chord that would spell it,
+    # ^C, is escape everywhere.
     allowed_plain = {
         "tab",
         "enter",
@@ -31,6 +32,7 @@ def test_every_shortcut_uses_a_modifier():
         "e",
         "t",
         "m",
+        "c",
         "equals_sign",
         "minus",
     }
@@ -2894,3 +2896,31 @@ async def test_undo_after_reordering_the_stack_puts_the_order_back(tmp_path: Pat
         await pilot.press("ctrl+z")
         await pilot.pause()
         assert [cell.text for cell in app._stack_entries()] == ["beta", "alpha"]
+
+
+async def test_c_cycles_the_colouring_and_says_so(tmp_path: Path):
+    from textual.widgets._toast import Toast
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(notifications=True) as pilot:
+        assert app.mm.colours == "depth"
+
+        await pilot.press("c")
+        await pilot.pause()
+        assert app.mm.colours == "family"
+        assert app.dirty is True, "the colouring is written into the map"
+        assert "family" in str(app.query(Toast).last().render())
+
+        await pilot.press("c")
+        await pilot.pause()
+        assert app.mm.colours == "depth"
+
+
+async def test_the_colouring_shows_in_the_help_and_the_bar(tmp_path: Path):
+    from spoider.screens import help_text
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(200, 30)) as pilot:
+        await pilot.pause()
+        assert "c colours" in str(app.query_one("#footer").render().plain)
+        assert "colour by depth, or by family" in help_text(app).plain

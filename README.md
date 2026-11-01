@@ -67,6 +67,7 @@ name when there is none, `^O` writes a copy, `^X` asks before throwing edits awa
 | `=` `-` | more or less air between cells |
 | `^F` | search |
 | `^L` | change the shape of the map |
+| `c` | colour by depth, or by branch |
 | `^Z` `^Y` | undo, redo |
 | `^S` `^O` `^X` | save, write out, quit |
 | `^,` `^/` | settings, help |
@@ -87,6 +88,13 @@ the file.
 | `pyramid` | at the top | stack below it |
 | `bush` | at the bottom | grow upwards |
 | `branch` | at the left margin | hang to the right, like a contents page |
+
+`c` switches how the cells are coloured. By **depth**, every level wears one colour
+and a row of the map matches all the way across. By **family**, every branch under
+the root wears one colour for its whole subtree — the cells under `canvas` agree
+whatever their depth, and cells at the same depth under different branches do not.
+The root and the first level look the same either way, and the choice is saved in
+the file with the shape and the spacing.
 
 ## Cutting and pasting
 

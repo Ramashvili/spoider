@@ -310,3 +310,43 @@ def test_the_cells_width_does_not_change_as_the_caret_moves():
         node.preview, node.caret = "alpha", caret
         widths.append(compute(MindMap(node).root, 0).box(node.id).w)
     assert len(set(widths)) == 1, "moving the caret must not re-centre the map"
+
+
+def test_depth_colours_a_level_and_family_colours_a_branch():
+    from spoider.render import cell_colour
+
+    # depth: same level, same colour, whoever you hang under
+    assert cell_colour("depth", 2, 0) == cell_colour("depth", 2, 1)
+    # family: same level, different branch, different colour
+    assert cell_colour("family", 2, 0) != cell_colour("family", 2, 1)
+    # family: different levels, same branch, the same colour
+    assert cell_colour("family", 2, 0) == cell_colour("family", 5, 0)
+    # the root and the first level read the same in both
+    assert cell_colour("family", 1, 3) == cell_colour("depth", 1, 0)
+    assert cell_colour("family", 0, 0) is None
+    # a family never wears the colour of the first level above it
+    assert cell_colour("family", 2, 0) != cell_colour("depth", 1, 0)
+
+
+def test_the_grid_follows_the_colouring_the_document_asks_for():
+    root = Node("root")
+    left, right = Node("left"), Node("right")
+    mid = Node("mid under left")
+    mid.children.append(Node("deep under left"))
+    left.children.append(mid)
+    right.children.append(Node("shallow under right"))
+    root.children.extend([left, right])
+    mm = MindMap(root)
+
+    def style_of(mode: str, text: str) -> str:
+        layout = compute(mm.root, 0)
+        grid = build_grid(layout, (), colours=mode)
+        box = next(box for box in layout.boxes.values() if box.node.text == text)
+        return grid.cells[(box.x + 2, box.y + 1)][1]
+
+    # by depth: the two second-level cells match, whoever they hang under
+    assert style_of("depth", "mid under left") == style_of("depth", "shallow under right")
+    # by family: they do not — and the deeper cell joins its own branch's colour
+    assert style_of("family", "mid under left") != style_of("family", "shallow under right")
+    assert style_of("family", "deep under left") == style_of("family", "mid under left")
+    assert style_of("family", "deep under left") != style_of("depth", "deep under left")

@@ -62,6 +62,7 @@ HELP: tuple[HelpSection, ...] = (
         (
             (("search",), "find cells by their words; ↑ in the prompt recalls one"),
             (("layout",), "cycle the shape: spider, pyramid, bush, branch"),
+            (("colours",), "colour by depth, or by family — one colour per branch"),
             (("spacing_more",), "more air between cells — saved with the map"),
             (("spacing_less",), "less air, down to cells sharing a border row"),
         ),

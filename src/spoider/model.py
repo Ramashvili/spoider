@@ -25,6 +25,9 @@ MAX_DEPTH = 400
 #: spacing, so a map opens looking the way it was left.
 LAYOUTS = ("spider", "pyramid", "bush", "branch")
 DEFAULT_LAYOUT = "spider"
+#: `depth`: one colour per level. `family`: one colour per branch under the root.
+COLOURS = ("depth", "family")
+DEFAULT_COLOURS = "depth"
 
 
 class MapFileError(Exception):
@@ -129,8 +132,12 @@ class MindMap:
         spacing: int = 0,
         layout: str = DEFAULT_LAYOUT,
         cut_stack: list[Node] | None = None,
+        colours: str = DEFAULT_COLOURS,
     ) -> None:
         self.root = root if root is not None else Node(clean(DEFAULT_ROOT_TEXT))
+        #: How the cells are coloured: `depth` gives every level one colour, `family`
+        #: gives every branch under the root one colour for its whole subtree.
+        self.colours = colours if colours in COLOURS else DEFAULT_COLOURS
         #: The stack cuts go on: a cell cut out of the map is kept here, last in
         #: first out, and any of them can be pasted back under whatever cell is
         #: selected — anywhere in the map, not only where it came from. Document
@@ -345,6 +352,7 @@ class MindMap:
             "version": 1,
             "spacing": self.spacing,
             "layout": self.layout,
+            "colours": self.colours,
             "root": self.root.to_dict(),
             "cut": [node.to_dict() for node in self.cut_stack],
         }
@@ -369,7 +377,14 @@ class MindMap:
                 built = Node._build(entry, 0)
                 if built is not None:
                     cut.append(built)
-        return cls(root, spacing, layout if isinstance(layout, str) else DEFAULT_LAYOUT, cut)
+        colours = data.get("colours")
+        return cls(
+            root,
+            spacing,
+            layout if isinstance(layout, str) else DEFAULT_LAYOUT,
+            cut,
+            colours if isinstance(colours, str) else DEFAULT_COLOURS,
+        )
 
     def save(self, path: Path) -> None:
         write_atomic(path, json.dumps(self.to_dict(), indent=2, ensure_ascii=False) + "\n")

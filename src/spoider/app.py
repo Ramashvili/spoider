@@ -175,6 +175,9 @@ BINDINGS: list[BindingType] = [
     # Last on purpose: the bar drops its tail on a narrow terminal, and a shape
     # toggle matters less than saving or quitting. Help still lists it.
     Binding("ctrl+l", "layout", "layout", id="layout"),
+    # how the cells are coloured is a property of the document, so it sits with the
+    # shape rather than in the settings
+    Binding("c", "colours", "colours", id="colours"),
 ]
 
 #: What ↑ and ↓ do in each shape. The siblings always sit side by side; it is the
@@ -1454,6 +1457,17 @@ class SpoiderApp(App[None]):
         # undo stack: nudging the air in three steps should not bury the edit you
         # actually want to undo.
         self._mark_dirty()
+
+    def action_colours(self) -> None:
+        """c — cycle the colouring: by depth, or by family.
+
+        `depth` gives every level one colour, `family` gives every branch under the
+        root one colour for its whole subtree. Like the shape and the spacing it is
+        document state, and like them it is not an edit worth undoing.
+        """
+        self.mm.colours = "family" if self.mm.colours == "depth" else "depth"
+        self._mark_dirty()
+        self.notify(f"Colours: {self.mm.colours}", timeout=1)
 
     def action_layout(self) -> None:
         """^L — cycle the shape of the map: spider, pyramid, bush, branch."""

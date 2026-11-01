@@ -24,7 +24,7 @@ it.
 | --- | --- |
 | `model.py` | `Node`, `MindMap`: the tree, mutations by id, the cut stack, JSON load/save |
 | `layout.py` | places every visible node on a character grid |
-| `render.py` | grid → styled cells (boxes, connectors) → `rich.Text` |
+| `render.py` | grid → styled cells (boxes, connectors, the two colourings) → `rich.Text` |
 | `nav.py` | selection movement rules |
 | `widgets.py` | `MindMapView`: camera, hit-testing, the stack column, clicks |
 | `drawers.py` | bottom drawers: prompt, question, panel |
@@ -44,7 +44,7 @@ ready to move out.
   selection and search hits, `\e[7m` blocks in the top bar. No hex, no RGB, no fixed
   named colour — `orange1` does not parse at all and `orange` is a hard-coded RGB.
 - **Document vs editor state.** The map file holds the tree, text, `collapsed`,
-  `mark`, `spacing`, `layout` and `cut_stack`. `config.conf` holds autosave, the mark
+  `mark`, `spacing`, `layout`, `colours` and `cut_stack`. `config.conf` holds autosave, the mark
   set and chord overrides. Anything that changes how a map looks belongs to the
   document, so a file looks the same wherever it is opened.
 - **Chords are spelled nano's way** everywhere — `^` ctrl, `M-` alt, `S-` shift — never

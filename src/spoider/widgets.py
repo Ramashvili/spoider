@@ -143,7 +143,7 @@ class MindMapView(Widget, can_focus=True):
         self.spoider = spoider
         self._layout: Layout | None = None
         self._grid: Grid | None = None
-        self._grid_key: tuple[int, tuple[str, ...], str] | None = None
+        self._grid_key: tuple[int, tuple[str, ...], str, str] | None = None
         self._offset_x = 0
         self._offset_y = 0
 
@@ -198,9 +198,10 @@ class MindMapView(Widget, can_focus=True):
         query = self.spoider.search_query
         chosen = () if self.spoider.stack_open else tuple(self.spoider.selected_ids)
         lead = self.spoider.selected if len(chosen) > 1 else None
-        key = (id(layout), chosen, query)
+        colours = self.spoider.mm.colours
+        key = (id(layout), chosen, query, colours)
         if self._grid is None or self._grid_key != key:
-            self._grid = build_grid(layout, chosen, query, lead=lead)
+            self._grid = build_grid(layout, chosen, query, lead=lead, colours=colours)
             self._grid_key = key
         grid = self._grid
         if panel is not None:
@@ -231,7 +232,9 @@ class MindMapView(Widget, can_focus=True):
         for index, char in enumerate(STACK_TITLE[:inner]):
             combined.cells[(self._offset_x + wall + 2 + index, self._offset_y)] = (char, "bold")
 
-        art = build_grid(panel, self.spoider.stack_selected or "", lead=None)
+        art = build_grid(
+            panel, self.spoider.stack_selected or "", lead=None, colours=self.spoider.mm.colours
+        )
         # a stack taller than the column follows its own selection
         shift = 0
         focus = panel.box(self.spoider.stack_selected) if self.spoider.stack_selected else None

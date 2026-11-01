@@ -58,6 +58,7 @@ BAR_ORDER: tuple[str, ...] = (
     "toggle_stack",
     "fold",
     "layout",
+    "colours",
     "spacing_more",
     "spacing_less",
 )

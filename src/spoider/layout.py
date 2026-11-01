@@ -19,7 +19,7 @@ uses to draw the link.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from rich.cells import cell_len
 
@@ -173,6 +173,9 @@ class Layout:
     boxes: dict[str, Placed]
     width: int
     height: int
+    #: id -> the index of the first-level branch it hangs under (-1 for the root).
+    #: The family colouring reads it; nothing else does.
+    families: dict[str, int] = field(default_factory=dict)
 
     def box(self, node_id: str) -> Placed | None:
         return self.boxes.get(node_id)
@@ -186,6 +189,19 @@ class Layout:
 
 def compute(root: Node, spacing: int = 0, layout: str = DEFAULT_LAYOUT) -> Layout:
     return compute_with(root, gaps_for(spacing, layout), layout)
+
+
+def families_of(root: Node) -> dict[str, int]:
+    """Which branch under the root each cell belongs to, by id.
+
+    The root itself is -1 and every cell below a first-level child carries that
+    child's index, however deep it is — that is what makes a subtree one family.
+    """
+    families: dict[str, int] = {root.id: -1}
+    for index, child in enumerate(root.children):
+        for node in child.walk():
+            families[node.id] = index
+    return families
 
 
 def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout:
@@ -221,7 +237,7 @@ def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout
 
     width = max(box.right for box in boxes.values()) + 1
     height = max(box.bottom for box in boxes.values()) + 1
-    return Layout(boxes, width, height)
+    return Layout(boxes, width, height, families_of(root))
 
 
 def compute_stack(entries: Sequence[Node], spacing: int = 0) -> Layout:
@@ -233,6 +249,7 @@ def compute_stack(entries: Sequence[Node], spacing: int = 0) -> Layout:
     bubbles rather than a tree with an invisible root.
     """
     boxes: dict[str, Placed] = {}
+    families: dict[str, int] = {}
     width = 0
     height = 0
     for entry in entries:
@@ -243,7 +260,8 @@ def compute_stack(entries: Sequence[Node], spacing: int = 0) -> Layout:
             )
         width = max(width, layer.width)
         height += layer.height + 1
-    return Layout(boxes, width, max(0, height - 1))
+        families.update(layer.families)  # each entry is a root of its own layer
+    return Layout(boxes, width, max(0, height - 1), families)
 
 
 def _place_children(

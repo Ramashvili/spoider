@@ -243,3 +243,16 @@ def test_a_file_without_a_stack_loads_with_an_empty_one(tmp_path):
     path.write_text('{"version": 1, "root": {"text": "root"}}')
 
     assert MindMap.load(path).cut_stack == []
+
+
+def test_the_colouring_is_document_state(tmp_path):
+    mm = MindMap()
+    assert mm.colours == "depth", "depth is what a map has always meant"
+    mm.colours = "family"
+    path = tmp_path / "map.json"
+    mm.save(path)
+    assert MindMap.load(path).colours == "family", "it travels with the file"
+
+    # a colouring this build does not know falls back rather than raising
+    data = mm.to_dict() | {"colours": "sparkle"}
+    assert MindMap.from_dict(data).colours == "depth"

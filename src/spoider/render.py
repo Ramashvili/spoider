@@ -97,13 +97,31 @@ class Grid:
         return self
 
 
-def node_style(depth: int, selected: bool, lead: bool = False) -> str:
+def cell_colour(mode: str, depth: int, family: int) -> str | None:
+    """The ANSI colour a cell wears, or None for the terminal's default foreground.
+
+    `depth` colours a whole level alike: everything at the same depth matches.
+    `family` colours a whole subtree alike: every cell under the nth first-level
+    branch wears one colour, so cells of different depths in one branch agree and
+    cells at the same depth in different branches do not. The root and the first
+    level read the same either way, and a family is offset past the first level's
+    colour so no branch wears the colour of its own parent row.
+    """
+    if depth == 0:
+        return None
+    if mode == "family" and depth >= 2 and family >= 0:
+        return DEPTH_COLORS[(family + 1) % len(DEPTH_COLORS)]
+    return DEPTH_COLORS[(depth - 1) % len(DEPTH_COLORS)]
+
+
+def node_style(colour: str | None, selected: bool, lead: bool = False) -> str:
     """ANSI colour names only — the terminal palette decides the actual colour.
 
-    The root stays on the terminal's default foreground; selection is a reverse
-    video block, which inverts whatever fg/bg the terminal is already using.
+    `colour` is None for the root, which keeps the terminal's default foreground;
+    selection is a reverse video block, which inverts whatever fg/bg the terminal is
+    already using.
     """
-    parts: list[str] = ["bold"] if depth == 0 else [DEPTH_COLORS[(depth - 1) % len(DEPTH_COLORS)]]
+    parts: list[str] = ["bold"] if colour is None else [colour]
     if selected:
         parts.append("reverse")
         if lead:
@@ -119,6 +137,7 @@ def build_grid(
     query: str = "",
     *,
     lead: str | None = None,
+    colours: str = "depth",
 ) -> Grid:
     """`selected` is one id or a whole run of them; `lead` is the one the cursor
     is on, which is only worth marking when the run is longer than one."""
@@ -128,8 +147,9 @@ def build_grid(
         # A cell being renamed drops its selection block: the caret is the highlight
         # there, and a reverse-on-reverse caret would be invisible.
         editing = box.node.preview is not None
+        colour = cell_colour(colours, box.depth, layout.families.get(box.node.id, -1))
         style = node_style(
-            box.depth, box.node.id in chosen and not editing, lead=box.node.id == lead
+            colour, box.node.id in chosen and not editing, lead=box.node.id == lead
         )
         _draw_box(grid, box, style, query)
     for box in layout.boxes.values():
