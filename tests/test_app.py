@@ -2817,3 +2817,66 @@ async def test_the_map_shows_no_cursor_while_the_panel_is_open(tmp_path: Path):
         assert not any("reverse" in style for style in during), (
             "the only highlight on screen is the panel's"
         )
+
+
+async def test_undo_works_inside_the_stack_view(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+        assert [cell.text for cell in app._stack_entries()] == ["alpha"]
+
+        await pilot.press("ctrl+d")  # drop it from the stack
+        await pilot.pause()
+        assert app.mm.cut_stack == []
+        assert not app.stack_open, "an empty stack closes the panel"
+
+        await pilot.press("ctrl+z")  # the panel shut itself, so this is the map's undo
+        await pilot.pause()
+        assert [cell.text for cell in app._stack_entries()] == ["alpha"], "it is back"
+
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+        assert app.stack_open
+        assert app._stack_doc().find(app.stack_selected) is not None, "cursor re-pointed"
+
+
+async def test_redo_works_inside_the_stack_view(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.press("ctrl+d")  # the stack is empty again
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app.mm.cut_stack
+
+        await pilot.press("ctrl+y")  # redo the drop
+        await pilot.pause()
+        assert app.mm.cut_stack == []
+
+
+async def test_undo_after_reordering_the_stack_puts_the_order_back(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+        assert [cell.text for cell in app._stack_entries()] == ["beta", "alpha"]
+
+        await pilot.press("down")
+        await pilot.press("alt+up")  # alpha to the top
+        await pilot.pause()
+        assert [cell.text for cell in app._stack_entries()] == ["alpha", "beta"]
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert [cell.text for cell in app._stack_entries()] == ["beta", "alpha"]

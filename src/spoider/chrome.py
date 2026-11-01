@@ -227,7 +227,7 @@ def stack_chunks(bindings: Iterable, keymap: dict[str, str] | None = None) -> li
             chords.setdefault(binding.action, keymap.get(binding.id, binding.key) or binding.key)
 
     chunks = [entry("^I", "hide stack", literal=True), entry("↑↓←→", "move", literal=True)]
-    for action in ("edit", "mark", "cut", "paste", "delete"):
+    for action in ("edit", "mark", "cut", "paste", "delete", "undo"):
         if action in chords:
             chunks.append(entry(chords[action], labels.get(action, action)))
     return chunks

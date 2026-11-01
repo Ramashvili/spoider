@@ -1031,6 +1031,21 @@ class SpoiderApp(App[None]):
         self._mark_dirty()
         self.view.refresh()
 
+    def _stack_after_history(self) -> None:
+        """Undo and redo swap the whole document, so the panel's cursor has to be
+        put somewhere that still exists — and the panel closed if the stack the
+        restored document carries is empty."""
+        entries = self._stack_entries()
+        if not entries:
+            self.stack_selected = None
+            self._sync_footer()
+            self.view.refresh()
+            return
+        known = {node.id for entry in entries for node in entry.walk()}
+        if self.stack_selected not in known:
+            self.stack_selected = entries[0].id  # the top of the stack
+        self.view.refresh()
+
     def _stack_select(self, doc: MindMap, node_id: str) -> None:
         if node_id != doc.root.id:  # the invisible root is not a cell you can be on
             self.stack_selected = node_id
@@ -1080,11 +1095,13 @@ class SpoiderApp(App[None]):
             if doc.find(selected) is not None:
                 self.begin_edit(selected)
         elif action == "mark":
+            self._push_undo()
             doc.cycle_mark(selected, self.marks)
             self._stack_changed()
         elif action == "fold":
             node = doc.find(selected)
             if node is not None and node.children:
+                self._push_undo()
                 node.collapsed = not node.collapsed
                 self._stack_changed()
         elif action == "cut":
@@ -1101,6 +1118,12 @@ class SpoiderApp(App[None]):
             self._set_spacing(self.mm.spacing + 1)
         elif action == "spacing_less":
             self._set_spacing(self.mm.spacing - 1)
+        elif action == "undo":
+            self.action_undo()
+            self._stack_after_history()
+        elif action == "redo":
+            self.action_redo()
+            self._stack_after_history()
         else:
             return False
         return True
@@ -1116,6 +1139,7 @@ class SpoiderApp(App[None]):
         target = index + delta
         if not 0 <= target < len(order):
             return
+        self._push_undo()
         node = parent.children.pop(index)
         parent.children.insert(target, node)
         self.mm.cut_stack = list(reversed(doc.root.children))
@@ -1160,6 +1184,7 @@ class SpoiderApp(App[None]):
         if parent is None:
             return
         index = [child.id for child in parent.children].index(node_id)
+        self._push_undo()  # every stack change is one step, like a map change
         node = parent.children.pop(index)
         if not discard:
             # the panel reads newest first, so the top of the stack is its index 0

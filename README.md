@@ -285,7 +285,11 @@ too), and `^U` takes the top of the stack and hangs it under the selected cell.
 That last one rearranges the *stack*, not the map: a cut can be nested inside
 another cut without either of them going back into the tree. Pasting a cell into
 itself, or into one of its own children, would make a cycle, so it does nothing at
-all and leaves the stack as it was. `^K` cuts the cell again — which puts it back on top of the stack, where a
+all and leaves the stack as it was.
+
+Everything done here is one undo step, like a change to the map — `^Z` and `^Y`
+work in the panel — and the stack is document state, so a cut that was rearranged
+here is rearranged in the file too. `^K` cuts the cell again — which puts it back on top of the stack, where a
 cut always goes — and `^D` drops it for good. `^I` hides the panel and the map has
 the keys again.
 
