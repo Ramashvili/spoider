@@ -24,6 +24,7 @@ def compose_top_bar(
     stat: str,
     layout: str = "",
     dirty: bool = False,
+    extra: str = "",
 ) -> Text:
     """One line: name+version left, location centred, statistics right.
 
@@ -39,8 +40,14 @@ def compose_top_bar(
     if width <= 0:
         return Text("")
 
-    shaped = bool(layout) and width >= cell_len(stat) + cell_len(layout) + 4
-    right = f"{stat}  {layout}" if shaped else stat
+    # Statistics grow to the right only while there is room: the cell count
+    # stays longest, then whatever `extra` counts, then the shape.
+    right = stat
+    if extra and width >= cell_len(right) + cell_len(extra) + 4:
+        right = f"{right}  {extra}"
+    shaped = bool(layout) and width >= cell_len(right) + cell_len(layout) + 4
+    if shaped:
+        right = f"{right}  {layout}"
     right_width = cell_len(right)
     if width < right_width + 2:
         return Text(clip_head(right, width), style="bold reverse")
@@ -63,9 +70,7 @@ def compose_top_bar(
         bar.append(" " * (band - pad - cell_len(middle) + 1))
     else:
         bar.append(" " * (width - cell_len(name) - right_width))
-    bar.append(stat, style="bold reverse")
-    if shaped:
-        bar.append(f"  {layout}")
+    bar.append(str(right), style="bold reverse")
     return bar
 
 
@@ -83,7 +88,13 @@ class TopBar(Widget):
         # deleted mid-session does not silently become "New Buffer".
         where = str(app.path) if app.has_file else "New Buffer"
         return compose_top_bar(
-            height, __version__, where, app.stat_text(), app.mm.layout, app.dirty
+            height,
+            __version__,
+            where,
+            app.stat_text(),
+            app.mm.layout,
+            app.dirty,
+            extra=app.cut_stat(),
         )
 
 

@@ -247,10 +247,6 @@ class SpoiderApp(App[None]):
         self._last_query = ""  # the last one submitted, to know a repeat
         self._search_history: list[str] = []
         self._write_then_quit = False
-        #: The cells taken by ^K, still detached; ^U pastes copies of them. Not
-        #: `clipboard`: Textual already uses that name for the system clipboard
-        #: it bridges over OSC 52.
-        self.cut_cells: list[Node] = []
         self._settings_row = 0
         #: keys | search | write | marks | ask | settings | help
         self._mode = "keys"
@@ -449,6 +445,15 @@ class SpoiderApp(App[None]):
 
     #: How long the match count stays up after a search is taken, in seconds.
     MATCH_COUNT_SECONDS = 2.0
+
+    def cut_stat(self) -> str:
+        """How many cuts are waiting to be pasted, or nothing when the stack is
+        empty — the stack is part of the document, so it is part of what the bar
+        reports about the document."""
+        count = len(self.mm.cut_stack)
+        if not count:
+            return ""
+        return "1 cut" if count == 1 else f"{count} cut"
 
     def stat_text(self) -> str:
         """What the top bar counts: the matches just after a search, else cells."""
@@ -896,27 +901,29 @@ class SpoiderApp(App[None]):
         if not taken:
             self._undo.pop()
             return
-        self.cut_cells = taken
-        # back where the cells came from: they now live on the clipboard, and
-        # the parent is what you would paste them back under
+        self.mm.push_cut(taken)
+        # back where the cells came from: they now live on the stack, and the
+        # parent is what you would paste them back under
         self.anchor = None
         self.selected = parent.id
         self._mark_dirty()
 
     def action_paste(self) -> None:
-        """^U — paste the cut cell under the selection, as often as you like.
+        """^U — take the most recent cut off the stack and hang it here.
 
-        The selection stays on the parent, so pressing ^U again adds another
-        copy beside the first instead of nesting it inside.
+        Last in, first out: cutting three branches and pressing ^U three times
+        puts them back in the order they were cut, and each press empties the
+        stack by one. A paste the eye cannot see is worth nothing, so the
+        selection stays on the target as its children arrive.
         """
-        if not self.cut_cells:
-            self.notify("Nothing cut yet", timeout=2)
+        if not self.mm.cut_stack:
+            self.notify("Nothing to paste", timeout=2)
             return
-        self._push_undo()
-        for cell in self.cut_cells:
-            if self.mm.paste(self.selected, cell) is None:
-                self._undo.pop()
-                return
+        self._push_undo()  # the snapshot holds the stack, so undo puts it back
+        cell = self.mm.pop_cut()
+        if cell is None or self.mm.paste(self.selected, cell) is None:
+            self._undo.pop()
+            return
         self._mark_dirty()
 
     def action_help(self) -> None:

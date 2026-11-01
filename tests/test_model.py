@@ -209,3 +209,37 @@ def test_next_mark_peeks_without_moving():
     assert cell.mark is None, "peeking changes nothing"
     cell.mark = "✅"
     assert mm.next_mark(cell.id, ("✅", "❌")) == "❌"
+
+
+# -- the cut stack --------------------------------------------------------
+
+
+def test_a_run_is_pushed_so_it_pastes_back_in_document_order():
+    mm = MindMap()
+    cells = [mm.add_child(mm.root.id, name) for name in "abc"]
+
+    mm.push_cut(cells)
+
+    assert [mm.pop_cut().text for _ in cells] == ["a", "b", "c"]
+    assert mm.pop_cut() is None
+
+
+def test_the_cut_stack_is_written_with_the_map(tmp_path):
+    mm = MindMap()
+    cut = mm.add_child(mm.root.id, "cut")
+    cut.children.append(Node("under"))
+    mm.push_cut([cut])
+
+    path = tmp_path / "map.json"
+    mm.save(path)
+    back = MindMap.load(path)
+
+    assert [node.text for node in back.cut_stack] == ["cut"]
+    assert [node.text for node in back.cut_stack[0].walk()] == ["cut", "under"]
+
+
+def test_a_file_without_a_stack_loads_with_an_empty_one(tmp_path):
+    path = tmp_path / "old.json"
+    path.write_text('{"version": 1, "root": {"text": "root"}}')
+
+    assert MindMap.load(path).cut_stack == []

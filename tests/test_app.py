@@ -6,6 +6,7 @@ from spoider.chrome import CARET, FooterBar, compose_footer, hint_chunks
 from spoider.config import load_config
 from spoider.drawers import AskBar, PanelBar, PromptBar
 from spoider.layout import compute
+from spoider.model import MindMap
 from spoider.screens import HELP, help_text, keys_for, settings_text
 from spoider.widgets import TopBar, compose_top_bar
 
@@ -1941,12 +1942,14 @@ async def test_cut_takes_the_branch_out_and_lands_on_its_parent(tmp_path: Path):
         assert [child.text for child in app.mm.root.children] == ["beta"]
         assert app.mm.find(alpha.id) is None
         assert app.selected == app.mm.root.id, "the parent has the focus"
-        assert [cell.text for cell in app.cut_cells] == ["alpha"]
-        assert [node.text for node in app.cut_cells[0].walk()] == ["alpha", "leaf"]
+        assert [cell.text for cell in app.mm.cut_stack] == ["alpha"]
+        assert [node.text for node in app.mm.cut_stack[0].walk()] == ["alpha", "leaf"]
         assert app.dirty
 
 
-async def test_paste_puts_it_under_the_selection_every_time(tmp_path: Path):
+async def test_paste_hangs_the_cut_under_the_selection_and_empties_the_stack(
+    tmp_path: Path,
+):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         alpha, beta = _branch_map(app)
@@ -1957,29 +1960,43 @@ async def test_paste_puts_it_under_the_selection_every_time(tmp_path: Path):
         app.select(beta.id)
         await pilot.press("ctrl+u")
         await pilot.pause()
+
+        assert [child.text for child in beta.children] == ["alpha"]
+        # the whole branch came along, and the index knows the copy
+        assert [child.text for child in beta.children[0].children] == ["leaf"]
+        assert app.mm.find(beta.children[0].children[0].id) is not None
+        assert app.selected == beta.id, "the target keeps the selection"
+        assert app.mm.cut_stack == [], "the cut has been used up"
+
         await pilot.press("ctrl+u")
         await pilot.pause()
-
-        assert [child.text for child in beta.children] == ["alpha", "alpha"]
-        assert beta.children[0].id != beta.children[1].id
-        # the whole branch came along, and the index knows the copies
-        assert [child.text for child in beta.children[0].children] == ["leaf"]
-        assert app.mm.find(beta.children[1].children[0].id) is not None
-        assert app.selected == beta.id, "the target keeps the selection"
+        assert [child.text for child in beta.children] == ["alpha"], "no second copy"
 
 
-async def test_the_clipboard_survives_being_pasted(tmp_path: Path):
+async def test_the_stack_is_last_in_first_out(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        alpha, _ = _branch_map(app)
+        alpha, beta = _branch_map(app)
+
         app.select(alpha.id)
         await pilot.press("ctrl+k")
         await pilot.pause()
-        await pilot.press("ctrl+u")
+        app.select(beta.id)
+        await pilot.press("ctrl+k")
         await pilot.pause()
 
-        assert app.cut_cells, "still there for another ^U"
+        # oldest first on the list, the newest cut on top of it
+        assert [cell.text for cell in app.mm.cut_stack] == ["alpha", "beta"]
+
+        # the newest cut comes back first
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+        assert [child.text for child in app.mm.root.children] == ["beta"]
+
+        await pilot.press("ctrl+u")
+        await pilot.pause()
         assert [child.text for child in app.mm.root.children] == ["beta", "alpha"]
+        assert app.mm.cut_stack == []
 
 
 async def test_paste_with_nothing_cut_changes_nothing(tmp_path: Path):
@@ -2004,7 +2021,7 @@ async def test_the_root_cannot_be_cut(tmp_path: Path):
         await pilot.press("ctrl+k")
         await pilot.pause()
 
-        assert app.cut_cells == []
+        assert app.mm.cut_stack == []
         assert app.mm.root.text
 
 
@@ -2171,7 +2188,7 @@ async def test_delete_removes_the_whole_run_in_one_step(tmp_path: Path):
         assert [child.text for child in app.mm.root.children] == ["a", "b", "c", "d"]
 
 
-async def test_cut_and_paste_move_a_run_together(tmp_path: Path):
+async def test_a_cut_run_comes_back_in_the_order_it_was_cut(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         a, _b, _c, d = _four(app)
@@ -2180,18 +2197,21 @@ async def test_cut_and_paste_move_a_run_together(tmp_path: Path):
 
         await pilot.press("ctrl+k")
         await pilot.pause()
-        assert [cell.text for cell in app.cut_cells] == ["a", "b"]
+        # pushed newest-first, so the top of the stack is the first cell cut
+        assert [cell.text for cell in app.mm.cut_stack] == ["b", "a"]
         assert [child.text for child in app.mm.root.children] == ["c", "d"]
 
         app.select(d.id)
         await pilot.press("ctrl+u")
         await pilot.pause()
+        await pilot.press("ctrl+u")
+        await pilot.pause()
 
         assert [child.text for child in d.children] == ["a", "b"]
 
-        await pilot.press("ctrl+u")  # and the clipboard still holds both
+        await pilot.press("ctrl+u")  # the stack is empty now
         await pilot.pause()
-        assert [child.text for child in d.children] == ["a", "b", "a", "b"]
+        assert [child.text for child in d.children] == ["a", "b"]
 
 
 async def test_one_mark_press_marks_the_whole_run(tmp_path: Path):
@@ -2263,3 +2283,64 @@ async def test_help_lists_the_selection_keys(tmp_path: Path):
         body = app.query_one(PanelBar).render().plain
         assert "⇧↑" in body and "select a run of siblings" in body
         assert "single cell" in body
+
+
+async def test_the_bar_counts_the_cuts_waiting(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        alpha, beta = _branch_map(app)
+        bar = app.query_one(TopBar)
+
+        assert "cut" not in bar.render().plain, "an empty stack says nothing"
+
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+        assert "1 cut" in bar.render().plain
+
+        await pilot.press("ctrl+k")  # the selection landed on the root, which cannot go
+        await pilot.pause()
+        assert "1 cut" in bar.render().plain, "so the stack is unchanged"
+
+        app.select(beta.id)
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+        assert "2 cut" in bar.render().plain
+
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+        assert "1 cut" in bar.render().plain
+
+
+async def test_a_cut_is_still_on_the_stack_after_saving_and_reopening(tmp_path: Path):
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test() as pilot:
+        alpha, _ = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+
+    assert [node.text for node in MindMap.load(path).cut_stack] == ["alpha"]
+
+
+async def test_undo_after_a_paste_puts_the_cut_back_on_the_stack(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        alpha, beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+        app.select(beta.id)
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+
+        # undo restores a snapshot, so read the tree through the app, not the
+        # node this test is holding
+        assert app.mm.find(beta.id).children == [], "the paste is undone"
+        assert [cell.text for cell in app.mm.cut_stack] == ["alpha"], "and the cut is back"

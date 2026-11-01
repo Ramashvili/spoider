@@ -5,7 +5,7 @@ a central idea, the view follows your selection, and the map is a plain JSON fil
 you can diff and version.
 
 ```
- spoider 0.1.0                    ~/Projects/spoider/map.json                    14 cells
+ spoider 0.1.0                   ~/Projects/spoider/map.json           14 cells  2 cut  spider
 
                       ╭────────────╮
          ╭────────────┤   spoider  ├────────────╮
@@ -190,24 +190,50 @@ meaning), `t` folds or unfolds whichever of them have children, and `alt+↑` /
 
 A plain move, or `esc`, drops the run without moving anything else.
 
+The right of the top bar is where counts live: cells, then the cuts waiting on the
+stack, then the shape. Each one is dropped as the terminal narrows — shape first,
+then the cut count — so the cell count is the last thing to go, and a number is
+never cut in half.
+
 ## Cutting and pasting
 
-`^K` lifts a branch out of the map and `^U` puts it back under whatever is
-selected. It is the way to reparent something: cut a branch, walk to its new
-parent, paste. A run of selected siblings is cut and pasted together, keeping the
-order it had.
+`^K` takes the selected cells out of the map and puts them on a stack; `^U` takes
+the top of that stack and hangs it under the selection. It is the way to reparent
+something: cut a branch, walk to its new parent, paste.
 
-The cut cell leaves the map immediately and the selection goes to its parent, so
-you are standing where the branch came from. `^U` appends copies as the last
-child, and the selection stays on the target — pasting is how you build a list of
-the same thing, so a second `^U` adds a sibling of the first rather than nesting
-inside it. The original stays on the clipboard, so one cut can be pasted as many
-times as you like; a pasted branch arrives with its own ids, its marks, its
-folds and its whole subtree. Pasting into a folded cell opens it, since a branch
-you cannot see is a surprise.
+The stack is last in, first out. Cutting one branch, then another, and pressing
+`^U` twice gives them back newest first — the same gesture as undo, but for cells
+rather than history. A run of siblings selected with `shift` is pushed
+newest-first, so it comes back in the order it was cut, one cell per `^U`.
 
-The clipboard lives in the session, not in the file: it is editor state like the
-undo stack, and it does not survive a restart.
+Each paste consumes its entry: a cut is used once and then it is gone. That is
+the trade for the stack, and it is what makes the count in the top bar mean
+something — `2 cut` is two branches you can still get back, not two branches you
+could paste forever.
+
+The cut leaves the map immediately and the selection goes to its parent, so you
+are standing where the branch came from. The selection then stays on the target as
+cells arrive under it, so repeated pastes build a list as siblings rather than
+nesting. A pasted branch arrives with its own ids, its marks, its folds and its
+whole subtree; pasting into a folded cell opens it, since a branch you cannot see
+is a surprise.
+
+**The stack is written into the file**, next to `root` and `spacing`:
+
+```json
+{
+  "version": 1,
+  "spacing": 0,
+  "layout": "spider",
+  "root": { "id": "…", "text": "root", "children": [] },
+  "cut": [ { "id": "…", "text": "alpha", "children": [] } ]
+}
+```
+
+So closing the editor does not throw away a cut you were in the middle of making,
+and a map carries the scraps you took from it. Undo covers the stack too: undoing
+a paste puts the cell back on top, because the snapshot it restores predates the
+pop.
 
 ## Searching
 

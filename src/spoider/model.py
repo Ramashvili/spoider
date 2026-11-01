@@ -121,9 +121,17 @@ class MindMap:
     """The whole document. Mutations are by node id so the UI can stay stateless."""
 
     def __init__(
-        self, root: Node | None = None, spacing: int = 0, layout: str = DEFAULT_LAYOUT
+        self,
+        root: Node | None = None,
+        spacing: int = 0,
+        layout: str = DEFAULT_LAYOUT,
+        cut_stack: list[Node] | None = None,
     ) -> None:
         self.root = root if root is not None else Node(clean(DEFAULT_ROOT_TEXT))
+        #: Cells taken by ^K and not yet pasted, top of the stack last. This is
+        #: document state, written into the file, so a map carries the scraps
+        #: you took from it — closing the editor does not lose the cut.
+        self.cut_stack: list[Node] = list(cut_stack or [])
         # Presentation that belongs to the document: a map with 40 cells wants a
         # different amount of air than one with 4, and it should look the same
         # wherever it is opened.
@@ -227,6 +235,15 @@ class MindMap:
         self._parent_of[node.id] = parent
         return node
 
+    def push_cut(self, cells: Sequence[Node]) -> None:
+        """Put cells on the stack newest-first, so a run pastes back in document
+        order: the first cell cut is the first one a ^U brings back."""
+        self.cut_stack.extend(reversed(list(cells)))
+
+    def pop_cut(self) -> Node | None:
+        """Take the most recent cut off the stack, or None when it is empty."""
+        return self.cut_stack.pop() if self.cut_stack else None
+
     def paste(self, parent_id: str, node: Node) -> Node | None:
         """Append a copy of `node` under `parent_id`. The original is untouched,
         so the same cut can be pasted again and again."""
@@ -320,6 +337,7 @@ class MindMap:
             "spacing": self.spacing,
             "layout": self.layout,
             "root": self.root.to_dict(),
+            "cut": [node.to_dict() for node in self.cut_stack],
         }
 
     @classmethod
@@ -335,7 +353,14 @@ class MindMap:
         except (TypeError, ValueError):
             spacing = 0
         layout = data.get("layout")
-        return cls(root, spacing, layout if isinstance(layout, str) else DEFAULT_LAYOUT)
+        cut: list[Node] = []
+        raw_cut = data.get("cut")
+        if isinstance(raw_cut, list):
+            for entry in raw_cut:  # a hand-edited file may hold anything here
+                built = Node._build(entry, 0)
+                if built is not None:
+                    cut.append(built)
+        return cls(root, spacing, layout if isinstance(layout, str) else DEFAULT_LAYOUT, cut)
 
     def save(self, path: Path) -> None:
         write_atomic(path, json.dumps(self.to_dict(), indent=2, ensure_ascii=False) + "\n")
