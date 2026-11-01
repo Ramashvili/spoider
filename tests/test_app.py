@@ -2258,20 +2258,17 @@ async def test_a_run_moves_as_one_block(tmp_path: Path):
         assert [child.text for child in app.mm.root.children] == ["b", "c", "a", "d"]
 
 
-async def test_the_bar_spells_the_selection_keys_for_the_shape(tmp_path: Path):
+async def test_the_bar_leaves_selection_to_help(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(120, 30)) as pilot:
         _four(app)
         bar = app.query_one("#footer", FooterBar).render().plain
-        assert "⇧↑↓" in bar and "select" in bar
+        assert "select" not in bar, "the shift keys are left to be discovered"
+        assert "⇧" not in bar and "⌥" not in bar
 
-        app.mm.layout = "pyramid"
-        app.view.refresh_map()
-        app.query_one("#footer", FooterBar).refresh()
+        await pilot.press("ctrl+slash")
         await pilot.pause()
-
-        bar = app.query_one("#footer", FooterBar).render().plain
-        assert "⇧←→" in bar, "sideways layouts are selected with left and right"
+        assert "select a run of siblings" in app.query_one(PanelBar).render().plain
 
 
 async def test_help_lists_the_selection_keys(tmp_path: Path):
