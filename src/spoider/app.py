@@ -1122,20 +1122,32 @@ class SpoiderApp(App[None]):
         self._stack_changed()
 
     def _stack_paste(self) -> None:
-        """^U inside the panel: put the newest cut back into the map.
+        """^U inside the panel: hang the newest cut under the selected cell.
 
-        The map keeps its selection while the panel is open, so this is the same
-        paste as on the map — the cell lands under whatever was selected there —
-        and the only thing the panel does is lose its top and, when it is empty,
-        close.
+        This rearranges the stack without touching the map — the top comes off the
+        stack and becomes a child of whatever is selected in the panel. A cell
+        cannot be pasted into itself or into one of its own children (that would
+        be a cycle), so that case does nothing at all and leaves the stack as it
+        was, rather than reporting a failure for a key that cannot work here.
         """
         if not self.mm.cut_stack:
             self.notify("Nothing to paste", severity="error", timeout=2)
             return
-        self.action_paste()
-        if not self.mm.cut_stack:
-            self.stack_selected = None  # nothing left to show
-            self._sync_footer()
+        top = self.mm.cut_stack[-1]
+        target = self.stack_selected
+        if target is None or any(node.id == target for node in top.walk()):
+            return  # into itself, or into something it already contains
+
+        self._push_undo()  # the stack is document state, so undo covers this too
+        cell = self.mm.pop_cut()
+        doc = self._stack_doc()  # rebuilt without the cell that left the stack
+        if cell is None or doc.find(target) is None:
+            self.mm.cut_stack.append(cell) if cell is not None else None
+            self._undo.pop()
+            return
+        doc.paste(target, cell)
+        self.mm.cut_stack = list(reversed(doc.root.children))
+        self._mark_dirty()
         self.view.refresh()
 
     def _stack_take(self, doc: MindMap, node_id: str, *, discard: bool) -> None:

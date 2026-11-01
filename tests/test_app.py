@@ -2723,25 +2723,62 @@ async def test_the_panel_bar_borrows_the_main_bars_words(tmp_path: Path):
         assert "^W cut" in bar, "the chord is the one in force, and the word is the bar's"
 
 
-async def test_paste_inside_the_panel_puts_the_cut_back_in_the_map(tmp_path: Path):
+async def test_paste_inside_the_panel_nests_the_cut_under_the_selection(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(110, 24)) as pilot:
-        alpha, beta = _branch_map(app)
+        alpha, _beta = _branch_map(app)
         app.select(alpha.id)
-        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+k")  # cuts alpha
+        await pilot.press("ctrl+k")  # cuts beta, where the cursor landed
         await pilot.press("ctrl+i")
         await pilot.pause()
         cells = app.mm.count()
 
+        await pilot.press("down")  # onto the older entry, at the bottom
+        await pilot.press("ctrl+u")  # the top of the stack becomes its child
+        await pilot.pause()
+
+        assert app.mm.count() == cells, "the map is not touched"
+        assert [cell.text for cell in app._stack_entries()] == ["alpha"]
+        # alpha already had "leaf"; the cut arrives after it
+        assert [child.text for child in app.mm.cut_stack[0].children] == ["leaf", "beta"]
+
+
+async def test_pasting_a_cell_into_itself_does_nothing(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        # the cursor starts on the top of the stack, which is the cell ^U would paste
         await pilot.press("ctrl+u")
         await pilot.pause()
 
-        assert app.mm.count() == cells + 2, "alpha and its leaf are back"
-        assert app.mm.cut_stack == []
-        assert not app.stack_open, "nothing is left to show, so the column goes"
+        assert [cell.text for cell in app.mm.cut_stack] == ["alpha"]
+        assert [child.text for child in app.mm.cut_stack[0].children] == ["leaf"], (
+            "it was not made its own child"
+        )
 
-        # it landed under whatever the map had selected, which is beta
-        assert [child.text for child in app.mm.find(beta.id).children] == ["alpha"]
+
+async def test_pasting_a_cell_into_its_own_child_does_nothing(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        await pilot.press("right")  # into alpha's own child
+        assert app._stack_doc().find(app.stack_selected).text == "leaf"
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+
+        assert [cell.text for cell in app.mm.cut_stack] == ["alpha"], "a cycle is refused"
+        assert [child.text for child in app.mm.cut_stack[0].children] == ["leaf"]
 
 
 async def test_the_panel_is_a_column_with_a_wall_and_a_title(tmp_path: Path):
