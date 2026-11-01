@@ -65,7 +65,7 @@ one of them.
 | `^X` | quit; if the buffer is modified it asks `y save / n discard / esc cancel` | nano: exit |
 | `^=` | widen the gaps between cells — one column and one row per press (saved with the map) | |
 | `^-` | tighten them again, down to boxes that almost touch | |
-| `^L` | cycle the shape of the map: spider → pyramid → tree → outline (saved with the map) | **l**ayout |
+| `^L` | cycle the shape of the map: spider → pyramid → bush → branch (saved with the map) | **l**ayout |
 | `^/` | help: every key, with a line of explanation — any key closes it | |
 | `^,` | editor settings — the autosave switch | like every other preferences chord |
 
@@ -104,14 +104,15 @@ looking the way it was left, wherever it is opened.
 | --- | --- | --- |
 | `spider` | in the middle | fan out both ways, alternating right and left |
 | `pyramid` | at the top | stack below it, side by side |
-| `tree` | at the bottom | grow upwards |
-| `outline` | at the left margin | hang to the right, like a table of contents |
+| `bush` | at the bottom | grow upwards |
+| `branch` | at the left margin | hang to the right, like a table of contents |
 
-In `pyramid` and `tree` the arrow keys follow the drawing: down goes into the
-children, up goes back to the parent, and left/right step between siblings. In
-`spider` and `outline` they keep their sideways meaning. A map is drawn in
-`spider` unless the file says otherwise, so maps written before this existed open
-exactly as they did.
+The arrow keys follow the drawing, not the structure: whatever is *above* the selected
+cell is what `↑` goes to. In `pyramid` that is the parent and in `bush` it is the
+children; in `spider` and `branch` the levels run sideways, so `←` / `→` cross a
+level and `↑` / `↓` step between siblings. A map is drawn in `spider` unless the
+file says otherwise, so maps written before this existed open exactly as they
+did — as do the two shapes' earlier names, `tree` and `outline`.
 
 The bar carries the keys you cannot guess — inserts, edits, spacing, file, undo.
 The four navigation chords are deliberately absent: arrows and `hjkl` cover
@@ -205,9 +206,9 @@ reverse video. That means it looks right on a dark theme, a light theme, or a
 ## Placement
 
 - Every shape is the same problem: give each subtree a band and centre the parent
-  on the band under it. `spider` and `outline` pack bands vertically (children
+  on the band under it. `spider` and `branch` pack bands vertically (children
   stack down a column, to the left and right or only to the right); `pyramid` and
-  `tree` pack them horizontally (children sit in a row, below or above).
+  `bush` pack them horizontally (children sit in a row, below or above).
 - In `spider` the root's children alternate sides by index: 0 right, 1 left,
   2 right, …, and a whole branch keeps its side.
 - A box border is stored as the directions that cell continues in, not as a

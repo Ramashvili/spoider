@@ -152,8 +152,8 @@ def test_a_pyramid_link_leaves_the_parent_edge_and_arrives_at_the_childs():
     assert "╰───┬" in drawn or "┬───╯" in drawn
 
 
-def test_a_tree_link_points_upwards():
-    layout = _shaped("tree")
+def test_a_bush_link_points_upwards():
+    layout = _shaped("bush")
     root_id = next(iter(layout.boxes))
     drawn = render_text(build_grid(layout, root_id), 0, 0, layout.width, layout.height).plain
     assert "┬" in drawn and "┴" in drawn
@@ -170,3 +170,16 @@ def test_boxes_touching_in_a_pyramid_are_joined_not_overwritten():
     shared = [row for row in drawn.splitlines() if "┬" in row or "┴" in row]
     assert shared, "expected a shared border row"
     assert "┬" in shared[0] and "┴" in shared[0]
+
+
+def test_a_child_centred_under_its_parent_stays_connected():
+    # the centres line up, so there is no horizontal run to draw — the single row
+    # between the two edges still has to be a wall, not a hole
+    for name in ("pyramid", "bush"):
+        mm = MindMap(Node("root"))
+        mm.add_child(mm.root.id, "child")
+        layout = compute(mm.root, 0, name)
+        drawn = render_text(build_grid(layout, mm.root.id), 0, 0, layout.width, layout.height)
+        lines = [line.strip() for line in drawn.plain.splitlines()]
+        assert "│" in lines, f"{name}: the two boxes are not joined"
+        assert "┬" in drawn.plain and "┴" in drawn.plain

@@ -4,10 +4,10 @@ Four shapes, all of them a band-packing of the same tree:
 
 - `spider`  — children fan out both sides of the root (even indices right, odd
   left); each subtree gets a vertical band and a parent is centred on it.
-- `outline` — the same, but every child hangs to the right of its parent, so the
+- `branch`  — the same, but every child hangs to the right of its parent, so the
   map reads like a table of contents down the left margin.
 - `pyramid` — the root sits at the top and children stack below it.
-- `tree`    — the same, upside down: the root is at the bottom and the branches
+- `bush`    — the same, upside down: the root is at the bottom and the branches
   grow upwards.
 
 `side` is the left/right half a box lives on (only the spider uses both), and
@@ -154,7 +154,7 @@ def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout
         layout = DEFAULT_LAYOUT
     boxes: dict[str, Placed] = {}
 
-    if layout in ("pyramid", "tree"):
+    if layout in ("pyramid", "bush"):
         flow = DOWN if layout == "pyramid" else UP
         _place_stack(boxes, root, 0, 0, subtree_width(root, gaps.x), 0, gaps, flow)
     else:
@@ -165,7 +165,7 @@ def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout
             if layout == "spider":
                 _place_children(boxes, root_box, root.children[0::2], 1, gaps, RIGHT)
                 _place_children(boxes, root_box, root.children[1::2], -1, gaps, LEFT)
-            else:  # outline: every child, at every depth, hangs to the right
+            else:  # branch: every child, at every depth, hangs to the right
                 _place_children(boxes, root_box, root.children, 1, gaps, RIGHT)
 
     min_x = min(box.x for box in boxes.values())

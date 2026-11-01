@@ -121,6 +121,24 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+l", "layout", "layout", id="layout"),
 ]
 
+#: What ↑ and ↓ do in each shape. The siblings always sit side by side; it is the
+#: level that moves. A pyramid hangs its children below the parent, so down goes
+#: deeper; a bush hangs them above it, so up goes deeper and down goes home.
+UP_MEANING: dict[str, str] = {
+    "spider": "prev",
+    "branch": "prev",
+    "pyramid": "parent",
+    "bush": "child",
+}
+
+DOWN_MEANING: dict[str, str] = {
+    "spider": "next",
+    "branch": "next",
+    "pyramid": "child",
+    "bush": "parent",
+}
+
+
 def default_keymap() -> dict[str, str]:
     """id -> the chord(s) that action was born with."""
     return {
@@ -600,9 +618,9 @@ class SpoiderApp(App[None]):
     def action_go_left(self) -> None:
         """^B / ←. On a left-hand branch the children are drawn to the left, so
         the directions swap: left goes deeper, right goes back towards the root.
-        From the root itself, left is its left-hand branch. In a pyramid or a
-        tree the siblings sit side by side, so left is simply the one before."""
-        if self._stacked:
+        From the root itself, left is its left-hand branch. Where the levels are
+        stacked the siblings sit side by side, so left is simply the one before."""
+        if self._sideways_arrows_are_siblings:
             self.select(nav.to_sibling(self.mm, self.selected, -1))
             return
         if self._at_root:
@@ -614,7 +632,7 @@ class SpoiderApp(App[None]):
 
     def action_go_right(self) -> None:
         """^F / →. Mirrors action_go_left."""
-        if self._stacked:
+        if self._sideways_arrows_are_siblings:
             self.select(nav.to_sibling(self.mm, self.selected, +1))
             return
         if self._at_root:
@@ -625,24 +643,28 @@ class SpoiderApp(App[None]):
             self._into_child()
 
     @property
-    def _stacked(self) -> bool:
-        """True when children hang below (pyramid) or above (tree) the parent:
-        the arrows have to mean something different from the sideways shapes."""
-        return self.mm.layout in ("pyramid", "tree")
+    def _sideways_arrows_are_siblings(self) -> bool:
+        """True when the levels are stacked, so ← / → walk the row of siblings
+        and ↑ / ↓ are left to cross a level."""
+        return self.mm.layout in ("pyramid", "bush")
 
     def action_prev(self) -> None:
-        """Previous sibling; up towards the parent when the tree grows sideways."""
-        if self._stacked:
-            self._to_parent()
-        else:
-            self.select(nav.to_sibling(self.mm, self.selected, -1))
+        """^P / ↑ — whatever is above the selection in this shape."""
+        self._move(UP_MEANING[self.mm.layout])
 
     def action_next(self) -> None:
-        """Next sibling; down a level when the tree grows downwards."""
-        if self._stacked:
-            self._into_child()
-        else:
+        """^N / ↓ — whatever is below the selection in this shape."""
+        self._move(DOWN_MEANING[self.mm.layout])
+
+    def _move(self, kind: str) -> None:
+        if kind == "prev":
+            self.select(nav.to_sibling(self.mm, self.selected, -1))
+        elif kind == "next":
             self.select(nav.to_sibling(self.mm, self.selected, +1))
+        elif kind == "parent":
+            self._to_parent()
+        else:  # "child"
+            self._into_child()
 
     def action_move_up(self) -> None:
         self._reorder(-1)
@@ -670,7 +692,7 @@ class SpoiderApp(App[None]):
         self._mark_dirty()
 
     def action_layout(self) -> None:
-        """^L — cycle the shape of the map: spider, pyramid, tree, outline."""
+        """^L — cycle the shape of the map: spider, pyramid, bush, branch."""
         order = LAYOUTS
         self.mm.layout = order[(order.index(self.mm.layout) + 1) % len(order)]
         # like spacing, the shape is document state but not an edit worth undoing

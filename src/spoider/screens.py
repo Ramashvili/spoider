@@ -52,7 +52,7 @@ HELP: tuple[HelpSection, ...] = (
     (
         "View",
         (
-            (("layout",), "cycle the shape: spider, pyramid, tree, outline"),
+            (("layout",), "cycle the shape: spider, pyramid, bush, branch"),
             (("spacing_more",), "more air between cells — saved with the map"),
             (("spacing_less",), "less air, down to cells sharing a border row"),
         ),

@@ -23,8 +23,12 @@ MAX_DEPTH = 400
 
 #: The shapes a map can be drawn in. The name is stored in the file, like the
 #: spacing, so a map opens looking the way it was left.
-LAYOUTS = ("spider", "pyramid", "tree", "outline")
+LAYOUTS = ("spider", "pyramid", "bush", "branch")
 DEFAULT_LAYOUT = "spider"
+
+#: Names these shapes had before they were renamed; a map saved then still opens
+#: the way it was left.
+RENAMED_LAYOUTS = {"tree": "bush", "outline": "branch"}
 
 
 class MapFileError(Exception):
@@ -141,7 +145,9 @@ class MindMap:
 
     @layout.setter
     def layout(self, value: str) -> None:
-        self._layout = value if value in LAYOUTS else DEFAULT_LAYOUT
+        self._layout = RENAMED_LAYOUTS.get(value, value)
+        if self._layout not in LAYOUTS:
+            self._layout = DEFAULT_LAYOUT
 
     # -- lookup ---------------------------------------------------------
 

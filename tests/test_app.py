@@ -1414,7 +1414,7 @@ async def test_ctrl_l_cycles_the_shapes_and_marks_the_buffer_dirty(tmp_path: Pat
             await pilot.press("ctrl+l")
             await pilot.pause()
             seen.append(app.mm.layout)
-        assert seen == ["pyramid", "tree", "outline", "spider"]
+        assert seen == ["pyramid", "bush", "branch", "spider"]
         assert app.dirty
 
 
@@ -1431,10 +1431,10 @@ async def test_the_shape_is_written_into_the_map_file(tmp_path: Path):
 
 async def test_a_saved_shape_is_what_opens_next_time(tmp_path: Path):
     path = tmp_path / "map.json"
-    path.write_text(json.dumps({"version": 1, "layout": "tree", "root": {"text": "x"}}))
+    path.write_text(json.dumps({"version": 1, "layout": "bush", "root": {"text": "x"}}))
     app = SpoiderApp(path, demo=False)
     async with app.run_test():
-        assert app.mm.layout == "tree"
+        assert app.mm.layout == "bush"
         assert app.view.layout_.boxes, "and it is what gets drawn"
 
 
@@ -1470,3 +1470,33 @@ async def test_the_layout_key_is_in_the_bar_and_the_help(tmp_path: Path):
     async with app.run_test():
         assert keys_for(app, ("layout",)) == "^L"
         assert "cycle the shape" in help_text(app).plain
+
+
+async def test_arrows_follow_a_bush(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        app.mm.layout = "bush"
+        app.view.refresh_map()
+        child = app.mm.add_child(app.selected, "child")
+
+        app.select(app.mm.root.id)
+        await pilot.press("up")  # the branches grow upwards, so up goes deeper
+        await pilot.pause()
+        assert app.selected == child.id
+
+        await pilot.press("down")  # and down comes back towards the root
+        await pilot.pause()
+        assert app.selected == app.mm.root.id
+
+
+def test_up_and_down_mean_what_is_drawn():
+    from spoider.app import DOWN_MEANING, UP_MEANING
+    from spoider.model import LAYOUTS
+
+    assert set(UP_MEANING) == set(LAYOUTS) == set(DOWN_MEANING)
+    # a pyramid hangs its children below the parent, a bush above it
+    assert (UP_MEANING["pyramid"], DOWN_MEANING["pyramid"]) == ("parent", "child")
+    assert (UP_MEANING["bush"], DOWN_MEANING["bush"]) == ("child", "parent")
+    # sideways shapes keep the siblings on the up/down arrows
+    for name in ("spider", "branch"):
+        assert (UP_MEANING[name], DOWN_MEANING[name]) == ("prev", "next")

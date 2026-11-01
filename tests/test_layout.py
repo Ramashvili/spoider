@@ -241,22 +241,22 @@ def test_pyramid_centres_a_parent_over_the_band_under_it():
     assert abs(root.cx - (left + right) // 2) <= 1
 
 
-def test_tree_is_the_pyramid_upside_down():
+def test_bush_is_the_pyramid_upside_down():
     mm, _, _, a1, _ = _shaped()
     pyramid = compute(mm.root, 0, "pyramid")
-    tree = compute(mm.root, 0, "tree")
+    bush = compute(mm.root, 0, "bush")
 
-    assert (tree.width, tree.height) == (pyramid.width, pyramid.height)
+    assert (bush.width, bush.height) == (pyramid.width, pyramid.height)
     for node_id, box in pyramid.boxes.items():
-        twin = tree.boxes[node_id]
+        twin = bush.boxes[node_id]
         assert twin.x == box.x
         assert twin.y == pyramid.height - box.y - BOX_H
-    assert tree.boxes[mm.root.id].y > tree.boxes[a1.id].y  # root at the bottom
+    assert bush.boxes[mm.root.id].y > bush.boxes[a1.id].y  # root at the bottom
 
 
-def test_outline_hangs_every_child_to_the_right_of_its_parent():
+def test_branch_hangs_every_child_to_the_right_of_its_parent():
     mm, _alpha, _beta, _a1, _a2 = _shaped()
-    layout = compute(mm.root, 0, "outline")
+    layout = compute(mm.root, 0, "branch")
     for node in mm.nodes():
         parent = mm.parent(node.id)
         if parent is None:

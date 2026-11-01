@@ -179,7 +179,7 @@ def _draw_link(grid: Grid, parent: Placed, child: Placed) -> None:
 
 
 def _draw_stack_link(grid: Grid, parent: Placed, child: Placed, flow: str) -> None:
-    """A link between two levels of a pyramid or a tree: down or up the page."""
+    """A link between two levels of a pyramid or a bush: down or up the page."""
     down = flow == DOWN
     step = 1 if down else -1
     start = parent.bottom + 1 if down else parent.y - 1
@@ -198,6 +198,15 @@ def _draw_stack_link(grid: Grid, parent: Placed, child: Placed, flow: str) -> No
         return
 
     mid = start + step * min(1, room)
+
+    if start == end and parent.cx == child.cx:
+        # One row between the edges and the centres line up: a straight drop.
+        # There is no segment to draw, so the single cell has to be set by hand.
+        grid.add_edge(parent.cx, start, U | D, LINK_COLOR)
+        grid.add_edge(parent.cx, parent_edge, D if down else U, LINK_COLOR)
+        grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
+        return
+
     points = [(parent.cx, start), (parent.cx, mid), (child.cx, mid), (child.cx, end)]
     for (x1, y1), (x2, y2) in pairwise(points):
         if y1 == y2:
