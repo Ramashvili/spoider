@@ -796,25 +796,6 @@ def test_comments_and_loose_spacing_are_tolerated(tmp_path: Path):
     assert config.keys == {"save": "ctrl+w"}
 
 
-def test_an_old_json_config_is_still_read(tmp_path: Path):
-    legacy = tmp_path / "config.json"
-    legacy.write_text(json.dumps({"autosave": True, "keys": {"save": "ctrl+w"}}))
-
-    config = SpoiderApp(tmp_path / "map.json", config_path=tmp_path / "config.conf").config
-    assert config.autosave is True
-    assert config.keys["save"] == "ctrl+w"
-
-
-def test_an_old_toml_config_is_still_read(tmp_path: Path):
-    legacy = tmp_path / "config.toml"
-    legacy.write_text('autosave = true\nmarks = ["🔴"]\n[keys]\nsave = "ctrl+w"\n')
-
-    config = SpoiderApp(tmp_path / "map.json", config_path=tmp_path / "config.conf").config
-    assert config.autosave is True
-    assert config.marks == ("🔴",)
-    assert config.keys["save"] == "ctrl+w"
-
-
 async def test_editing_the_marks_from_settings(tmp_path: Path):
     config_path = tmp_path / "config.conf"
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)

@@ -15,9 +15,7 @@ marks = ✅ ❌ ❓ ❗ 🕐
 
 from __future__ import annotations
 
-import json
 import os
-import tomllib
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -81,43 +79,13 @@ def parse(text: str) -> Config:
     return config
 
 
-def _legacy(path: Path) -> Config | None:
-    """Read a file from before the move to flat rc, once, so nothing is lost."""
-    toml_path = path.with_name("config.toml")
-    try:
-        with toml_path.open("rb") as handle:
-            return parse(_from_mapping(tomllib.load(handle)))
-    except (OSError, tomllib.TOMLDecodeError, UnicodeDecodeError):
-        pass
-
-    json_path = path.with_name("config.json")
-    try:
-        data = json.loads(json_path.read_text())
-    except (OSError, ValueError):
-        return None
-    return parse(_from_mapping(data)) if isinstance(data, dict) else None
-
-
-def _from_mapping(data: dict) -> str:
-    """Turn the old nested shape into the flat file the parser understands."""
-    lines = [f"autosave = {str(bool(data.get('autosave', False))).lower()}"]
-    marks = data.get("marks")
-    if isinstance(marks, list) and marks:
-        lines.append("marks = " + " ".join(str(mark) for mark in marks))
-    keys = data.get("keys")
-    if isinstance(keys, dict):
-        for name, chord in keys.items():
-            if isinstance(chord, str) and chord.strip():
-                lines.append(f"{name} = {chord.strip()}")
-    return "\n".join(lines)
-
-
 def load_config(path: Path | None = None) -> Config:
+    """The flat rc file, or the defaults when there is none to read."""
     path = Path(path) if path is not None else default_config_path()
     try:
         return parse(path.read_text())
     except (OSError, UnicodeDecodeError):
-        return _legacy(path) or Config()
+        return Config()
 
 
 def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -> str:

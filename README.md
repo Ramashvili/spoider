@@ -319,9 +319,6 @@ values are ignored, so a typo costs you one chord rather than the keymap. The
 shortcut bar and the help screen both read the chords in force, so they never
 advertise a key you no longer have.
 
-A `config.json` or `config.toml` from an older build is read once, so nothing is
-lost; the next save writes `config.conf` beside it.
-
 ## Colours
 
 spoider ships no palette and no theme switcher. It runs on Textual's `ansi` theme,
