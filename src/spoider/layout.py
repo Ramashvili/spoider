@@ -2,8 +2,9 @@
 
 Four shapes, all of them a band-packing of the same tree:
 
-- `spider`  — children fan out both sides of the root (even indices right, odd
-  left); each subtree gets a vertical band and a parent is centred on it.
+- `spider`  — the root's children fan out both sides: the first half down the
+  right, the second half down the left, so reading the map top to bottom matches
+  the order in the tree; each subtree gets a band and a parent is centred on it.
 - `branch`  — the same, but every child hangs to the right of its parent, so the
   map reads like a table of contents down the left margin.
 - `pyramid` — the root sits at the top and children stack below it.
@@ -181,8 +182,13 @@ def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout
         boxes[root.id] = root_box
         if root.children and not root.collapsed:
             if layout == "spider":
-                _place_children(boxes, root_box, root.children[0::2], 1, gaps, RIGHT)
-                _place_children(boxes, root_box, root.children[1::2], -1, gaps, LEFT)
+                # First half down the right, second half down the left. Splitting
+                # the list instead of alternating it keeps document order and
+                # reading order the same: ↓ walks a side without hopping across
+                # the root, and the jump happens once, where the sides meet.
+                split = (len(root.children) + 1) // 2
+                _place_children(boxes, root_box, root.children[:split], 1, gaps, RIGHT)
+                _place_children(boxes, root_box, root.children[split:], -1, gaps, LEFT)
             else:  # branch: every child, at every depth, hangs to the right
                 _place_children(boxes, root_box, root.children, 1, gaps, RIGHT)
 

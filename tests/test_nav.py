@@ -7,21 +7,23 @@ from spoider.model import MindMap
 
 
 def _map():
-    """root with four branches: 0 and 2 on the right, 1 and 3 on the left."""
+    """root with four branches: the first two on the right, the last two left."""
     mm = MindMap()
     branches = [mm.add_child(mm.root.id, f"b{index}") for index in range(4)]
     leaves = [mm.add_child(branch.id, f"leaf{index}") for index, branch in enumerate(branches)]
     return mm, branches, leaves
 
 
-def test_even_root_children_are_on_the_right_and_odd_on_the_left():
+def test_the_first_half_of_the_children_is_on_the_right():
     mm, branches, _ = _map()
-    assert [nav.side(mm, branch.id) for branch in branches] == [1, -1, 1, -1]
+    # four children fill the right side first, then the left: reading down one
+    # side is the same as reading down the tree
+    assert [nav.side(mm, branch.id) for branch in branches] == [1, 1, -1, -1]
 
 
 def test_a_whole_branch_keeps_its_side():
     mm, _branches, leaves = _map()
-    assert [nav.side(mm, leaf.id) for leaf in leaves] == [1, -1, 1, -1]
+    assert [nav.side(mm, leaf.id) for leaf in leaves] == [1, 1, -1, -1]
 
 
 def test_the_root_counts_as_the_right():
@@ -42,7 +44,7 @@ def test_to_child_stops_on_a_leaf():
 def test_to_child_on_side_picks_the_matching_branch_and_gives_up_quietly():
     mm, branches, leaves = _map()
     assert nav.to_child_on_side(mm, mm.root.id, 1) == branches[0].id
-    assert nav.to_child_on_side(mm, mm.root.id, -1) == branches[1].id
+    assert nav.to_child_on_side(mm, mm.root.id, -1) == branches[2].id
     # a node with no children has no side to offer, so it stays selected
     assert nav.to_child_on_side(mm, leaves[0].id, 1) == leaves[0].id
     empty = MindMap()

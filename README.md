@@ -124,7 +124,7 @@ looking the way it was left, wherever it is opened.
 
 | Shape | Where the root sits | Children |
 | --- | --- | --- |
-| `spider` | in the middle | fan out both ways, alternating right and left |
+| `spider` | in the middle | the first half fan out down the right, the rest down the left |
 | `pyramid` | at the top | stack below it, side by side |
 | `bush` | at the bottom | grow upwards |
 | `branch` | at the left margin | hang to the right, like a table of contents |
@@ -342,8 +342,12 @@ reverse video. That means it looks right on a dark theme, a light theme, or a
   rectangle. A branch with two children no longer leaves an empty band beside
   its own narrow box; the sibling after it moves in. On a lopsided map that is
   about a third of the width, on an even one a few columns.
-- In `spider` the root's children alternate sides by index: 0 right, 1 left,
-  2 right, …, and a whole branch keeps its side.
+- In `spider` the root's children fill the right side first and the left second,
+  each top to bottom: with five children, three go right and two left. Splitting
+  the list rather than alternating it keeps reading order and tree order the
+  same, so `↓` walks a side instead of hopping across the root — the one jump
+  happens where the two sides meet, which is also where the eye is already going.
+  A whole branch keeps its side.
 - Stacked shapes start with a narrower column gap than the sideways ones. A
   sideways shape has to fit a connector run between a box and its children; a
   stacked one only needs its siblings not to touch, and a column is the scarcer

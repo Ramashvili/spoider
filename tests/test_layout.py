@@ -372,3 +372,16 @@ def test_spacing_still_tightens_every_shape():
 def test_an_unknown_shape_falls_back_to_the_spider():
     mm, _, _, _a1, _ = _shaped()
     assert compute(mm.root, 0, "hexagon").boxes.keys() == compute(mm.root, 0, "spider").boxes.keys()
+
+
+def test_the_spider_fills_the_right_side_before_the_left():
+    mm = MindMap()
+    cells = [mm.add_child(mm.root.id, f"c{index}") for index in range(5)]
+
+    layout = compute(mm.root, 0, "spider")
+
+    sides = [layout.boxes[cell.id].side for cell in cells]
+    assert sides == [1, 1, 1, -1, -1], "three down the right, two down the left"
+    for side in (1, -1):
+        ys = [layout.boxes[cell.id].y for cell in cells if layout.boxes[cell.id].side == side]
+        assert ys == sorted(ys), "each side reads top to bottom in tree order"
