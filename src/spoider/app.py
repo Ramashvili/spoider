@@ -80,7 +80,7 @@ MindMapView {
     display: none;
 }
 /* Toasts are about what just happened, so they carry a meaning: green when it
-   worked, orange for a cut or a paste, red when it did not. They hang from the
+   worked, yellow for a cut or a paste, red when it did not. They hang from the
    top right corner, over the map, where they do not cover the bar. */
 ToastRack {
     dock: top;
@@ -92,13 +92,15 @@ Toast {
     width: 44;
     max-width: 50%;
 }
+/* Bright tones, all three from the palette: the app has no colours of its own,
+   and one bright and two dim would say more about the terminal than the message. */
 Toast.-information {
-    color: ansi_green;
-    border-left: outer ansi_green;
+    color: ansi_bright_green;
+    border-left: outer ansi_bright_green;
 }
 Toast.-warning {
-    color: orange;
-    border-left: outer orange;
+    color: ansi_bright_yellow;
+    border-left: outer ansi_bright_yellow;
 }
 Toast.-error {
     color: ansi_bright_red;
