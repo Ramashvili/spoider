@@ -257,18 +257,42 @@ class MindMap:
             successor = parent
         return removed, successor.id
 
+    def next_mark(self, node_id: str, marks: Sequence[str] = MARKS) -> str | None:
+        """What the cycle would move this cell to, without moving it — so a run of
+        cells can all be given the same next mark."""
+        node = self.find(node_id)
+        cycle: tuple[str | None, ...] = (None, *marks)
+        try:
+            index = cycle.index(node.mark if node is not None else None)
+        except ValueError:
+            index = 0  # a mark this document used that is no longer in the set
+        return cycle[(index + 1) % len(cycle)]
+
     def cycle_mark(self, node_id: str, marks: Sequence[str] = MARKS) -> str | None:
         """Advance this node's mark: none, then each mark in turn, then none."""
         node = self.find(node_id)
         if node is None:
             return None
-        cycle: tuple[str | None, ...] = (None, *marks)
-        try:
-            index = cycle.index(node.mark)
-        except ValueError:
-            index = 0  # a mark this document used that is no longer in the set
-        node.mark = cycle[(index + 1) % len(cycle)]
+        node.mark = self.next_mark(node_id, marks)
         return node.mark
+
+    def range_between(self, first: str, last: str) -> list[str]:
+        """The run of siblings from one cell to another, endpoints included, in
+        document order whichever way it was dragged out.
+
+        Only siblings may be selected together; anything else is just the cell
+        you are standing on.
+        """
+        parent = self.parent(last)
+        if parent is None:
+            return [last]
+        order = [child.id for child in parent.children]
+        try:
+            a, b = order.index(first), order.index(last)
+        except ValueError:
+            return [last]
+        low, high = sorted((a, b))
+        return order[low : high + 1]
 
     def move_sibling(self, node_id: str, delta: int) -> bool:
         parent = self.parent(node_id)

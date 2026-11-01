@@ -20,7 +20,7 @@ from .text import clip_tail
 if TYPE_CHECKING:
     from .app import SpoiderApp
 
-BINDING_LEGEND = {"ctrl+": "^", "alt+": "⌥"}
+BINDING_LEGEND = {"ctrl+": "^", "alt+": "⌥", "shift+": "⇧"}
 
 #: The block that stands in for a cursor, here and in the inline editor.
 CARET = "▊"
@@ -58,6 +58,7 @@ BAR_ORDER: tuple[str, ...] = (
     "undo",
     "search",
     "edit",
+    "select",
     "cut",
     "paste",
     "delete",
@@ -108,10 +109,17 @@ def entry(key: str, label: str, *, literal: bool = False) -> Text:
     return chunk
 
 
+def select_chunk(siblings_are_sideways: bool) -> Text:
+    """Which arrows walk between siblings depends on how the map is drawn, so the
+    hint is spelled per shape rather than describing keys that do nothing."""
+    return entry("⇧←→" if siblings_are_sideways else "⇧↑↓", "select", literal=True)
+
+
 def hint_chunks(
     bindings: Iterable,
     skip: frozenset[str] = frozenset(),
     keymap: dict[str, str] | None = None,
+    extra: Sequence[tuple[str, Text]] | None = None,
 ) -> list[Text]:
     """`skip` drops whole actions from the bar — autosave hides ^S, for instance.
     `keymap` holds the chords in force after the config has had its say."""
@@ -124,6 +132,9 @@ def hint_chunks(
             continue
         key = keymap.get(binding.id or "", binding.key) or binding.key
         shown.append((binding.id or "", entry(key, binding.description)))
+
+    # hints that are not bindings: the selection keys are drawn, not typed
+    shown.extend(extra or [])
 
     def rank(pair: tuple[str, Text]) -> int:
         # anything missing from the ranking goes after it, in binding order
@@ -246,7 +257,12 @@ class FooterBar(Widget):
             # autosave makes ^S redundant, so it leaves the bar with it on
             skip = frozenset({"save"}) if getattr(app, "autosave", False) else frozenset()
             spoider = cast("SpoiderApp", app)
-            hints = hint_chunks(spoider.BINDINGS, skip, spoider.keymap)
+            hints = hint_chunks(
+                spoider.BINDINGS,
+                skip,
+                spoider.keymap,
+                extra=[("select", select_chunk(spoider.siblings_are_sideways))],
+            )
         return compose_footer(width, hints)
 
 

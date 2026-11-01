@@ -49,6 +49,11 @@ HELP: tuple[HelpSection, ...] = (
             (("go_right",), "right: the mirror of the above"),
             (("move_up",), "move the cell up among its siblings"),
             (("move_down",), "move it down"),
+            (
+                ("extend_prev", "extend_next", "extend_left", "extend_right"),
+                "hold shift and an arrow: select a run of siblings",
+            ),
+            (("clear_selection",), "back to a single cell, without moving"),
         ),
     ),
     (

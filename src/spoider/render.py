@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from itertools import pairwise
 
@@ -95,7 +96,7 @@ class Grid:
         return self
 
 
-def node_style(depth: int, selected: bool) -> str:
+def node_style(depth: int, selected: bool, lead: bool = False) -> str:
     """ANSI colour names only — the terminal palette decides the actual colour.
 
     The root stays on the terminal's default foreground; selection is a reverse
@@ -104,13 +105,27 @@ def node_style(depth: int, selected: bool) -> str:
     parts: list[str] = ["bold"] if depth == 0 else [DEPTH_COLORS[(depth - 1) % len(DEPTH_COLORS)]]
     if selected:
         parts.append("reverse")
+        if lead:
+            # inside a run of selected cells the cursor needs its own mark: the
+            # underline survives the inversion and does not touch the colour
+            parts.append("underline")
     return " ".join(parts)
 
 
-def build_grid(layout: Layout, selected_id: str, query: str = "") -> Grid:
+def build_grid(
+    layout: Layout,
+    selected: str | Collection[str],
+    query: str = "",
+    *,
+    lead: str | None = None,
+) -> Grid:
+    """`selected` is one id or a whole run of them; `lead` is the one the cursor
+    is on, which is only worth marking when the run is longer than one."""
+    chosen = {selected} if isinstance(selected, str) else set(selected)
     grid = Grid(width=layout.width, height=layout.height)
     for box in sorted(layout.boxes.values(), key=lambda placed: (placed.y, placed.x)):
-        _draw_box(grid, box, node_style(box.depth, box.node.id == selected_id), query)
+        style = node_style(box.depth, box.node.id in chosen, lead=box.node.id == lead)
+        _draw_box(grid, box, style, query)
     for box in layout.boxes.values():
         if box.node.collapsed:
             continue

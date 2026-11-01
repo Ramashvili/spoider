@@ -35,7 +35,7 @@ def test_every_shortcut_uses_a_modifier():
     }
     for binding in SpoiderApp.BINDINGS:
         for key in str(binding.key).split(","):
-            assert key.startswith(("ctrl+", "alt+")) or key in allowed_plain, key
+            assert key.startswith(("ctrl+", "alt+", "shift+")) or key in allowed_plain, key
 
 
 def test_footer_lists_the_visible_bindings_plus_the_pinned_cluster():
@@ -1941,8 +1941,8 @@ async def test_cut_takes_the_branch_out_and_lands_on_its_parent(tmp_path: Path):
         assert [child.text for child in app.mm.root.children] == ["beta"]
         assert app.mm.find(alpha.id) is None
         assert app.selected == app.mm.root.id, "the parent has the focus"
-        assert app.cut_cell is not None and app.cut_cell.text == "alpha"
-        assert [node.text for node in app.cut_cell.walk()] == ["alpha", "leaf"]
+        assert [cell.text for cell in app.cut_cells] == ["alpha"]
+        assert [node.text for node in app.cut_cells[0].walk()] == ["alpha", "leaf"]
         assert app.dirty
 
 
@@ -1978,7 +1978,7 @@ async def test_the_clipboard_survives_being_pasted(tmp_path: Path):
         await pilot.press("ctrl+u")
         await pilot.pause()
 
-        assert app.cut_cell is not None, "still there for another ^U"
+        assert app.cut_cells, "still there for another ^U"
         assert [child.text for child in app.mm.root.children] == ["beta", "alpha"]
 
 
@@ -2004,7 +2004,7 @@ async def test_the_root_cannot_be_cut(tmp_path: Path):
         await pilot.press("ctrl+k")
         await pilot.pause()
 
-        assert app.cut_cell is None
+        assert app.cut_cells == []
         assert app.mm.root.text
 
 
@@ -2063,3 +2063,203 @@ async def test_settings_leave_a_line_between_the_rows_and_the_bar(tmp_path: Path
         lines = app.query_one(PanelBar).render().plain.split("\n")
         assert lines[-2].strip(), "the last row is a row"
         assert lines[-1] == "", "and there is one empty line above the bar"
+
+
+# -- selecting a run of siblings -----------------------------------------
+
+
+def _four(app):
+    """root → a, b, c, d, all siblings."""
+    cells = [app.mm.add_child(app.mm.root.id, name) for name in "abcd"]
+    app.view.refresh_map()
+    return cells
+
+
+async def test_shift_and_the_sibling_arrow_select_a_run(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        a, b, c, _d = _four(app)
+        app.select(a.id)
+
+        await pilot.press("shift+down")
+        await pilot.press("shift+down")
+        await pilot.pause()
+
+        assert app.selected_ids == [a.id, b.id, c.id]
+        assert app.selected == c.id, "the cursor is at the moving end"
+        assert app.anchor == a.id
+
+        await pilot.press("shift+up")
+        await pilot.pause()
+        assert app.selected_ids == [a.id, b.id], "and it shrinks the same way"
+
+
+async def test_a_plain_move_drops_the_run(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        a, _b, _c, _d = _four(app)
+        app.select(a.id)
+        await pilot.press("shift+down")
+        await pilot.pause()
+
+        await pilot.press("down")  # a plain sibling move
+        await pilot.pause()
+
+        assert app.anchor is None
+        assert app.selected_ids == [app.selected]
+
+
+async def test_escape_drops_the_run_without_moving(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        a, b, _c, _d = _four(app)
+        app.select(a.id)
+        await pilot.press("shift+down")
+        await pilot.pause()
+
+        await pilot.press("escape")
+        await pilot.pause()
+
+        assert app.selected_ids == [b.id], "still standing where it was"
+
+
+async def test_shift_sideways_does_nothing_where_siblings_stack(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)  # spider by default
+    async with app.run_test() as pilot:
+        _a, b, _c, _d = _four(app)
+        app.select(b.id)
+
+        await pilot.press("shift+left")
+        await pilot.press("shift+right")
+        await pilot.pause()
+
+        assert app.selected_ids == [b.id], "only the arrows that walk siblings select"
+
+
+async def test_a_pyramid_selects_with_the_sideways_arrows(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        a, b, _c, _d = _four(app)
+        app.mm.layout = "pyramid"
+        app.select(a.id)
+
+        await pilot.press("shift+right")
+        await pilot.pause()
+
+        assert app.selected_ids == [a.id, b.id]
+        await pilot.press("shift+down")  # down is a child here, not a sibling
+        await pilot.pause()
+        assert app.selected_ids == [a.id, b.id]
+
+
+async def test_delete_removes_the_whole_run_in_one_step(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        _a, b, _c, _d = _four(app)
+        app.select(b.id)
+        await pilot.press("shift+down")  # b, c
+
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+
+        assert [child.text for child in app.mm.root.children] == ["a", "d"]
+        assert app.selected == app.mm.root.id, "back to the parent they hung from"
+        assert app.anchor is None
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert [child.text for child in app.mm.root.children] == ["a", "b", "c", "d"]
+
+
+async def test_cut_and_paste_move_a_run_together(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        a, _b, _c, d = _four(app)
+        app.select(a.id)
+        await pilot.press("shift+down")  # a, b
+
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+        assert [cell.text for cell in app.cut_cells] == ["a", "b"]
+        assert [child.text for child in app.mm.root.children] == ["c", "d"]
+
+        app.select(d.id)
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+
+        assert [child.text for child in d.children] == ["a", "b"]
+
+        await pilot.press("ctrl+u")  # and the clipboard still holds both
+        await pilot.pause()
+        assert [child.text for child in d.children] == ["a", "b", "a", "b"]
+
+
+async def test_one_mark_press_marks_the_whole_run(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        a, b, c, _d = _four(app)
+        app.select(a.id)
+        await pilot.press("shift+down")
+
+        await pilot.press("g")
+        await pilot.pause()
+
+        assert app.marks[0] == "✅"
+        assert a.mark == b.mark == "✅"
+        assert c.mark is None
+
+
+async def test_fold_takes_the_run_with_it(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        a, b, c, _d = _four(app)
+        app.mm.add_child(a.id, "under a")
+        app.mm.add_child(b.id, "under b")
+        app.select(a.id)
+        await pilot.press("shift+down")
+
+        await pilot.press("t")
+        await pilot.pause()
+
+        assert a.collapsed and b.collapsed
+        assert not c.collapsed
+
+
+async def test_a_run_moves_as_one_block(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        _a, b, _c, _d = _four(app)
+        app.select(b.id)
+        await pilot.press("shift+down")  # b, c
+
+        await pilot.press("alt+up")
+        await pilot.pause()
+
+        assert [child.text for child in app.mm.root.children] == ["b", "c", "a", "d"]
+
+
+async def test_the_bar_spells_the_selection_keys_for_the_shape(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(120, 30)) as pilot:
+        _four(app)
+        bar = app.query_one("#footer", FooterBar).render().plain
+        assert "⇧↑↓" in bar and "select" in bar
+
+        app.mm.layout = "pyramid"
+        app.view.refresh_map()
+        app.query_one("#footer", FooterBar).refresh()
+        await pilot.pause()
+
+        bar = app.query_one("#footer", FooterBar).render().plain
+        assert "⇧←→" in bar, "sideways layouts are selected with left and right"
+
+
+async def test_help_lists_the_selection_keys(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.press("ctrl+slash")
+        await pilot.pause()
+
+        body = app.query_one(PanelBar).render().plain
+        assert "⇧↑" in body and "select a run of siblings" in body
+        assert "single cell" in body

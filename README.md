@@ -90,6 +90,11 @@ on that side.
 Reordering a node among its siblings is on `alt+↑` / `alt+↓` — rare enough to stay
 off the shortcut bar.
 
+Hold `shift` while pressing the arrow that walks between siblings — `↑`/`↓` in
+spider and branch, `←`/`→` in pyramid and bush — to select a run of them. The bar
+spells the hint for the shape you are in, because describing keys that do nothing
+in this drawing would be worse than saying nothing.
+
 Marks are part of the document — they are written into the JSON with the node, so
 a ✅ survives closing the editor and shows up in a diff as `"mark": "✅"`.
 
@@ -166,11 +171,31 @@ the caret is a block, and the bar swaps to `⏎ done · esc/^C cancel · ←→ 
 never existed. While typing, every other chord is swallowed, so `^D` cannot delete
 the node you are halfway through naming.
 
+## Selecting a run
+
+`shift` plus the sibling arrow grows a selection along one parent's children; the
+opposite arrow shrinks it, and crossing back over the end you started from turns
+it around. The run is always a set of siblings — a cell and its cousin cannot be
+selected together, because none of the operations would mean much for the pair.
+
+Every cell in the run is drawn as a reversed block, and the one the cursor is
+standing on also carries an underline: the camera is centred on it, and `e`,
+`tab` and `⏎` still work on it alone. Renaming a run would give twenty cells the
+same name, so `e` is deliberately the one key that ignores the rest.
+
+The other keys take the whole run: `^D` deletes it, `^K` cuts it, `^U` pastes all
+of it back in order, `g` gives every cell the same next mark (one press, one
+meaning), `t` folds or unfolds whichever of them have children, and `alt+↑` /
+`alt+↓` move the block as one while keeping its order. All of it is one undo step.
+
+A plain move, or `esc`, drops the run without moving anything else.
+
 ## Cutting and pasting
 
 `^K` lifts a branch out of the map and `^U` puts it back under whatever is
 selected. It is the way to reparent something: cut a branch, walk to its new
-parent, paste.
+parent, paste. A run of selected siblings is cut and pasted together, keeping the
+order it had.
 
 The cut cell leaves the map immediately and the selection goes to its parent, so
 you are standing where the branch came from. `^U` appends copies as the last

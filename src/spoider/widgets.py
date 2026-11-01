@@ -95,7 +95,7 @@ class MindMapView(Widget, can_focus=True):
         self.spoider = spoider
         self._layout: Layout | None = None
         self._grid: Grid | None = None
-        self._grid_key: tuple[int, str, str] | None = None
+        self._grid_key: tuple[int, tuple[str, ...], str] | None = None
         self._offset_x = 0
         self._offset_y = 0
 
@@ -143,9 +143,11 @@ class MindMapView(Widget, can_focus=True):
         # the camera does not change a single cell — only a new layout or a new
         # selection does (selection is reverse video).
         query = self.spoider.search_query
-        key = (id(layout), self.spoider.selected, query)
+        chosen = tuple(self.spoider.selected_ids)
+        lead = self.spoider.selected if len(chosen) > 1 else None
+        key = (id(layout), chosen, query)
         if self._grid is None or self._grid_key != key:
-            self._grid = build_grid(layout, self.spoider.selected, query)
+            self._grid = build_grid(layout, chosen, query, lead=lead)
             self._grid_key = key
         return render_text(self._grid, self._offset_x, self._offset_y, width, height)
 

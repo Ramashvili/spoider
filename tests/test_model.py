@@ -176,3 +176,36 @@ def test_pasting_into_a_folded_cell_opens_it():
     mm.paste(target.id, cut)
 
     assert target.collapsed is False, "a pasted branch you cannot see is a surprise"
+
+
+# -- a run of siblings ----------------------------------------------------
+
+
+def test_range_between_walks_either_way():
+    mm = MindMap()
+    cells = [mm.add_child(mm.root.id, name) for name in "abcd"]
+
+    assert mm.range_between(cells[0].id, cells[2].id) == [c.id for c in cells[:3]]
+    # drawn backwards it is the same run, still in document order
+    assert mm.range_between(cells[2].id, cells[0].id) == [c.id for c in cells[:3]]
+    assert mm.range_between(cells[1].id, cells[1].id) == [cells[1].id]
+
+
+def test_range_between_refuses_to_span_different_parents():
+    mm = MindMap()
+    one = mm.add_child(mm.root.id, "one")
+    two = mm.add_child(mm.root.id, "two")
+    deep = mm.add_child(one.id, "deep")
+
+    assert mm.range_between(two.id, deep.id) == [deep.id]
+    assert mm.range_between("nope", two.id) == [two.id]
+
+
+def test_next_mark_peeks_without_moving():
+    mm = MindMap()
+    cell = mm.add_child(mm.root.id, "cell")
+
+    assert mm.next_mark(cell.id, ("✅", "❌")) == "✅"
+    assert cell.mark is None, "peeking changes nothing"
+    cell.mark = "✅"
+    assert mm.next_mark(cell.id, ("✅", "❌")) == "❌"

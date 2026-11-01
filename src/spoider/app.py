@@ -118,6 +118,13 @@ BINDINGS: list[BindingType] = [
     Binding("j", "next", "next", show=False, id="next_vim"),
     Binding("h", "go_left", "left", show=False, id="left_vim"),
     Binding("l", "go_right", "right", show=False, id="right_vim"),
+    # shift walks the same arrows the layout uses for siblings, so the run grows
+    # in the direction the cells are drawn
+    Binding("shift+up", "extend_prev", "select", show=False, id="extend_prev"),
+    Binding("shift+down", "extend_next", "select", show=False, id="extend_next"),
+    Binding("shift+left", "extend_left", "select", show=False, id="extend_left"),
+    Binding("shift+right", "extend_right", "select", show=False, id="extend_right"),
+    Binding("escape", "clear_selection", "clear", show=False, id="clear_selection"),
     Binding("alt+up", "move_up", "reorder up", show=False, id="move_up"),
     Binding("alt+down", "move_down", "reorder down", show=False, id="move_down"),
     # The key NAMES for the spacing chords are the ones Textual's parser actually
@@ -230,6 +237,8 @@ class SpoiderApp(App[None]):
         else:
             self.mm = MindMap.demo() if demo else MindMap()
         self.selected: str = self.mm.root.id
+        #: The far end of a run of selected siblings; None means one cell.
+        self.anchor: str | None = None
         self.dirty = False
         #: What was typed into the search prompt; empty means no search is on.
         self.search_query = ""
@@ -238,10 +247,10 @@ class SpoiderApp(App[None]):
         self._last_query = ""  # the last one submitted, to know a repeat
         self._search_history: list[str] = []
         self._write_then_quit = False
-        #: The cell taken by ^K, still detached; ^U pastes copies of it. Not
+        #: The cells taken by ^K, still detached; ^U pastes copies of them. Not
         #: `clipboard`: Textual already uses that name for the system clipboard
         #: it bridges over OSC 52.
-        self.cut_cell: Node | None = None
+        self.cut_cells: list[Node] = []
         self._settings_row = 0
         #: keys | search | write | marks | ask | settings | help
         self._mode = "keys"
@@ -360,6 +369,13 @@ class SpoiderApp(App[None]):
     @property
     def node(self) -> Node | None:
         return self.mm.find(self.selected)
+
+    @property
+    def selected_ids(self) -> list[str]:
+        """What an action applies to: a run of siblings, or just one cell."""
+        if self.anchor is None or self.anchor == self.selected:
+            return [self.selected]
+        return self.mm.range_between(self.anchor, self.selected)
 
     @property
     def autosave(self) -> bool:
@@ -542,6 +558,8 @@ class SpoiderApp(App[None]):
         return self.mm.spacing
 
     def select(self, node_id: str) -> None:
+        """Move the cursor; a plain move gives up the run of selected cells."""
+        self.anchor = None
         self.selected = node_id
         self.view.refresh()
 
@@ -811,6 +829,7 @@ class SpoiderApp(App[None]):
     def action_add_child(self) -> None:
         self._push_undo()
         node = self.mm.add_child(self.selected)
+        self.anchor = None
         self.selected = node.id
         self.view.refresh_map()
         self.begin_edit(node.id, fresh=True)
@@ -824,43 +843,63 @@ class SpoiderApp(App[None]):
         if node is None:
             self._undo.pop()
             return
+        self.anchor = None
         self.selected = node.id
         self.view.refresh_map()
         self.begin_edit(node.id, fresh=True)
 
     def action_edit(self) -> None:
+        """Renaming a run of cells at once would give them all one name, so this
+        is the one action that stays with the cell the cursor is on."""
         if self.node is not None:
+            self.anchor = None
             self.begin_edit(self.selected)
 
     def action_delete(self) -> None:
-        if self.selected == self.mm.root.id:
+        """^D — delete everything selected, as one undoable step."""
+        ids = self.selected_ids
+        if self.mm.root.id in ids:
             self.notify("The root node cannot be deleted", timeout=2)
             return
         self._push_undo()
-        result = self.mm.delete(self.selected)
-        if result is None:
-            self._undo.pop()
-            return
-        _, successor = result
-        self.selected = successor
+        if len(ids) == 1:
+            result = self.mm.delete(ids[0])
+            if result is None:
+                self._undo.pop()
+                return
+            _, successor = result
+            self.selected = successor
+        else:
+            # a run leaves you on the parent it hung from
+            parent = self.mm.parent(ids[0])
+            for node_id in ids:
+                self.mm.delete(node_id)
+            self.selected = parent.id if parent is not None else self.mm.root.id
+        self.anchor = None
         self._mark_dirty()
 
     def action_cut(self) -> None:
-        """^K — take the cell and its branch out, and hold it for ^U."""
-        if self.selected == self.mm.root.id:
+        """^K — take the selected cells and their branches out, and hold them."""
+        ids = self.selected_ids
+        if self.mm.root.id in ids:
             self.notify("The root node cannot be cut", timeout=2)
             return
-        parent = self.mm.parent(self.selected)
+        parent = self.mm.parent(ids[0])
         if parent is None:
             return
         self._push_undo()
-        result = self.mm.delete(self.selected)
-        if result is None:
+        taken: list[Node] = []
+        for node_id in ids:
+            result = self.mm.delete(node_id)
+            if result is not None:
+                taken.append(result[0])
+        if not taken:
             self._undo.pop()
             return
-        self.cut_cell = result[0]
-        # back where the cell came from: the branch now lives on the clipboard,
-        # and the parent is what you would paste it back under
+        self.cut_cells = taken
+        # back where the cells came from: they now live on the clipboard, and
+        # the parent is what you would paste them back under
+        self.anchor = None
         self.selected = parent.id
         self._mark_dirty()
 
@@ -870,13 +909,14 @@ class SpoiderApp(App[None]):
         The selection stays on the parent, so pressing ^U again adds another
         copy beside the first instead of nesting it inside.
         """
-        if self.cut_cell is None:
+        if not self.cut_cells:
             self.notify("Nothing cut yet", timeout=2)
             return
         self._push_undo()
-        if self.mm.paste(self.selected, self.cut_cell) is None:
-            self._undo.pop()
-            return
+        for cell in self.cut_cells:
+            if self.mm.paste(self.selected, cell) is None:
+                self._undo.pop()
+                return
         self._mark_dirty()
 
     def action_help(self) -> None:
@@ -943,19 +983,35 @@ class SpoiderApp(App[None]):
         self._open_settings()
 
     def action_mark(self) -> None:
-        """^G — cycle the cell's mark: none, ✅, ❌, ❓, ❗, 🕐, none."""
-        if self.node is None:
+        """g — cycle the mark: none, ✅, ❌, ❓, ❗, 🕐, none.
+
+        A run of cells all take the mark the first one was about to show, so one
+        press gives them one meaning instead of a spectrum.
+        """
+        ids = self.selected_ids
+        if not ids:
             return
         self._push_undo()
-        self.mm.cycle_mark(self.selected, self.marks)
+        mark = self.mm.next_mark(ids[0], self.marks)
+        for node_id in ids:
+            node = self.mm.find(node_id)
+            if node is not None:
+                node.mark = mark
         self._mark_dirty()
 
     def action_fold(self) -> None:
-        node = self.node
-        if node is None or not node.children:
+        """t — fold or unfold, following the lead cell's state across the run."""
+        ids = self.selected_ids
+        lead = self.mm.find(ids[0])
+        if lead is None:
+            return
+        fold = not lead.collapsed
+        targets = [node for node in map(self.mm.find, ids) if node is not None and node.children]
+        if not targets:
             return
         self._push_undo()
-        node.collapsed = not node.collapsed
+        for node in targets:
+            node.collapsed = fold
         self._mark_dirty()
 
     # -- movement -------------------------------------------------------
@@ -992,7 +1048,7 @@ class SpoiderApp(App[None]):
         the directions swap: left goes deeper, right goes back towards the root.
         From the root itself, left is its left-hand branch. Where the levels are
         stacked the siblings sit side by side, so left is simply the one before."""
-        if self._sideways_arrows_are_siblings:
+        if self.siblings_are_sideways:
             self.select(nav.to_sibling(self.mm, self.selected, -1))
             return
         if self._at_root:
@@ -1004,7 +1060,7 @@ class SpoiderApp(App[None]):
 
     def action_go_right(self) -> None:
         """^F / →. Mirrors action_go_left."""
-        if self._sideways_arrows_are_siblings:
+        if self.siblings_are_sideways:
             self.select(nav.to_sibling(self.mm, self.selected, +1))
             return
         if self._at_root:
@@ -1015,7 +1071,7 @@ class SpoiderApp(App[None]):
             self._into_child()
 
     @property
-    def _sideways_arrows_are_siblings(self) -> bool:
+    def siblings_are_sideways(self) -> bool:
         """True when the levels are stacked, so ← / → walk the row of siblings
         and ↑ / ↓ are left to cross a level."""
         return self.mm.layout in ("pyramid", "bush")
@@ -1037,6 +1093,43 @@ class SpoiderApp(App[None]):
             self._to_parent()
         else:  # "child"
             self._into_child()
+
+    def action_extend_prev(self) -> None:
+        """Shift + the arrow that walks back between siblings."""
+        self._extend(UP_MEANING[self.mm.layout])
+
+    def action_extend_next(self) -> None:
+        self._extend(DOWN_MEANING[self.mm.layout])
+
+    def action_extend_left(self) -> None:
+        self._extend("prev" if self.siblings_are_sideways else None)
+
+    def action_extend_right(self) -> None:
+        self._extend("next" if self.siblings_are_sideways else None)
+
+    def _extend(self, kind: str | None) -> None:
+        """Grow or shrink the run by one sibling. Arrows that do not walk between
+        siblings in this shape do nothing rather than jump somewhere else."""
+        if kind not in ("prev", "next"):
+            return
+        parent = self.mm.parent(self.selected)
+        if parent is None:
+            return
+        order = [child.id for child in parent.children]
+        target = order.index(self.selected) + (-1 if kind == "prev" else +1)
+        if not 0 <= target < len(order):
+            return
+        if self.anchor is None:
+            self.anchor = self.selected
+        self.selected = order[target]
+        self.view.refresh()
+
+    def action_clear_selection(self) -> None:
+        """esc — back to one cell without moving it."""
+        if self.anchor is None:
+            return
+        self.anchor = None
+        self.view.refresh()
 
     def action_move_up(self) -> None:
         self._reorder(-1)
@@ -1072,11 +1165,20 @@ class SpoiderApp(App[None]):
         self.notify(f"Layout: {self.mm.layout}", timeout=1)
 
     def _reorder(self, delta: int) -> None:
+        """alt+↑ / alt+↓ — move the run as one block, keeping its order."""
+        ids = self.selected_ids
+        parent = self.mm.parent(ids[0])
+        if parent is None:
+            return
+        order = [child.id for child in parent.children]
+        if (delta < 0 and order.index(ids[0]) == 0) or (
+            delta > 0 and order.index(ids[-1]) == len(order) - 1
+        ):
+            return  # the block is against the edge
         self._push_undo()
-        if self.mm.move_sibling(self.selected, delta):
-            self._mark_dirty()
-        else:
-            self._undo.pop()
+        for node_id in ids if delta < 0 else list(reversed(ids)):
+            self.mm.move_sibling(node_id, delta)
+        self._mark_dirty()
 
     # -- history and files ----------------------------------------------
 
