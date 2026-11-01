@@ -142,10 +142,8 @@ def test_spacing_chords_match_the_names_the_key_parser_produces():
 
     bound = {key for binding in SpoiderApp.BINDINGS for key in str(binding.key).split(",")}
     sequences = {
-        "ctrl+shift+equals_sign": "\x1b[61;6u",  # ^+ under the kitty keyboard protocol
-        "ctrl+equals_sign": "\x1b[61;5u",  # ctrl+= under it
+        "ctrl+equals_sign": "\x1b[61;5u",  # ^= under the kitty keyboard protocol
         "ctrl+minus": "\x1b[45;5u",  # ^- under it
-        "ctrl+underscore": "\x1f",  # ^- on a plain terminal (the ^_ control char)
     }
     for expected, sequence in sequences.items():
         parsed = [key.key for key in XTermParser().feed(sequence) if hasattr(key, "key")]
@@ -543,7 +541,7 @@ async def test_spacing_keys_resize_the_canvas(tmp_path: Path):
         app.view.refresh_map()
         base = app.view.layout_.width
 
-        await pilot.press("ctrl+plus")
+        await pilot.press("ctrl+equals_sign")
         assert app.spacing == 1
         assert app.view.layout_.width > base
 
@@ -551,13 +549,9 @@ async def test_spacing_keys_resize_the_canvas(tmp_path: Path):
         assert app.spacing == 0
         assert app.view.layout_.width == base
 
-        await pilot.press("ctrl+underscore")  # the other spelling of ^-
+        await pilot.press("ctrl+minus")  # and past the default, into tighter
         assert app.spacing == -1
         assert app.view.layout_.width < base
-
-        # and the spelling a kitty-protocol terminal actually delivers
-        await pilot.press("ctrl+shift+equals_sign")
-        assert app.spacing == 0
 
 
 def test_help_text_covers_keys_and_notes(tmp_path: Path):
@@ -860,6 +854,11 @@ async def test_a_rebound_chord_takes_effect(tmp_path: Path):
         await pilot.press("ctrl+k")  # the new delete chord
         await pilot.pause()
         assert app.mm.root.children == []
+
+
+def test_spacing_keys_are_one_chord_each():
+    spacing = {b.id: b.key for b in BINDINGS if b.action.startswith("spacing")}
+    assert spacing == {"spacing_more": "ctrl+equals_sign", "spacing_less": "ctrl+minus"}
 
 
 def test_the_bar_shows_the_chords_in_force(tmp_path: Path):

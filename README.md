@@ -99,15 +99,11 @@ never dropped: as the window narrows, whole hint entries disappear from the end
 first, so the pair that gets you to the documentation and the preferences is
 always reachable. Both stay live while you are typing a name.
 
-A note on those two chords, because they are the fiddliest keys in the app: they
-are bound by the names Textual's key parser *actually produces*, not by the names
-you would expect. Under the kitty keyboard protocol (which Textual enables, and
-which kitty, ghostty and wezterm speak) `^=` arrives as `ctrl+equals_sign`, or as
-`ctrl+shift+equals_sign` when you hold shift;
-on a plain terminal `^-` arrives as the `^_` control character
-(`ctrl+underscore`). Every spelling is bound, with `alt+=` / `alt+-` as fallbacks
-for terminals that swallow the ctrl form — `tests/test_app.py` feeds the real
-escape sequences through the parser and asserts the resulting names are bound.
+Those two chords are one chord each: `^=` and `^-`. Terminals encode them oddly
+— under the kitty keyboard protocol `^=` arrives as `ctrl+equals_sign`, and a
+plain terminal sends `^-` as the `^_` control character — but only the canonical
+spelling is bound, so the bar, the help and the config all show the same single
+key. If your terminal cannot send one of them, rebind it in the config file.
 
 Mouse: click a node to select it, double-click to rename it in place, scroll to
 walk siblings.

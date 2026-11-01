@@ -94,19 +94,12 @@ BINDINGS: list[Binding] = [
     # enables), while a plain terminal sends ^- as the ^_ control character.
     # Every spelling is bound, plus alt fallbacks for terminals that swallow the
     # ctrl form.
-    Binding(
-        "ctrl+shift+equals_sign,ctrl+equals_sign,ctrl+plus,ctrl+shift+plus,"
-        "alt+equals_sign,alt+plus",
-        "spacing_more",
-        "looser",
-        id="spacing_more",
-    ),
-    Binding(
-        "ctrl+minus,ctrl+shift+minus,ctrl+underscore,alt+minus,alt+underscore",
-        "spacing_less",
-        "tighter",
-        id="spacing_less",
-    ),
+    # One chord each. Every terminal spelling the same key might arrive as used to
+    # be bound too, which made the bar, the help and the config list six keys for
+    # two jobs; if a terminal cannot send these, rebind them in the config.
+    Binding("ctrl+equals_sign", "spacing_more", "looser", id="spacing_more"),
+    Binding("ctrl+minus", "spacing_less", "tighter", id="spacing_less"),
+
     # file first, history last: on a narrow terminal the bar clips its tail,
     # and ^X matters more than ^Z
     Binding("ctrl+s", "save", "save", id="save"),
