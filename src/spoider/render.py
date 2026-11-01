@@ -8,7 +8,7 @@ from itertools import pairwise
 from rich.cells import cell_len
 from rich.text import Text
 
-from .layout import PAD, Layout, Placed, label
+from .layout import DOWN, PAD, RIGHT, UP, Layout, Placed, label
 
 R, D, L, U = 1, 2, 4, 8
 
@@ -148,7 +148,10 @@ def _draw_box(grid: Grid, box: Placed, style: str) -> None:
 
 
 def _draw_link(grid: Grid, parent: Placed, child: Placed) -> None:
-    if child.side > 0:
+    if child.flow in (DOWN, UP):
+        _draw_stack_link(grid, parent, child, child.flow)
+        return
+    if child.flow == RIGHT:
         start = parent.x + parent.w
         end = child.x - 1
         wall = child.x  # the child's left wall
@@ -173,6 +176,39 @@ def _draw_link(grid: Grid, parent: Placed, child: Placed) -> None:
         # two verticals side by side (`││`). Join them instead — the wall gets a
         # T pointing at the line that arrives.
         grid.add_edge(wall, child.cy, arrives, LINK_COLOR)
+
+
+def _draw_stack_link(grid: Grid, parent: Placed, child: Placed, flow: str) -> None:
+    """A link between two levels of a pyramid or a tree: down or up the page."""
+    down = flow == DOWN
+    step = 1 if down else -1
+    start = parent.bottom + 1 if down else parent.y - 1
+    end = child.y - 1 if down else child.bottom + 1
+    parent_edge = parent.bottom if down else parent.y
+    child_edge = child.y if down else child.bottom
+    room = (end - start) * step
+
+    if room < -1:
+        # The two boxes share a border row; the border merge already joins them.
+        return
+    if room == -1:
+        # Nothing between the edges: say which way the line goes on each of them.
+        grid.add_edge(parent.cx, parent_edge, D if down else U, LINK_COLOR)
+        grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
+        return
+
+    mid = start + step * min(1, room)
+    points = [(parent.cx, start), (parent.cx, mid), (child.cx, mid), (child.cx, end)]
+    for (x1, y1), (x2, y2) in pairwise(points):
+        if y1 == y2:
+            _horizontal(grid, x1, x2, y1)
+        else:
+            _vertical(grid, y1, y2, x1)
+
+    # the trunk leaves the parent's edge and arrives at the child's
+    grid.add_edge(parent.cx, parent_edge, D if down else U, LINK_COLOR)
+    if end == mid:
+        grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
 
 
 def _horizontal(grid: Grid, x1: int, x2: int, y: int) -> None:

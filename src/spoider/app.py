@@ -23,7 +23,7 @@ from .config import (
     write_config,
 )
 from .layout import MAX_SPACING, MIN_SPACING
-from .model import MARKS, MapFileError, MindMap, Node
+from .model import LAYOUTS, MARKS, MapFileError, MindMap, Node
 from .screens import Confirm, HelpScreen, SettingsScreen, TextPrompt
 from .text import clean
 from .widgets import MindMapView, TopBar
@@ -116,6 +116,9 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+x", "quit", "quit", id="quit"),
     Binding("ctrl+z", "undo", "undo", id="undo"),
     Binding("ctrl+y", "redo", "redo", show=False, id="redo"),
+    # Last on purpose: the bar drops its tail on a narrow terminal, and a shape
+    # toggle matters less than saving or quitting. Help still lists it.
+    Binding("ctrl+l", "layout", "layout", id="layout"),
 ]
 
 def default_keymap() -> dict[str, str]:
@@ -597,28 +600,49 @@ class SpoiderApp(App[None]):
     def action_go_left(self) -> None:
         """^B / ←. On a left-hand branch the children are drawn to the left, so
         the directions swap: left goes deeper, right goes back towards the root.
-        From the root itself, left is its left-hand branch."""
+        From the root itself, left is its left-hand branch. In a pyramid or a
+        tree the siblings sit side by side, so left is simply the one before."""
+        if self._stacked:
+            self.select(nav.to_sibling(self.mm, self.selected, -1))
+            return
         if self._at_root:
             self._from_root(-1)
-        elif nav.side(self.mm, self.selected) < 0:
+        elif nav.side(self.mm, self.selected, self.mm.layout) < 0:
             self._into_child()
         else:
             self._to_parent()
 
     def action_go_right(self) -> None:
         """^F / →. Mirrors action_go_left."""
+        if self._stacked:
+            self.select(nav.to_sibling(self.mm, self.selected, +1))
+            return
         if self._at_root:
             self._from_root(+1)
-        elif nav.side(self.mm, self.selected) < 0:
+        elif nav.side(self.mm, self.selected, self.mm.layout) < 0:
             self._to_parent()
         else:
             self._into_child()
 
+    @property
+    def _stacked(self) -> bool:
+        """True when children hang below (pyramid) or above (tree) the parent:
+        the arrows have to mean something different from the sideways shapes."""
+        return self.mm.layout in ("pyramid", "tree")
+
     def action_prev(self) -> None:
-        self.select(nav.to_sibling(self.mm, self.selected, -1))
+        """Previous sibling; up towards the parent when the tree grows sideways."""
+        if self._stacked:
+            self._to_parent()
+        else:
+            self.select(nav.to_sibling(self.mm, self.selected, -1))
 
     def action_next(self) -> None:
-        self.select(nav.to_sibling(self.mm, self.selected, +1))
+        """Next sibling; down a level when the tree grows downwards."""
+        if self._stacked:
+            self._into_child()
+        else:
+            self.select(nav.to_sibling(self.mm, self.selected, +1))
 
     def action_move_up(self) -> None:
         self._reorder(-1)
@@ -644,6 +668,14 @@ class SpoiderApp(App[None]):
         # undo stack: nudging the air in three steps should not bury the edit you
         # actually want to undo.
         self._mark_dirty()
+
+    def action_layout(self) -> None:
+        """^L — cycle the shape of the map: spider, pyramid, tree, outline."""
+        order = LAYOUTS
+        self.mm.layout = order[(order.index(self.mm.layout) + 1) % len(order)]
+        # like spacing, the shape is document state but not an edit worth undoing
+        self._mark_dirty()
+        self.notify(f"Layout: {self.mm.layout}", timeout=1)
 
     def _reorder(self, delta: int) -> None:
         self._push_undo()

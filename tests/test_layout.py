@@ -4,10 +4,11 @@ from spoider.layout import (
     MIN_SPACING,
     box_width,
     compute,
+    gaps_for,
     label,
     subtree_height,
 )
-from spoider.model import MindMap
+from spoider.model import LAYOUTS, MindMap
 from spoider.render import build_grid
 
 
@@ -201,3 +202,100 @@ def test_selection_uses_reverse_video():
     styles = {style for _, style in grid.cells.values()}
     assert any("reverse" in style for style in styles)
     assert all("reverse" not in style for style in styles if "cyan" in style)
+
+
+# -- the four shapes ------------------------------------------------------
+
+
+def _shaped():
+    mm = MindMap()
+    alpha = mm.add_child(mm.root.id, "alpha")
+    a1 = mm.add_child(alpha.id, "a1")
+    a2 = mm.add_child(alpha.id, "a2")
+    beta = mm.add_child(mm.root.id, "beta")
+    return mm, alpha, beta, a1, a2
+
+
+def test_pyramid_puts_the_root_on_top_and_its_children_below():
+    mm, alpha, beta, a1, _a2 = _shaped()
+    layout = compute(mm.root, 0, "pyramid")
+    root = layout.boxes[mm.root.id]
+    first = layout.boxes[alpha.id]
+    second = layout.boxes[beta.id]
+
+    assert root.y == 0
+    assert first.y == second.y == root.bottom + gaps_for(0).y + 1
+    assert first.x < second.x  # siblings sit side by side, in tree order
+    assert layout.boxes[a1.id].y > first.y  # grandchildren are placed too
+
+
+def test_pyramid_centres_a_parent_over_the_band_under_it():
+    mm, alpha, beta, a1, a2 = _shaped()
+    layout = compute(mm.root, 0, "pyramid")
+    root = layout.boxes[mm.root.id]
+    below = [layout.boxes[node.id] for node in (alpha, beta, a1, a2)]
+    left = min(box.x for box in below)
+    right = max(box.right for box in below)
+    # centred over the whole band its descendants occupy, not over the two
+    # children's centres: their bands are different widths
+    assert abs(root.cx - (left + right) // 2) <= 1
+
+
+def test_tree_is_the_pyramid_upside_down():
+    mm, _, _, a1, _ = _shaped()
+    pyramid = compute(mm.root, 0, "pyramid")
+    tree = compute(mm.root, 0, "tree")
+
+    assert (tree.width, tree.height) == (pyramid.width, pyramid.height)
+    for node_id, box in pyramid.boxes.items():
+        twin = tree.boxes[node_id]
+        assert twin.x == box.x
+        assert twin.y == pyramid.height - box.y - BOX_H
+    assert tree.boxes[mm.root.id].y > tree.boxes[a1.id].y  # root at the bottom
+
+
+def test_outline_hangs_every_child_to_the_right_of_its_parent():
+    mm, _alpha, _beta, _a1, _a2 = _shaped()
+    layout = compute(mm.root, 0, "outline")
+    for node in mm.nodes():
+        parent = mm.parent(node.id)
+        if parent is None:
+            continue
+        assert layout.boxes[node.id].x > layout.boxes[parent.id].right
+
+
+def test_spider_keeps_both_sides():
+    mm, alpha, beta, _a1, _a2 = _shaped()
+    layout = compute(mm.root, 0, "spider")
+    root = layout.boxes[mm.root.id]
+    assert layout.boxes[alpha.id].x > root.right
+    assert layout.boxes[beta.id].right < root.x
+
+
+def test_no_two_boxes_overlap_in_any_shape():
+    mm, _, _, _a1, _ = _shaped()
+    for name in LAYOUTS:
+        layout = compute(mm.root, 0, name)
+        boxes = list(layout.boxes.values())
+        for index, one in enumerate(boxes):
+            for other in boxes[index + 1 :]:
+                overlap = (
+                    one.x <= other.right
+                    and other.x <= one.right
+                    and one.y <= other.bottom
+                    and other.y <= one.bottom
+                )
+                assert not overlap, f"{name}: {one.node.text} overlaps {other.node.text}"
+
+
+def test_spacing_still_tightens_every_shape():
+    mm, _, _, _a1, _ = _shaped()
+    for name in LAYOUTS:
+        tight = compute(mm.root, -3, name)
+        loose = compute(mm.root, 6, name)
+        assert tight.width <= loose.width and tight.height < loose.height, name
+
+
+def test_an_unknown_shape_falls_back_to_the_spider():
+    mm, _, _, _a1, _ = _shaped()
+    assert compute(mm.root, 0, "hexagon").boxes.keys() == compute(mm.root, 0, "spider").boxes.keys()

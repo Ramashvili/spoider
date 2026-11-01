@@ -131,3 +131,42 @@ def test_tight_and_loose_spacing_change_the_drawn_size():
     loose = compute(mm.root, 4)
     assert tight.width < loose.width
     assert tight.height < loose.height
+
+
+# -- links in the stacked shapes ------------------------------------------
+
+
+def _shaped(layout: str):
+    mm = MindMap(Node("root"))
+    mm.add_child(mm.root.id, "child")
+    mm.layout = layout
+    return compute(mm.root, 0, layout)
+
+
+def test_a_pyramid_link_leaves_the_parent_edge_and_arrives_at_the_childs():
+    layout = _shaped("pyramid")
+    drawn = render_text(build_grid(layout, layout.boxes[next(iter(layout.boxes))].node.id),
+                        0, 0, layout.width, layout.height).plain
+    assert "┬" in drawn  # the trunk hanging off the parent's bottom edge
+    assert "┴" in drawn  # and the T where it reaches the child's top edge
+    assert "╰───┬" in drawn or "┬───╯" in drawn
+
+
+def test_a_tree_link_points_upwards():
+    layout = _shaped("tree")
+    root_id = next(iter(layout.boxes))
+    drawn = render_text(build_grid(layout, root_id), 0, 0, layout.width, layout.height).plain
+    assert "┬" in drawn and "┴" in drawn
+
+
+def test_boxes_touching_in_a_pyramid_are_joined_not_overwritten():
+    mm = MindMap(Node("root"), spacing=-3)
+    mm.layout = "pyramid"
+    mm.add_child(mm.root.id, "one")
+    mm.add_child(mm.root.id, "two")
+    layout = compute(mm.root, -3, "pyramid")
+    drawn = render_text(build_grid(layout, mm.root.id), 0, 0, layout.width, layout.height).plain
+    # parent and children share one row, and every place they meet is a T
+    shared = [row for row in drawn.splitlines() if "┬" in row or "┴" in row]
+    assert shared, "expected a shared border row"
+    assert "┬" in shared[0] and "┴" in shared[0]

@@ -21,6 +21,11 @@ MARKS = ("✅", "❌", "❓", "❗", "🕐")
 #: recursive, so an unbounded document would exhaust the stack (RecursionError).
 MAX_DEPTH = 400
 
+#: The shapes a map can be drawn in. The name is stored in the file, like the
+#: spacing, so a map opens looking the way it was left.
+LAYOUTS = ("spider", "pyramid", "tree", "outline")
+DEFAULT_LAYOUT = "spider"
+
 
 class MapFileError(Exception):
     """A map file that cannot be read: bad JSON, wrong shape, or far too deep."""
@@ -105,12 +110,16 @@ class Node:
 class MindMap:
     """The whole document. Mutations are by node id so the UI can stay stateless."""
 
-    def __init__(self, root: Node | None = None, spacing: int = 0) -> None:
+    def __init__(
+        self, root: Node | None = None, spacing: int = 0, layout: str = DEFAULT_LAYOUT
+    ) -> None:
         self.root = root if root is not None else Node(clean(DEFAULT_ROOT_TEXT))
         # Presentation that belongs to the document: a map with 40 cells wants a
         # different amount of air than one with 4, and it should look the same
         # wherever it is opened.
         self.spacing = spacing
+        self._layout = DEFAULT_LAYOUT
+        self.layout = layout
         # Lookups by id, so a keystroke does not walk the tree. `_reindex` is
         # also the repair path: `find`/`parent` rebuild when they miss, which
         # covers any caller that appends to `node.children` behind our back.
@@ -124,6 +133,15 @@ class MindMap:
         for node in self.root.walk():
             self._by_id[node.id] = node
             self._parent_of.update({child.id: node for child in node.children})
+
+    @property
+    def layout(self) -> str:
+        """How the map is drawn; one of LAYOUTS."""
+        return self._layout
+
+    @layout.setter
+    def layout(self, value: str) -> None:
+        self._layout = value if value in LAYOUTS else DEFAULT_LAYOUT
 
     # -- lookup ---------------------------------------------------------
 
@@ -251,7 +269,12 @@ class MindMap:
     # -- serialisation --------------------------------------------------
 
     def to_dict(self) -> dict:
-        return {"version": 1, "spacing": self.spacing, "root": self.root.to_dict()}
+        return {
+            "version": 1,
+            "spacing": self.spacing,
+            "layout": self.layout,
+            "root": self.root.to_dict(),
+        }
 
     @classmethod
     def from_dict(cls, data: dict) -> MindMap:
@@ -265,7 +288,8 @@ class MindMap:
             spacing = int(data.get("spacing") or 0)
         except (TypeError, ValueError):
             spacing = 0
-        return cls(root, spacing)
+        layout = data.get("layout")
+        return cls(root, spacing, layout if isinstance(layout, str) else DEFAULT_LAYOUT)
 
     def save(self, path: Path) -> None:
         write_atomic(path, json.dumps(self.to_dict(), indent=2, ensure_ascii=False) + "\n")

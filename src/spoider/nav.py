@@ -43,12 +43,16 @@ def to_sibling(mm: MindMap, node_id: str, delta: int) -> str:
         current = parent.id
 
 
-def side(mm: MindMap, node_id: str) -> int:
+def side(mm: MindMap, node_id: str, layout: str = "spider") -> int:
     """+1 when the node hangs off the right of the root, -1 when off the left.
 
     Root children alternate sides by index (0 right, 1 left, 2 right, …) and a
     whole branch stays on its side, so the branch owner decides for the subtree.
+    Only the spider has a left-hand side; every other shape hangs its children
+    to the right (or below), so everything counts as +1.
     """
+    if layout != "spider":
+        return 1
     chain = mm.path(node_id)
     if len(chain) < 2:
         return 1

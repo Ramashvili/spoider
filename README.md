@@ -65,6 +65,7 @@ one of them.
 | `^X` | quit; if the buffer is modified it asks `y save / n discard / esc cancel` | nano: exit |
 | `^=` | widen the gaps between cells — one column and one row per press (saved with the map) | |
 | `^-` | tighten them again, down to boxes that almost touch | |
+| `^L` | cycle the shape of the map: spider → pyramid → tree → outline (saved with the map) | **l**ayout |
 | `^/` | help: every key, with a line of explanation — any key closes it | |
 | `^,` | editor settings — the autosave switch | like every other preferences chord |
 
@@ -92,6 +93,25 @@ the set of directions that cell continues in, so two boxes meeting on one row
 join into `├` / `┤` / `┬` / `┴` instead of one box's rounded corner overwriting
 the other's. A stack of siblings reads as a table of cells, not as a pile of
 corners.
+
+## Shapes
+
+`^L` cycles four ways of drawing the same tree. The choice is written into the
+file as `"layout"`, next to `"spacing"`, for the same reason: a map should open
+looking the way it was left, wherever it is opened.
+
+| Shape | Where the root sits | Children |
+| --- | --- | --- |
+| `spider` | in the middle | fan out both ways, alternating right and left |
+| `pyramid` | at the top | stack below it, side by side |
+| `tree` | at the bottom | grow upwards |
+| `outline` | at the left margin | hang to the right, like a table of contents |
+
+In `pyramid` and `tree` the arrow keys follow the drawing: down goes into the
+children, up goes back to the parent, and left/right step between siblings. In
+`spider` and `outline` they keep their sideways meaning. A map is drawn in
+`spider` unless the file says otherwise, so maps written before this existed open
+exactly as they did.
 
 The bar carries the keys you cannot guess — inserts, edits, spacing, file, undo.
 The four navigation chords are deliberately absent: arrows and `hjkl` cover
@@ -182,12 +202,19 @@ the root stays on the default foreground, links are dim, and the selection is
 reverse video. That means it looks right on a dark theme, a light theme, or a
 16-colour tty.
 
-## Layout
+## Placement
 
-- Root's children alternate sides: index 0 right, 1 left, 2 right, …
-- Each subtree owns a vertical band; a parent is centred on its children.
-- Boxes are drawn with rounded box-drawing characters and joined by elbow
-  connectors that merge into a shared spine per branch.
+- Every shape is the same problem: give each subtree a band and centre the parent
+  on the band under it. `spider` and `outline` pack bands vertically (children
+  stack down a column, to the left and right or only to the right); `pyramid` and
+  `tree` pack them horizontally (children sit in a row, below or above).
+- In `spider` the root's children alternate sides by index: 0 right, 1 left,
+  2 right, …, and a whole branch keeps its side.
+- A box border is stored as the directions that cell continues in, not as a
+  finished glyph, so boxes that end up sharing a row join with `├ ┤ ┬ ┴` instead
+  of overwriting each other's corners.
+- Connectors leave the parent's edge and arrive at the child's, merging with the
+  wall they touch.
 
 ## Code map
 
@@ -197,6 +224,8 @@ reverse video. That means it looks right on a dark theme, a light theme, or a
 | `src/spoider/layout.py` | places every visible node on a character grid |
 | `src/spoider/render.py` | grid → styled cells (boxes, connectors) → `rich.Text` |
 | `src/spoider/nav.py` | selection movement rules |
+| `src/spoider/text.py` | strips control characters; one-line truncation helpers |
+| `src/spoider/files.py` | atomic write: temp file, fsync, rename |
 | `src/spoider/widgets.py` | `MindMapView`: camera, hit-testing, clicks |
 | `src/spoider/screens.py` | modals: text prompt, confirm, help, settings |
 | `src/spoider/app.py` | key bindings, undo history, write/quit flow |

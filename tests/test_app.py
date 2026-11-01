@@ -14,6 +14,7 @@ from spoider.screens import (
     SettingsScreen,
     TextPrompt,
     help_text,
+    keys_for,
     settings_text,
 )
 from spoider.widgets import TopBar, compose_top_bar
@@ -1399,3 +1400,73 @@ async def test_a_saved_map_reaches_the_disk_without_a_temp_file(tmp_path: Path):
         app._write(target)
     assert json.loads(target.read_text())["root"]["children"][0]["text"] == "hello"
     assert [e.name for e in tmp_path.iterdir() if e.name != "config-home"] == ["out.json"]
+
+
+# -- the shape of the map -------------------------------------------------
+
+
+async def test_ctrl_l_cycles_the_shapes_and_marks_the_buffer_dirty(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        assert app.mm.layout == "spider"
+        seen: list[str] = []
+        for _ in range(4):
+            await pilot.press("ctrl+l")
+            await pilot.pause()
+            seen.append(app.mm.layout)
+        assert seen == ["pyramid", "tree", "outline", "spider"]
+        assert app.dirty
+
+
+async def test_the_shape_is_written_into_the_map_file(tmp_path: Path):
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+l")
+        await pilot.pause()
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+    assert json.loads(path.read_text())["layout"] == "pyramid"
+
+
+async def test_a_saved_shape_is_what_opens_next_time(tmp_path: Path):
+    path = tmp_path / "map.json"
+    path.write_text(json.dumps({"version": 1, "layout": "tree", "root": {"text": "x"}}))
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test():
+        assert app.mm.layout == "tree"
+        assert app.view.layout_.boxes, "and it is what gets drawn"
+
+
+async def test_arrows_follow_a_pyramid(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        app.mm.layout = "pyramid"
+        app.view.refresh_map()
+        first = app.mm.add_child(app.selected, "one")
+        second = app.mm.add_child(app.selected, "two")
+
+        app.select(app.mm.root.id)
+        await pilot.press("down")  # down goes into the children
+        await pilot.pause()
+        assert app.selected == first.id
+
+        await pilot.press("up")  # up goes back to the parent
+        await pilot.pause()
+        assert app.selected == app.mm.root.id
+
+        app.select(first.id)
+        await pilot.press("right")  # siblings are side by side
+        await pilot.pause()
+        assert app.selected == second.id
+
+        await pilot.press("left")
+        await pilot.pause()
+        assert app.selected == first.id
+
+
+async def test_the_layout_key_is_in_the_bar_and_the_help(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test():
+        assert keys_for(app, ("layout",)) == "^L"
+        assert "cycle the shape" in help_text(app).plain
