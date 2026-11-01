@@ -10,12 +10,39 @@ terminal. The map is a plain JSON file you can read, diff and version.
  ╰─────────────╯      ╰──────╯      ╰─────────╯      ╰────────╯      ╰─────────────────╯
 ```
 
+## Install
+
+```bash
+uv tool install git+https://github.com/OWNER/spoider
+```
+
+That puts `spoider` on your PATH with its own copy of its dependencies, so it cannot
+disturb anything else you have installed — and `uv tool uninstall spoider` takes it
+away again. If you use pipx rather than uv, the same command with `pipx` in front of
+it does the same thing.
+
+To look before installing, run it once and leave nothing behind:
+
+```bash
+uvx --from git+https://github.com/OWNER/spoider spoider --demo
+```
+
+To work on it instead, clone and use the checkout's own environment:
+
+```bash
+git clone https://github.com/OWNER/spoider && cd spoider
+uv sync && uv run spoider
+```
+
+Python 3.11 or newer; uv will fetch one if you have none. Upgrade a tool install
+with `uv tool upgrade spoider`.
+
 ## Run
 
 ```bash
-uv run spoider                 # a new, empty map
-uv run spoider ideas.json      # open that map, or start one there
-uv run spoider --demo          # the manual, as a map
+spoider                # a new, empty map
+spoider ideas.json     # open that map, or start one there
+spoider --demo         # the manual, as a map
 ```
 
 Nothing is written until you ask: `^S` writes to the current file and asks for a
