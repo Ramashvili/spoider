@@ -46,7 +46,12 @@ MAX_SPACING = 12
 
 @dataclass(frozen=True)
 class Gaps:
-    """Blank columns between a box and its children, and rows between subtrees."""
+    """Blank columns between neighbours, and blank rows between levels.
+
+    A negative `x` means neighbours *share* a column: at the tightest settings a
+    run of siblings is drawn as one wall with partitions, which is what marks
+    them as siblings rather than as cells that merely happen to sit together.
+    """
 
     x: int = GAP_X
     y: int = GAP_Y
@@ -59,12 +64,21 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
     for a setting that collapses or explodes.
     """
     spacing = max(MIN_SPACING, min(MAX_SPACING, spacing))
-    sideways = layout in ("spider", "branch")
-    across = GAP_X if sideways else STACK_GAP_X
+    if layout in ("spider", "branch"):
+        # a sideways shape needs a column to run a connector through, and its
+        # neighbours are levels apart rather than side by side
+        x = max(2, GAP_X + spacing)
+    elif spacing >= 0:
+        x = STACK_GAP_X + spacing
+    elif spacing == -1:
+        x = 1
+    else:
+        # the two tightest settings: siblings share their wall. An adjacent pair
+        # of walls one column apart would read as a mistake, and a shared wall is
+        # what draws a row of cells as one group.
+        x = -1
     return Gaps(
-        # a sideways shape needs two columns to run a connector through; a
-        # stacked one only needs the boxes not to touch, so it may go to one
-        x=max(2 if sideways else 1, across + spacing),
+        x=x,
         # -1 lets two boxes share a border row: they touch, but each keeps its own
         # text row. Below that the text rows themselves would collide.
         y=max(-1, GAP_Y + spacing),
@@ -245,6 +259,19 @@ def _place_stack(boxes: dict[str, Placed], root: Node, gaps: Gaps, flow: str) ->
                 pending.append(child)
 
 
+def _separation(gaps: Gaps, level: int) -> int:
+    """Distance from the right edge of one subtree to the left edge of the next.
+
+    A positive gap clears that many blank columns; a negative one overlaps, which
+    is the shared wall. At the sibling's own level the setting stands as it is.
+    Below it a column is always kept, because those cells have different parents
+    — two cousins must never merge the way two siblings do.
+    """
+    if gaps.x < 0 and level:
+        return 2  # one blank column: enough to read as two walls, not one
+    return gaps.x + 1
+
+
 def _stack_outline(
     node: Node,
     depth: int,
@@ -278,9 +305,9 @@ def _stack_outline(
             for level, (left, _right) in outline.items():
                 reached = placed.get(level)
                 if reached is not None:
-                    # both extents are cell columns, so clearing by `gaps.x`
-                    # blank columns means starting one past that
-                    shift = max(shift, reached[1] + gaps.x + 1 - left)
+                    # both extents are cell columns, so clearing by a gap means
+                    # starting one past it; a negative gap is deliberate overlap
+                    shift = max(shift, reached[1] + _separation(gaps, level) - left)
         columns.append(shift)
         for level, (left, right) in outline.items():
             moved = (left + shift, right + shift)

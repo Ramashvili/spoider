@@ -171,11 +171,41 @@ def test_stacked_shapes_keep_their_siblings_closer_together():
     assert gaps_for(0, "bush").x == STACK_GAP_X
 
 
-def test_stacked_shapes_may_tighten_one_column_further():
+def test_stacked_shapes_step_down_to_a_shared_wall():
+    assert gaps_for(0, "pyramid").x == 2
     assert gaps_for(-1, "pyramid").x == 1
-    assert gaps_for(-99, "pyramid").x == 1
+    # the two tightest settings: siblings share the column between them
+    assert gaps_for(-2, "pyramid").x == -1
+    assert gaps_for(-99, "pyramid").x == -1
+    assert gaps_for(-2, "bush").x == -1
     # a sideways shape never goes below two: the connector needs the column
     assert gaps_for(-99, "spider").x == 2
+
+
+def test_siblings_share_a_wall_at_the_tightest_settings():
+    for spacing in (-2, -3):
+        mm, alpha, beta, _a1, _a2 = _shaped()
+        layout = compute(mm.root, spacing, "pyramid")
+        assert layout.boxes[alpha.id].right == layout.boxes[beta.id].x
+
+
+def test_cousins_never_share_a_wall():
+    mm = MindMap()
+    alpha = mm.add_child(mm.root.id, "alpha")
+    a1 = mm.add_child(alpha.id, "a1")
+    beta = mm.add_child(mm.root.id, "beta")
+    b1 = mm.add_child(beta.id, "b1")
+
+    layout = compute(mm.root, -2, "pyramid")
+    boxes = layout.boxes
+    left, right = sorted((boxes[a1.id], boxes[b1.id]), key=lambda box: box.x)
+    assert right.x > left.right, "two cousins must not read as one group"
+
+
+def test_siblings_do_not_share_a_wall_when_there_is_room():
+    mm, alpha, beta, _a1, _a2 = _shaped()
+    layout = compute(mm.root, 0, "pyramid")
+    assert layout.boxes[beta.id].x > layout.boxes[alpha.id].right
 
 
 def test_the_stacked_gap_is_what_makes_a_pyramid_narrow():
