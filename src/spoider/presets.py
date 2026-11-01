@@ -5,10 +5,14 @@ anything a preset does not name keeps its default, and a chord set in the config
 file still wins over both.
 
 They are idioms, not emulations. A binding here is one chord, so emacs' `C-x C-s`
-and vim's `dd` cannot be expressed at all, and each preset keeps the shape of the
-habit rather than its exact spelling — vim gets `i` for insert and `p` for paste,
-emacs gets `C-y` for yank and `M-s` for search, and the ctrl forms of the untouched
-keys keep working because that is what this editor does everywhere else.
+and vim's `dd` cannot be expressed at all; each preset keeps the shape of the habit
+and drops the part that cannot be spelled. Where a preset and the app disagree
+about what a key means, the preset wins only for the keys it names — every other
+key, including the ctrl form of the ones it moves, keeps working.
+
+mcedit's row is taken from mc's own default keymap (misc/mc.default.keymap,
+`[editor]`), so F1 is help, F5 is Copy, F6 is Move, F9 is the menu and F12 is
+Save As — in this editor that is cut, paste, settings and write-out.
 """
 
 from __future__ import annotations
@@ -19,8 +23,12 @@ DEFAULT_PRESET = "nano"
 PRESETS: dict[str, dict[str, str]] = {
     "nano": {},
     "vim": {
-        "edit": "i",
-        "cut": "x",
+        # i and a both start typing, as they do in vim; e keeps working
+        "edit": "i,a",
+        # o opens a line below, which is a sibling here
+        "add_sibling": "enter,o",
+        "cut": "x",  # x deletes into the register: exactly our cut
+        "delete": "D",
         "paste": "p",
         "undo": "u",
         "redo": "ctrl+r",
@@ -29,26 +37,35 @@ PRESETS: dict[str, dict[str, str]] = {
         "fold": "z",
     },
     "emacs": {
-        "paste": "ctrl+y",
-        "search": "alt+s",
-        "undo": "ctrl+underscore",
-        "redo": "alt+underscore",
+        "cut": "ctrl+k",  # kill-line
+        "paste": "ctrl+y",  # yank, and our cut stack is a kill ring
+        "search": "alt+s",  # M-s is emacs' search prefix
+        "undo": "ctrl+underscore",  # C-_
+        "redo": "alt+underscore",  # emacs has no redo; this is the invention
+        "clear_selection": "escape,ctrl+g",  # C-g is keyboard-quit
     },
     "mcedit": {
         "help": "f1",
         "save": "f2",
+        "mark": "f3",
+        "cut": "f5",  # Copy
+        "paste": "f6",  # Move
         "search": "f7",
-        "delete": "f8",
+        "delete": "f8",  # Remove
+        "settings": "f9",  # Menu
         "quit": "f10",
+        "write": "f12",  # Save As
+        "undo": "ctrl+u",
+        "redo": "alt+r",
     },
 }
 
 #: One line each, for the settings list.
 DESCRIPTIONS: dict[str, str] = {
     "nano": "^K cut, ^U paste, ^X quit",
-    "vim": "h j k l move, i edit, x cut, p paste, u undo",
+    "vim": "h j k l move, i insert, x cut, p paste, u undo",
     "emacs": "^K kill, ^Y yank, ^_ undo, M-s search",
-    "mcedit": "F1 help, F2 save, F7 search, F8 delete, F10 quit",
+    "mcedit": "F1 help, F2 save, F5 cut, F6 paste, F10 quit",
 }
 
 

@@ -290,14 +290,19 @@ opposite — it does travel, so a map looks the same wherever you open it.
 | Preset | What it changes |
 | --- | --- |
 | `nano` | nothing — it *is* the default: `^K` cut, `^U` paste, `^X` quit, `^S` save |
-| `vim` | `h j k l` move, `i` edit, `x` cut, `p` paste, `u` undo, `^R` redo, `/` search, `m` mark, `z` fold |
-| `emacs` | `^K` kill, `^Y` yank, `M-s` search, `^_` undo, `M-_` redo |
-| `mcedit` | `F1` help, `F2` save, `F7` search, `F8` delete, `F10` quit |
+| `vim` | `h j k l` move, `i`/`a` insert, `o` a sibling below, `x` cut, `p` paste, `D` delete, `u` undo, `^R` redo, `/` search, `m` mark, `z` fold |
+| `emacs` | `^K` kill, `^Y` yank, `M-s` search, `^_` undo, `M-_` redo, `^G` let go of a selection |
+| `mcedit` | the whole F-row: `F1` help, `F2` save, `F3` mark, `F5` cut, `F6` paste, `F7` search, `F8` delete, `F9` settings, `F10` quit, `F12` write out; `^U` undo, `M-r` redo |
+
+The mcedit row is mc's own default keymap, read from `misc/mc.default.keymap` in
+its source rather than guessed at: F5 is Copy there, F6 is Move, F9 is the menu and
+F12 is Save As, which is this editor's cut, paste, settings and write-out.
 
 They are idioms, not emulations: a binding is a single chord here, so emacs'
 `C-x C-s` and vim's `dd` cannot be expressed at all. Each preset keeps the shape of
-the habit, and the keys the preset does not name — including the ctrl form of every
-key it moves — keep working.
+the habit — vim's `x` deletes into the register, which is exactly what a cut does,
+and emacs' `^K`/`^Y` are a kill ring, which is what the cut stack is — and the keys
+a preset does not name, including the ctrl form of every key it moves, keep working.
 
 Choosing a preset **comments out any chords you had set yourself**. Nothing is
 deleted: they move to a section at the bottom of `config.conf`, and removing one

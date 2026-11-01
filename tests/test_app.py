@@ -2453,7 +2453,7 @@ async def test_a_preset_in_the_config_changes_the_chords(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
     async with app.run_test() as pilot:
         _four(app)
-        assert app.keymap["edit"] == "i"
+        assert app.keymap["edit"] == "i,a"
         assert app.keymap["paste"] == "p"
 
         await pilot.press("i")
@@ -2551,3 +2551,97 @@ async def test_custom_chords_are_asked_about_and_then_parked(tmp_path: Path):
         saved = config.read_text()
         assert "bindings = vim" in saved
         assert "# save = ctrl+w" in saved, "the custom chord is kept, commented out"
+
+
+def _app_with_preset(tmp_path: Path, preset: str) -> SpoiderApp:
+    config = tmp_path / "config.conf"
+    config.write_text(f"bindings = {preset}\n")
+    return SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+
+
+async def test_the_vim_preset_opens_and_closes_like_vim(tmp_path: Path):
+    app = _app_with_preset(tmp_path, "vim")
+    async with app.run_test() as pilot:
+        a, _b, _c, _d = _four(app)
+        app.select(a.id)
+
+        await pilot.press("o")  # open a line below: a new sibling
+        await pilot.press("v", "i", "m", "enter")
+        await pilot.pause()
+        assert [child.text for child in app.mm.root.children] == ["a", "vim", "b", "c", "d"]
+
+        await pilot.press("x")  # cut into the register
+        await pilot.pause()
+        assert app.mm.cut_stack and app.cut_stat() == "1 cut"
+
+        app.select(app.mm.root.id)  # a cut leaves you on a sibling, so walk back
+        await pilot.press("p")  # and put it back
+        await pilot.pause()
+        assert app.mm.cut_stack == []
+        assert "vim" in [child.text for child in app.mm.root.children]
+
+
+async def test_the_vim_preset_keeps_enter_for_new_siblings(tmp_path: Path):
+    app = _app_with_preset(tmp_path, "vim")
+    assert app.keymap["add_sibling"] == "enter,o", "o is added, enter is not taken away"
+
+
+async def test_the_mcedit_preset_has_the_f_row(tmp_path: Path):
+    app = _app_with_preset(tmp_path, "mcedit")
+    keymap = app.keymap
+
+    assert keymap["help"] == "f1"
+    assert keymap["save"] == "f2"
+    assert keymap["mark"] == "f3"
+    assert keymap["cut"] == "f5"
+    assert keymap["paste"] == "f6"
+    assert keymap["search"] == "f7"
+    assert keymap["delete"] == "f8"
+    assert keymap["settings"] == "f9"
+    assert keymap["quit"] == "f10"
+    assert keymap["write"] == "f12"
+    assert keymap["undo"] == "ctrl+u"
+    assert keymap["redo"] == "alt+r"
+
+
+async def test_the_mcedit_f_keys_do_what_mc_does_with_them(tmp_path: Path):
+    app = _app_with_preset(tmp_path, "mcedit")
+    async with app.run_test() as pilot:
+        a, b, _c, _d = _four(app)
+        app.select(a.id)
+
+        await pilot.press("f5")  # Copy, here: cut
+        await pilot.pause()
+        assert [child.text for child in app.mm.root.children] == ["b", "c", "d"]
+        assert [cell.text for cell in app.mm.cut_stack] == ["a"]
+
+        app.select(b.id)
+        await pilot.press("f6")  # Move, here: paste
+        await pilot.pause()
+        assert [child.text for child in b.children] == ["a"]
+
+        await pilot.press("f9")  # the menu, here: settings
+        await pilot.pause()
+        assert app.mode == "settings"
+
+        await pilot.press("escape")
+        await pilot.pause()
+        await pilot.press("f1")  # help
+        await pilot.pause()
+        assert app.mode == "help"
+
+
+async def test_the_emacs_preset_uses_ctrl_g_to_let_go(tmp_path: Path):
+    app = _app_with_preset(tmp_path, "emacs")
+    assert app.keymap["clear_selection"] == "escape,ctrl+g"
+    assert app.keymap["paste"] == "ctrl+y"
+    assert app.keymap["search"] == "alt+s"
+
+
+async def test_the_pinned_cluster_moves_with_the_preset(tmp_path: Path):
+    app = _app_with_preset(tmp_path, "mcedit")
+    async with app.run_test(size=(120, 30)) as pilot:
+        await pilot.pause()
+        bar = app.query_one("#footer", FooterBar).render().plain
+        assert "F9 settings" in bar and "F1 help" in bar, "mcedit moved them to the F-row"
+        assert "^, settings" not in bar

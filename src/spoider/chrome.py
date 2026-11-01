@@ -80,10 +80,11 @@ BAR_ORDER: tuple[str, ...] = (
 #: Bare keys need their own caps: `=` and `-` do not spell themselves.
 BAR_GLYPHS = {"equals_sign": "=", "minus": "-"}
 
-#: Always visible, flush right. Order matters: last one sits closest to the edge.
-PINNED: tuple[tuple[str, str], ...] = (
-    ("ctrl+comma", "settings"),
-    ("ctrl+slash", "help"),
+#: Always visible, flush right: binding id, the chord it has by default, and its
+#: label. The chords move with the preset like every other key.
+PINNED: tuple[tuple[str, str, str], ...] = (
+    ("settings", "ctrl+comma", "settings"),
+    ("help", "ctrl+slash", "help"),
 )
 
 DIVIDER = "│"
@@ -142,13 +143,14 @@ def hint_chunks(
     return [chunk for _, chunk in shown]
 
 
-def pinned_chunks() -> list[Text]:
-    return [entry(key, label) for key, label in PINNED]
+def pinned_chunks(keymap: dict[str, str] | None = None) -> list[Text]:
+    keymap = keymap or {}
+    return [entry(keymap.get(ident, default), label) for ident, default, label in PINNED]
 
 
-def pinned_bar() -> Text:
+def pinned_bar(keymap: dict[str, str] | None = None) -> Text:
     bar = Text()
-    for chunk in pinned_chunks():
+    for chunk in pinned_chunks(keymap):
         bar.append_text(chunk)
     return bar
 
@@ -264,7 +266,8 @@ class FooterBar(Widget):
             skip = frozenset({"save"}) if getattr(app, "autosave", False) else frozenset()
             spoider = cast("SpoiderApp", app)
             hints = hint_chunks(spoider.BINDINGS, skip, spoider.keymap)
-        return compose_footer(width, hints)
+        keymap = getattr(self.app, "keymap", None)
+        return compose_footer(width, hints, pinned_bar(keymap if isinstance(keymap, dict) else None))
 
 
 SEARCH_PROMPT = "Search: "
