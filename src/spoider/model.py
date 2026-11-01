@@ -423,7 +423,7 @@ class MindMap:
             ],
             "marks and folds": [
                 "m cycles a mark, then off",
-                "✅ marks are saved with the map",
+                "marks are saved with the map",
                 "t folds a branch away",
             ],
             "moving around": [
