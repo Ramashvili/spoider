@@ -1,42 +1,91 @@
+# Notes for whoever edits spoider
+
+The README is for people using it. This is for people — and coding agents — changing
+it: the layout, the rules the code is held to, and the traps that have already cost
+time once.
+
+Python 3.11, one runtime dependency (Textual), `src/` layout, tests in `tests/`.
+
+## Commands
+
+```bash
+uv run spoider                                          # run it
+uv run pytest                                           # asyncio_mode=auto, no markers needed
+uv run ruff check src tests                             # lint
+uvx pyright --pythonpath .venv/bin/python src/spoider    # types
+```
+
+A change is not done until all three are clean and there is a test that fails without
+it.
+
+## Layout
+
+| File | Role |
+| --- | --- |
+| `model.py` | `Node`, `MindMap`: the tree, mutations by id, the cut stack, JSON load/save |
+| `layout.py` | places every visible node on a character grid |
+| `render.py` | grid → styled cells (boxes, connectors) → `rich.Text` |
+| `nav.py` | selection movement rules |
+| `widgets.py` | `MindMapView`: camera, hit-testing, the stack column, clicks |
+| `drawers.py` | bottom drawers: prompt, question, panel |
+| `screens.py` | the text help and settings show |
+| `chrome.py` | the shortcut bar: ranking, chunks, pinned cluster |
+| `config.py` | editor preferences in `~/.config/spoider/config.conf` |
+| `app.py` | bindings, modes, the stack panel, undo history, write/quit |
+| `text.py`, `files.py` | cleaning untrusted text; atomic writes |
+
+`app.py` is a third of the code and one class. Its seams are marked with section
+comments; the search machinery and the history/quit machinery are the two pieces most
+ready to move out.
+
+## Rules the code is held to
+
+- **No palette.** Textual's `ansi` theme, ANSI colour names, reverse video for
+  selection and search hits, `\e[7m` blocks in the top bar. No hex, no RGB, no fixed
+  named colour — `orange1` does not parse at all and `orange` is a hard-coded RGB.
+- **Document vs editor state.** The map file holds the tree, text, `collapsed`,
+  `mark`, `spacing`, `layout` and `cut_stack`. `config.conf` holds autosave, the mark
+  set and chord overrides. Anything that changes how a map looks belongs to the
+  document, so a file looks the same wherever it is opened.
+- **Chords are spelled nano's way** everywhere — `^` ctrl, `M-` alt, `S-` shift — never
+  `⌥`/`⇧` glyphs. Ctrl chords first; a bare key only where it collides with nothing
+  and the action is used constantly. One chord per job.
+- **The bar never disappears** and always describes what has the keys. No modal
+  screens: prompts, questions, settings, help and the stack are drawers or columns.
+  Panels keep one blank line above the bar.
+- **Same words everywhere.** Bar labels come from the binding table and chords from
+  the keymap, so `^K` says "cut" on the map, in the panel and in help.
+- **No compatibility shims.** Young project: no legacy key aliases, no old config
+  readers, no migration paths. Ask before adding one.
+- **Untrusted input.** Clean text at ingest *and* at draw (`spoider.text.clean`), cap
+  nesting at `MAX_DEPTH`, regenerate duplicate ids, write through
+  `spoider.files.write_atomic`. A map that cannot be read is reported, never half
+  loaded.
+- **Don't invent scope.** Build what was asked for; propose the rest and wait.
+
+## Traps
+
+- `App.clipboard` already exists (Textual's OSC 52 bridge) — shadowing it raises at
+  construction. The cut cell is `cut_cell`.
+- `^M` arrives as `Return` on any terminal, and `^I` as `Tab` where the kitty keyboard
+  protocol is missing. That is why `m` is bare and `ctrl+m` is not bound at all.
+- `run_test` suppresses notifications unless you pass `notifications=True`.
+- `Text.split("\n")` drops blank lines — pass `allow_blank=True` when splicing
+  rendered text back together.
+- A binding that is not in `BINDINGS` is invisible to the bar and to help.
+- The stack panel is an ordinary `MindMap` built over the *same* `Node` objects, but
+  its top-level list is a copy: mutations have to be written back to `cut_stack`.
+- `MindMap.find()` rebuilds its index on a miss. That is what keeps paste and delete
+  simple, and it means a stale id costs an index rebuild rather than raising.
+- While a drawer or the stack panel has the keys, clicks and scrolls on the map are
+  ignored, and `_restore_focus()` puts the keys back when the terminal regains focus.
+- The map draws no cursor while the stack panel is open: one cursor on screen means
+  one place the keys are.
+
 ## Known limits
 
-- On a narrow terminal a wide map is clipped at the edges — the view always
-  keeps the selected node centred and does not zoom out. Use a wider window, or
-  fold branches you are not working on.
-- No drag-to-reparent: reparenting is cut and paste (`^K`, then `^U` under the
-  new parent).
-- Undo history lives in memory for the session (the file on disk is only the
-  current state, and only after a `^O` write). It is not capped, so a very long
-  session on a very large map keeps growing.
-- Autosave is off by default; with it off there is no backup file either, so
-  quitting with `n` discards changes for good.
-- Nothing locks the map file. Two editors on the same map means the last save
-  wins.
-
-## Where the next work should go
-
-- `app.py` is a third of the code and one class: state, drawers, search, inline
-  editing, movement, files. The seams are marked with section comments and each
-  section is small, but it is the file that will rot first. The two pieces most
-  ready to leave are the search machinery and the history/quit machinery.
-- `MindMap.find()` rebuilds its index whenever an id misses. That is what lets
-  paste and delete stay simple; it also means a stale id costs an index rebuild
-  rather than raising, so a future bug would show up as slowness, not a traceback.
-- Only the flat rc file is read. The `config.json` / `config.toml` reader from the
-  build before it is gone on purpose: no migration shims in a young project.
-
-## What happens to a file it cannot read
-
-A map is untrusted input, so `MindMap.load` reports rather than raises:
-
-- not UTF-8, not JSON, not an object with a `root`, or nested deeper than
-  `MAX_DEPTH` (400) → the editor opens an empty map and says why in a
-  notification. The unreadable file is left untouched.
-- control characters in cell text, marks and ids are stripped when the file is
-  read *and* again when a cell is drawn (`spoider.text.clean`). Without that, a
-  cell could carry an escape sequence into the terminal: clear the screen,
-  recolour the app, or write to the clipboard through OSC 52.
-- duplicate ids are regenerated, so `find()` can never point at the wrong node.
-
-Writes go through `spoider.files.write_atomic`: a sibling temp file, fsync,
-then rename — a crash mid-write leaves the previous map intact.
+- A map wider than the terminal is clipped at the edges; there is no zoom out.
+- No drag-to-reparent — that is cut and paste.
+- Undo history is in memory for the session and not capped.
+- Autosave is off by default and there is no backup file.
+- No file locking: two editors on one map, last save wins.
