@@ -4,15 +4,16 @@ from pathlib import Path
 from spoider.app import BINDINGS, SpoiderApp
 from spoider.chrome import CARET, FooterBar, compose_footer, hint_chunks
 from spoider.config import load_config
-from spoider.drawers import AskBar, PromptBar
+from spoider.drawers import AskBar, PanelBar, PromptBar
 from spoider.layout import compute
 from spoider.screens import HELP, help_text, keys_for, settings_text
 from spoider.widgets import TopBar, compose_top_bar
 
 
 def test_every_shortcut_uses_a_modifier():
-    # Bare keys are only the terminal's own cursor keys, the two ergonomic
-    # inserts, and the vim aliases for those cursor keys — nothing else.
+    # Bare keys are the terminal's own cursor keys, the five letters that are
+    # reached for constantly and collide with nothing, the two inserts, the vim
+    # aliases, and the two spacing keys.
     allowed_plain = {
         "tab",
         "enter",
@@ -26,6 +27,11 @@ def test_every_shortcut_uses_a_modifier():
         "j",
         "k",
         "l",
+        "e",
+        "t",
+        "g",
+        "equals_sign",
+        "minus",
     }
     for binding in SpoiderApp.BINDINGS:
         for key in str(binding.key).split(","):
@@ -144,8 +150,8 @@ def test_spacing_chords_match_the_names_the_key_parser_produces():
 
     bound = {key for binding in SpoiderApp.BINDINGS for key in str(binding.key).split(",")}
     sequences = {
-        "ctrl+equals_sign": "\x1b[61;5u",  # ^= under the kitty keyboard protocol
-        "ctrl+minus": "\x1b[45;5u",  # ^- under it
+        "equals_sign": "=",  # a bare = is not called "equal"
+        "minus": "-",
     }
     for expected, sequence in sequences.items():
         parsed = [key.key for key in XTermParser().feed(sequence) if hasattr(key, "key")]
@@ -543,15 +549,15 @@ async def test_spacing_keys_resize_the_canvas(tmp_path: Path):
         app.view.refresh_map()
         base = app.view.layout_.width
 
-        await pilot.press("ctrl+equals_sign")
+        await pilot.press("equals_sign")
         assert app.spacing == 1
         assert app.view.layout_.width > base
 
-        await pilot.press("ctrl+minus")
+        await pilot.press("minus")
         assert app.spacing == 0
         assert app.view.layout_.width == base
 
-        await pilot.press("ctrl+minus")  # and past the default, into tighter
+        await pilot.press("minus")  # and past the default, into tighter
         assert app.spacing == -1
         assert app.view.layout_.width < base
 
@@ -572,8 +578,10 @@ def test_help_follows_a_rebound_chord(tmp_path: Path):
     config.write_text("mark = ctrl+m\n")
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
     body = help_text(app).plain
-    assert "^M" in body
-    assert "^G" not in body  # the old chord is gone everywhere, help included
+
+    row = next(line for line in body.splitlines() if "cycle the mark" in line)
+    assert row.strip().startswith("^M"), "the rebound chord leads its row"
+    assert "g" not in row.split("cycle")[0].split(), "the default key is gone"
 
 
 async def test_help_opens_with_ctrl_slash_and_closes(tmp_path: Path):
@@ -740,7 +748,7 @@ async def test_a_stale_config_file_is_regenerated_on_start(tmp_path: Path):
         "autosave = true\n"
         "marks = 🔴 🟢\n"
         "\n"
-        "# spacing_more = ctrl+shift+equals_sign,ctrl+equals_sign,ctrl+plus\n"
+        "# spacing_more = ctrl+shift+equals_sign,equals_sign,ctrl+plus\n"
         "# gone_action = ctrl+y\n"
     )
 
@@ -749,7 +757,7 @@ async def test_a_stale_config_file_is_regenerated_on_start(tmp_path: Path):
         await pilot.pause()
 
     text = path.read_text()
-    assert "# spacing_more = ctrl+equals_sign\n" in text
+    assert "# spacing_more = equals_sign\n" in text
     assert "ctrl+plus" not in text and "gone_action" not in text
     # and nothing of the user's was lost
     assert "autosave = true" in text
@@ -924,7 +932,7 @@ async def test_a_rebound_chord_takes_effect(tmp_path: Path):
 
 def test_spacing_keys_are_one_chord_each():
     spacing = {b.id: b.key for b in BINDINGS if b.action.startswith("spacing")}
-    assert spacing == {"spacing_more": "ctrl+equals_sign", "spacing_less": "ctrl+minus"}
+    assert spacing == {"spacing_more": "equals_sign", "spacing_less": "minus"}
 
 
 def test_the_bar_shows_the_chords_in_force(tmp_path: Path):
@@ -994,7 +1002,7 @@ async def test_autosave_writes_after_every_edit(tmp_path: Path):
         assert app.dirty is False
         assert json.loads(path.read_text())["root"]["children"][0]["text"] == "a"
 
-        await pilot.press("ctrl+minus")  # a view/edit change, same rule
+        await pilot.press("minus")  # a view/edit change, same rule
         await pilot.pause()
         assert json.loads(path.read_text())["spacing"] == -1
 
@@ -1045,7 +1053,7 @@ async def test_spacing_is_saved_with_the_map(tmp_path: Path):
         await pilot.press("tab")
         await pilot.press("a", "enter")
         await pilot.pause()
-        await pilot.press("ctrl+minus")
+        await pilot.press("minus")
         await pilot.pause()
         assert app.dirty is True  # document state, so it needs writing
         await pilot.press("ctrl+s")
@@ -1627,25 +1635,26 @@ async def test_a_match_hidden_in_a_folded_branch_is_revealed(tmp_path: Path):
 def test_the_bar_ranks_its_hints_from_leaving_down_to_the_air():
     line = compose_footer(400, hint_chunks(BINDINGS)).plain
     expected = [
+        "⇥ child",
+        "⏎ sib",
         "^X quit",
         "^S save",
         "^O write",
         "^Z undo",
         "^F search",
-        "^E edit",
+        "e edit",
         "^D del",
-        "^T fold",
-        "^G mark",
-        "⇥ child",
-        "⏎ sib",
+        "t fold",
+        "g mark",
         "^L layout",
-        "^= looser",
-        "^- tighter",
+        "= looser",
+        "- tighter",
     ]
     positions = [line.index(item) for item in expected]
     assert positions == sorted(positions), "the bar should read most to least important"
-    # and a narrow bar therefore keeps quitting and drops the spacing keys
-    narrow = compose_footer(40, hint_chunks(BINDINGS)).plain
+    # and a narrow bar keeps the inserts and quitting, and drops the spacing
+    narrow = compose_footer(60, hint_chunks(BINDINGS)).plain
+    assert "⇥ child" in narrow and "⏎ sib" in narrow
     assert "^X quit" in narrow
     assert "tighter" not in narrow
 
@@ -1835,3 +1844,74 @@ async def test_save_never_offers_a_name_that_is_already_taken(tmp_path: Path, mo
         await pilot.pause()
 
     assert default.read_text() == existing
+
+
+# -- coming back to the terminal ------------------------------------------
+
+
+async def test_returning_to_the_terminal_lands_where_you_left(tmp_path: Path):
+    from textual import events
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        for key in ("ctrl+comma",):
+            await pilot.press(key)
+            await pilot.pause()
+        assert app.mode == "settings"
+        assert app.focused is app.query_one(PanelBar)
+
+        # the window loses focus, and gets it back with the settings still open
+        app.post_message(events.AppBlur())
+        await pilot.pause()
+        app.post_message(events.AppFocus())
+        await pilot.pause()
+
+        assert app.focused is app.query_one(PanelBar), "the drawer keeps the keys"
+        row = app._settings_row
+        await pilot.press("down")
+        await pilot.pause()
+        assert app._settings_row == row + 1, "and the arrows still move the rows"
+        assert app.selected == app.mm.root.id, "not the selection behind it"
+
+
+async def test_returning_to_the_terminal_does_not_steal_a_prompt(tmp_path: Path):
+    from textual import events
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+f")
+        await pilot.press("a", "l")
+        await pilot.pause()
+        typed = app.query_one(PromptBar).value
+
+        app.post_message(events.AppBlur())
+        await pilot.pause()
+        app.post_message(events.AppFocus())
+        await pilot.pause()
+
+        assert app.focused is app.query_one(PromptBar)
+        assert app.query_one(PromptBar).value == typed, "half-typed words survive"
+        await pilot.press("p", "h", "a")
+        await pilot.pause()
+        assert app.query_one(PromptBar).value == typed + "pha"
+
+
+async def test_a_click_cannot_take_the_keys_from_an_open_drawer(tmp_path: Path):
+    from spoider.widgets import MindMapView
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+comma")
+        await pilot.pause()
+        panel = app.query_one(PanelBar)
+        assert app.focused is panel
+
+        # this is what clicking back into the window does: focus lands on the map
+        app.screen.set_focus(app.query_one(MindMapView))
+        await pilot.pause()
+
+        assert app.focused is panel, "the drawer takes the keys back"
+        row = app._settings_row
+        await pilot.press("down")
+        await pilot.pause()
+        assert app._settings_row == row + 1

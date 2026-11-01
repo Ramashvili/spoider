@@ -44,8 +44,10 @@ them away silently — unless you turn autosave on (see below).
 
 ## Keys
 
-`Tab` and `Return` do the two things you do constantly; everything else is a ctrl
-chord in the spirit of nano (`^A` and `^J` remain as aliases for those two).
+`Tab` and `Return` do the two things you do constantly, and five more keys are
+bare because they are reached for just as often and collide with nothing: `e`,
+`t`, `g`, `=` and `-`. Everything else is a ctrl chord in the spirit of nano, and
+the ctrl forms of those five (`^E`, `^T`, `^G`, `^=`, `^-`) still work as aliases.
 Movement also answers to the arrow keys and, for vim users, to `h` `j` `k` `l` —
 all aliases of the same four actions, so the spatial flipping applies to every
 one of them.
@@ -55,11 +57,11 @@ one of them.
 | `Tab` | add a child under the selection and type its name in place | indenting in, like an outliner |
 | `Return` | add a sibling after the selection and type its name in place | the next line |
 | `^A` / `^J` | aliases for those two, for when your hands are already on ctrl | |
-| `^E` | edit the selected node in place | **e**dit |
+| `e` | edit the selected node in place (`^E` also works) | **e**dit |
 | `^C` | escape everywhere: closes a dialog, abandons the node being typed, otherwise inert | |
 | `^D` | delete the branch | nano's delete |
-| `^T` | fold / unfold the branch | **t**oggle |
-| `^G` | cycle the cell's mark and then off again — the set is editable in `^,` | **g**lyph |
+| `t` | fold / unfold the branch (`^T` also works) | **t**oggle |
+| `g` | cycle the cell's mark and then off again — the set is editable in `^,` (`^G` also works) | **g**lyph |
 | `^P` / `↑` | previous sibling | nano: previous line |
 | `^N` / `↓` | next sibling | nano: next line |
 | `^B` / `←` | left — from the root, its left-hand branch; on a right-hand branch, out to the parent; on a left-hand one, into the first child | nano: back a character |
@@ -71,8 +73,8 @@ one of them.
 | `^S` | save straight to the current file, no questions | the universal save |
 | `^O` | write out — asks which file to write, pre-filled with the current one | nano: write out (save as) |
 | `^X` | quit; if the buffer is modified it asks `y save / n discard / esc cancel` | nano: exit |
-| `^=` | widen the gaps between cells — one column and one row per press (saved with the map) | |
-| `^-` | tighten them again, down to boxes that almost touch | |
+| `=` | widen the gaps between cells — one column and one row per press (saved with the map) | |
+| `-` | tighten them again, down to boxes that almost touch | |
 | `^L` | cycle the shape of the map: spider → pyramid → bush → branch (saved with the map) | **l**ayout |
 | `^/` | help: every key, with a line of explanation — any key closes it | |
 | `^,` | editor settings — the autosave switch | like every other preferences chord |
@@ -128,9 +130,10 @@ rows, the help page — appears on the lines just above the bar, the way nano do
 it. The bar underneath then says what that drawer accepts, because it is the only
 footer there is and it always describes what has the keys.
 
-Its order is a ranking, and a narrow terminal drops the tail: `^X quit` first,
-then saving, writing, undo, search, the editing keys, the inserts, and the
-spacing nudges last of all.
+Its order is a ranking, and a narrow terminal drops the tail: the two inserts
+first, because that is what you do most; then `^X quit`, so a cramped bar never
+strands you; then saving, writing, undo, search, the editing keys, the shape; and
+the spacing nudges last of all.
 
 It carries the keys you cannot guess — inserts, edits, spacing, file, undo.
 The four navigation chords are deliberately absent: arrows and `hjkl` cover

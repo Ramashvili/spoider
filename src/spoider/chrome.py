@@ -46,9 +46,12 @@ KEY_GLYPHS = {
 }
 
 #: The bar shows its hints in this order, and that is a ranking: a narrow
-#: terminal drops the tail of the bar first, so leaving comes before saving,
-#: saving before editing, and nudging the air comes last of all.
+#: terminal drops the tail of the bar first. Making cells comes first because it
+#: is what you do most; leaving is next, so a cramped bar never strands you;
+#: nudging the air comes last of all.
 BAR_ORDER: tuple[str, ...] = (
+    "add_child",
+    "add_sibling",
     "quit",
     "save",
     "write",
@@ -58,12 +61,13 @@ BAR_ORDER: tuple[str, ...] = (
     "delete",
     "fold",
     "mark",
-    "add_child",
-    "add_sibling",
     "layout",
     "spacing_more",
     "spacing_less",
 )
+
+#: Bare keys need their own caps: `=` and `-` do not spell themselves.
+BAR_GLYPHS = {"equals_sign": "=", "minus": "-"}
 
 #: Always visible, flush right. Order matters: last one sits closest to the edge.
 PINNED: tuple[tuple[str, str], ...] = (
@@ -82,6 +86,8 @@ def key_cap(key: str) -> str:
     key = str(key).split(",")[0]
     if key in KEY_GLYPHS:
         return KEY_GLYPHS[key]
+    if key in BAR_GLYPHS:
+        return BAR_GLYPHS[key]
     for prefix, glyph in BINDING_LEGEND.items():
         if key.startswith(prefix):
             body = key[len(prefix) :]

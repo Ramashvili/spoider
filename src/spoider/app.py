@@ -9,6 +9,7 @@ import subprocess
 from collections.abc import Iterable
 from pathlib import Path
 
+from textual import events
 from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding, BindingType
 
@@ -87,10 +88,15 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+a", "add_child", "child", show=False, id="add_child_alt"),
     Binding("enter", "add_sibling", "sib", id="add_sibling"),
     Binding("ctrl+j", "add_sibling", "sib", show=False, id="add_sibling_alt"),
-    Binding("ctrl+e", "edit", "edit", id="edit"),
+    # Five of these have earned a bare key: they are reached for constantly and
+    # collide with nothing, since h/j/k/l are the only bare letters spoken for.
+    Binding("e", "edit", "edit", id="edit"),
+    Binding("ctrl+e", "edit", "edit", show=False, id="edit_alt"),
     Binding("ctrl+d", "delete", "del", id="delete"),
-    Binding("ctrl+t", "fold", "fold", id="fold"),
-    Binding("ctrl+g", "mark", "mark", id="mark"),
+    Binding("t", "fold", "fold", id="fold"),
+    Binding("ctrl+t", "fold", "fold", show=False, id="fold_alt"),
+    Binding("g", "mark", "mark", id="mark"),
+    Binding("ctrl+g", "mark", "mark", show=False, id="mark_alt"),
     # search sits with the other editing keys: it is what you reach for while
     # reading a map, and the bar has room for one more
     Binding("ctrl+f", "search", "search", id="search"),
@@ -121,8 +127,8 @@ BINDINGS: list[BindingType] = [
     # One chord each. Every terminal spelling the same key might arrive as used to
     # be bound too, which made the bar, the help and the config list six keys for
     # two jobs; if a terminal cannot send these, rebind them in the config.
-    Binding("ctrl+equals_sign", "spacing_more", "looser", id="spacing_more"),
-    Binding("ctrl+minus", "spacing_less", "tighter", id="spacing_less"),
+    Binding("equals_sign", "spacing_more", "looser", id="spacing_more"),
+    Binding("minus", "spacing_less", "tighter", id="spacing_less"),
 
     # file first, history last: on a narrow terminal the bar clips its tail,
     # and ^X matters more than ^Z
@@ -264,6 +270,38 @@ class SpoiderApp(App[None]):
         self.set_keymap(self.config.keys)
         self._set_terminal_title()
         self.query_one(MindMapView).focus()
+
+    def on_app_focus(self, event: events.AppFocus) -> None:
+        """Come back to the terminal exactly where you left it."""
+        self._restore_focus()
+
+    def on_descendant_focus(self, event: events.DescendantFocus) -> None:
+        """Only the open drawer may hold the keys.
+
+        Coming back to a window is usually a click, and a click focuses whatever
+        is under the pointer — the map, behind a drawer that is still on screen.
+        Rather than police individual events, the rule is enforced wherever focus
+        lands: if a drawer is open, it takes the focus back.
+        """
+        owner = self._drawer_owner()
+        if owner is not None and self.focused is not owner:
+            self.call_later(owner.focus)
+
+    def _drawer_owner(self):
+        """The widget that must hold the keys for the current mode, if any."""
+        if self._mode in ("search", "write", "marks"):
+            return self.query_one(PromptBar)
+        if self._mode == "ask":
+            return self.query_one(AskBar)
+        if self._mode in ("settings", "help"):
+            return self.query_one(PanelBar)
+        return None
+
+    def _restore_focus(self) -> None:
+        if not self.is_mounted:
+            return
+        owner = self._drawer_owner()
+        (owner or self.view).focus()
 
     def _title(self) -> str:
         marker = " *" if self.dirty else ""
