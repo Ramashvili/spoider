@@ -24,10 +24,15 @@ from pathlib import Path
 
 from .files import write_atomic
 from .model import MARKS
+from .presets import DEFAULT_PRESET, PRESETS
 from .text import clean
 
 #: More than this and ^G takes too long to come back around.
 MAX_MARKS = 8
+
+#: Everything after this line is a chord the user set and a preset switch parked:
+#: still in the file, still readable, not in force.
+PARKED_MARKER = "# Chords put aside when a preset was chosen. Remove the # to use one again."
 
 TRUE_WORDS = frozenset({"1", "true", "yes", "on"})
 
@@ -39,6 +44,11 @@ class Config:
     # binding id -> chord(s). Only what was actually changed; the defaults live in
     # the app, and the file shows them commented out.
     keys: dict[str, str] = field(default_factory=dict)
+    #: Which preset's chords are in force (see presets.py).
+    preset: str = DEFAULT_PRESET
+    #: Chords a preset switch commented out. Kept here so the file round-trips:
+    #: the app writes them back as comments instead of forgetting them.
+    parked: dict[str, str] = field(default_factory=dict)
 
 
 def config_dir() -> Path:
@@ -61,7 +71,17 @@ def _without_comment(line: str) -> str:
 
 def parse(text: str) -> Config:
     config = Config()
+    parked = False
     for raw in text.splitlines():
+        if raw.strip() == PARKED_MARKER:
+            parked = True
+            continue
+        if parked and raw.lstrip().startswith("#"):
+            restored = raw.lstrip("# ").strip()
+            name, _, chord = restored.partition("=")
+            if name.strip() and chord.strip():
+                config.parked[name.strip()] = chord.strip()
+            continue
         line = _without_comment(raw)
         if not line or "=" not in line:
             continue
@@ -69,7 +89,10 @@ def parse(text: str) -> Config:
         name, value = name.strip(), value.strip()
         if not name:
             continue
-        if name == "autosave":
+        if name == "bindings":
+            if value in PRESETS:
+                config.preset = value
+        elif name == "autosave":
             config.autosave = value.lower() in TRUE_WORDS
         elif name == "marks":
             marks = tuple(cleaned for token in value.split() if (cleaned := clean(token)))
@@ -78,6 +101,10 @@ def parse(text: str) -> Config:
         elif value:
             # anything else is a chord override; unknown names are ignored later
             config.keys[name] = value
+    # a chord that is live again is no longer parked, so the file does not list
+    # it twice
+    for ident in config.keys:
+        config.parked.pop(ident, None)
     return config
 
 
@@ -130,6 +157,7 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
         "",
         f"autosave = {'true' if config.autosave else 'false'}",
         "marks = " + " ".join(config.marks),
+        f"bindings = {config.preset}",
         "",
         "# Chords. Uncomment a line to change it, e.g.  save = ctrl+w",
     ]
@@ -140,6 +168,10 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
             lines.append(f"{ident} = {config.keys[ident]}")
         else:
             lines.append(f"# {ident} = {default}")
+    if config.parked:
+        lines.extend(["", PARKED_MARKER])
+        for ident, chord in config.parked.items():
+            lines.append(f"# {ident} = {chord}")
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -155,6 +187,11 @@ def is_stale(
     except (OSError, UnicodeDecodeError):
         return True
     lines = {line.strip() for line in text.splitlines()}
+    if f"bindings = {config.preset}" not in lines:
+        return True
+    for ident, chord in config.parked.items():
+        if f"# {ident} = {chord}" not in lines:
+            return True
     for ident, default, _ in key_entries:
         wanted = (
             f"{ident} = {config.keys[ident]}"

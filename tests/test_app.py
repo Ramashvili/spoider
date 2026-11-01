@@ -964,9 +964,10 @@ async def test_settings_opens_the_config_in_an_editor(tmp_path: Path, monkeypatc
         await pilot.press("ctrl+comma")
         await pilot.pause()
         await pilot.press("down")
-        await pilot.press("down")  # config row
+        await pilot.press("down")
+        await pilot.press("down")  # config row: autosave, marks, bindings, config
         await pilot.pause()
-        assert app._settings_row == 2
+        assert app._settings_row == 3
 
         await pilot.press("enter")
         await pilot.pause()
@@ -2441,3 +2442,112 @@ async def test_saving_toasts_green_and_a_failure_toasts_red(tmp_path: Path):
         newest = app.query(Toast).last()
         assert newest.has_class("-error"), "red"
         assert "Nothing to paste" in str(newest.render())
+
+
+# -- binding presets ------------------------------------------------------
+
+
+async def test_a_preset_in_the_config_changes_the_chords(tmp_path: Path):
+    config = tmp_path / "config.conf"
+    config.write_text("bindings = vim\n")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with app.run_test() as pilot:
+        _four(app)
+        assert app.keymap["edit"] == "i"
+        assert app.keymap["paste"] == "p"
+
+        await pilot.press("i")
+        await pilot.pause()
+        assert app.editing, "i is insert under the vim preset"
+
+
+async def test_an_unknown_preset_falls_back_to_the_default(tmp_path: Path):
+    config = tmp_path / "config.conf"
+    config.write_text("bindings = wordperfect\n")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+
+    assert app.keymap["save"] == "ctrl+s"
+    assert app.config.preset == "nano"
+
+
+async def test_the_settings_row_opens_the_four_presets(tmp_path: Path):
+    config = tmp_path / "config.conf"
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+comma")
+        await pilot.pause()
+        assert "nano" in app.query_one(PanelBar).render().plain
+
+        await pilot.press("down")
+        await pilot.press("down")  # the bindings row
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert app.mode == "presets"
+        body = app.query_one(PanelBar).render().plain
+        for name in ("nano", "vim", "emacs", "mcedit"):
+            assert name in body
+        assert "writes it into config.conf" in body
+
+
+async def test_choosing_a_preset_says_so_and_writes_it_down(tmp_path: Path):
+    config = tmp_path / "config.conf"
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+comma")
+        await pilot.pause()
+        await pilot.press("down")
+        await pilot.press("down")
+        await pilot.press("enter")  # the preset list
+        await pilot.pause()
+        await pilot.press("down")  # vim
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert app.config.preset == "vim"
+        assert app.mode == "settings", "back to the rows it came from"
+        assert app.keymap["cut"] == "x"
+        assert "bindings = vim" in config.read_text()
+        assert "# cut = x" in config.read_text(), "the file documents the chords in force"
+
+
+async def test_custom_chords_are_asked_about_and_then_parked(tmp_path: Path):
+    config = tmp_path / "config.conf"
+    config.write_text("save = ctrl+w\n")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+comma")
+        await pilot.pause()
+        await pilot.press("down")
+        await pilot.press("down")
+        await pilot.press("enter")
+        await pilot.pause()
+        assert "comments out your 1 custom chord" in app.query_one(PanelBar).render().plain
+
+        await pilot.press("down")  # vim
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert app.mode == "ask", "nothing is thrown away without being asked"
+        assert "Comment out 1 custom chord" in app.query_one(AskBar).render().plain
+        assert "yes" in app.query_one("#footer", FooterBar).render().plain
+
+        await pilot.press("n")
+        await pilot.pause()
+        assert app.config.preset == "nano", "no means no"
+        assert app.mode == "settings", "and you are back on the rows"
+
+        await pilot.press("enter")  # the bindings row is still selected
+        await pilot.pause()
+        await pilot.press("down")
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.press("y")
+        await pilot.pause()
+
+        assert app.config.preset == "vim"
+        assert app.config.keys == {}, "the custom chord is no longer in force"
+        assert app.config.parked == {"save": "ctrl+w"}, "but it is kept, parked"
+        saved = config.read_text()
+        assert "bindings = vim" in saved
+        assert "# save = ctrl+w" in saved, "the custom chord is kept, commented out"

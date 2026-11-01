@@ -46,6 +46,11 @@ KEY_GLYPHS = {
     "ctrl+shift+equals_sign": "^=",
     "ctrl+comma": "^,",
     "ctrl+slash": "^/",
+    # punctuation keeps its own face — SLASH is not a key anyone has pressed
+    "slash": "/",
+    "underscore": "_",
+    "ctrl+underscore": "^_",
+    "alt+underscore": "M-_",
 }
 
 #: The bar shows its hints in this order, and that is a ranking: a narrow
@@ -199,10 +204,18 @@ def prompt_chunks(verb: str) -> list[Text]:
     ]
 
 
-def ask_chunks() -> list[Text]:
+def ask_chunks(kind: str = "save") -> list[Text]:
+    """A yes/no question, worded for what is actually being asked: the save
+    question offers to save or discard, anything else just yes or no."""
+    if kind == "save":
+        return [
+            entry("y", "save", literal=True),
+            entry("n", "discard", literal=True),
+            entry("esc", "cancel", literal=True),
+        ]
     return [
-        entry("y", "save", literal=True),
-        entry("n", "discard", literal=True),
+        entry("y", "yes", literal=True),
+        entry("n", "no", literal=True),
         entry("esc", "cancel", literal=True),
     ]
 
