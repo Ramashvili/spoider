@@ -79,6 +79,34 @@ MindMapView {
     color: ansi_default;
     display: none;
 }
+/* Toasts are about what just happened, so they carry a meaning: green when it
+   worked, orange for a cut or a paste, red when it did not. They hang from the
+   top right corner, over the map, where they do not cover the bar. */
+ToastRack {
+    dock: top;
+    align: right top;
+    margin-top: 1;
+    margin-bottom: 0;
+}
+Toast {
+    width: 44;
+    max-width: 50%;
+}
+Toast.-information {
+    color: ansi_green;
+    border-left: outer ansi_green;
+}
+Toast.-warning {
+    color: orange;
+    border-left: outer orange;
+}
+Toast.-error {
+    color: ansi_bright_red;
+    border-left: outer ansi_bright_red;
+}
+Toast .toast--title {
+    text-style: bold;
+}
 """
 
 BINDINGS: list[BindingType] = [
@@ -496,7 +524,11 @@ class SpoiderApp(App[None]):
         self._close_drawers()
         if not self.matches:
             self._settle_count()
-            self.notify(f"No match for {query!r}" if query else "Nothing to find", timeout=2)
+            self.notify(
+                f"No match for {query!r}" if query else "Nothing to find",
+                severity="error",
+                timeout=2,
+            )
             return
         self._jump_to_match(skip_current=repeat)
         # the count has made its point: back to the cell count shortly
@@ -864,7 +896,7 @@ class SpoiderApp(App[None]):
         """^D — delete everything selected, as one undoable step."""
         ids = self.selected_ids
         if self.mm.root.id in ids:
-            self.notify("The root node cannot be deleted", timeout=2)
+            self.notify("The root node cannot be deleted", severity="error", timeout=2)
             return
         self._push_undo()
         if len(ids) == 1:
@@ -893,7 +925,7 @@ class SpoiderApp(App[None]):
         """
         ids = self.selected_ids
         if self.mm.root.id in ids:
-            self.notify("The root node cannot be cut", timeout=2)
+            self.notify("The root node cannot be cut", severity="error", timeout=2)
             return
         parent = self.mm.parent(ids[0])
         if parent is None:
@@ -913,6 +945,8 @@ class SpoiderApp(App[None]):
         self.anchor = None
         self.selected = _standing_after(parent, end)
         self._mark_dirty()
+        what = taken[0].text.strip() or "1 cell" if len(taken) == 1 else f"{len(taken)} cells"
+        self.notify(f"Cut {what}", severity="warning", timeout=2)
 
     def action_paste(self) -> None:
         """^U — take the most recent cut off the stack and hang it here.
@@ -923,7 +957,7 @@ class SpoiderApp(App[None]):
         selection stays on the target as its children arrive.
         """
         if not self.mm.cut_stack:
-            self.notify("Nothing to paste", timeout=2)
+            self.notify("Nothing to paste", severity="error", timeout=2)
             return
         self._push_undo()  # the snapshot holds the stack, so undo puts it back
         cell = self.mm.pop_cut()
@@ -931,6 +965,7 @@ class SpoiderApp(App[None]):
             self._undo.pop()
             return
         self._mark_dirty()
+        self.notify(f"Pasted {cell.text.strip() or '1 cell'}", severity="warning", timeout=2)
 
     def action_help(self) -> None:
         """^/ — every key and option, with a line of explanation."""
@@ -1197,14 +1232,14 @@ class SpoiderApp(App[None]):
 
     def action_undo(self) -> None:
         if not self._undo:
-            self.notify("Nothing to undo", timeout=1)
+            self.notify("Nothing to undo", severity="error", timeout=1)
             return
         self._redo.append(self.mm.to_dict())
         self._restore(self._undo.pop())
 
     def action_redo(self) -> None:
         if not self._redo:
-            self.notify("Nothing to redo", timeout=1)
+            self.notify("Nothing to redo", severity="error", timeout=1)
             return
         self._undo.append(self.mm.to_dict())
         self._restore(self._redo.pop())

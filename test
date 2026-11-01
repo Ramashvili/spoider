@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "spacing": 0,
+  "layout": "spider",
+  "root": {
+    "id": "0809910734e8",
+    "text": "spoider",
+    "collapsed": false,
+    "mark": null,
+    "children": [
+      {
+        "id": "caac1fc95893",
+        "text": "what it is for",
+        "collapsed": false,
+        "mark": null,
+        "children": [
+          {
+            "id": "f38365432a0f",
+            "text": "planning before building",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
+          {
+            "id": "141bef0263d6",
+            "text": "thinking a thing through",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
+          {
+            "id": "d251c88f8a9f",
+            "text": "notes that keep their shape",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "c9fd71bdf536",
+        "text": "what it does",
+        "collapsed": false,
+        "mark": null,
+        "children": []
+      },
+      {
+        "id": "c9553a5d92ae",
+        "text": "and more",
+        "collapsed": false,
+        "mark": null,
+        "children": [
+          {
+            "id": "fb18f453b2f1",
+            "text": "^L cycles four shapes",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
+          {
+            "id": "948f9b77a67e",
+            "text": "= and - change the air",
+            "collapsed": false,
+            "mark": null,
+            "children": [
+              {
+                "id": "c5a1ad519c6c",
+                "text": "old",
+                "collapsed": false,
+                "mark": null,
+                "children": [
+                  {
+                    "id": "cda03832d9b8",
+                    "text": "tab a child, enter a sibling",
+                    "collapsed": false,
+                    "mark": null,
+                    "children": [
+                      {
+                        "id": "e05b09dc49da",
+                        "text": "what a mind map is",
+                        "collapsed": false,
+                        "mark": null,
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "d1e664b0dc48",
+                    "text": "e edits, t folds, g marks",
+                    "collapsed": false,
+                    "mark": "✅",
+                    "children": []
+                  },
+                  {
+                    "id": "2ff1dd32e1e2",
+                    "text": "^F finds a word",
+                    "collapsed": false,
+                    "mark": null,
+                    "children": []
+                  },
+                  {
+                    "id": "a256109c92af",
+                    "text": "their parts around those",
+                    "collapsed": false,
+                    "mark": null,
+                    "children": []
+                  },
+                  {
+                    "id": "6c7b85c44801",
+                    "text": "its parts around it",
+                    "collapsed": false,
+                    "mark": null,
+                    "children": []
+                  },
+                  {
+                    "id": "f9ffe593e358",
+                    "text": "one thought in the middle",
+                    "collapsed": false,
+                    "mark": null,
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "869547206ff4",
+            "text": "^S writes plain json",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
+          {
+            "id": "003f3a602368",
+            "text": "^/ lists every key",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  "cut": []
+}

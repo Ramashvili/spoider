@@ -2385,3 +2385,62 @@ async def test_cut_of_a_run_lands_on_the_cell_that_closes_the_gap(tmp_path: Path
 
         assert [child.text for child in app.mm.root.children] == ["a", "d"]
         assert app.selected == d.id
+
+
+# -- what the toast says and where it says it -----------------------------
+
+
+async def test_a_cut_toasts_in_orange_at_the_top_right(tmp_path: Path):
+    from textual.widgets._toast import Toast  # not exported by textual.widgets
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 30), notifications=True) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+
+        toast = app.query(Toast).last()
+        assert "Cut alpha" in str(toast.render())
+        assert toast.has_class("-warning"), "a cut is neither a success nor a failure"
+        region = toast.region
+        assert region.y <= 3, "it hangs from the top"
+        assert region.x + region.width >= 96, "and from the right"
+
+
+async def test_a_paste_toasts_in_orange_too(tmp_path: Path):
+    from textual.widgets._toast import Toast
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(notifications=True) as pilot:
+        alpha, beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+        app.select(beta.id)
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+
+        newest = app.query(Toast).last()
+        assert newest.has_class("-warning")
+        assert "Pasted alpha" in str(newest.render())
+
+
+async def test_saving_toasts_green_and_a_failure_toasts_red(tmp_path: Path):
+    from textual.widgets._toast import Toast
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.press("ctrl+s")  # the buffer has a path, so it writes
+        await pilot.pause()
+        await pilot.pause()
+
+        assert app.query(Toast).last().has_class("-information"), "green"
+
+        await pilot.press("ctrl+u")  # nothing has been cut
+        await pilot.pause()
+        await pilot.pause()  # the toast is mounted a beat after the notification
+
+        newest = app.query(Toast).last()
+        assert newest.has_class("-error"), "red"
+        assert "Nothing to paste" in str(newest.render())

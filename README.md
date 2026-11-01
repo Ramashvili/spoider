@@ -146,6 +146,12 @@ strands you; then saving, writing, undo, search, the editing keys, the shape; an
 the spacing nudges last of all.
 
 It carries the keys you cannot guess — inserts, edits, spacing, file, undo.
+
+Messages — a save, a cut, a refusal — appear as a single line hanging from the top
+right corner, over the map and clear of the bar. Their colour is the point: green
+when it worked, orange for a cut or a paste, red when it did not. Green and red are
+the terminal's own palette colours; there is no ANSI orange, so that one is a fixed
+orange and the only colour in the app that does not come from the theme.
 The four navigation chords are deliberately absent: arrows and `hjkl` cover
 movement without spending that space.
 
