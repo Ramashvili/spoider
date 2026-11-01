@@ -2721,3 +2721,62 @@ async def test_the_panel_bar_borrows_the_main_bars_words(tmp_path: Path):
 
         bar = app.query_one("#footer", FooterBar).render().plain
         assert "^W cut" in bar, "the chord is the one in force, and the word is the bar's"
+
+
+async def test_paste_inside_the_panel_puts_the_cut_back_in_the_map(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+        cells = app.mm.count()
+
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+
+        assert app.mm.count() == cells + 2, "alpha and its leaf are back"
+        assert app.mm.cut_stack == []
+        assert not app.stack_open, "nothing is left to show, so the column goes"
+
+        # it landed under whatever the map had selected, which is beta
+        assert [child.text for child in app.mm.find(beta.id).children] == ["alpha"]
+
+
+async def test_the_panel_is_a_column_with_a_wall_and_a_title(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        lines = app.view.render().plain.split("\n")
+        assert "LIFO cut/paste stack" in lines[0], "the column says what it is"
+        wall = lines[0].index("│")
+        assert all(len(line) > wall and line[wall] == "│" for line in lines), (
+            "the wall runs the full height of the view"
+        )
+
+
+async def test_the_map_shows_no_cursor_while_the_panel_is_open(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+
+        await pilot.press("ctrl+i")  # with nothing cut, the panel stays shut
+        await pilot.pause()
+        before = {style for _, style in app.view._grid.cells.values()}
+        assert any("reverse" in style for style in before), "the map shows where you are"
+
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+        during = {style for _, style in app.view._grid.cells.values()}
+
+        assert not any("reverse" in style for style in during), (
+            "the only highlight on screen is the panel's"
+        )

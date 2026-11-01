@@ -9,7 +9,8 @@ from rich.text import Text
 from textual import events
 from textual.widget import Widget
 
-from .layout import Layout, compute
+from .chrome import DIVIDER
+from .layout import BOX_H, Layout, compute
 from .render import Grid, build_grid, render_text
 from .text import clip_head
 
@@ -96,6 +97,19 @@ def compose_top_bar(
     return bar
 
 
+#: What the stack column calls itself, at the top of the wall.
+STACK_TITLE = "LIFO cut/paste stack"
+
+
+def stack_column(panel: Layout | None, width: int) -> int:
+    """How many columns the stack takes: its own width, never more than half the
+    screen, and never so narrow that the title does not fit."""
+    if panel is None:
+        return 0
+    wanted = max(panel.width + 3, len(STACK_TITLE) + 3)
+    return min(wanted, max(1, width // 2))
+
+
 class TopBar(Widget):
     """Chrome above the map: identity, location, size."""
 
@@ -172,48 +186,65 @@ class MindMapView(Widget, can_focus=True):
         if width <= 0 or height <= 0:
             return Text("")
         layout = self.layout_
-        self._offset_x, self._offset_y = self.camera(width, height)
-        # Drawing the whole map costs ~25 ms on a 500-cell document, and moving
-        # the camera does not change a single cell — only a new layout or a new
-        # selection does (selection is reverse video).
+        panel = self.spoider.stack_layout()
+        # While the stack is open the right of the screen is its column, so the map
+        # is framed in what is left instead of being centred underneath it.
+        field = width - stack_column(panel, width) if panel is not None else width
+        self._offset_x, self._offset_y = self.camera(field, height)
+        # Drawing the whole map costs ~25 ms on a 500-cell document, and moving the
+        # camera does not change a single cell — only a new layout or a new
+        # selection does. While the stack has the keys the map highlights nothing:
+        # the one highlight on screen says where the keys are.
         query = self.spoider.search_query
-        chosen = tuple(self.spoider.selected_ids)
+        chosen = () if self.spoider.stack_open else tuple(self.spoider.selected_ids)
         lead = self.spoider.selected if len(chosen) > 1 else None
         key = (id(layout), chosen, query)
         if self._grid is None or self._grid_key != key:
             self._grid = build_grid(layout, chosen, query, lead=lead)
             self._grid_key = key
         grid = self._grid
-        panel = self.spoider.stack_layout()
         if panel is not None:
-            grid = self._overlay(grid, panel, width)
+            grid = self._with_stack(grid, panel, width, height)
         return render_text(grid, self._offset_x, self._offset_y, width, height)
 
-    def _overlay(self, grid: Grid, panel: Layout, width: int) -> Grid:
-        """Draw the stack panel over the map: opaque, top right, one row under the
-        top bar. It is composited cell by cell before the picture is rendered, so
-        the panel keeps its own borders and colours and the map shows around it.
+    def _with_stack(self, grid: Grid, panel: Layout, width: int, height: int) -> Grid:
+        """Give the right-hand columns to the stack.
+
+        A wall down the full height of the view, the title at the top of it, the
+        cells inside. The column is cleared first, so the map is genuinely out of
+        the way rather than showing through between the bubbles, and the wall goes
+        all the way down — that is what says the screen is shared between the two
+        rather than a card floated over the map.
         """
-        art = build_grid(panel, self.spoider.stack_selected or "", lead=None)
-        panel_width = min(panel.width, max(1, width - 2))
-        left = self._offset_x + width - panel_width - 1
-        top = self._offset_y + 1
-        combined = Grid(
-            width=max(grid.width, left + panel_width),
-            height=max(grid.height, top + panel.height),
-        )
+        column = stack_column(panel, width)
+        wall = width - column
+        combined = Grid(width=max(grid.width, width), height=max(grid.height, height))
         combined.cells.update(grid.cells)
         combined.wide |= grid.wide
-        blank = (" ", "")  # the terminal's own colours, as everywhere else
-        for row in range(panel.height):
-            for column in range(panel_width):
-                combined.cells[(left + column, top + row)] = blank
+        blank = (" ", "")
+        for row in range(height):
+            for x in range(wall, width):
+                combined.cells[(self._offset_x + x, self._offset_y + row)] = blank
+            combined.cells[(self._offset_x + wall, self._offset_y + row)] = (DIVIDER, "bright_black")
+
+        inner = max(0, column - 3)
+        for index, char in enumerate(STACK_TITLE[:inner]):
+            combined.cells[(self._offset_x + wall + 2 + index, self._offset_y)] = (char, "bold")
+
+        art = build_grid(panel, self.spoider.stack_selected or "", lead=None)
+        # a stack taller than the column follows its own selection
+        shift = 0
+        focus = panel.box(self.spoider.stack_selected) if self.spoider.stack_selected else None
+        if focus is not None and focus.y + 2 + BOX_H > height - 1:
+            shift = focus.y + 2 + BOX_H - (height - 1)
         for (x, y), cell in art.cells.items():
-            if x < panel_width:
-                combined.cells[(left + x, top + y)] = cell
+            row = y - shift + 2
+            if x <= inner and 0 < row < height:
+                combined.cells[(self._offset_x + wall + 2 + x, self._offset_y + row)] = cell
         for x, y in art.wide:
-            if x < panel_width:
-                combined.wide.add((left + x, top + y))
+            row = y - shift + 2
+            if x <= inner and 0 < row < height:
+                combined.wide.add((self._offset_x + wall + 2 + x, self._offset_y + row))
         return combined
 
     def on_key(self, event: events.Key) -> None:

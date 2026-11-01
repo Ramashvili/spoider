@@ -267,16 +267,21 @@ pop.
 
 ## The stack as a panel
 
-`^I` shows the stack in the top right corner of the map: every cut waiting to be
-pasted, newest at the top, each one with its branch still attached and drawn beside
-it. They float over the map, which stays where it was and is not touched while the
-panel is open.
+`^I` gives the right of the screen to the stack. A wall runs down the full height
+of the view, the column is titled **LIFO cut/paste stack**, and inside it are the
+cuts waiting to be pasted — newest at the top, each one with its branch still
+attached and drawn beside it. The map stays where it was and is not touched while
+the panel is open; it is simply framed in the columns on the left.
+
+The map gives up its highlight while the panel has the keys. One cursor on screen
+means one place the keys are, and it is the stack's.
 
 The panel has the keys, and they are the map's own: `↑`/`↓` walk the stack, `→`
 goes into a cell's children and `←` comes back out, `e` renames one, `m` marks it,
 `t` folds its branch, `alt+↑`/`alt+↓` move it up and down the stack, `=`/`-` change
 the air (the panel is read through the keymap, so a chord you rebind works here
-too). `^K` cuts the cell again — which puts it back on top of the stack, where a
+too), and `^U` puts the newest cut back into the map under whatever was selected
+there — the panel is where you go to decide, and that is how you decide. `^K` cuts the cell again — which puts it back on top of the stack, where a
 cut always goes — and `^D` drops it for good. `^I` hides the panel and the map has
 the keys again.
 

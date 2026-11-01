@@ -1089,6 +1089,8 @@ class SpoiderApp(App[None]):
                 self._stack_changed()
         elif action == "cut":
             self._stack_take(doc, selected, discard=False)
+        elif action == "paste":
+            self._stack_paste()
         elif action == "delete":
             self._stack_take(doc, selected, discard=True)
         elif action == "move_up":
@@ -1118,6 +1120,23 @@ class SpoiderApp(App[None]):
         parent.children.insert(target, node)
         self.mm.cut_stack = list(reversed(doc.root.children))
         self._stack_changed()
+
+    def _stack_paste(self) -> None:
+        """^U inside the panel: put the newest cut back into the map.
+
+        The map keeps its selection while the panel is open, so this is the same
+        paste as on the map — the cell lands under whatever was selected there —
+        and the only thing the panel does is lose its top and, when it is empty,
+        close.
+        """
+        if not self.mm.cut_stack:
+            self.notify("Nothing to paste", severity="error", timeout=2)
+            return
+        self.action_paste()
+        if not self.mm.cut_stack:
+            self.stack_selected = None  # nothing left to show
+            self._sync_footer()
+        self.view.refresh()
 
     def _stack_take(self, doc: MindMap, node_id: str, *, discard: bool) -> None:
         """Take an entry off the stack: throw it away, or cut it again.
