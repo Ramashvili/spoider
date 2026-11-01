@@ -391,39 +391,54 @@ class MindMap:
 
     @classmethod
     def demo(cls) -> MindMap:
-        """The map `--demo` opens: what a mind map is for, and what this can do.
+        """The map `--demo` opens: what a mind map is for, what this can do, and
+        what it deliberately leaves out.
 
-        Short cells on purpose — the point is to be read at a glance and then
-        taken apart with the keys it names.
+        Cells stay short enough to read at a glance — a demo you have to pan is a
+        bad demo — but there are enough of them to be a real tree rather than an
+        advertisement.
         """
         root = Node("spoider")
         ideas = {
             "what a mind map is": [
-                "one thought in the middle",
-                "its parts around it",
-                "their parts around those",
+                "one idea in the middle",
+                "its parts arranged around it",
+                "and their parts around those",
             ],
             "what it is for": [
                 "planning before building",
                 "thinking a thing through",
                 "notes that keep their shape",
             ],
-            "what it does": [
+            "making cells": [
                 "tab a child, enter a sibling",
-                "e edits, t folds, g marks",
+                "e renames it in place",
+                "g marks it, t folds it away",
+            ],
+            "moving work": [
+                "^K cuts, ^U pastes it back",
+                "shift and an arrow pick a run",
+                "^Z takes it all back",
+            ],
+            "keeping it": [
+                "^S writes plain json",
+                "the air and the shape live in the file",
+                "^L cycles four shapes",
+            ],
+            "getting help": [
+                "^/ lists every key",
+                "^, settings and chords",
                 "^F finds a word",
             ],
-            "and more": [
-                "^L cycles four shapes",
-                "= and - change the air",
-                "^S writes plain json",
-                "^/ lists every key",
+            "what it leaves out": [
+                "no colours of its own",
+                "no mouse, no windows",
+                "one map per file",
             ],
         }
         for title, leaves in ideas.items():
-            branch = Node(title, children=[Node(leaf) for leaf in leaves])
-            root.children.append(branch)
-        # the cell that explains marks carries one, so the demo shows rather
-        # than tells
-        root.children[2].children[1].mark = MARKS[0]
+            root.children.append(Node(title, children=[Node(leaf) for leaf in leaves]))
+        # the cell that explains marks carries one, so the demo shows rather than
+        # tells
+        root.children[2].children[2].mark = MARKS[0]
         return cls(root)

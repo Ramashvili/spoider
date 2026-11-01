@@ -111,9 +111,9 @@ def test_the_demo_says_what_a_mind_map_is_and_what_the_app_does():
 
     # short enough to read at a glance, and one cell shows a mark rather than
     # only talking about them
-    assert all(len(text) <= 32 for text in texts)
+    assert all(len(text) <= 40 for text in texts)
     assert any(node.mark for node in mm.nodes())
-    assert 12 <= mm.count() <= 24
+    assert 24 <= mm.count() <= 32
 
 
 # -- cut and paste --------------------------------------------------------
