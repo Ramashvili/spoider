@@ -1026,42 +1026,88 @@ class SpoiderApp(App[None]):
             self.stack_selected = node_id
         self.view.refresh()
 
+    def _action_for(self, key: str) -> str | None:
+        """Which action a chord belongs to, according to the keymap in force.
+
+        The stack panel reads keys through this instead of matching strings, so a
+        chord the reader has rebound works there too.
+        """
+        for binding in BINDINGS:
+            if not isinstance(binding, Binding) or not binding.action:
+                continue
+            chord = self.keymap.get(binding.id or "", binding.key) or binding.key
+            if key in (part.strip() for part in chord.split(",")):
+                return binding.action
+        return None
+
     def handle_stack_key(self, key: str, character: str | None) -> bool:
-        """Every key while the stack panel is open. Navigation is the branch
-        shape's, because that is how the panel is drawn: up and down walk the
-        stack, right goes into a cell's children, left comes back out."""
+        """Every key while the stack panel is open.
+
+        The actions are the map's own — navigation is the branch shape's, because
+        that is how the panel is drawn (up and down walk the stack, right goes into
+        a cell's children, left comes back out) — so every key means what it means
+        on the map, and the bar can say so in the same words.
+        """
         if not self.stack_open:
             return False
-        if key in ("ctrl+i", "escape", "ctrl+c"):
-            self.action_toggle_stack()
-            return True
-
+        action = None if key in ("escape", "ctrl+c") else self._action_for(key)
         doc = self._stack_doc()
         selected = self.stack_selected or doc.root.id
-        if key in ("up", "k", "ctrl+p"):
+
+        if action is None and key not in ("escape", "ctrl+c", "ctrl+i"):
+            return False
+        if action == "toggle_stack" or key in ("escape", "ctrl+c"):
+            self.action_toggle_stack()
+        elif action == "prev":
             self._stack_select(doc, nav.to_sibling(doc, selected, -1))
-        elif key in ("down", "j", "ctrl+n"):
+        elif action == "next":
             self._stack_select(doc, nav.to_sibling(doc, selected, 1))
-        elif key in ("right", "l", "ctrl+f"):
+        elif action == "go_right":
             self._stack_select(doc, nav.to_child(doc, selected))
-        elif key in ("left", "h", "ctrl+b"):
+        elif action == "go_left":
             self._stack_select(doc, nav.to_parent(doc, selected))
-        elif key == "e":
+        elif action == "edit":
             if doc.find(selected) is not None:
                 self.begin_edit(selected)
-        elif key == "m":
+        elif action == "mark":
             doc.cycle_mark(selected, self.marks)
             self._stack_changed()
-        elif key == "t":
+        elif action == "fold":
             node = doc.find(selected)
             if node is not None and node.children:
                 node.collapsed = not node.collapsed
                 self._stack_changed()
-        elif key in ("ctrl+d", "ctrl+k"):
-            self._stack_take(doc, selected, discard=key == "ctrl+d")
+        elif action == "cut":
+            self._stack_take(doc, selected, discard=False)
+        elif action == "delete":
+            self._stack_take(doc, selected, discard=True)
+        elif action == "move_up":
+            self._stack_reorder(doc, selected, -1)
+        elif action == "move_down":
+            self._stack_reorder(doc, selected, 1)
+        elif action == "spacing_more":
+            self._set_spacing(self.mm.spacing + 1)
+        elif action == "spacing_less":
+            self._set_spacing(self.mm.spacing - 1)
         else:
             return False
         return True
+
+    def _stack_reorder(self, doc: MindMap, node_id: str, delta: int) -> None:
+        """Move a cell among its siblings inside the panel. For an entry at the
+        top level that is the stack's own order, so alt+↑ puts it nearer the top."""
+        parent = doc.parent(node_id)
+        if parent is None:
+            return
+        order = [child.id for child in parent.children]
+        index = order.index(node_id)
+        target = index + delta
+        if not 0 <= target < len(order):
+            return
+        node = parent.children.pop(index)
+        parent.children.insert(target, node)
+        self.mm.cut_stack = list(reversed(doc.root.children))
+        self._stack_changed()
 
     def _stack_take(self, doc: MindMap, node_id: str, *, discard: bool) -> None:
         """Take an entry off the stack: throw it away, or cut it again.

@@ -206,17 +206,31 @@ def help_chunks() -> list[Text]:
     return [entry("esc", "close", literal=True)]
 
 
-def stack_chunks() -> list[Text]:
-    """The bar while the cut stack has the keys. Closing comes first: it is the
-    one thing a reader who is stuck needs to find."""
-    return [
-        entry("^I", "close", literal=True),
-        entry("↑↓←→", "move", literal=True),
-        entry("e", "edit", literal=True),
-        entry("m", "mark", literal=True),
-        entry("^K", "again", literal=True),
-        entry("^D", "drop", literal=True),
-    ]
+def stack_chunks(bindings: Iterable, keymap: dict[str, str] | None = None) -> list[Text]:
+    """The bar while the cut stack has the keys.
+
+    A key keeps its name and its chord wherever it is used: the words come from the
+    binding table and the chords from the keymap, so `^K` says "cut" here because
+    it says "cut" there. Hiding the panel comes first — it is the one thing a
+    reader who is stuck needs to find.
+    """
+    from textual.binding import Binding
+
+    keymap = keymap or {}
+    labels: dict[str, str] = {}
+    chords: dict[str, str] = {}
+    for binding in bindings:
+        if not isinstance(binding, Binding) or not binding.action:
+            continue
+        labels.setdefault(binding.action, binding.description)
+        if binding.id:
+            chords.setdefault(binding.action, keymap.get(binding.id, binding.key) or binding.key)
+
+    chunks = [entry("^I", "hide stack", literal=True), entry("↑↓←→", "move", literal=True)]
+    for action in ("edit", "mark", "cut", "delete"):
+        if action in chords:
+            chunks.append(entry(chords[action], labels.get(action, action)))
+    return chunks
 
 
 def settings_chunks() -> list[Text]:
@@ -249,7 +263,8 @@ class FooterBar(Widget):
         if self.mode == "edit":
             hints = edit_chunks()
         elif self.mode == "stack":
-            hints = stack_chunks()
+            spoider = cast("SpoiderApp", self.app)
+            hints = stack_chunks(spoider.BINDINGS, spoider.keymap)
         elif self.mode == "search":
             hints = search_chunks()
         elif self.mode == "custom":

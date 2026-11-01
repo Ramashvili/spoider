@@ -2626,11 +2626,13 @@ async def test_the_bar_switches_to_the_panel_keys(tmp_path: Path):
         await pilot.pause()
 
         bar = app.query_one("#footer", FooterBar).render().plain
-        assert "^I close" in bar and "again" in bar and "drop" in bar
+        # the same verbs as the main bar, only the first one is new
+        assert "^I hide stack" in bar
+        assert "^K cut" in bar and "^D del" in bar and "edit" in bar
 
         await pilot.press("ctrl+i")
         await pilot.pause()
-        assert "^I close" not in app.query_one("#footer", FooterBar).render().plain
+        assert "^I hide stack" not in app.query_one("#footer", FooterBar).render().plain
 
 
 def test_the_cut_count_is_marked_when_the_panel_is_open():
@@ -2641,6 +2643,81 @@ def test_the_cut_count_is_marked_when_the_panel_is_open():
         120, "0.1.0", "/tmp/m.json", "5 cells total", "spider", False, "2 cuts in stack", True
     )
     assert "2 cuts in stack" in closed.plain and "2 cuts in stack" in opened.plain
-    # the active segment is underlined, since all three are yellow already
-    active = [str(span.style) for span in opened.spans if "underline" in str(span.style)]
-    assert active and "underline" not in str(closed.spans[0].style)
+    # only the live one goes yellow, and only while the panel is open
+    yellow = [str(span.style) for span in opened.spans if "on yellow" in str(span.style)]
+    assert yellow, "the stack count is marked"
+    assert not [span for span in closed.spans if "on yellow" in str(span.style)]
+    # one space between the items, not a run of them
+    assert "5 cells total 2 cuts in stack spider layout" in closed.plain
+    assert [str(span.style) for span in closed.spans] == ["bold reverse"] * 3
+
+
+async def test_alt_arrows_move_an_entry_up_and_down_the_stack(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+k")  # cuts beta too: it lands on the stack above alpha
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+        assert [cell.text for cell in app._stack_entries()] == ["beta", "alpha"]
+
+        await pilot.press("down")  # onto the older one, at the bottom of the panel
+        assert app._stack_doc().find(app.stack_selected).text == "alpha"
+        await pilot.press("alt+up")
+        await pilot.pause()
+
+        assert [cell.text for cell in app._stack_entries()] == ["alpha", "beta"], (
+            "moving it up the panel puts it nearer the top of the stack"
+        )
+
+
+async def test_the_gap_keys_work_inside_the_panel(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+        before = app.spacing
+
+        await pilot.press("equals_sign")
+        await pilot.pause()
+        assert app.spacing == before + 1, "the same chord does the same thing here"
+
+        await pilot.press("minus")
+        await pilot.pause()
+        assert app.spacing == before
+
+
+async def test_a_rebound_chord_works_inside_the_panel(tmp_path: Path):
+    config = tmp_path / "config.conf"
+    config.write_text("mark = ctrl+m\n")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        await pilot.press("ctrl+m")
+        await pilot.pause()
+        assert app.mm.cut_stack[0].mark == app.marks[0], "the panel honours the config"
+
+
+async def test_the_panel_bar_borrows_the_main_bars_words(tmp_path: Path):
+    config = tmp_path / "config.conf"
+    config.write_text("cut = ctrl+w\n")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with app.run_test(size=(120, 30)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+w")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        bar = app.query_one("#footer", FooterBar).render().plain
+        assert "^W cut" in bar, "the chord is the one in force, and the word is the bar's"

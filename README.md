@@ -202,17 +202,18 @@ meaning), `t` folds or unfolds whichever of them have children, and `alt+↑` /
 
 A plain move, or `esc`, drops the run without moving anything else.
 
-The right of the top bar is where counts live, on a band of the terminal's own
-yellow with black text and one space between the items:
+The right of the top bar is where the counts live: three blocks in reverse video,
+one space apart, so each reads as an item rather than as a sentence.
 
 ```
 14 cells total 2 cuts in stack spider layout
 ```
 
-The cut count is there even at zero: a number that appears and disappears is
-harder to read than one that sits still. Each item is dropped as the terminal
-narrows — the layout first, then the cuts — so the cell count is the last to go,
-and a number is never cut in half.
+The cut count is there even at zero — a number that appears and disappears is
+harder to read than one that sits still — and while the stack panel is open that
+one block turns yellow (the terminal's own yellow, black text) so the live count is
+obvious. Each item is dropped as the terminal narrows: the layout first, then the
+cuts, so the cell count is the last to go and a number is never cut in half.
 
 ## Cutting and pasting
 
@@ -266,14 +267,17 @@ pop.
 with its branch still attached and drawn beside it. They float over the map, which
 stays where it was and is not touched while the panel is open.
 
-The panel has the keys. `↑`/`↓` walk the stack, `→` goes into a cell's children and
-`←` comes back out, and the cells can be worked on like any other: `e` renames one,
-`m` marks it, `t` folds its branch, `^K` cuts it again — which puts it back on top
-of the stack, where a cut always goes — and `^D` drops it for good. `^I` closes the
-panel and the map has the keys again.
+The panel has the keys, and they are the map's own: `↑`/`↓` walk the stack, `→`
+goes into a cell's children and `←` comes back out, `e` renames one, `m` marks it,
+`t` folds its branch, `alt+↑`/`alt+↓` move it up and down the stack, `=`/`-` change
+the air (the panel is read through the keymap, so a chord you rebind works here
+too). `^K` cuts the cell again — which puts it back on top of the stack, where a
+cut always goes — and `^D` drops it for good. `^I` hides the panel and the map has
+the keys again.
 
-While it is open the cut count in the top bar is underlined, since all three counts
-are already on yellow and a colour change would say nothing.
+The bar says the same words here as on the map: `^K` is "cut" in both, `^D` is
+"del" in both, and only the first hint is new. While the panel is open the cut
+count in the top bar turns yellow.
 
 ## Searching
 

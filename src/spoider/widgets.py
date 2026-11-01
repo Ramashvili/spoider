@@ -17,14 +17,14 @@ if TYPE_CHECKING:
     from .app import SpoiderApp
 
 
-#: The statistics block: black on the terminal's own yellow, so it reads as a band
-#: rather than as three colours the app invented. One space separates the items —
-#: any more and the block looks like it is falling apart.
-STAT_STYLE = "black on yellow"
+#: Each count is its own block: reverse video, so the terminal's own colours show
+#: through inverted — light on a dark theme, dark on a light one. A single space
+#: separates them, which is what makes them read as items rather than a sentence.
+STAT_STYLE = "bold reverse"
 
-#: When the stack panel is open its count is the live one, so it is underlined:
-#: all three are yellow already, and a colour change would say nothing.
-STAT_ACTIVE_STYLE = "bold underline black on yellow"
+#: The stack count turns yellow while the panel is open. One item changing colour
+#: says which one is live; changing all of them says nothing.
+STAT_ACTIVE_STYLE = "bold black on yellow"
 
 
 def compose_top_bar(
@@ -91,7 +91,7 @@ def compose_top_bar(
         bar.append(" " * (width - cell_len(name) - right_width))
     for index, (text, style) in enumerate(segments):
         if index:
-            bar.append(" ", style=STAT_STYLE)
+            bar.append(" ")  # one blank column, not part of either block
         bar.append(text, style=style)
     return bar
 
