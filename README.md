@@ -48,6 +48,11 @@ them away silently — unless you turn autosave on (see below).
 bare because they are reached for just as often and collide with nothing: `e`,
 `t`, `g`, `=` and `-`. Everything else is a ctrl chord in the spirit of nano, and
 the ctrl forms of those five (`^E`, `^T`, `^G`, `^=`, `^-`) still work as aliases.
+
+Chords are spelled nano's way wherever help and the bar name them: `^` for ctrl,
+`M-` for meta (alt) — `M-↑`, `M-↓` — and `S-` for shift, `S-←↑↓→`. Glyphs like ⌥ and
+⇧ are shorter but have to be learned, and a key you cannot name is a key you do not
+press.
 Movement also answers to the arrow keys and, for vim users, to `h` `j` `k` `l` —
 all aliases of the same four actions, so the spatial flipping applies to every
 one of them.

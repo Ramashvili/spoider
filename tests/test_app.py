@@ -567,7 +567,7 @@ def test_help_text_covers_keys(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     body = help_text(app).plain
     # chords come from the keymap, so they read as they are actually bound
-    for expected in ("Making cells", "Moving", "File", "⇥", "⏎", "^D", "^X", "⌥↑", "^/", "^,"):
+    for expected in ("Making cells", "Moving", "File", "⇥", "⏎", "^D", "^X", "M-↑", "M-↓", "S-←↑↓→", "^/", "^,"):
         assert expected in body, expected
     # no lectures: the panel is the keys, nothing else
     for absent in ("Mouse", "Saving", "Colours", "Also", "esc closes"):
@@ -2278,7 +2278,7 @@ async def test_help_lists_the_selection_keys(tmp_path: Path):
         await pilot.pause()
 
         body = app.query_one(PanelBar).render().plain
-        assert "⇧↑" in body and "select a run of siblings" in body
+        assert "S-←↑↓→" in body and "select a run of siblings" in body
         assert "single cell" in body
 
 

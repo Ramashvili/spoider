@@ -102,6 +102,10 @@ def describe_action(action: str, fallback: str = "") -> str:
     return fallback or action
 
 
+#: Arrows read in this order on a keyboard, so a grouped cap does too.
+ARROW_CHARS = "←↑↓→"
+
+
 def keys_for(app: SpoiderApp, actions: tuple[str, ...]) -> str:
     """Every chord bound to these actions, in binding order, as caps."""
     caps: list[str] = []
@@ -116,7 +120,21 @@ def keys_for(app: SpoiderApp, actions: tuple[str, ...]) -> str:
                 cap = key_cap(key)
                 if cap not in caps:
                     caps.append(cap)
-    return "  ".join(caps)
+    return "  ".join(_group_arrows(caps))
+
+
+def _group_arrows(caps: list[str]) -> list[str]:
+    """Arrow caps that share a prefix read better as one: M-↑↓, S-←↑↓→.
+
+    Only when every cap is an arrow, so a row like `^P  ↑  k` keeps its shape.
+    """
+    if len(caps) < 2 or caps[0][-1] not in ARROW_CHARS:
+        return caps
+    prefix = caps[0][:-1]
+    if not all(cap.startswith(prefix) and cap[-1] in ARROW_CHARS for cap in caps):
+        return caps
+    arrows = sorted((cap[-1] for cap in caps), key=ARROW_CHARS.index)
+    return [prefix + "".join(arrows)]
 
 
 def help_text(app: SpoiderApp) -> Text:

@@ -20,7 +20,10 @@ from .text import clip_tail
 if TYPE_CHECKING:
     from .app import SpoiderApp
 
-BINDING_LEGEND = {"ctrl+": "^", "alt+": "⌥", "shift+": "⇧"}
+#: nano's shorthand: ctrl is ^, meta (alt) is M-, and shift gets the S- that
+#: nano never needed, in the same shape. Letters and dashes, not glyphs nobody
+#: can name.
+BINDING_LEGEND = {"ctrl+": "^", "alt+": "M-", "shift+": "S-"}
 
 #: The block that stands in for a cursor, here and in the inline editor.
 CARET = "▊"
@@ -85,7 +88,7 @@ ARROWS = {"up": "↑", "down": "↓", "left": "←", "right": "→"}
 
 
 def key_cap(key: str) -> str:
-    """One key as it appears in the bar: ⇥, ⏎, ^D, ⌥↑, h …"""
+    """One key as it appears in the bar: ⇥, ⏎, ^D, M-↑, h …"""
     key = str(key).split(",")[0]
     if key in KEY_GLYPHS:
         return KEY_GLYPHS[key]
