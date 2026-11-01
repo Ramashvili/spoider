@@ -884,7 +884,13 @@ class SpoiderApp(App[None]):
         self._mark_dirty()
 
     def action_cut(self) -> None:
-        """^K — take the selected cells and their branches out, and hold them."""
+        """^K — take the selected cells out, hold them, and stand on a sibling.
+
+        The cursor stays where the eye already is: on the cell that closes the gap
+        the cut left, or on the one before it when the run ended the branch. Only
+        an only child leaves you on the parent, because there is nothing else
+        left to stand on.
+        """
         ids = self.selected_ids
         if self.mm.root.id in ids:
             self.notify("The root node cannot be cut", timeout=2)
@@ -892,6 +898,8 @@ class SpoiderApp(App[None]):
         parent = self.mm.parent(ids[0])
         if parent is None:
             return
+        # the slot the run will leave behind, read before it is closed up
+        end = [child.id for child in parent.children].index(ids[-1])
         self._push_undo()
         taken: list[Node] = []
         for node_id in ids:
@@ -902,10 +910,8 @@ class SpoiderApp(App[None]):
             self._undo.pop()
             return
         self.mm.push_cut(taken)
-        # back where the cells came from: they now live on the stack, and the
-        # parent is what you would paste them back under
         self.anchor = None
-        self.selected = parent.id
+        self.selected = _standing_after(parent, end)
         self._mark_dirty()
 
     def action_paste(self) -> None:
@@ -1234,6 +1240,16 @@ class SpoiderApp(App[None]):
             self.exit()
         elif choice == "yes":
             self._ask_where_to_write(then_quit=True)
+
+
+def _standing_after(parent: Node, index: int) -> str:
+    """Where the cursor goes when the cells at `index` and above are gone: the cell
+    that slid into the gap, else the last one before it, else the parent."""
+    if index < len(parent.children):
+        return parent.children[index].id
+    if parent.children:
+        return parent.children[-1].id
+    return parent.id
 
 
 def default_path() -> Path:

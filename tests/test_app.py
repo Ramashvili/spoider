@@ -1930,10 +1930,10 @@ def _branch_map(app):
     return alpha, beta
 
 
-async def test_cut_takes_the_branch_out_and_lands_on_its_parent(tmp_path: Path):
+async def test_cut_takes_the_branch_out_and_lands_on_the_next_sibling(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        alpha, _ = _branch_map(app)
+        alpha, beta = _branch_map(app)
         app.select(alpha.id)
 
         await pilot.press("ctrl+k")
@@ -1941,7 +1941,7 @@ async def test_cut_takes_the_branch_out_and_lands_on_its_parent(tmp_path: Path):
 
         assert [child.text for child in app.mm.root.children] == ["beta"]
         assert app.mm.find(alpha.id) is None
-        assert app.selected == app.mm.root.id, "the parent has the focus"
+        assert app.selected == beta.id, "the cell that closed the gap has the focus"
         assert [cell.text for cell in app.mm.cut_stack] == ["alpha"]
         assert [node.text for node in app.mm.cut_stack[0].walk()] == ["alpha", "leaf"]
         assert app.dirty
@@ -2298,7 +2298,9 @@ async def test_the_bar_counts_the_cuts_waiting(tmp_path: Path):
         await pilot.pause()
         assert "1 cut" in bar.render().plain
 
-        await pilot.press("ctrl+k")  # the selection landed on the root, which cannot go
+        # the cut left the cursor on beta; the root itself can never be cut
+        app.select(app.mm.root.id)
+        await pilot.press("ctrl+k")
         await pilot.pause()
         assert "1 cut" in bar.render().plain, "so the stack is unchanged"
 
@@ -2344,3 +2346,42 @@ async def test_undo_after_a_paste_puts_the_cut_back_on_the_stack(tmp_path: Path)
         # node this test is holding
         assert app.mm.find(beta.id).children == [], "the paste is undone"
         assert [cell.text for cell in app.mm.cut_stack] == ["alpha"], "and the cut is back"
+
+
+async def test_cut_lands_on_the_sibling_before_it_at_the_end_of_a_branch(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        _a, _b, c, d = _four(app)
+        app.select(d.id)  # the last of the four
+
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+
+        assert app.selected == c.id, "nothing after it, so the one before"
+
+
+async def test_cut_of_an_only_child_lands_on_the_parent(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        only = app.mm.add_child(app.mm.root.id, "only")
+        app.view.refresh_map()
+        app.select(only.id)
+
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+
+        assert app.selected == app.mm.root.id, "there is nothing else to stand on"
+
+
+async def test_cut_of_a_run_lands_on_the_cell_that_closes_the_gap(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        _a, b, _c, d = _four(app)
+        app.select(b.id)
+        await pilot.press("shift+down")  # b, c
+
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+
+        assert [child.text for child in app.mm.root.children] == ["a", "d"]
+        assert app.selected == d.id

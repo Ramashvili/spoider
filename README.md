@@ -211,10 +211,14 @@ the trade for the stack, and it is what makes the count in the top bar mean
 something — `2 cut` is two branches you can still get back, not two branches you
 could paste forever.
 
-The cut leaves the map immediately and the selection goes to its parent, so you
-are standing where the branch came from. The selection then stays on the target as
-cells arrive under it, so repeated pastes build a list as siblings rather than
-nesting. A pasted branch arrives with its own ids, its marks, its folds and its
+The cut leaves the map immediately and the cursor stays with the branch: on the
+sibling that closes the gap, or on the one before when the cut ended the branch,
+and on the parent only when an only child leaves nothing else to stand on. It is
+the same place the eye is already reading, so a run of cuts walks down the list
+instead of bouncing back to the parent each time.
+
+The selection then stays on the target as cells arrive under it, so repeated
+pastes build a list as siblings rather than nesting. A pasted branch arrives with its own ids, its marks, its folds and its
 whole subtree; pasting into a folded cell opens it, since a branch you cannot see
 is a surprise.
 
