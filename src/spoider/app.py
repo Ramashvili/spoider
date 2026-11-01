@@ -929,7 +929,11 @@ class SpoiderApp(App[None]):
         self._mark_dirty()
 
     def action_cut(self) -> None:
-        """^K — take the selected cells out, hold them, and stand on a sibling.
+        """^K — take the selected cells out of the map and put them on the stack.
+
+        They are not deleted: the stack is last in, first out, and any of the cuts
+        on it can be pasted back under whatever cell is selected. The cursor stays
+        on a sibling, where the eye already is.
 
         The cursor stays where the eye already is: on the cell that closes the gap
         the cut left, or on the one before it when the run ended the branch. Only
@@ -981,7 +985,13 @@ class SpoiderApp(App[None]):
         self.notify(f"Pasted {cell.text.strip() or '1 cell'}", severity="warning", timeout=2)
 
     def action_toggle_stack(self) -> None:
-        """^I — the cut stack, as a panel of cells over the map, or away again."""
+        """^I — the stack itself, as a panel of cells over the map.
+
+        The stack is where every cut cell waits, last in first out, until it is
+        pasted somewhere; the panel shows what is on it and lets you work on a
+        cell — rename it, mark it, cut it again, drop it — without pasting it back
+        into the map first.
+        """
         if self.stack_open:
             self.stack_selected = None
             self.view.refresh()

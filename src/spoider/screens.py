@@ -33,7 +33,7 @@ HELP: tuple[HelpSection, ...] = (
             (("add_child",), "add a child and type its name"),
             (("add_sibling",), "add a sibling after the selection"),
             (("edit",), "rename the selected cell in place"),
-            (("cut",), "cut the cells onto a stack; all of them wait to be pasted"),
+            (("cut",), "cut the cells into a LIFO stack, to paste back anywhere"),
             (("paste",), "paste the newest cut; the older ones stay on the stack"),
             (("toggle_stack",), "show the cut stack, and work on what is waiting there"),
             (("delete",), "delete the cell and everything under it"),

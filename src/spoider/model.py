@@ -128,9 +128,11 @@ class MindMap:
         cut_stack: list[Node] | None = None,
     ) -> None:
         self.root = root if root is not None else Node(clean(DEFAULT_ROOT_TEXT))
-        #: Cells taken by ^K and not yet pasted, top of the stack last. This is
-        #: document state, written into the file, so a map carries the scraps
-        #: you took from it — closing the editor does not lose the cut.
+        #: The stack cuts go on: a cell cut out of the map is kept here, last in
+        #: first out, and any of them can be pasted back under whatever cell is
+        #: selected — anywhere in the map, not only where it came from. Document
+        #: state, written into the file, so a map carries the scraps you took from
+        #: it and closing the editor does not lose a cut.
         self.cut_stack: list[Node] = list(cut_stack or [])
         # Presentation that belongs to the document: a map with 40 cells wants a
         # different amount of air than one with 4, and it should look the same
@@ -236,12 +238,16 @@ class MindMap:
         return node
 
     def push_cut(self, cells: Sequence[Node]) -> None:
-        """Put cells on the stack newest-first, so a run pastes back in document
-        order: the first cell cut is the first one a ^U brings back."""
+        """Put cells on the stack, last in first out.
+
+        A run is pushed newest-first so it pastes back in document order: the
+        first cell cut is the first one a ^U brings back.
+        """
         self.cut_stack.extend(reversed(list(cells)))
 
     def pop_cut(self) -> Node | None:
-        """Take the most recent cut off the stack, or None when it is empty."""
+        """Take the most recent cut off the stack — this is the LIFO end of it —
+        or None when it is empty."""
         return self.cut_stack.pop() if self.cut_stack else None
 
     def paste(self, parent_id: str, node: Node) -> Node | None:
@@ -416,8 +422,8 @@ class MindMap:
                 "m marks it, t folds it away",
             ],
             "moving work": [
-                "^K cuts, ^U pastes it back",
-                "^I shows the stack of cuts",
+                "^K cuts into a LIFO stack",
+                "^U pastes it anywhere, ^I shows it",
                 "shift and an arrow pick a run",
                 "^Z takes it all back",
             ],

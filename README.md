@@ -217,11 +217,15 @@ cuts, so the cell count is the last to go and a number is never cut in half.
 
 ## Cutting and pasting
 
-`^K` takes the selected cells out of the map and puts them on a stack; `^U` takes
-the top of that stack and hangs it under the selection. It is the way to reparent
-something: cut a branch, walk to its new parent, paste.
+When cells are cut out of the map they are not deleted: they go onto a stack, last
+in first out, and any of them can be pasted back under whatever cell is selected —
+anywhere in the map, not only where it came from. That is what makes `^K` / `^U`
+the way to move a branch: cut it, walk to its new parent, paste it there.
 
-`^I` opens the stack itself. See [The stack as a panel](#the-stack-as-a-panel).
+`^U` hangs the newest cut under the selection and leaves the rest where they are,
+so cutting three branches and pressing `^U` three times puts them back one at a
+time, newest first. `^I` opens the stack itself. See
+[The stack as a panel](#the-stack-as-a-panel).
 
 The stack is last in, first out. Cutting one branch, then another, and pressing
 `^U` twice gives them back newest first — the same gesture as undo, but for cells
@@ -263,9 +267,10 @@ pop.
 
 ## The stack as a panel
 
-`^I` shows the cuts in the top right corner of the map, newest at the top, each one
-with its branch still attached and drawn beside it. They float over the map, which
-stays where it was and is not touched while the panel is open.
+`^I` shows the stack in the top right corner of the map: every cut waiting to be
+pasted, newest at the top, each one with its branch still attached and drawn beside
+it. They float over the map, which stays where it was and is not touched while the
+panel is open.
 
 The panel has the keys, and they are the map's own: `↑`/`↓` walk the stack, `→`
 goes into a cell's children and `←` comes back out, `e` renames one, `m` marks it,
