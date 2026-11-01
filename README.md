@@ -87,8 +87,11 @@ Spacing (`^=` / `^-`) is part of the document: it is written into the file as
 times should not bury the edit you actually want to back out.
 
 At the tight end the boxes end up sharing a border row: they touch, but every
-cell keeps its own text row, and the two rules are merged into one so a stack of
-siblings still reads as a table rather than a pile of corners.
+cell keeps its own text row. A box border is not drawn as a finished glyph but as
+the set of directions that cell continues in, so two boxes meeting on one row
+join into `├` / `┤` / `┬` / `┴` instead of one box's rounded corner overwriting
+the other's. A stack of siblings reads as a table of cells, not as a pile of
+corners.
 
 The bar carries the keys you cannot guess — inserts, edits, spacing, file, undo.
 The four navigation chords are deliberately absent: arrows and `hjkl` cover

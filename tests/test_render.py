@@ -80,14 +80,46 @@ def test_only_the_selected_box_is_reversed():
     assert "reverse" not in styles["root"]
 
 
-def test_a_tight_layout_flattens_the_corners_where_two_boxes_share_a_row():
-    mm = MindMap(Node("root"), spacing=-1)
-    mm.add_child(mm.root.id, "one")
-    mm.add_child(mm.root.id, "two")
-    drawn = _render(mm, width=80, height=30)
-    # a stranded corner in the middle of a shared rule reads as a glitch
-    assert "╭─" in drawn or "╰─" in drawn
-    assert "╭╮" not in drawn
+def _stacked(spacing: int, first: str = "one", second: str = "two") -> str:
+    mm = MindMap(Node("root"), spacing=spacing)
+    branch = mm.add_child(mm.root.id, "branch")
+    mm.add_child(branch.id, first)
+    mm.add_child(branch.id, second)
+    return _render(mm, width=90, height=30)
+
+
+def test_stacked_boxes_share_one_rule_joined_by_t_pieces():
+    drawn = _stacked(-2)
+    shared = [line.strip() for line in drawn.splitlines() if "├" in line]
+    assert shared, "two boxes one row apart should share their border row"
+    row = shared[0]
+    # the rule the two boxes share meets the side walls as a T, not as two
+    # rounded corners fighting over the same cells
+    assert "├" in row and "┤" in row
+    assert "╭────" not in row and "╰────" not in row
+    # equal widths, so nothing sticks out sideways
+    assert "┬" not in row and "┴" not in row
+
+
+def test_a_narrower_box_sharing_a_row_leaves_a_stub_junction():
+    drawn = _stacked(-2, first="a much longer name", second="short")
+    assert any("┬" in line or "┴" in line for line in drawn.splitlines())
+
+
+def test_a_shared_row_keeps_both_boxes_closed():
+    drawn = _stacked(-2).splitlines()
+    shared = next(index for index, line in enumerate(drawn) if "├" in line)
+    assert "│" in drawn[shared - 1]  # the box above still has its text row
+    assert "│" in drawn[shared + 1]  # and the box below its own
+    assert drawn[shared - 1].count("│") >= 2
+
+
+def test_spacing_zero_leaves_each_box_its_own_corners():
+    # With air between the boxes no two rows are shared, so the only junction is
+    # the trunk the parent's link turns down (`┤` on the right, `├` on the left).
+    drawn = _stacked(0)
+    assert "├" not in drawn
+    assert "╭────" in drawn and "╰────" in drawn
 
 
 def test_tight_and_loose_spacing_change_the_drawn_size():

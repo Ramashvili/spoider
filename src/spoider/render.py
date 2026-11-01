@@ -36,7 +36,17 @@ LINK_COLOR = "bright_black"
 
 @dataclass
 class Grid:
+    """Characters and, underneath them, the geometry that produced them.
+
+    A box border is stored as the set of directions that cell connects to — the
+    same bits BOX_CHARS is keyed by — not as a finished glyph. Two boxes that
+    share a border row then merge the way walls really would: `╰` and `╭` in the
+    same cell become `├`, instead of one box's rounded corner overwriting the
+    other's and leaving a notch.
+    """
+
     cells: dict[tuple[int, int], tuple[str, str]] = field(default_factory=dict)
+    edges: dict[tuple[int, int], tuple[int, str]] = field(default_factory=dict)
     links: dict[tuple[int, int], int] = field(default_factory=dict)
     wide: set[tuple[int, int]] = field(default_factory=set)
     width: int = 0
@@ -53,10 +63,24 @@ class Grid:
                 self.wide.add((x + 1, y))
             x += max(width, 1)
 
+    def add_edge(self, x: int, y: int, bits: int, style: str) -> None:
+        """Join this cell to its neighbours in the given directions.
+
+        Whoever claims a cell first keeps its style, so a wall that a link later
+        joins stays in the colour of the box that owns it.
+        """
+        current, owner = self.edges.get((x, y), (0, style))
+        self.edges[(x, y)] = (current | bits, owner)
+
     def add_link(self, x: int, y: int, bits: int) -> None:
         self.links[(x, y)] = self.links.get((x, y), 0) | bits
 
     def finalize(self) -> Grid:
+        # Borders first: a link never overwrites a wall it only meets.
+        for (x, y), (bits, style) in self.edges.items():
+            ch = BOX_CHARS.get(bits)
+            if ch:
+                self.cells[(x, y)] = (ch, style)
         for (x, y), bits in self.links.items():
             if (x, y) in self.cells:
                 continue
@@ -80,8 +104,6 @@ def node_style(depth: int, selected: bool) -> str:
 
 def build_grid(layout: Layout, selected_id: str) -> Grid:
     grid = Grid(width=layout.width, height=layout.height)
-    # Top-to-bottom: when a tight layout makes two boxes share a border row, the
-    # lower box's top edge is drawn last, so each cell keeps a closed top.
     for box in sorted(layout.boxes.values(), key=lambda placed: (placed.y, placed.x)):
         _draw_box(grid, box, node_style(box.depth, box.node.id == selected_id))
     for box in layout.boxes.values():
@@ -91,63 +113,52 @@ def build_grid(layout: Layout, selected_id: str) -> Grid:
             child_box = layout.boxes.get(child.id)
             if child_box is not None:
                 _draw_link(grid, box, child_box)
-    _flatten_shared_rules(grid, layout)
     return grid.finalize()
 
 
-CORNER_CHARS = "╭╮╰╯"
-
-
-def _flatten_shared_rules(grid: Grid, layout: Layout) -> None:
-    """When the layout is tight enough that two boxes share a border row, their
-    two rules are really one. Corners stranded in the middle of that row read as
-    glitches, so they become plain rule characters."""
-    # Bucket the boxes by the rows they own a border on. Scanning every box for
-    # every row made this quadratic, and it was 40 of the 60 ms a 500-cell map
-    # spent drawing a frame.
-    rows: dict[int, list[Placed]] = {}
-    for box in layout.boxes.values():
-        rows.setdefault(box.y, []).append(box)
-        rows.setdefault(box.bottom, []).append(box)
-    for y, edge_boxes in rows.items():
-        if len(edge_boxes) < 2:
-            continue
-        stacked = any(
-            not (a.right < b.x or b.right < a.x)
-            for index, a in enumerate(edge_boxes)
-            for b in edge_boxes[index + 1 :]
-        )
-        if not stacked:  # side-by-side rows share a row, not a rule
-            continue
-        for x in range(layout.width):
-            cell = grid.cells.get((x, y))
-            if cell is None or cell[0] not in CORNER_CHARS:
-                continue
-            left = grid.cells.get((x - 1, y), (" ", ""))[0]
-            right = grid.cells.get((x + 1, y), (" ", ""))[0]
-            if left.strip() and right.strip():
-                grid.cells[(x, y)] = ("─", cell[1])
-
-
 def _draw_box(grid: Grid, box: Placed, style: str) -> None:
+    """Draw a box as four walls that know which way they continue.
+
+    Nothing here picks a glyph: a corner is "right and down", a side is "up and
+    down", a rule is "left and right". `Grid.finalize` turns each cell's set of
+    directions into the one character that fits, so a border shared with another
+    box comes out as `├` / `┤` / `┬` / `┴` rather than as two rounded corners
+    fighting over the same cell.
+    """
+    left, right = box.x, box.x + box.w - 1
+    top, middle, bottom = box.y, box.y + 1, box.y + 2
+
+    for x in range(left + 1, right):
+        grid.add_edge(x, top, L | R, style)
+    grid.add_edge(left, top, R | D, style)
+    grid.add_edge(right, top, L | D, style)
+
+    grid.add_edge(left, middle, U | D, style)
+    grid.add_edge(right, middle, U | D, style)
+
+    for x in range(left + 1, right):
+        grid.add_edge(x, bottom, L | R, style)
+    grid.add_edge(left, bottom, R | U, style)
+    grid.add_edge(right, bottom, L | U, style)
+
     inner = box.w - 2
     text = label(box.node)
     pad = " " * (inner - PAD - cell_len(text))
-    grid.put_text(box.x, box.y, "╭" + "─" * inner + "╮", style)
-    grid.put(box.x, box.y + 1, "│", style)
-    grid.put_text(box.x + 1, box.y + 1, " " * PAD + text + pad, style)
-    grid.put(box.x + box.w - 1, box.y + 1, "│", style)
-    grid.put_text(box.x, box.y + 2, "╰" + "─" * inner + "╯", style)
+    grid.put_text(left + 1, middle, " " * PAD + text + pad, style)
 
 
 def _draw_link(grid: Grid, parent: Placed, child: Placed) -> None:
     if child.side > 0:
         start = parent.x + parent.w
         end = child.x - 1
+        wall = child.x  # the child's left wall
+        arrives = L  # the link reaches it from the left
         mid = min(start + 2, max(start + 1, end))
     else:
         start = parent.x - 1
         end = child.x + child.w
+        wall = child.x + child.w - 1  # the child's right wall
+        arrives = R
         mid = max(start - 2, min(start - 1, end))
 
     points = [(start, parent.cy), (mid, parent.cy), (mid, child.cy), (end, child.cy)]
@@ -156,6 +167,12 @@ def _draw_link(grid: Grid, parent: Placed, child: Placed) -> None:
             _horizontal(grid, x1, x2, y1)
         else:
             _vertical(grid, y1, y2, x1)
+
+    if end == mid:
+        # No room for a run between the trunk and the box: drawn naively this is
+        # two verticals side by side (`││`). Join them instead — the wall gets a
+        # T pointing at the line that arrives.
+        grid.add_edge(wall, child.cy, arrives, LINK_COLOR)
 
 
 def _horizontal(grid: Grid, x1: int, x2: int, y: int) -> None:
