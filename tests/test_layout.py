@@ -8,7 +8,7 @@ from spoider.layout import (
     label,
     subtree_height,
 )
-from spoider.model import LAYOUTS, MindMap
+from spoider.model import LAYOUTS, MindMap, Node
 from spoider.render import build_grid
 
 
@@ -179,13 +179,15 @@ def test_stacked_shapes_may_tighten_one_column_further():
 
 
 def test_the_stacked_gap_is_what_makes_a_pyramid_narrow():
-    from spoider.layout import GAP_X, Gaps, compute_with
+    from spoider.layout import GAP_X, STACK_GAP_X, Gaps, compute_with
 
-    mm, _alpha, _beta, _a1, _a2 = _shaped()
+    mm = MindMap(Node("root"))
+    for name in ("one", "two", "three", "four"):
+        mm.add_child(mm.root.id, name)
     tight = compute(mm.root, 0, "pyramid").width
     wide = compute_with(mm.root, Gaps(x=GAP_X, y=1), "pyramid").width
-    assert tight < wide
-    assert wide - tight == 2 * 3  # three sibling gaps, three columns each
+    # four siblings in a row: three gaps, each three columns wider sideways
+    assert wide - tight == 3 * (GAP_X - STACK_GAP_X)
 
 
 def test_tight_layout_flattens_two_rules_into_one():
@@ -258,16 +260,13 @@ def test_pyramid_puts_the_root_on_top_and_its_children_below():
     assert layout.boxes[a1.id].y > first.y  # grandchildren are placed too
 
 
-def test_pyramid_centres_a_parent_over_the_band_under_it():
-    mm, alpha, beta, a1, a2 = _shaped()
+def test_pyramid_centres_a_parent_between_its_first_and_last_child():
+    mm, alpha, beta, _a1, _a2 = _shaped()
     layout = compute(mm.root, 0, "pyramid")
     root = layout.boxes[mm.root.id]
-    below = [layout.boxes[node.id] for node in (alpha, beta, a1, a2)]
-    left = min(box.x for box in below)
-    right = max(box.right for box in below)
-    # centred over the whole band its descendants occupy, not over the two
-    # children's centres: their bands are different widths
-    assert abs(root.cx - (left + right) // 2) <= 1
+    first = layout.boxes[alpha.id]
+    last = layout.boxes[beta.id]
+    assert abs(root.cx - (first.cx + last.cx) // 2) <= 1
 
 
 def test_bush_is_the_pyramid_upside_down():

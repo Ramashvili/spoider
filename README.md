@@ -205,10 +205,15 @@ reverse video. That means it looks right on a dark theme, a light theme, or a
 
 ## Placement
 
-- Every shape is the same problem: give each subtree a band and centre the parent
-  on the band under it. `spider` and `branch` pack bands vertically (children
-  stack down a column, to the left and right or only to the right); `pyramid` and
-  `bush` pack them horizontally (children sit in a row, below or above).
+- Every shape is the same problem: place a subtree, then centre the parent over
+  it. `spider` and `branch` pack bands vertically (children stack down a column,
+  to the left and right or only to the right) and centre a parent on its band.
+- `pyramid` and `bush` solve the columns only, since a level is a fixed row: a
+  subtree is packed against the **outline** of the subtrees already placed — its
+  leftmost and rightmost cell at each level — rather than against a reserved
+  rectangle. A branch with two children no longer leaves an empty band beside
+  its own narrow box; the sibling after it moves in. On a lopsided map that is
+  about a third of the width, on an even one a few columns.
 - In `spider` the root's children alternate sides by index: 0 right, 1 left,
   2 right, …, and a whole branch keeps its side.
 - Stacked shapes start with a narrower column gap than the sideways ones. A
@@ -218,8 +223,9 @@ reverse video. That means it looks right on a dark theme, a light theme, or a
 - A box border is stored as the directions that cell continues in, not as a
   finished glyph, so boxes that end up sharing a row join with `├ ┤ ┬ ┴` instead
   of overwriting each other's corners.
-- Connectors leave the parent's edge and arrive at the child's, merging with the
-  wall they touch.
+- Connectors leave the parent's edge and arrive at the child's, and both cells
+  become a T pointing along the line (`├` / `┤` / `┬` / `┴`) rather than the line
+  stopping a column short of a plain wall.
 
 ## Code map
 

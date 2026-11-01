@@ -114,12 +114,21 @@ def test_a_shared_row_keeps_both_boxes_closed():
     assert drawn[shared - 1].count("│") >= 2
 
 
-def test_spacing_zero_leaves_each_box_its_own_corners():
-    # With air between the boxes no two rows are shared, so the only junction is
-    # the trunk the parent's link turns down (`┤` on the right, `├` on the left).
-    drawn = _stacked(0)
-    assert "├" not in drawn
-    assert "╭────" in drawn and "╰────" in drawn
+def test_spacing_zero_gives_each_box_its_own_rounded_corners():
+    # With air between the boxes no border is shared, so all four corners of
+    # every box survive intact; the T's are only where a connector meets a wall.
+    mm = MindMap(Node("root"), spacing=0)
+    branch = mm.add_child(mm.root.id, "branch")
+    mm.add_child(branch.id, "one")
+    mm.add_child(branch.id, "two")
+    layout = compute(mm.root, 0)
+    grid = build_grid(layout, mm.root.id)
+
+    for box in layout.boxes.values():
+        assert grid.cells[(box.x, box.y)][0] == "╭"
+        assert grid.cells[(box.right, box.y)][0] == "╮"
+        assert grid.cells[(box.x, box.bottom)][0] == "╰"
+        assert grid.cells[(box.right, box.bottom)][0] == "╯"
 
 
 def test_tight_and_loose_spacing_change_the_drawn_size():
@@ -183,3 +192,17 @@ def test_a_child_centred_under_its_parent_stays_connected():
         lines = [line.strip() for line in drawn.plain.splitlines()]
         assert "│" in lines, f"{name}: the two boxes are not joined"
         assert "┬" in drawn.plain and "┴" in drawn.plain
+
+
+def test_a_connector_leaves_and_arrives_through_t_junctions():
+    mm = MindMap(Node("root"))
+    child = mm.add_child(mm.root.id, "child")
+    layout = compute(mm.root, 0, "branch")
+    grid = build_grid(layout, mm.root.id)
+    parent_box = layout.boxes[mm.root.id]
+    child_box = layout.boxes[child.id]
+
+    # the line leaves the parent's wall and arrives at the child's, and both
+    # cells turn into a T pointing along it instead of a plain wall
+    assert grid.cells[(parent_box.right, parent_box.cy)][0] == "├"
+    assert grid.cells[(child_box.x, child_box.cy)][0] == "┤"

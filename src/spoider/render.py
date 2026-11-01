@@ -154,14 +154,16 @@ def _draw_link(grid: Grid, parent: Placed, child: Placed) -> None:
     if child.flow == RIGHT:
         start = parent.x + parent.w
         end = child.x - 1
-        wall = child.x  # the child's left wall
-        arrives = L  # the link reaches it from the left
+        leave_from = parent.x + parent.w - 1  # the parent's right wall
+        arrive_at = child.x  # the child's left wall
+        leaves, arrives = R, L
         mid = min(start + 2, max(start + 1, end))
     else:
         start = parent.x - 1
         end = child.x + child.w
-        wall = child.x + child.w - 1  # the child's right wall
-        arrives = R
+        leave_from = parent.x  # the parent's left wall
+        arrive_at = child.x + child.w - 1  # the child's right wall
+        leaves, arrives = L, R
         mid = max(start - 2, min(start - 1, end))
 
     points = [(start, parent.cy), (mid, parent.cy), (mid, child.cy), (end, child.cy)]
@@ -171,11 +173,11 @@ def _draw_link(grid: Grid, parent: Placed, child: Placed) -> None:
         else:
             _vertical(grid, y1, y2, x1)
 
-    if end == mid:
-        # No room for a run between the trunk and the box: drawn naively this is
-        # two verticals side by side (`││`). Join them instead — the wall gets a
-        # T pointing at the line that arrives.
-        grid.add_edge(wall, child.cy, arrives, LINK_COLOR)
+    # The line leaves one wall and arrives at the other, and both become a T
+    # pointing at it — the same treatment the stacked shapes get. Without this
+    # the connector stops a column short of the box and reads as unattached.
+    grid.add_edge(leave_from, parent.cy, leaves, LINK_COLOR)
+    grid.add_edge(arrive_at, child.cy, arrives, LINK_COLOR)
 
 
 def _draw_stack_link(grid: Grid, parent: Placed, child: Placed, flow: str) -> None:

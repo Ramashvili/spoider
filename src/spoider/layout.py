@@ -98,16 +98,6 @@ def subtree_height(node: Node, gap_y: int = GAP_Y) -> int:
     return max(BOX_H, total)
 
 
-def subtree_width(node: Node, gap_x: int = GAP_X) -> int:
-    """How wide a subtree is when its children sit side by side (stacked layouts)."""
-    width = box_width(node)
-    if node.collapsed or not node.children:
-        return width
-    children = sum(subtree_width(child, gap_x) for child in node.children)
-    children += gap_x * (len(node.children) - 1)
-    return max(width, children)
-
-
 @dataclass
 class Placed:
     node: Node
@@ -165,7 +155,7 @@ def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout
 
     if layout in ("pyramid", "bush"):
         flow = DOWN if layout == "pyramid" else UP
-        _place_stack(boxes, root, 0, 0, subtree_width(root, gaps.x), 0, gaps, flow)
+        _place_stack(boxes, root, gaps, flow)
     else:
         root_width = box_width(root)
         root_box = Placed(root, -root_width // 2, -(BOX_H // 2), root_width, BOX_H, 0, 1, RIGHT)
@@ -226,28 +216,85 @@ def _place_subtree(
         _place_children(boxes, box, node.children, side, gaps, flow)
 
 
-def _place_stack(
-    boxes: dict[str, Placed],
+def _place_stack(boxes: dict[str, Placed], root: Node, gaps: Gaps, flow: str) -> None:
+    """Place a whole pyramid (flow=down) or bush (flow=up).
+
+    Levels are fixed rows, so only the columns have to be solved. That is done by
+    `_stack_outline`, which packs each row of siblings against the *outline* of
+    the subtrees already placed rather than against a reserved rectangle: a child
+    with wide grandchildren no longer leaves an empty band beside its own narrow
+    box. The parent ends up centred between its first and last child.
+    """
+    offsets: dict[str, int] = {}  # child id -> offset from its parent's centre
+    depths: dict[str, int] = {}
+    _stack_outline(root, 0, gaps, offsets, depths)
+
+    step = BOX_H + gaps.y
+    centres: dict[str, int] = {root.id: 0}
+    pending = [root]
+    while pending:
+        node = pending.pop()
+        centre = centres[node.id]
+        width = box_width(node)
+        depth = depths[node.id]
+        y = depth * step if flow == DOWN else -depth * step
+        boxes[node.id] = Placed(node, centre - width // 2, y, width, BOX_H, depth, 1, flow)
+        for child in node.children:
+            if child.id in offsets:
+                centres[child.id] = centre + offsets[child.id]
+                pending.append(child)
+
+
+def _stack_outline(
     node: Node,
-    left: int,
-    y: int,
-    width: int,
     depth: int,
     gaps: Gaps,
-    flow: str,
-) -> None:
-    """Place `node` centred in a band `width` wide, with its children on the next
-    row down (pyramid) or up (tree)."""
-    own = box_width(node)
-    box = Placed(node, left + (width - own) // 2, y, own, BOX_H, depth, 1, flow)
-    boxes[node.id] = box
-    if node.collapsed or not node.children:
-        return
+    offsets: dict[str, int],
+    depths: dict[str, int],
+) -> dict[int, tuple[int, int]]:
+    """Pack a subtree with its own centre at column 0; return its outline.
 
-    widths = [subtree_width(child, gaps.x) for child in node.children]
-    total = sum(widths) + gaps.x * (len(widths) - 1)
-    cursor = left + (width - total) // 2
-    child_y = y + BOX_H + gaps.y if flow == DOWN else y - BOX_H - gaps.y
-    for child, child_width in zip(node.children, widths):
-        _place_stack(boxes, child, cursor, child_y, child_width, depth + 1, gaps, flow)
-        cursor += child_width + gaps.x
+    The outline maps a level to the leftmost and rightmost column the subtree
+    reaches there, measured from the node's centre. Siblings are separated by the
+    minimum shift that keeps those outlines `gaps.x` apart at every level, which
+    is what removes the wasted band a rectangle packer leaves behind.
+
+    `offsets` collects each child's column relative to its parent's centre.
+    """
+    width = box_width(node)
+    half = width // 2
+    depths[node.id] = depth
+    own = (-half, width - 1 - half)
+
+    if node.collapsed or not node.children:
+        return {0: own}
+
+    placed: dict[int, tuple[int, int]] = {}  # level -> extent of children so far
+    columns: list[int] = []
+    for index, child in enumerate(node.children):
+        outline = _stack_outline(child, depth + 1, gaps, offsets, depths)
+        shift = 0
+        if index:
+            for level, (left, _right) in outline.items():
+                reached = placed.get(level)
+                if reached is not None:
+                    # both extents are cell columns, so clearing by `gaps.x`
+                    # blank columns means starting one past that
+                    shift = max(shift, reached[1] + gaps.x + 1 - left)
+        columns.append(shift)
+        for level, (left, right) in outline.items():
+            moved = (left + shift, right + shift)
+            reached = placed.get(level)
+            placed[level] = moved if reached is None else (
+                min(reached[0], moved[0]),
+                max(reached[1], moved[1]),
+            )
+
+    middle = (columns[0] + columns[-1]) // 2
+    for child, column in zip(node.children, columns):
+        offsets[child.id] = column - middle
+
+    outline = {0: own}
+    for level, (left, right) in placed.items():
+        outline[level + 1] = (left - middle, right - middle)
+    return outline
