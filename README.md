@@ -104,5 +104,5 @@ wherever it is opened.
 uv run pytest
 ```
 
-Changing it? [NOTES.md](NOTES.md) has the layout, the rules the code is held to and
+Changing it? [AGENTS.md](AGENTS.md) has the layout, the rules the code is held to and
 the traps — written for people and for coding agents alike.
