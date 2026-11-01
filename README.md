@@ -21,15 +21,22 @@ you can diff and version.
 
 ```bash
 cd ~/Projects/spoider
-uv run spoider                 # opens ~/.local/share/spoider/map.json
-uv run spoider my-ideas.json   # or any path
-uv run spoider --empty notes.json
+uv run spoider                 # a new, empty buffer
+uv run spoider my-ideas.json   # opens that map (or starts one there)
+uv run spoider --demo          # a new buffer with the demo map in it
 ```
 
+Without a file named, spoider starts a new buffer and never goes looking for one:
+where it ends up is your decision, and `^S` asks for a name the way nano does. If
+`~/.local/share/spoider/map.json` is still free it is offered as the answer; if
+something already lives there, the prompt is left empty rather than inviting you
+to write over it.
+
 The top line is chrome and nothing more: `spoider` and its version on the left,
-the file path centred (`New Buffer` until the first write), and the total cell
-count on the right. The terminal title carries the same path plus a `*` while the
-buffer has unsaved changes.
+the file path centred (`New Buffer` until the first write), and what it counts on
+the right — the cells, or the matches of a search — with the map's shape beside
+it. The terminal title carries the same path plus a `*` while the buffer has
+unsaved changes.
 
 Nothing is written until you ask for it: edits stay in memory, `^S` writes them
 to the current file, `^O` writes them wherever you name, and `^X` refuses to throw

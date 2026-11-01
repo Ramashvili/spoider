@@ -1748,3 +1748,90 @@ async def test_the_quit_question_is_a_line_not_a_dialog(tmp_path: Path):
         await pilot.pause()
         assert app.is_running
         assert app.mode == "keys"
+
+
+# -- a new buffer unless a file is named ----------------------------------
+
+
+def test_without_a_file_spoider_starts_a_new_buffer(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    default = tmp_path / "data" / "spoider" / "map.json"
+    default.parent.mkdir(parents=True)
+    default.write_text(json.dumps({"version": 1, "root": {"text": "last time"}}))
+
+    app = SpoiderApp(None, demo=False)
+    assert app.path is None
+    assert app.has_file is False
+    assert app.mm.root.text != "last time", "it must not open the default map behind your back"
+
+
+async def test_the_top_bar_calls_it_a_new_buffer(tmp_path: Path):
+    app = SpoiderApp(None, demo=False)
+    async with app.run_test():
+        assert "New Buffer" in app.query_one(TopBar).render().plain
+
+
+async def test_a_file_named_on_the_command_line_is_opened(tmp_path: Path):
+    path = tmp_path / "map.json"
+    path.write_text(json.dumps({"version": 1, "root": {"text": "saved earlier"}}))
+
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test():
+        assert app.has_file is True
+        assert app.mm.root.text == "saved earlier"
+
+
+async def test_save_asks_for_a_name_when_the_buffer_has_none(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    app = SpoiderApp(None, demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+
+        assert app.mode == "write", "there is no file to save over"
+        prompt = app.query_one(PromptBar)
+        offered = tmp_path / "data" / "spoider" / "map.json"
+        assert prompt.value == str(offered), "the default place is offered, not used"
+
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.path == offered
+        assert offered.exists()
+        assert app.has_file is True
+        assert app.dirty is False
+
+
+async def test_a_new_buffer_quits_with_autosave_on(tmp_path: Path):
+    app = SpoiderApp(None, demo=False)
+    async with app.run_test() as pilot:
+        app.set_autosave(True)
+        app.mm.add_child(app.selected, "work in progress")
+        app._mark_dirty()
+        assert app.dirty, "nowhere to autosave to, so it stays dirty"
+
+        await pilot.press("ctrl+x")
+        await pilot.pause()
+        assert app.mode == "ask", "and it falls back to asking, instead of hanging"
+
+
+def test_the_demo_map_is_something_you_ask_for():
+    assert SpoiderApp(None).mm.count() == 1, "a new buffer is empty"
+    assert SpoiderApp(None, demo=True).mm.count() > 1
+
+
+async def test_save_never_offers_a_name_that_is_already_taken(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    default = tmp_path / "data" / "spoider" / "map.json"
+    default.parent.mkdir(parents=True)
+    existing = json.dumps({"version": 1, "root": {"text": "someone else's map"}})
+    default.write_text(existing)
+
+    app = SpoiderApp(None)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        assert app.query_one(PromptBar).value == "", "no offer to write over it"
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert default.read_text() == existing

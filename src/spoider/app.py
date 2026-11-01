@@ -198,17 +198,19 @@ class SpoiderApp(App[None]):
         self,
         path: Path | None = None,
         *,
-        demo: bool = True,
+        demo: bool = False,
         config_path: Path | None = None,
     ) -> None:
         super().__init__()
         self.config_path = Path(config_path) if config_path is not None else default_config_path()
         self.config: Config = load_config(self.config_path)
         self.theme = "textual-ansi"
-        self.path = Path(path) if path is not None else default_path()
-        self.has_file = self.path.exists()
+        # No file named means a new buffer: spoider never guesses at one. The
+        # default location is only *offered* when you first write it out.
+        self.path: Path | None = Path(path) if path is not None else None
+        self.has_file = self.path is not None and self.path.exists()
         self.load_error: str | None = None
-        if self.has_file:
+        if self.has_file and self.path is not None:
             try:
                 self.mm = MindMap.load(self.path)
             except MapFileError as exc:
@@ -265,7 +267,7 @@ class SpoiderApp(App[None]):
 
     def _title(self) -> str:
         marker = " *" if self.dirty else ""
-        return f"spoider — {self.path.name}{marker}"
+        return f"spoider — {self.path.name if self.path else 'untitled'}{marker}"
 
     def _set_terminal_title(self) -> None:
         """Mirror the buffer into the terminal title, where the unsaved marker is
@@ -514,6 +516,8 @@ class SpoiderApp(App[None]):
     def _autosave(self) -> bool:
         """Write silently to the current path. False when the write failed, which
         matters to ^X: quitting after a failed autosave would lose the buffer."""
+        if self.path is None:  # a new buffer has nowhere to go yet
+            return False
         try:
             self.mm.save(self.path)
         except OSError as exc:
@@ -529,6 +533,8 @@ class SpoiderApp(App[None]):
         self.dirty = True
         if self.search_query:
             self._refresh_matches()
+        if self.autosave and self.path is not None:
+            self._autosave()
         self._set_terminal_title()
         self.view.refresh_map()
         self._refresh_chrome()
@@ -554,11 +560,23 @@ class SpoiderApp(App[None]):
         self._show_prompt(
             "write",
             "File name to write: ",
-            str(self.path),
+            self._suggested_name(),
             preselect=True,
             submit=self._write_submitted,
             cancel=self._close_drawers,
         )
+
+    def _suggested_name(self) -> str:
+        """What to offer in the write prompt.
+
+        The file the buffer belongs to, if it has one. A new buffer is offered
+        the default place only while that is free: offering a path that already
+        holds someone's map would turn "press enter" into "overwrite it".
+        """
+        if self.path is not None:
+            return str(self.path)
+        fallback = default_path()
+        return "" if fallback.exists() else str(fallback)
 
     def _write_submitted(self, value: str) -> None:
         self._close_drawers()
@@ -998,7 +1016,11 @@ class SpoiderApp(App[None]):
         self._restore(self._redo.pop())
 
     def action_save(self) -> None:
-        """^S — write straight back to the current file, no questions."""
+        """^S — write straight back to the current file. A new buffer has no file
+        yet, so it asks for one, the way nano does."""
+        if self.path is None:
+            self._ask_where_to_write()
+            return
         self._write(self.path)
 
     def action_write(self) -> None:
@@ -1007,7 +1029,7 @@ class SpoiderApp(App[None]):
 
     async def action_quit(self) -> None:
         """^X — nano's Exit: never throw away a modified buffer silently."""
-        if self.autosave:
+        if self.autosave and self.path is not None:
             if self.dirty and not self._autosave():
                 return  # the write failed; keep the buffer and stay
             self.exit()
@@ -1037,14 +1059,14 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "path",
         nargs="?",
-        help="map file (default: ~/.local/share/spoider/map.json)",
+        help="map file to open; without one, spoider starts a new buffer",
     )
     parser.add_argument(
-        "--empty", action="store_true", help="start empty instead of seeding a demo map"
+        "--demo", action="store_true", help="start with the demo map instead of an empty buffer"
     )
     args = parser.parse_args(argv)
-    path = Path(args.path).expanduser() if args.path else default_path()
-    SpoiderApp(path, demo=not args.empty).run()
+    path = Path(args.path).expanduser() if args.path else None
+    SpoiderApp(path, demo=args.demo).run()
 
 
 if __name__ == "__main__":
