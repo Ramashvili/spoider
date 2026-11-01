@@ -113,7 +113,7 @@ def test_the_demo_says_what_a_mind_map_is_and_what_the_app_does():
     # only talking about them
     assert all(len(text) <= 40 for text in texts)
     assert any(node.mark for node in mm.nodes())
-    assert 24 <= mm.count() <= 32
+    assert 30 <= mm.count() <= 48, "a manual: long enough to cover the surface"
 
 
 # -- cut and paste --------------------------------------------------------

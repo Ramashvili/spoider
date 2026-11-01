@@ -397,19 +397,19 @@ class MindMap:
 
     @classmethod
     def demo(cls) -> MindMap:
-        """The map `--demo` opens: what a mind map is for, what this can do, and
-        what it deliberately leaves out.
+        """The map `--demo` opens: the manual, as a map.
 
-        Cells stay short enough to read at a glance — a demo you have to pan is a
-        bad demo — but there are enough of them to be a real tree rather than an
-        advertisement.
+        One branch per thing the editor does — what it is, who it is for, and then
+        the keys in the order someone learning them would want them. It is the
+        whole of the program's surface: if something can be done, it is on this map
+        somewhere.
         """
         root = Node("spoider")
         ideas = {
             "what a mind map is": [
-                "one idea in the middle",
+                "one thought in the middle",
                 "its parts arranged around it",
-                "and their parts around those",
+                "and each part splits again",
             ],
             "what it is for": [
                 "planning before building",
@@ -419,33 +419,47 @@ class MindMap:
             "making cells": [
                 "tab a child, enter a sibling",
                 "e renames it in place",
-                "m marks it, t folds it away",
+                "^D deletes the branch for good",
             ],
-            "moving work": [
-                "^K cuts into a LIFO stack",
-                "^U pastes it anywhere, ^I shows it",
-                "shift and an arrow pick a run",
-                "^Z takes it all back",
+            "marks and folds": [
+                "m cycles a mark, then off",
+                "✅ marks are saved with the map",
+                "t folds a branch away",
+            ],
+            "moving around": [
+                "arrows, or h j k l",
+                "shift picks a run, esc drops it",
+                "alt + an arrow reorders a run",
+            ],
+            "cut and paste": [
+                "^K cuts onto a LIFO stack",
+                "^U pastes under the selection",
+                "^I shows the stack as cells",
+            ],
+            "inside the stack": [
+                "↑↓ walk it, e renames a cut",
+                "^K again puts it back on top",
+                "^Z and ^Y undo and redo",
+            ],
+            "shaping it": [
+                "= and - change the air",
+                "^L cycles four shapes",
+                "^F finds it, ↑ recalls a search",
             ],
             "keeping it": [
-                "^S writes plain json",
-                "the air and the shape live in the file",
-                "^L cycles four shapes",
+                "^S writes plain json, ^O a copy",
+                "^X asks before it quits",
+                "^, can write after every edit",
             ],
-            "getting help": [
-                "^/ lists every key",
-                "^, settings and chords",
-                "^F finds a word",
-            ],
-            "what it leaves out": [
-                "no colours of its own",
-                "no mouse, no windows",
-                "one map per file",
+            "reading this": [
+                "^/ lists every key and its chord",
+                "click a cell, double-click to edit",
+                "the bar below never goes away",
             ],
         }
         for title, leaves in ideas.items():
             root.children.append(Node(title, children=[Node(leaf) for leaf in leaves]))
         # the cell that explains marks carries one, so the demo shows rather than
         # tells
-        root.children[2].children[2].mark = MARKS[0]
+        root.children[3].children[1].mark = MARKS[0]
         return cls(root)
