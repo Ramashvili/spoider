@@ -157,15 +157,10 @@ BINDINGS: list[BindingType] = [
     Binding("escape", "clear_selection", "clear", show=False, id="clear_selection"),
     Binding("alt+up", "move_up", "reorder up", show=False, id="move_up"),
     Binding("alt+down", "move_down", "reorder down", show=False, id="move_down"),
-    # The key NAMES for the spacing chords are the ones Textual's parser actually
-    # produces, which is not what you would guess: ^= arrives as
-    # ctrl+shift+equals_sign under the kitty keyboard protocol (which Textual
-    # enables), while a plain terminal sends ^- as the ^_ control character.
-    # Every spelling is bound, plus alt fallbacks for terminals that swallow the
-    # ctrl form.
-    # One chord each. Every terminal spelling the same key might arrive as used to
-    # be bound too, which made the bar, the help and the config list six keys for
-    # two jobs; if a terminal cannot send these, rebind them in the config.
+    # The spacing keys are bare = and -: the key names Textual produces for them
+    # are the ones nobody would guess, and binding every spelling a terminal might
+    # send made the bar, help and config list six keys for two jobs. If a terminal
+    # cannot send these, rebind them in the config.
     Binding("equals_sign", "spacing_more", "looser", id="spacing_more"),
     Binding("minus", "spacing_less", "tighter", id="spacing_less"),
 
@@ -370,10 +365,6 @@ class SpoiderApp(App[None]):
         if self.editing:
             return None
         return True
-
-    @property
-    def _searching(self) -> bool:
-        return self._mode == "search"
 
     @property
     def mode(self) -> str:
@@ -634,13 +625,11 @@ class SpoiderApp(App[None]):
         self.dirty = True
         if self.search_query:
             self._refresh_matches()
-        if self.autosave and self.path is not None:
-            self._autosave()
         self._set_terminal_title()
         self.view.refresh_map()
         self._refresh_chrome()
         if self.autosave:
-            self._autosave()
+            self._autosave()  # one write per change, after the screen agrees
 
     def _write(self, path: Path) -> bool:
         try:
@@ -698,6 +687,8 @@ class SpoiderApp(App[None]):
             return
         if self.mm.find(self.selected) is None:
             self.selected = self.mm.root.id
+        # the anchor belongs to the document we just replaced
+        self.anchor = None
         self._mark_dirty()
 
     # -- inline editing -------------------------------------------------

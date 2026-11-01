@@ -2452,3 +2452,45 @@ async def test_the_pinned_cluster_follows_a_rebound_chord(tmp_path: Path):
         bar = app.query_one("#footer", FooterBar).render().plain
         assert "^P settings" in bar, "the pinned key moved, so the label moves"
         assert "^, settings" not in bar
+
+
+async def test_autosave_writes_the_file_once_per_change(tmp_path: Path, monkeypatch):
+    from spoider.model import MindMap as Model
+
+    writes: list[Path] = []
+    original = Model.save
+
+    def counted(self, path):
+        writes.append(path)
+        return original(self, path)
+
+    monkeypatch.setattr(Model, "save", counted)
+    config = tmp_path / "config.conf"
+    config.write_text("autosave = true\n")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with app.run_test() as pilot:
+        _four(app)
+        writes.clear()
+
+        app.mm.add_child(app.mm.root.id, "one")
+        app._mark_dirty()
+        await pilot.pause()
+
+        assert len(writes) == 1, "one edit, one write"
+
+
+async def test_undo_lets_go_of_the_selected_run(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        a, _b, _c, _d = _four(app)
+        app.select(a.id)
+        await pilot.press("shift+down")  # a and its sibling
+        assert app.anchor == a.id
+
+        await pilot.press("g")  # mark both: an undoable change, run intact
+        await pilot.pause()
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+
+        assert app.anchor is None, "the run belonged to the map that was undone"
+        assert app.selected_ids == [app.selected]

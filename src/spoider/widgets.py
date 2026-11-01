@@ -172,6 +172,8 @@ class MindMapView(Widget, can_focus=True):
         if self.spoider.editing:
             self.spoider.finish_edit(commit=True)
             return
+        if self.spoider.mode not in ("keys", "edit"):
+            return  # a drawer has the screen: a click behind it selects nothing
         layout = self.layout_
         node_id = layout.hit(event.offset.x + self._offset_x, event.offset.y + self._offset_y)
         if node_id is None:
@@ -182,9 +184,9 @@ class MindMapView(Widget, can_focus=True):
             self.spoider.action_edit()
 
     def on_mouse_scroll_down(self, event: events.MouseScrollDown) -> None:
-        if not self.spoider.editing:
+        if self.spoider.mode == "keys":
             self.spoider.action_next()
 
     def on_mouse_scroll_up(self, event: events.MouseScrollUp) -> None:
-        if not self.spoider.editing:
+        if self.spoider.mode == "keys":
             self.spoider.action_prev()

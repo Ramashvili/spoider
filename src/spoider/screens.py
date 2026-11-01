@@ -36,7 +36,7 @@ HELP: tuple[HelpSection, ...] = (
             (("cut",), "cut the cells onto a stack; all of them wait to be pasted"),
             (("paste",), "paste the newest cut; the older ones stay on the stack"),
             (("delete",), "delete the cell and everything under it"),
-            (("mark",), "cycle the mark, then off (set them in ^,)"),
+            (("mark",), "cycle the mark, then off (the set is in settings)"),
             (("fold",), "fold or unfold the branch"),
         ),
     ),
@@ -163,7 +163,12 @@ def _fit_tokens(tokens: tuple[str, ...], width: int) -> str:
 def settings_text(app: SpoiderApp, row: int = 0) -> Text:
     rows = [
         ("autosave", "on" if app.autosave else "off", "after every edit, and exit"),
-        ("marks", _fit_tokens(app.marks, 20), "the emojis ^G cycles"),
+        (
+            "marks",
+            _fit_tokens(app.marks, 20),
+            # the chord is read, never written: a rebound key must not leave this lying
+            f"the emojis {key_cap(app.keymap.get('mark', 'g'))} cycles",
+        ),
         ("config", clip_tail(str(app.config_path), 20), "⏎ opens it in your editor"),
     ]
     text = Text()
