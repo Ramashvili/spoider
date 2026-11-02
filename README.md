@@ -155,6 +155,11 @@ justify_width_default = 66
 A chord line lists every chord that action answers to, separated by spaces, so
 `edit = e ctrl+e` binds both and a chord left off the line stops working.
 
+At the end of the file sits a commented vim block: uncomment it and the keys are
+`hjkl` for moving, `i` to rename, `d` cut, `p` paste, `x` delete, `y` copy, `u` undo,
+`^R` redo, `o` and `O` for a new sibling and child, `/` to search. The arrow keys stay
+bound either way.
+
 Editor preferences live there and stay out of the map: `marks_default` is the set a
 new map starts with, and `justify_width_default` is the width `^J` offers before a map
 has been justified once. Everything the map looks like belongs to the map and travels
@@ -169,8 +174,7 @@ the width it was last justified to, so a file reads the same wherever it is open
 - Undo history lives in memory for the session, and is not capped.
 - Nothing locks the map file: two editors on one map, last save wins.
 - On terminals that do not speak the kitty keyboard protocol, `^I` arrives as `Tab`
-  and `^M` as `Return`; `^M` has `M-m` beside it for the same reason, and `Tab`
-  adds a child anyway.
+  and `^M` as `Return`. Rebind either in the config if that is your terminal.
 
 ## Development
 

@@ -25,6 +25,27 @@ from .model import MARKS, marks_of
 
 TRUE_WORDS = frozenset({"1", "true", "yes", "on"})
 
+#: The vim keymap, written into the file commented out so switching is a matter of
+#: uncommenting a block. The arrow keys stay on the movement lines: they are not a
+#: vim or a nano convention but what every keyboard has, and dropping them would
+#: take a hand off the home row for nothing.
+VIM_BINDS: tuple[tuple[str, str], ...] = (
+    ("prev", "k up"),
+    ("next", "j down"),
+    ("left", "h left"),
+    ("right", "l right"),
+    ("edit", "i"),
+    ("copy", "y"),
+    ("cut", "d"),
+    ("paste", "p"),
+    ("delete", "x"),
+    ("undo", "u"),
+    ("redo", "ctrl+r"),
+    ("add_sibling", "o"),
+    ("add_child", "O"),
+    ("search", "/"),  # the character itself: "slash" is not a chord the loader takes
+)
+
 
 @dataclass
 class Config:
@@ -146,6 +167,9 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
             lines.append(f"{ident} = {config.keys[ident]}")
         else:
             lines.append(f"# {ident} = {default}")
+    lines.append("")
+    lines.append("# --- vim binds: uncomment these to switch ---")
+    lines.extend(f"# {ident} = {chords}" for ident, chords in VIM_BINDS)
     return "\n".join(lines).rstrip() + "\n"
 
 

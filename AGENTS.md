@@ -134,7 +134,9 @@ Textual's own `App.set_keymap` expects. Aliases are extra bindings with the same
 action, so they never get a line of their own and cannot drift out of step.
 
 A chord left off the line stops working — the line is the truth, not a patch over the
-defaults. A token that is not a key is dropped from the line rather than read as a
+defaults. `VIM_BINDS` in `config.py` is written into the file commented out, at the end,
+so switching keymaps is uncommenting a block; it keeps the arrow keys on the movement
+lines, because arrows are not a convention anyone chose. A token that is not a key is dropped from the line rather than read as a
 chord, which is what keeps a leftover setting from rebinding a key.
 
 ## Traps

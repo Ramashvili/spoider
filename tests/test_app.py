@@ -6,7 +6,7 @@ from spoider.chrome import FooterBar, compose_footer, hint_chunks
 from spoider.config import load_config
 from spoider.drawers import AskBar, PanelBar, PromptBar
 from spoider.layout import compute
-from spoider.model import MindMap
+from spoider.model import MindMap, Node
 from spoider.screens import HELP, help_text, keys_for, settings_text
 from spoider.widgets import TopBar, compose_top_bar
 
@@ -3629,3 +3629,62 @@ def test_the_config_file_is_named_for_the_app(tmp_path: Path):
 
     assert default_config_path().name == "spoider.conf"
     assert default_config_path().parent.name == "spoider"
+
+
+def test_the_config_carries_a_vim_block_to_uncomment(tmp_path: Path):
+    """Switching to vim is uncommenting a block, not writing a keymap by hand."""
+    from spoider.app import action_chords
+    from spoider.config import VIM_BINDS, parse
+
+    path = tmp_path / "spoider.conf"
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=path)
+    app._save_config()
+    text = path.read_text()
+
+    head = text.index("# --- vim binds")
+    block = [line for line in text[head:].splitlines() if "=" in line]
+    assert len(block) == len(VIM_BINDS)
+
+    # uncommenting the block is the whole switch
+    switched = parse(text + "\n" + "\n".join(line[2:] for line in block))
+    chords = action_chords(switched.keys)
+    assert chords["prev"] == ["k", "up"], "and the arrows stay, they are not a convention"
+    assert chords["next"] == ["j", "down"]
+    assert chords["go_left"] == ["h", "left"]
+    assert chords["go_right"] == ["l", "right"]
+    assert chords["edit"] == ["i"]
+    assert chords["cut"] == ["d"] and chords["paste"] == ["p"]
+    assert chords["delete"] == ["x"] and chords["copy"] == ["y"]
+    assert chords["undo"] == ["u"] and chords["redo"] == ["ctrl+r"]
+    assert chords["add_sibling"] == ["o"] and chords["add_child"] == ["O"]
+    assert chords["search"] == ["/"]
+
+
+async def test_the_vim_block_works_when_uncommented(tmp_path: Path):
+    path = tmp_path / "spoider.conf"
+    path.write_text(
+        "prev = k up\nnext = j down\nleft = h left\nright = l right\n"
+        "edit = i\ncut = d\npaste = p\ndelete = x\n"
+    )
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=path)
+    async with app.run_test() as pilot:
+        app.mm.root.children.append(Node("one"))
+        app.mm.root.children.append(Node("two"))
+        app.select(app.mm.root.children[0].id)
+        await pilot.pause()
+
+        await pilot.press("j")
+        await pilot.pause()
+        assert app.mm.find(app.selected).text == "two", "j walks down"
+
+        await pilot.press("k")
+        await pilot.pause()
+        assert app.mm.find(app.selected).text == "one"
+
+        await pilot.press("down")
+        await pilot.pause()
+        assert app.mm.find(app.selected).text == "two", "and an arrow still does"
+
+        await pilot.press("i")
+        await pilot.pause()
+        assert app.editing is True, "i renames"

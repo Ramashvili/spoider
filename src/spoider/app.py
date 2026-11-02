@@ -143,9 +143,6 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+t", "fold", "fold", show=False, id="fold_alt"),
     Binding("m", "mark", "mark", id="mark"),
     Binding("ctrl+m", "set_marks", "set marks", id="set_marks"),
-    # a terminal without the kitty keyboard protocol sends ^M as Return, so there
-    # is a second chord for the same thing that no terminal can take away
-    Binding("alt+m", "set_marks", "set marks", show=False, id="set_marks_alt"),
     # search sits with the other editing keys: it is what you reach for while
     # reading a map, and the bar has room for one more
     Binding("ctrl+f", "search", "search", id="search"),
