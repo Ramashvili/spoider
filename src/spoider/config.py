@@ -48,7 +48,7 @@ def config_dir() -> Path:
 
 
 def default_config_path() -> Path:
-    return config_dir() / "config.conf"
+    return config_dir() / "spoider.conf"
 
 
 def _without_comment(line: str) -> str:
@@ -140,8 +140,8 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
         "marks = " + " ".join(config.marks),
         f"justify_width_default = {config.justify_width_default}",
         "",
-        "# Chords. One line per action, listing every chord it answers to, so",
-        "# `left = ctrl+b left h` is all three. Uncomment a line to change it.",
+        "# Chords. An action can have more than one chord: they are separated by a",
+        "# space. Uncomment a line to change it.",
     ]
     for ident, default, description in key_entries:
         lines.append("")

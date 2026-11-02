@@ -30,7 +30,7 @@ it.
 | `drawers.py` | bottom drawers: prompt, question, panel |
 | `screens.py` | the text help and settings show |
 | `chrome.py` | the shortcut bar: ranking, chunks, pinned cluster |
-| `config.py` | editor preferences in `~/.config/spoider/config.conf` |
+| `config.py` | editor preferences in `~/.config/spoider/spoider.conf` |
 | `app.py` | bindings, modes, the stack panel, undo history, write/quit |
 | `text.py`, `files.py` | cleaning untrusted text; atomic writes |
 
@@ -44,7 +44,7 @@ ready to move out.
   selection and search hits, `\e[7m` blocks in the top bar. No hex, no RGB, no fixed
   named colour — `orange1` does not parse at all and `orange` is a hard-coded RGB.
 - **Document vs editor state.** The map file holds the tree, text, `collapsed`,
-  `mark`, `spacing`, `layout`, `colours` and `cut_stack`. `config.conf` holds autosave, the mark
+  `mark`, `spacing`, `layout`, `colours` and `cut_stack`. `spoider.conf` holds autosave, the mark
   set and chord overrides. Anything that changes how a map looks belongs to the
   document, so a file looks the same wherever it is opened.
 - **Chords are spelled nano's way** everywhere — `^` ctrl, `M-` alt, `S-` shift — never
@@ -119,7 +119,7 @@ it is a real failure: nothing is shared — every test gets its own `tmp_path` a
 the autouse fixture, its own `XDG_CONFIG_HOME`.
 
 Each test gets its own `XDG_CONFIG_HOME` from the autouse fixture in `conftest.py`, so
-the suite neither reads nor writes the real `~/.config/spoider/config.conf`.
+the suite neither reads nor writes the real `~/.config/spoider/spoider.conf`.
 
 ## Chords: one line per action
 

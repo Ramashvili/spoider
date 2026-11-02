@@ -3592,3 +3592,12 @@ def test_a_token_that_is_not_a_key_is_dropped_from_the_line(tmp_path: Path):
     loaded = load_config(config_path, SpoiderApp._binding_ids())
 
     assert action_chords(loaded.keys)["copy"] == ["alt+6"]
+
+
+def test_the_config_file_is_named_for_the_app(tmp_path: Path):
+    """The name carries the app, so a copy of the file found somewhere else still
+    says what it belongs to."""
+    from spoider.config import default_config_path
+
+    assert default_config_path().name == "spoider.conf"
+    assert default_config_path().parent.name == "spoider"

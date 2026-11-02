@@ -139,7 +139,7 @@ not lose it when the editor closes.
 ## Settings
 
 `^,` holds autosave, the set of marks, and a shortcut to your config file:
-`~/.config/spoider/config.conf`, a flat rc file: one setting per line, `#` for
+`~/.config/spoider/spoider.conf`, a flat rc file: one setting per line, `#` for
 comments, every chord listed and commented out until you want it.
 
 ```
@@ -151,8 +151,8 @@ justify_width_default = 66
 # edit = e ctrl+e
 ```
 
-A chord line lists every chord that action answers to, so `edit = e ctrl+e` binds
-both and a chord left off the line stops working.
+A chord line lists every chord that action answers to, separated by spaces, so
+`edit = e ctrl+e` binds both and a chord left off the line stops working.
 
 Editor preferences live there and stay out of the map: `justify_width_default` is
 the width `^J` offers before a map has been justified once. Spacing, shape, marks,
