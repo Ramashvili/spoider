@@ -67,6 +67,7 @@ name when there is none, `^O` writes a copy, `^X` asks before throwing edits awa
 | `^I` | show the stack |
 | `↑↓←→` `hjkl` | move |
 | `shift` + sibling arrow | select a run of siblings |
+| `^A` | select every sibling of the selected cell, or all the text while typing |
 | `alt` + `↑` `↓` | move the cell among its siblings |
 | `=` `-` | more or less air between cells |
 | `^J` | justify the selected cell's text to a width you type |
@@ -89,7 +90,8 @@ line decides how wide it is. `Tab` or `e` starts typing, `Return` finishes, and
 and `Home`/`End` (with `Ctrl` for the whole text), `Backspace`/`Del` at a line end join
 lines, `Alt+Backspace` and `Alt+Delete` eat whole words, `Insert` switches to
 overwriting the character under the caret, and `Shift` with an arrow selects text,
-which `^K` cuts and `M-6` copies to the clipboard; `^U` pastes.
+`^A` selects all of it, and `^K` cuts what is selected while `M-6` copies it; `^U`
+pastes.
 
 `^J` justifies: it asks for a width, remembers the answer, and reflows the cell one
 paragraph at a time, a blank line keeping paragraphs apart. It works on the selected

@@ -117,7 +117,8 @@ BINDINGS: list[BindingType] = [
     # tab/enter are the primary keys here; the ctrl chords stay as aliases.
     # tab needs priority to beat Textual's focus-next binding.
     Binding("tab", "add_child", "child", priority=True, id="add_child"),
-    Binding("ctrl+a", "add_child", "child", show=False, id="add_child_alt"),
+    # ^A selects: the whole text while typing, every sibling on the map
+    Binding("ctrl+a", "select_all", "select all", id="select_all"),
     Binding("enter", "add_sibling", "sib", id="add_sibling"),
     Binding("ctrl+j", "justify", "justify", id="justify"),
     Binding("alt+6", "copy", "copy", show=False, id="copy"),
@@ -863,7 +864,6 @@ class SpoiderApp(App[None]):
             "down": buffer.down,
             "home": buffer.home,
             "end": buffer.end,
-            "ctrl+a": buffer.home,
             "ctrl+e": buffer.end,
             "ctrl+home": buffer.document_home,
             "ctrl+end": buffer.document_end,
@@ -880,6 +880,8 @@ class SpoiderApp(App[None]):
             buffer.delete_word_before()
         elif key == "alt+d":
             buffer.delete_word_after()
+        elif self._action_for(key) == "select_all":
+            buffer.select_all()
         elif key == "insert":
             buffer.overwrite = not buffer.overwrite
         elif self._action_for(key) == "cut":
@@ -1542,6 +1544,22 @@ class SpoiderApp(App[None]):
         if self.anchor is None:
             self.anchor = self.selected
         self.selected = order[target]
+        self.view.refresh()
+
+    def action_select_all(self) -> None:
+        """^A — the whole text while a cell is being typed into, every sibling on
+        the map (which is what a run is: siblings, never cousins)."""
+        if self.editing:
+            if self._buffer is not None:
+                self._buffer.select_all()
+                self._sync_preview()
+            return
+        parent = self.mm.parent(self.selected)
+        if parent is None or len(parent.children) < 2:
+            return
+        order = [child.id for child in parent.children]
+        self.anchor = order[0]
+        self.selected = order[-1]
         self.view.refresh()
 
     def action_clear_selection(self) -> None:

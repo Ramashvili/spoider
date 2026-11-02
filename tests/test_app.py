@@ -183,7 +183,7 @@ async def test_top_bar_tracks_location_and_cell_count(tmp_path: Path):
         assert "New Buffer" in bar.render().plain
         assert "1 cell" in bar.render().plain
 
-        await pilot.press("ctrl+a")
+        await pilot.press("tab")
         await pilot.press("x", "enter")
         await pilot.pause()
         assert "2 cells" in bar.render().plain
@@ -216,19 +216,31 @@ async def test_tab_adds_a_child_and_enter_adds_a_sibling(tmp_path: Path):
         assert [c.text for c in app.mm.root.children] == ["kid", "sib"]
 
 
-async def test_the_ctrl_alias_still_adds_a_child(tmp_path: Path):
+async def test_ctrl_a_selects_every_sibling_of_the_selected_cell(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        branch = app.mm.add_child(app.mm.root.id, "branch")
-        app.select(branch.id)
+        first = app.mm.add_child(app.mm.root.id, "first")
+        second = app.mm.add_child(app.mm.root.id, "second")
+        app.mm.add_child(app.mm.root.id, "third")
+        app.select(second.id)
         app.view.refresh_map()
 
         await pilot.press("ctrl+a")
         await pilot.pause()
-        assert len(app.mm.find(branch.id).children) == 1
+        assert app.selected_ids == [
+            child.id for child in app.mm.root.children
+        ], "the whole run of siblings, and the cursor on the last one"
+
         await pilot.press("escape")
         await pilot.pause()
-        assert len(app.mm.find(branch.id).children) == 0, "abandoned, so it is gone"
+        assert app.selected_ids == [app.mm.root.children[-1].id], "esc drops the run"
+
+        # and it no longer acts as an alias for adding a child
+        before = len(app.mm.root.children)
+        await pilot.press("ctrl+a")
+        await pilot.pause()
+        assert len(app.mm.root.children) == before
+        assert first.id in app.selected_ids
 
 
 async def test_new_node_is_typed_into_directly(tmp_path: Path):
@@ -261,7 +273,7 @@ async def test_new_node_is_typed_into_directly(tmp_path: Path):
 async def test_escape_cancels_a_new_node(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+a")
+        await pilot.press("tab")
         await pilot.pause()
         await pilot.press("x")
         await pilot.press("escape")
@@ -275,7 +287,7 @@ async def test_escape_cancels_a_new_node(tmp_path: Path):
 async def test_ctrl_c_cancels_like_escape(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+a")
+        await pilot.press("tab")
         await pilot.pause()
         await pilot.press("x")
         await pilot.press("ctrl+c")
@@ -326,7 +338,7 @@ async def test_cancelling_an_edit_keeps_the_old_text(tmp_path: Path):
 async def test_typing_swallows_shortcuts(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+a")
+        await pilot.press("tab")
         await pilot.pause()
         await pilot.press("a", "b", "c")
         await pilot.press("ctrl+d")  # would delete the branch outside edit mode
@@ -341,7 +353,7 @@ async def test_typing_swallows_shortcuts(tmp_path: Path):
 async def test_backspace_and_caret_moves(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+a")
+        await pilot.press("tab")
         await pilot.pause()
         await pilot.press("a", "c")
         await pilot.press("left")
@@ -1260,7 +1272,7 @@ async def test_undo_marks_the_buffer_modified(tmp_path: Path):
     path = tmp_path / "map.json"
     app = SpoiderApp(path, demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+a")
+        await pilot.press("tab")
         await pilot.press("h", "i", "enter")
         await pilot.pause()
         assert app.dirty is True
@@ -3136,3 +3148,22 @@ async def test_justify_follows_the_chord_it_was_bound_to(tmp_path: Path):
         await pilot.press("enter")
         await pilot.pause()
         assert "\n" in app._buffer.text
+
+
+async def test_ctrl_a_selects_all_the_text_inside_a_cell(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "alpha beta")
+        app.select(node.id)
+        await pilot.press("e")
+        await pilot.press("home")
+        await pilot.pause()
+
+        await pilot.press("ctrl+a")
+        await pilot.pause()
+        assert app._buffer.selected_text() == "alpha beta"
+
+        await pilot.press("ctrl+k")  # the selection goes, the cell is emptied
+        await pilot.pause()
+        assert app._buffer.text == ""
+        assert app._text_clip == "alpha beta"

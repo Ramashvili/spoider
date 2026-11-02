@@ -67,6 +67,7 @@ HELP: tuple[HelpSection, ...] = (
                 "hold shift and an arrow: select a run of siblings",
             ),
             (("clear_selection",), "back to a single cell, without moving"),
+            (("select_all",), "select every sibling of the selected cell"),
         ),
     ),
     (
@@ -104,6 +105,7 @@ HELP: tuple[HelpSection, ...] = (
             (Literal("ins"), "overwrite: typing replaces the character under the caret"),
             (Literal("M-⌫  M-d"), "delete a word back, or forward"),
             (Literal("S-←↑↓→"), "select text; home and end keep to the line"),
+            (Literal("^A"), "select all the text in the cell"),
         ),
     ),
     (
