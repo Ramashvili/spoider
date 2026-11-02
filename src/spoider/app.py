@@ -143,6 +143,9 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+t", "fold", "fold", show=False, id="fold_alt"),
     Binding("m", "mark", "mark", id="mark"),
     Binding("ctrl+m", "set_marks", "set marks", id="set_marks"),
+    # a terminal without the kitty keyboard protocol sends ^M as Return, so there
+    # is a second chord for the same thing that no terminal can take away
+    Binding("alt+m", "set_marks", "set marks", show=False, id="set_marks_alt"),
     # search sits with the other editing keys: it is what you reach for while
     # reading a map, and the bar has room for one more
     Binding("ctrl+f", "search", "search", id="search"),
@@ -305,9 +308,7 @@ class SpoiderApp(App[None]):
                 self.has_file = False
                 self.load_error = str(exc)
         else:
-            self.mm = MindMap.demo(marks=self.config.marks_default) if demo else MindMap(
-                marks=self.config.marks_default
-            )
+            self.mm = MindMap.demo() if demo else MindMap(marks=self.config.marks_default)
         self.selected: str = self.mm.root.id
         #: The far end of a run of selected siblings; None means one cell.
         self.anchor: str | None = None
@@ -1553,7 +1554,9 @@ class SpoiderApp(App[None]):
         self._show_prompt(
             "marks",
             f"Marks, in the order {key_cap(self.keymap.get('mark', 'm'))} cycles: ",
-            " ".join(self.marks),
+            # a trailing space so a typed mark starts a token of its own rather
+            # than growing the last one; it is stripped before anything is saved
+            " ".join(self.marks) + " ",
             submit=self._marks_submitted,
             cancel=self._close_drawers,
         )

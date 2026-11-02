@@ -18,8 +18,13 @@ DEFAULT_ROOT_TEXT = "Mind map"
 #: from. "None" always comes first in the cycle, so a press can end it.
 MARKS = ('⭐', '💡', '❓', '⚠️', '✅', '📌', '⌛', '🤡')
 
-#: More than this and m takes too long to come back around.
-MAX_MARKS = 8
+#: A guard against a runaway list, not a design limit: nobody cycles sixty-four
+#: marks. A mark may be more than one character, so the cap counts items.
+MAX_MARKS = 64
+
+#: The demo's own vocabulary: it is teaching, so its marks say what to do with a
+#: cell rather than what state it is in.
+DEMO_MARKS = ("👀", "🧪", "🎯", "🚀", "💡")
 
 
 def marks_of(tokens: Iterable[object]) -> tuple[str, ...]:
@@ -450,7 +455,7 @@ class MindMap:
     # -- fixtures -------------------------------------------------------
 
     @classmethod
-    def demo(cls, marks: Sequence[str] | None = None) -> MindMap:
+    def demo(cls) -> MindMap:
         """The map `--demo` opens: the manual, as a map.
 
         One branch per thing the editor does — what it is, who it is for, and then
@@ -514,7 +519,14 @@ class MindMap:
         }
         for title, leaves in ideas.items():
             root.children.append(Node(title, children=[Node(leaf) for leaf in leaves]))
-        # the cell that explains marks carries one, so the demo shows rather than
-        # tells
-        root.children[3].children[1].mark = MARKS[0]
-        return cls(root, marks=marks)
+        # the demo marks cells itself, in its own vocabulary: a reader sees four
+        # meanings before reading a word about them
+        demo_marks = DEMO_MARKS
+        for branch, leaf, mark in (
+            (3, 1, demo_marks[0]),  # marks are saved with the map
+            (2, 0, demo_marks[1]),  # tab a child, enter a sibling
+            (5, 0, demo_marks[2]),  # ^K lifts a branch onto a stack
+            (7, 3, demo_marks[4]),  # ^J reflows a cell to a width
+        ):
+            root.children[branch].children[leaf].mark = mark
+        return cls(root, marks=demo_marks)

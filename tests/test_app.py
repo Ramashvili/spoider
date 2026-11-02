@@ -868,14 +868,16 @@ async def test_ctrl_m_sets_the_marks_of_the_map(tmp_path: Path):
         await pilot.pause()
         assert app.mode == "marks"
         field = app.query_one(PromptBar)
-        assert field.value == " ".join(app.marks), "pre-filled with the current set"
+        # offered with a trailing space, so a typed mark starts a token of its own
+        assert field.value == " ".join(app.marks) + " ", "pre-filled with the current set"
         assert field._fresh is False, "nothing is selected, so typing appends"
 
-        await pilot.press("backspace", "backspace")  # trim the two-cell emoji and its space
+        await pilot.press("backspace", "backspace")  # trim the last mark and its space
         await pilot.press("enter")
         await pilot.pause()
 
         assert app.marks[-1] != "🤡", "the last mark went"
+        assert app.marks == tuple(" ".join(app.marks).split()), "and no stray space stayed"
         assert app.mode == "keys", "and the map has the keys back"
 
     # it lives in the map, not in the editor's config
@@ -925,7 +927,7 @@ async def test_prompt_supports_undo_and_redo(tmp_path: Path):
 
         await pilot.press("ctrl+z")  # and back to the value it opened with
         await pilot.pause()
-        assert field.value == " ".join(app.marks)
+        assert field.value == " ".join(app.marks) + " ", "the offered value, space included"
 
         await pilot.press("ctrl+y")
         await pilot.pause()

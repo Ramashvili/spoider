@@ -168,7 +168,9 @@ the width it was last justified to, so a file reads the same wherever it is open
 - `^K` and `^U` are the only way to reparent a branch.
 - Undo history lives in memory for the session, and is not capped.
 - Nothing locks the map file: two editors on one map, last save wins.
-- `^I` is `Tab` on terminals that do not speak the kitty keyboard protocol.
+- On terminals that do not speak the kitty keyboard protocol, `^I` arrives as `Tab`
+  and `^M` as `Return`; `^M` has `M-m` beside it for the same reason, and `Tab`
+  adds a child anyway.
 
 ## Development
 

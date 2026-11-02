@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from spoider.model import MARKS, MindMap, Node
+from spoider.model import MARKS, MAX_MARKS, MindMap, Node, marks_of
 
 
 def test_add_child_and_sibling():
@@ -257,3 +257,21 @@ def test_the_colouring_is_document_state(tmp_path):
     # a colouring this build does not know falls back rather than raising
     data = mm.to_dict() | {"colours": "sparkle"}
     assert MindMap.from_dict(data).colours == "family"
+
+
+def test_a_mark_can_be_more_than_one_character():
+    """Nothing in the model says a mark is one glyph: "TBD" and a pair of emoji
+    are tokens like any other, separated by the same spaces."""
+    mm = MindMap(marks=("TBD", "🤡🔥", "ok"))
+    cell = mm.add_child(mm.root.id, "a cell")
+
+    assert mm.next_mark(cell.id, mm.marks) == "TBD"
+    cell.mark = "🤡🔥"
+    assert mm.next_mark(cell.id, mm.marks) == "ok"
+
+    assert MindMap.from_dict(mm.to_dict()).marks == ("TBD", "🤡🔥", "ok")
+
+
+def test_the_mark_cap_is_a_guard_against_a_runaway_list():
+    assert MAX_MARKS == 64
+    assert len(marks_of([str(index) for index in range(MAX_MARKS + 20)])) == MAX_MARKS
