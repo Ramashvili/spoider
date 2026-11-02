@@ -72,7 +72,12 @@ in whichever of them has them) instead of reaching for `self.mm` and `self.selec
 Anything that only knows about `self.mm` works on the map and silently does nothing in
 the panel, which is exactly how the panel came to be missing justify, copy and new
 cells while editing happened to work. The bars are one bar too: `stack_chunks` is
-`hint_chunks` with the toggle renamed and moved to the head.
+`hint_chunks` with the toggle renamed and moved to the head. `check_action` must not
+block the app's bindings while the panel is open: the panel consumes the keys it
+implements in `handle_stack_key`, and whatever is left (save, quit, colours, shape,
+spacing, help) means the same thing in both places. Keep the *actions* document-aware
+rather than the key routing, because `Tab` and `Return` reach the app bindings without
+passing through `MindMapView.on_key` at all.
 
 ## The map file, the config file
 

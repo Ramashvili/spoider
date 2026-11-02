@@ -389,8 +389,10 @@ class SpoiderApp(App[None]):
         from behind a question."""
         if self._mode not in ("keys", "edit"):
             return None  # the drawer owns the keys, and its bar says so
-        if self.stack_open and action != "toggle_stack":
-            return None  # so does the stack panel
+        # The stack panel is the map with one difference, and it consumes the keys
+        # it implements itself (cut, paste, delete, edit, new cells, marks, folds,
+        # undo) before a binding can see them. What is left — save, quit, colours,
+        # shape, spacing, help — means the same thing in both places, so it runs.
         if action in ("help", "settings"):
             return True  # reachable while typing, without losing the edit
         if self.editing:
@@ -1025,25 +1027,39 @@ class SpoiderApp(App[None]):
     # -- editing actions ------------------------------------------------
 
     def action_add_child(self) -> None:
+        """^Tab — a new cell under the selection, in the map or in a cut."""
+        doc = self.document
         self._push_undo()
-        node = self.mm.add_child(self.selected)
-        self.anchor = None
-        self.selected = node.id
-        self.view.refresh_map()
-        self.begin_edit(node.id, fresh=True)
-
-    def action_add_sibling(self) -> None:
-        if self.mm.parent(self.selected) is None:
-            self.action_add_child()
-            return
-        self._push_undo()
-        node = self.mm.add_sibling(self.selected)
+        node = doc.add_child(self.focus)
         if node is None:
             self._undo.pop()
             return
-        self.anchor = None
-        self.selected = node.id
-        self.view.refresh_map()
+        self._inserted(node, doc)
+
+    def action_add_sibling(self) -> None:
+        """⏎ — a new cell beside the selection; a sibling of a top-level cut is a
+        new entry on the stack, because at that level the stack is the top level."""
+        doc = self.document
+        if doc.parent(self.focus) is None:
+            self.action_add_child()
+            return
+        self._push_undo()
+        node = doc.add_sibling(self.focus)
+        if node is None:
+            self._undo.pop()
+            return
+        self._inserted(node, doc)
+
+    def _inserted(self, node: Node, doc: MindMap) -> None:
+        """Stand on a cell that has just been made, and type its name."""
+        if self.stack_open:
+            self._commit_stack(doc)  # the document the cell was made in
+            self.stack_selected = node.id
+            self._stack_changed()
+        else:
+            self.anchor = None
+            self.selected = node.id
+            self.view.refresh_map()
         self.begin_edit(node.id, fresh=True)
 
     def action_edit(self) -> None:
@@ -1277,10 +1293,6 @@ class SpoiderApp(App[None]):
             self._stack_take(doc, selected, discard=False)
         elif action == "paste":
             self._stack_paste()
-        elif action == "add_child":
-            self._stack_insert(doc, selected, child=True)
-        elif action == "add_sibling":
-            self._stack_insert(doc, selected, child=False)
         elif action == "justify":
             self.action_justify()
         elif action == "copy":
@@ -1304,23 +1316,6 @@ class SpoiderApp(App[None]):
         else:
             return False
         return True
-
-    def _stack_insert(self, doc: MindMap, node_id: str, *, child: bool) -> None:
-        """Tab and Enter in the panel, meaning what they mean on the map: a new
-        cell under this one, or beside it. A sibling of a top-level cut is a new
-        entry on the stack, because at that level the stack *is* the top level."""
-        self._push_undo()
-        if child or doc.parent(node_id) is None:
-            node = doc.add_child(node_id)
-        else:
-            node = doc.add_sibling(node_id)
-        if node is None:
-            self._undo.pop()
-            return
-        self._commit_stack(doc)
-        self.stack_selected = node.id
-        self._stack_changed()
-        self.begin_edit(node.id, fresh=True)
 
     def _stack_reorder(self, doc: MindMap, node_id: str, delta: int) -> None:
         """Move a cell among its siblings inside the panel. For an entry at the

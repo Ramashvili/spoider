@@ -3314,3 +3314,45 @@ async def test_the_leftover_line_is_wiped_from_the_file(tmp_path: Path):
     text = config.read_text()
     assert "\njustify = 12" not in text, "the stale chord is gone"
     assert "justify_width_default = 60" in text
+
+
+async def test_the_rest_of_the_bar_works_inside_the_panel(tmp_path: Path):
+    """The panel is the map with one difference. It takes the keys it implements
+    itself and lets the rest through, so every hint in the bar is true there too."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await _panel_with_two_cuts(app, pilot)
+        cuts_before = [node.text for node in app.mm.cut_stack]
+
+        await pilot.press("c")  # colouring
+        await pilot.pause()
+        assert app.mm.colours == "family"
+        await pilot.press("c")
+        await pilot.pause()
+        assert app.mm.colours == "depth"
+
+        await pilot.press("ctrl+l")  # shape
+        await pilot.pause()
+        assert app.mm.layout != "spider"
+
+        await pilot.press("ctrl+s")  # save
+        await pilot.pause()
+        assert app.dirty is False
+        assert (tmp_path / "map.json").exists()
+
+        assert [node.text for node in app.mm.cut_stack] == cuts_before, "the cuts are untouched"
+        assert app.stack_open is True, "and the panel is still there"
+
+
+async def test_delete_in_the_panel_drops_the_cut_not_the_map(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await _panel_with_two_cuts(app, pilot)
+        cells = len(app.mm.root.children)
+        cuts = len(app.mm.cut_stack)
+
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+
+        assert len(app.mm.cut_stack) == cuts - 1, "the cut is gone"
+        assert len(app.mm.root.children) == cells, "the map is not"
