@@ -270,6 +270,10 @@ def main() -> int:
             "-o",
             "background_opacity=1",
             "-o",
+            "dynamic_background_opacity=no",
+            "-o",
+            "background_blur=0",
+            "-o",
             "tab_bar_style=hidden",
             "-o",
             "tab_bar_min_tabs=2",
@@ -296,6 +300,9 @@ def main() -> int:
         return 1
 
     run(["hyprctl", "eval", f'hl.dispatch(hl.dsp.window.move({{ workspace = "{workspace}", window = "address:{window}" }}))'])
+    opaque = run(["hyprctl", "eval",
+                  f'hl.dispatch(hl.dsp.window.set_prop({{ prop = "opacity", value = "1.0 1.0", window = "address:{window}" }}))'])
+    print(f"opacity: {(opaque.stdout or opaque.stderr).strip() or 'no reply'}")
     workspace_of(workspace)
     time.sleep(1.5)
 
