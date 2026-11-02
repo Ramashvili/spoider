@@ -272,7 +272,10 @@ class SpoiderApp(App[None]):
         #: The far end of a run of selected siblings; None means one cell.
         self.anchor: str | None = None
         #: Id of the cell selected inside the stack panel; None when it is shut.
-        self.stack_selected: str | None = None
+        #: Whether the cut stack has the keys, and where the map's cursor waits
+        #: while it does: the cursor itself is `selected`/`anchor` in both places.
+        self._stack_open = False
+        self._map_cursor: tuple[str | None, str | None] | None = None
         self.dirty = False
         #: What was typed into the search prompt; empty means no search is on.
         self.search_query = ""
@@ -423,14 +426,14 @@ class SpoiderApp(App[None]):
     @property
     def stack_open(self) -> bool:
         """True while the cut stack is open in its own panel."""
-        return self.stack_selected is not None
+        return self._stack_open
 
     @property
     def selected_ids(self) -> list[str]:
         """What an action applies to: a run of siblings, or just one cell."""
         if self.anchor is None or self.anchor == self.selected:
             return [self.selected]
-        return self.mm.range_between(self.anchor, self.selected)
+        return self.document.range_between(self.anchor, self.selected)
 
     @property
     def autosave(self) -> bool:
@@ -1054,7 +1057,7 @@ class SpoiderApp(App[None]):
         """Stand on a cell that has just been made, and type its name."""
         if self.stack_open:
             self._commit_stack(doc)  # the document the cell was made in
-            self.stack_selected = node.id
+            self.selected, self.anchor = node.id, None
             self._stack_changed()
         else:
             self.anchor = None
@@ -1157,7 +1160,12 @@ class SpoiderApp(App[None]):
         into the map first.
         """
         if self.stack_open:
-            self.stack_selected = None
+            self._stack_open = False
+            if self._map_cursor is not None:
+                selected, anchor = self._map_cursor
+                if selected is not None and self.mm.find(selected) is not None:
+                    self.selected, self.anchor = selected, anchor
+                self._map_cursor = None
             self.view.refresh()
             self._sync_footer()
             self._refresh_chrome()
@@ -1166,7 +1174,9 @@ class SpoiderApp(App[None]):
         if not entries:
             self.notify("Nothing cut yet", severity="error", timeout=2)
             return
-        self.stack_selected = entries[0].id  # the top of the stack is the newest
+        self._map_cursor = (self.selected, self.anchor)  # where the map left off
+        self._stack_open = True
+        self.selected, self.anchor = entries[0].id, None  # the newest cut
         self.view.refresh()
         self._sync_footer()
         self._refresh_chrome()
@@ -1194,8 +1204,6 @@ class SpoiderApp(App[None]):
     @property
     def focus(self) -> str:
         """The cell the keys are on, in whichever document has them."""
-        if self.stack_open and self.stack_selected:
-            return self.stack_selected
         return self.selected
 
     def _stack_doc(self) -> MindMap:
@@ -1222,19 +1230,16 @@ class SpoiderApp(App[None]):
         restored document carries is empty."""
         entries = self._stack_entries()
         if not entries:
-            self.stack_selected = None
-            self._sync_footer()
-            self.view.refresh()
+            self.stack_open_or_close_after_undo()
             return
         known = {node.id for entry in entries for node in entry.walk()}
-        if self.stack_selected not in known:
-            self.stack_selected = entries[0].id  # the top of the stack
+        if self.selected not in known:
+            self.selected, self.anchor = entries[0].id, None  # the top of the stack
         self.view.refresh()
 
     def _stack_select(self, doc: MindMap, node_id: str) -> None:
         if node_id != doc.root.id:  # the invisible root is not a cell you can be on
-            self.stack_selected = node_id
-        self.view.refresh()
+            self.select(node_id)
 
     def _action_for(self, key: str) -> str | None:
         """Which action a chord belongs to, according to the keymap in force.
@@ -1262,7 +1267,7 @@ class SpoiderApp(App[None]):
             return False
         action = None if key in ("escape", "ctrl+c") else self._action_for(key)
         doc = self._stack_doc()
-        selected = self.stack_selected or doc.root.id
+        selected = self.selected or doc.root.id
 
         if action is None and key not in ("escape", "ctrl+c", "ctrl+i"):
             return False
@@ -1279,18 +1284,34 @@ class SpoiderApp(App[None]):
         elif action == "edit":
             if doc.find(selected) is not None:
                 self.begin_edit(selected)
+        elif action == "select_all":
+            self.action_select_all()
+        elif action in ("extend_prev", "extend_next"):
+            # the panel is always the branch shape: up and down walk siblings, so
+            # those are the arrows that grow a run there
+            self._extend("prev" if action == "extend_prev" else "next")
+        elif action in ("extend_left", "extend_right"):
+            pass  # left and right go to the parent and into a cell, never sideways
         elif action == "mark":
             self._push_undo()
-            doc.cycle_mark(selected, self.marks)
+            mark = doc.next_mark(selected, self.marks)
+            for node_id in self.selected_ids:
+                node = doc.find(node_id)
+                if node is not None:
+                    node.mark = mark
             self._stack_changed()
         elif action == "fold":
-            node = doc.find(selected)
-            if node is not None and node.children:
+            lead = doc.find(selected)
+            if lead is not None and lead.children:
                 self._push_undo()
-                node.collapsed = not node.collapsed
+                fold = not lead.collapsed
+                for node_id in self.selected_ids:
+                    node = doc.find(node_id)
+                    if node is not None and node.children:
+                        node.collapsed = fold
                 self._stack_changed()
         elif action == "cut":
-            self._stack_take(doc, selected, discard=False)
+            self._stack_take(doc, self.selected_ids, discard=False)
         elif action == "paste":
             self._stack_paste()
         elif action == "justify":
@@ -1298,7 +1319,7 @@ class SpoiderApp(App[None]):
         elif action == "copy":
             self.action_copy()
         elif action == "delete":
-            self._stack_take(doc, selected, discard=True)
+            self._stack_take(doc, self.selected_ids, discard=True)
         elif action == "move_up":
             self._stack_reorder(doc, selected, -1)
         elif action == "move_down":
@@ -1334,6 +1355,18 @@ class SpoiderApp(App[None]):
         self.mm.cut_stack = list(reversed(doc.root.children))
         self._stack_changed()
 
+    def stack_open_or_close_after_undo(self) -> None:
+        """Undo can empty the stack a panel is showing; the panel goes with it."""
+        self._stack_open = False
+        if self._map_cursor is not None:
+            selected, anchor = self._map_cursor
+            if selected is not None and self.mm.find(selected) is not None:
+                self.selected, self.anchor = selected, anchor
+            self._map_cursor = None
+        self._sync_footer()
+        self._refresh_chrome()
+        self.view.refresh()
+
     def _stack_paste(self) -> None:
         """^U inside the panel: hang the newest cut under the selected cell.
 
@@ -1347,7 +1380,7 @@ class SpoiderApp(App[None]):
             self.notify("Nothing to paste", severity="error", timeout=2)
             return
         top = self.mm.cut_stack[-1]
-        target = self.stack_selected
+        target = self.selected
         if target is None or any(node.id == target for node in top.walk()):
             return  # into itself, or into something it already contains
 
@@ -1363,31 +1396,45 @@ class SpoiderApp(App[None]):
         self._mark_dirty()
         self.view.refresh()
 
-    def _stack_take(self, doc: MindMap, node_id: str, *, discard: bool) -> None:
-        """Take an entry off the stack: throw it away, or cut it again.
+    def _stack_take(self, doc: MindMap, ids: list[str], *, discard: bool) -> None:
+        """Take cells off the stack: throw them away, or cut them again.
 
-        Cutting it again is the whole point of a stack — it goes back on top,
-        which is where a cut always goes, and the panel shows it at the top.
+        Cutting again is the whole point of a stack — the cells go back on top,
+        which is where a cut always goes, and the panel shows them at the top.
+        A run keeps its order, so the first of them ends up highest in the panel.
         """
-        parent = doc.parent(node_id)
+        if not ids:
+            return
+        parent = doc.parent(ids[0])
         if parent is None:
             return
-        index = [child.id for child in parent.children].index(node_id)
         self._push_undo()  # every stack change is one step, like a map change
-        node = parent.children.pop(index)
+        taken: list[Node] = []
+        for node_id in ids:
+            holder = doc.parent(node_id)
+            if holder is None:
+                continue
+            for position, child in enumerate(holder.children):
+                if child.id == node_id:
+                    taken.append(holder.children.pop(position))
+                    break
+        node = taken[0] if taken else None
+        if node is None:
+            self._undo.pop()
+            return
+        index = 0
         if not discard:
             # the panel reads newest first, so the top of the stack is its index 0
-            doc.root.children.insert(0, node)
+            for cell in reversed(taken):
+                doc.root.children.insert(0, cell)
         entries = list(reversed(doc.root.children))  # the file's order: oldest first
         self.mm.cut_stack = entries
         self._stack_changed()
         if not entries:  # nothing left to show
-            self.stack_selected = None
-            self.view.refresh()
-            self._sync_footer()
-            self._refresh_chrome()
+            self.stack_open_or_close_after_undo()
             return
-        self.stack_selected = node.id if not discard else entries[min(index, len(entries) - 1)].id
+        self.anchor = None
+        self.selected = node.id if not discard else entries[min(index, len(entries) - 1)].id
         self.view.refresh()
 
     def action_help(self) -> None:
@@ -1583,7 +1630,7 @@ class SpoiderApp(App[None]):
         siblings in this shape do nothing rather than jump somewhere else."""
         if kind not in ("prev", "next"):
             return
-        parent = self.mm.parent(self.selected)
+        parent = self.document.parent(self.selected)
         if parent is None:
             return
         order = [child.id for child in parent.children]
@@ -1603,9 +1650,7 @@ class SpoiderApp(App[None]):
                 self._buffer.select_all()
                 self._sync_preview()
             return
-        if self.stack_open:
-            return  # the panel works one cut at a time; there is no run to take
-        parent = self.mm.parent(self.selected)
+        parent = self.document.parent(self.selected)
         if parent is None or len(parent.children) < 2:
             return
         order = [child.id for child in parent.children]
@@ -1757,7 +1802,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     args = parser.parse_args(argv)
     path = Path(args.path).expanduser() if args.path else None
-    SpoiderApp(path, demo=args.demo).run()
+    SpoiderApp(path, demo=args.demo).run(mouse=False)
 
 
 if __name__ == "__main__":

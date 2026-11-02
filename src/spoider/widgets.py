@@ -233,11 +233,15 @@ class MindMapView(Widget, can_focus=True):
             combined.cells[(self._offset_x + wall + 2 + index, self._offset_y)] = (char, "bold")
 
         art = build_grid(
-            panel, self.spoider.stack_selected or "", lead=None, colours=self.spoider.mm.colours
+            panel,
+            tuple(self.spoider.selected_ids),
+            lead=None,
+            colours=self.spoider.mm.colours,
         )
         # a stack taller than the column follows its own selection
         shift = 0
-        focus = panel.box(self.spoider.stack_selected) if self.spoider.stack_selected else None
+        chosen = self.spoider.selected
+        focus = panel.box(chosen) if chosen else None
         if focus is not None and focus.y + 2 + BOX_H > height - 1:
             shift = focus.y + 2 + BOX_H - (height - 1)
         for (x, y), cell in art.cells.items():
@@ -259,25 +263,3 @@ class MindMapView(Widget, can_focus=True):
         if self.spoider.handle_stack_key(event.key, event.character):
             event.stop()
 
-    def on_click(self, event: events.Click) -> None:
-        if self.spoider.editing:
-            self.spoider.finish_edit(commit=True)
-            return
-        if self.spoider.mode not in ("keys", "edit"):
-            return  # a drawer has the screen: a click behind it selects nothing
-        layout = self.layout_
-        node_id = layout.hit(event.offset.x + self._offset_x, event.offset.y + self._offset_y)
-        if node_id is None:
-            return
-        event.stop()
-        self.spoider.select(node_id)
-        if event.chain == 2:
-            self.spoider.action_edit()
-
-    def on_mouse_scroll_down(self, event: events.MouseScrollDown) -> None:
-        if self.spoider.mode == "keys":
-            self.spoider.action_next()
-
-    def on_mouse_scroll_up(self, event: events.MouseScrollUp) -> None:
-        if self.spoider.mode == "keys":
-            self.spoider.action_prev()

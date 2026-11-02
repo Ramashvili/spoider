@@ -488,7 +488,7 @@ class MindMap:
             ],
             "reading this": [
                 "^/ lists every key and its chord",
-                "click a cell, double-click to edit",
+                "the keys are the whole interface",
                 "the bar below never goes away",
             ],
         }

@@ -1912,7 +1912,10 @@ async def test_returning_to_the_terminal_does_not_steal_a_prompt(tmp_path: Path)
         assert app.query_one(PromptBar).value == typed + "pha"
 
 
-async def test_a_click_cannot_take_the_keys_from_an_open_drawer(tmp_path: Path):
+async def test_a_drawer_keeps_the_keys_when_focus_wanders(tmp_path: Path):
+    """The mouse is off, but focus can still be moved from outside (a terminal
+    focus event, a resize): a drawer must take the keys back rather than leave the
+    reader typing into the map with a question on screen."""
     from spoider.widgets import MindMapView
 
     app = SpoiderApp(tmp_path / "map.json", demo=False)
@@ -1922,7 +1925,6 @@ async def test_a_click_cannot_take_the_keys_from_an_open_drawer(tmp_path: Path):
         panel = app.query_one(PanelBar)
         assert app.focused is panel
 
-        # this is what clicking back into the window does: focus lands on the map
         app.screen.set_focus(app.query_one(MindMapView))
         await pilot.pause()
 
@@ -2528,7 +2530,7 @@ async def test_the_stack_panel_opens_on_the_newest_cut(tmp_path: Path):
         await pilot.pause()
 
         assert app.stack_open
-        assert app._stack_doc().find(app.stack_selected).text == "beta", "newest on top"
+        assert app.document.find(app.selected).text == "beta", "newest on top"
         assert [cell.text for cell in app._stack_entries()] == ["beta", "alpha"]
 
 
@@ -2568,15 +2570,15 @@ async def test_navigation_inside_the_panel_walks_the_stack(tmp_path: Path):
 
         await pilot.press("down")  # the older cut, below the newest
         await pilot.pause()
-        assert app._stack_doc().find(app.stack_selected).text == "alpha"
+        assert app.document.find(app.selected).text == "alpha"
 
         await pilot.press("right")  # into its branch
         await pilot.pause()
-        assert app._stack_doc().find(app.stack_selected).text == "leaf"
+        assert app.document.find(app.selected).text == "leaf"
 
         await pilot.press("left")
         await pilot.pause()
-        assert app._stack_doc().find(app.stack_selected).text == "alpha"
+        assert app.document.find(app.selected).text == "alpha"
 
 
 async def test_the_map_is_not_touched_while_the_panel_is_open(tmp_path: Path):
@@ -2612,7 +2614,7 @@ async def test_cutting_again_moves_it_to_the_top(tmp_path: Path):
         await pilot.pause()
 
         assert next(cell.text for cell in app._stack_entries()) == "alpha"
-        assert app._stack_doc().find(app.stack_selected).text == "alpha", "and it is selected"
+        assert app.document.find(app.selected).text == "alpha", "and it is selected"
 
 
 async def test_dropping_the_last_cut_closes_the_panel(tmp_path: Path):
@@ -2701,7 +2703,7 @@ async def test_alt_arrows_move_an_entry_up_and_down_the_stack(tmp_path: Path):
         assert [cell.text for cell in app._stack_entries()] == ["beta", "alpha"]
 
         await pilot.press("down")  # onto the older one, at the bottom of the panel
-        assert app._stack_doc().find(app.stack_selected).text == "alpha"
+        assert app.document.find(app.selected).text == "alpha"
         await pilot.press("alt+up")
         await pilot.pause()
 
@@ -2810,7 +2812,7 @@ async def test_pasting_a_cell_into_its_own_child_does_nothing(tmp_path: Path):
         await pilot.pause()
 
         await pilot.press("right")  # into alpha's own child
-        assert app._stack_doc().find(app.stack_selected).text == "leaf"
+        assert app.document.find(app.selected).text == "leaf"
         await pilot.press("ctrl+u")
         await pilot.pause()
 
@@ -2878,7 +2880,7 @@ async def test_undo_works_inside_the_stack_view(tmp_path: Path):
         await pilot.press("ctrl+i")
         await pilot.pause()
         assert app.stack_open
-        assert app._stack_doc().find(app.stack_selected) is not None, "cursor re-pointed"
+        assert app.document.find(app.selected) is not None, "cursor re-pointed"
 
 
 async def test_redo_works_inside_the_stack_view(tmp_path: Path):
@@ -3356,3 +3358,105 @@ async def test_delete_in_the_panel_drops_the_cut_not_the_map(tmp_path: Path):
 
         assert len(app.mm.cut_stack) == cuts - 1, "the cut is gone"
         assert len(app.mm.root.children) == cells, "the map is not"
+
+
+async def _panel_with_three_cuts(app, pilot):
+    for text in ("alpha", "beta", "gamma"):
+        cell = app.mm.add_child(app.mm.root.id, text)
+        app.select(cell.id)
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+    await pilot.press("ctrl+i")
+    await pilot.pause()
+
+
+def _names(app) -> list[str]:
+    return [app.document.find(node_id).text for node_id in app.selected_ids]
+
+
+async def test_select_all_works_inside_the_panel(tmp_path: Path):
+    """^A is one action over one document: it does not care which one is open."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(160, 30)) as pilot:
+        await _panel_with_three_cuts(app, pilot)
+
+        await pilot.press("ctrl+a")
+        await pilot.pause()
+
+        assert sorted(_names(app)) == ["alpha", "beta", "gamma"], "every entry"
+        assert app.mm.root.children == [], "and the map is untouched"
+
+
+async def test_shift_arrows_grow_a_run_inside_the_panel(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(160, 30)) as pilot:
+        await _panel_with_three_cuts(app, pilot)
+        assert _names(app) == ["gamma"], "the newest cut, at the top"
+
+        await pilot.press("shift+down")
+        await pilot.pause()
+        assert _names(app) == ["gamma", "beta"]
+
+        await pilot.press("shift+down")
+        await pilot.pause()
+        assert _names(app) == ["gamma", "beta", "alpha"]
+
+        await pilot.press("shift+up")
+        await pilot.pause()
+        assert _names(app) == ["gamma", "beta"], "and it shrinks again"
+
+        await pilot.press("down")
+        await pilot.pause()
+        assert app.anchor is None, "a plain move gives the run up"
+
+
+async def test_shift_sideways_does_not_grow_a_run_in_the_panel(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(160, 30)) as pilot:
+        await _panel_with_three_cuts(app, pilot)
+        await pilot.press("shift+left")
+        await pilot.press("shift+right")
+        await pilot.pause()
+        assert _names(app) == ["gamma"], "left and right are not sideways there"
+
+
+async def test_delete_takes_a_run_of_cuts(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(160, 30)) as pilot:
+        await _panel_with_three_cuts(app, pilot)
+        await pilot.press("shift+down")
+        await pilot.pause()
+        assert _names(app) == ["gamma", "beta"], "two of the three"
+
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+
+        assert [node.text for node in app.mm.cut_stack] == ["alpha"], "only the run went"
+        assert app.mm.root.children == []
+
+
+async def test_the_offered_width_is_drawn_selected(tmp_path: Path):
+    """A prompt that offers a value shows it the way an editor shows a selection,
+    so typing over it is the obvious thing to do."""
+    from spoider.drawers import PromptBar
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        app.mm.add_child(app.mm.root.id, "some words to justify")
+        await pilot.press("ctrl+j")
+        await pilot.pause()
+
+        bar = app.query_one(PromptBar)
+        art = bar.render()
+        value_start = len(bar.label)
+        selected = [
+            span for span in art.spans if str(span.style) == "reverse" and span.start >= value_start
+        ]
+        assert selected, "the value is highlighted"
+        assert selected[0].start == value_start
+        covered = "".join(art.plain[span.start : span.end] for span in selected)
+        assert covered.strip() == bar.value, "all of it"
+
+        await pilot.press("3")
+        await pilot.pause()
+        assert bar.value == "3", "typing replaces it"

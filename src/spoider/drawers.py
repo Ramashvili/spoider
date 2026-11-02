@@ -200,6 +200,11 @@ class PromptBar(Drawer):
             value = kept
         caret = max(0, min(caret, len(value) - 1))
         line = Text(value)
+        if self._fresh:
+            # what the prompt offered is *selected*, the way a text editor shows it,
+            # so typing over it is the obvious thing to do and the caret comes back
+            # once the first key has replaced it
+            line.stylize("reverse", 0, len(value.rstrip(" ")))
         line.stylize(CARET_STYLE, caret, caret + 1)
         bar = Text(self.label, style="bold")
         bar.append(line)

@@ -45,7 +45,7 @@ HELP: tuple[HelpSection, ...] = (
             (("edit",), "rename the selected cell in place"),
             (("cut",), "cut the cells into a LIFO stack, to paste back anywhere"),
             (("paste",), "paste the newest cut; the older ones stay on the stack"),
-            (("toggle_stack",), "open the cut stack, and work inside it"),
+            (("toggle_stack",), "open the cut stack: its keys are the map's own"),
             (("delete",), "delete the cell and everything under it"),
             (("mark",), "cycle the mark, then off (the set is in settings)"),
             (("justify",), "reflow the cell's text to a width you type"),

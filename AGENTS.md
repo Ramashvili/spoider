@@ -79,6 +79,18 @@ spacing, help) means the same thing in both places. Keep the *actions* document-
 rather than the key routing, because `Tab` and `Return` reach the app bindings without
 passing through `MindMapView.on_key` at all.
 
+## One cursor, one selection
+
+`selected`/`anchor` point into whichever document has the keys: opening the panel
+stashes the map's pair and closing puts it back. `selected_ids` reads the run from
+`document`, so `^A`, shift+arrows, mark, fold, cut and delete behave identically on
+the map and inside a cut, and the panel draws the run through the same `build_grid`.
+Anything that reaches for `self.mm` instead of `self.document` is a bug in the panel.
+
+The mouse is deliberately off (`run(mouse=False)` and no click handlers): a click that
+moved focus away from a drawer left the reader typing into the map with a question on
+screen, and terminal-native selection is worth more than click-to-select.
+
 ## The map file, the config file
 
 Anything that decides how a map *looks* goes in the map file: tree, text, marks,

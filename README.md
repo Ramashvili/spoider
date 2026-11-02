@@ -158,6 +158,9 @@ travel with it, so a file looks the same wherever it is opened.
 
 ## Limits
 
+- The mouse is off. Every action has a key, and the terminal keeps its own
+  selection, so copying text out of a cell works the way it does everywhere else.
+
 - A map wider than the window is clipped at the edges; there is no zoom out.
 - `^K` and `^U` are the only way to reparent a branch.
 - Undo history lives in memory for the session, and is not capped.
