@@ -29,10 +29,12 @@ packages = ["src/spoider"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-# One test drives one app through its message loop, so the suite spends its time
-# waiting as much as computing: processes are cheap here and the wait is not
-# shared. `-n 0` runs them serially, which is what you want under a debugger.
-addopts = "-n auto"
+# One test drives one app through its message loop, so the suite waits far more than
+# it computes: serially, 56 s of wall clock on 10 s of CPU. Workers past the core
+# count fill that waiting instead of fighting over it, and the curve is flat from
+# about twice the cores until it turns up again at four times — the number barely
+# matters between 12 and 24. `-n 0` runs them serially, under a debugger.
+addopts = "-n 12"
 
 [tool.ruff]
 target-version = "py311"

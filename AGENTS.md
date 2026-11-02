@@ -108,11 +108,15 @@ cannot silently rebind a key and cannot be written back.
 
 ## Tests
 
-`uv run pytest` runs with `-n auto` (pytest-xdist): one test drives one app through its
-message loop, so the suite waits as much as it computes and separate processes keep the
-cores busy. `-n 0` runs serially, for a debugger or readable failures. On a six-core
-machine `-n 12` is faster still than `-n auto`, because the waiting is what dominates;
-the default stays portable.
+`uv run pytest` runs twelve at a time (pytest-xdist): one test drives one app through
+its message loop, so the suite waits far more than it computes — serially it spends 56 s
+of wall clock on 10 s of CPU — and workers past the core count fill that waiting instead
+of fighting over it. Twelve is twice the cores of the machine this is developed on, and
+the curve is flat between 12 and 24. `-n 0` runs serially, under a debugger.
+
+If two tests ever look like they are treading on each other, run `-n 0` before believing
+it is a real failure: nothing is shared — every test gets its own `tmp_path` and, from
+the autouse fixture, its own `XDG_CONFIG_HOME`.
 
 Each test gets its own `XDG_CONFIG_HOME` from the autouse fixture in `conftest.py`, so
 the suite neither reads nor writes the real `~/.config/spoider/config.conf`.
