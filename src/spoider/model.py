@@ -450,9 +450,9 @@ class MindMap:
                 "alt + an arrow reorders a run",
             ],
             "cut and paste": [
-                "^K cuts onto a LIFO stack",
-                "^U pastes under the selection",
-                "^I shows the stack as cells",
+                "^K lifts a branch onto a stack",
+                "^U hangs the newest under it",
+                "^I opens the stack to work in",
             ],
             "inside the stack": [
                 "↑↓ walk it, e renames a cut",

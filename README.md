@@ -1,7 +1,7 @@
 # spoider
 
 A minimalist mind map editor for the terminal. One map, one bar of keys, no
-windows, no mouse menus, no colours of its own — it borrows every colour from your
+windows, no mouse menus, no colours of its own. It borrows every colour from your
 terminal. The map is a plain JSON file you can read, diff and version.
 
 ```
@@ -10,7 +10,7 @@ terminal. The map is a plain JSON file you can read, diff and version.
  ╰─────────────╯      ╰──────╯      ╰─────────╯      ╰────────╯      ╰─────────────────╯
 ```
 
-Ninety-six seconds of it in use: [media/spoider-tour.mp4](media/spoider-tour.mp4) — a
+Ninety-six seconds of it in use: [media/spoider-tour.mp4](media/spoider-tour.mp4), a
 map built cell by cell, marks and folds, both colourings, cutting and pasting through
 the LIFO stack, the help screen, all four shapes, and a recipe in the bush.
 
@@ -21,7 +21,7 @@ uv tool install git+https://github.com/OWNER/spoider
 ```
 
 That puts `spoider` on your PATH with its own copy of its dependencies, so it cannot
-disturb anything else you have installed — and `uv tool uninstall spoider` takes it
+disturb anything else you have installed, and `uv tool uninstall spoider` takes it
 away again. If you use pipx rather than uv, the same command with `pipx` in front of
 it does the same thing.
 
@@ -95,26 +95,25 @@ the file.
 
 `c` switches how the cells are coloured. By **depth**, every level wears one colour
 and a row of the map matches all the way across. By **family**, every branch under
-the root wears one colour for its whole subtree — the cells under `canvas` agree
+the root wears one colour for its whole subtree: the cells under `canvas` agree
 whatever their depth, and cells at the same depth under different branches do not.
 The root and the first level look the same either way, and the choice is saved in
 the file with the shape and the spacing.
 
 ## Cutting and pasting
 
-`^K` takes a branch out of the map and puts it on a stack, last in first out;
-`^U` pastes the newest one under whatever is selected. That is how a branch moves:
-cut it, walk to its new parent, paste it.
-
-`^I` opens the stack itself as a column on the right. Its cells are worked on with
-the map's own keys — rename, mark, fold, move them up and down, cut and paste them
-among themselves — without touching the map. The stack is saved in the file with
-the map, so a cut you did not paste is still waiting tomorrow.
+`^K` lifts the whole branch (the cell and everything under it) out of the map and onto
+a stack, where cuts wait last-in-first-out: the most recent is on top. `^U` takes the
+newest cut and hangs it under whatever is selected, which is how a branch moves: cut
+it, walk to the new parent, paste it there. `^I` opens that stack as a column of its
+own, where you can rename, mark, fold, reorder, cut again (which returns a cell to the
+top), or nest one cut inside another. The stack is saved in the map file, so you will
+not lose it when the editor closes.
 
 ## Settings
 
 `^,` holds autosave, the set of marks, and a shortcut to your config file:
-`~/.config/spoider/config.conf`, a flat rc file — one setting per line, `#` for
+`~/.config/spoider/config.conf`, a flat rc file: one setting per line, `#` for
 comments, every chord listed and commented out until you want it.
 
 ```
@@ -131,7 +130,7 @@ wherever it is opened.
 
 ## Limits
 
-- A map wider than the window is clipped at the edges — there is no zoom out.
+- A map wider than the window is clipped at the edges; there is no zoom out.
 - `^K` and `^U` are the only way to reparent a branch.
 - Undo history lives in memory for the session, and is not capped.
 - Nothing locks the map file: two editors on one map, last save wins.
@@ -144,8 +143,8 @@ uv run pytest
 ```
 
 Changing it? [AGENTS.md](AGENTS.md) has the layout, the rules the code is held to and
-the traps — written for people and for coding agents alike.
+the traps, written for people and for coding agents alike.
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).
