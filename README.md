@@ -10,7 +10,7 @@ a plain JSON file you can read, diff and version.
  ╰─────────────╯      ╰──────╯      ╰─────────╯      ╰────────╯      ╰─────────────────╯
 ```
 
-Ninety-six seconds of it in use: [media/spoider-tour.mp4](media/spoider-tour.mp4).
+Two minutes of it in use: [media/spoider-tour.mp4](media/spoider-tour.mp4), a map built cell by cell, marks, folds, the four shapes, the air between cells, a branch cut and worked on inside the stack, and a paragraph justified in place.
 
 ## Install
 
