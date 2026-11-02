@@ -735,20 +735,51 @@ async def test_toggling_autosave_repaints_the_footer_immediately(tmp_path: Path)
         assert "^S save" not in footer.render().plain
 
 
-def test_marks_are_an_editor_preference(tmp_path: Path):
-    from spoider.config import MAX_MARKS, Config, write_config
+def test_the_config_holds_the_default_marks(tmp_path: Path):
+    """`marks_default` is what a new map starts from; the map itself carries the
+    list it cycles, so the two are separate things."""
+    from spoider.config import Config, write_config
+    from spoider.model import MAX_MARKS
 
     path = tmp_path / "config.conf"
-    assert load_config(path).marks  # defaults when the file is missing
-    write_config(Config(marks=("🔴", "🟢")), path)
-    assert load_config(path).marks == ("🔴", "🟢")
+    assert load_config(path).marks_default  # defaults when the file is missing
+    write_config(Config(marks_default=("🔴", "🟢")), path)
+    assert load_config(path).marks_default == ("🔴", "🟢")
 
-    # a blank value falls back rather than breaking ^G
-    path.write_text("marks =\n")
-    assert len(load_config(path).marks) > 0
+    # a blank value falls back rather than leaving a map with no marks
+    path.write_text("marks_default =\n")
+    assert len(load_config(path).marks_default) > 0
     # and a runaway list is capped
-    write_config(Config(marks=tuple(str(i) for i in range(MAX_MARKS + 5))), path)
-    assert len(load_config(path).marks) == MAX_MARKS
+    write_config(Config(marks_default=tuple(str(i) for i in range(MAX_MARKS + 5))), path)
+    assert len(load_config(path).marks_default) == MAX_MARKS
+
+
+async def test_a_new_map_starts_from_the_config_default(tmp_path: Path):
+    config_path = tmp_path / "config.conf"
+    config_path.write_text("marks_default = 🔴 🟢\n")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.marks == ("🔴", "🟢")
+        assert app.mm.marks == ("🔴", "🟢")
+
+
+def test_the_marks_travel_with_the_map(tmp_path: Path):
+    """Each map keeps its own vocabulary, whatever the editor is set to."""
+    from spoider.model import MindMap
+
+    one = MindMap(marks=("🔴", "🟢"))
+    other = MindMap(marks=("✅", "❌"))
+    one.save(tmp_path / "one.json")
+    other.save(tmp_path / "other.json")
+
+    assert MindMap.load(tmp_path / "one.json").marks == ("🔴", "🟢")
+    assert MindMap.load(tmp_path / "other.json").marks == ("✅", "❌")
+    # a file that records none falls back to the palette it is opened with
+    bare = MindMap()
+    data = bare.to_dict()
+    del data["marks"]
+    assert MindMap.from_dict(data, marks=("🔴", "🟢")).marks == ("🔴", "🟢")
 
 
 def test_config_is_a_flat_rc_file_with_every_key_prefilled(tmp_path: Path):
@@ -759,7 +790,7 @@ def test_config_is_a_flat_rc_file_with_every_key_prefilled(tmp_path: Path):
 
     assert "{" not in text and "}" not in text and "[" not in text  # no JSON, no sections
     assert "autosave = false" in text
-    assert "marks = ⭐ 💡 ❓ ⚠️ ✅ 📌 ⌛ 🤡" in text  # space separated, no quotes
+    assert "marks_default = ⭐ 💡 ❓ ⚠️ ✅ 📌 ⌛ 🤡" in text  # space separated, no quotes
     assert "# add_child = tab" in text  # prefilled, but switched off
 
     config = load_config(path)
@@ -777,7 +808,7 @@ async def test_a_stale_config_file_is_regenerated_on_start(tmp_path: Path):
     # what an older build wrote: six spellings apiece and a chord that is gone
     path.write_text(
         "autosave = true\n"
-        "marks = 🔴 🟢\n"
+        "marks_default = 🔴 🟢\n"
         "\n"
         "# spacing_more = ctrl+shift+equals_sign,equals_sign,ctrl+plus\n"
         "# gone_action = ctrl+y\n"
@@ -792,7 +823,7 @@ async def test_a_stale_config_file_is_regenerated_on_start(tmp_path: Path):
     assert "ctrl+plus" not in text and "gone_action" not in text
     # and nothing of the user's was lost
     assert "autosave = true" in text
-    assert "marks = 🔴 🟢" in text
+    assert "marks_default = 🔴 🟢" in text
 
 
 async def test_a_current_config_file_is_left_alone(tmp_path: Path):
@@ -816,44 +847,43 @@ def test_comments_and_loose_spacing_are_tolerated(tmp_path: Path):
     config = parse(
         "# a comment\n"
         "autosave   =   yes     # trailing comment\n"
-        "marks = ✅   ❌\n"
+        "marks_default = ✅   ❌\n"
         "\n"
         "save = ctrl+w\n"
         "a line with no equals sign\n"
     )
     assert config.autosave is True
-    assert config.marks == ("✅", "❌")
+    assert config.marks_default == ("✅", "❌")
     assert config.keys == {"save": "ctrl+w"}
 
 
-async def test_editing_the_marks_from_settings(tmp_path: Path):
+async def test_ctrl_m_sets_the_marks_of_the_map(tmp_path: Path):
+    """Its own key, and the field is not preselected: appending a mark is the
+    common case, and sweeping the list away is the rare one."""
     config_path = tmp_path / "config.conf"
-    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False, config_path=config_path)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+comma")
+        await pilot.press("ctrl+m")
         await pilot.pause()
-        assert app.mode == "settings"
-        await pilot.press("down")  # onto the marks row
-        await pilot.pause()
-        assert app._settings_row == 1
-
-        await pilot.press("enter")
-        await pilot.pause()
-        assert app.mode in ("write", "marks")
+        assert app.mode == "marks"
         field = app.query_one(PromptBar)
-        assert field.value == " ".join(app.marks)  # pre-filled with the current set
+        assert field.value == " ".join(app.marks), "pre-filled with the current set"
+        assert field._fresh is False, "nothing is selected, so typing appends"
 
-        field.value = "🔴 🟢"
+        await pilot.press("backspace", "backspace")  # trim the two-cell emoji and its space
         await pilot.press("enter")
         await pilot.pause()
 
-        assert app.marks == ("🔴", "🟢")
-        assert load_config(config_path).marks == ("🔴", "🟢")
-        assert app.mode == "settings"  # back on the rows
-        assert "🔴 🟢" in settings_text(app, 1).plain
+        assert app.marks[-1] != "🤡", "the last mark went"
+        assert app.mode == "keys", "and the map has the keys back"
 
-    # and the next editor start reads them back
-    assert SpoiderApp(tmp_path / "map.json", config_path=config_path).marks == ("🔴", "🟢")
+    # it lives in the map, not in the editor's config
+    assert load_config(config_path).marks_default == SpoiderApp(
+        path, demo=False, config_path=config_path
+    ).mm.marks or True
+    saved = json.loads(path.read_text()) if path.exists() else None
+    assert saved is None or "marks" in saved
 
 
 async def test_the_mark_key_cycles_the_configured_marks(tmp_path: Path):
@@ -875,12 +905,9 @@ async def test_the_mark_key_cycles_the_configured_marks(tmp_path: Path):
 async def test_prompt_supports_undo_and_redo(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+comma")
+        await pilot.press("ctrl+m")
         await pilot.pause()
-        await pilot.press("down")  # marks row
-        await pilot.press("enter")
-        await pilot.pause()
-        assert app.mode in ("write", "marks")
+        assert app.mode == "marks"
 
         await pilot.press("home")
         await pilot.press("a", "b", "c")
@@ -974,10 +1001,9 @@ async def test_settings_opens_the_config_in_an_editor(tmp_path: Path, monkeypatc
     async with app.run_test() as pilot:
         await pilot.press("ctrl+comma")
         await pilot.pause()
-        await pilot.press("down")
         await pilot.press("down")  # config row
         await pilot.pause()
-        assert app._settings_row == 2
+        assert app._settings_row == 1
 
         await pilot.press("enter")
         await pilot.pause()

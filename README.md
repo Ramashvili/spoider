@@ -72,6 +72,7 @@ name when there is none, `^O` writes a copy, `^X` asks before throwing edits awa
 | `=` `-` | more or less air between cells |
 | `^J` | justify the selected cell's text to a width you type (the map remembers it) |
 | `^F` | search |
+| `^M` | set the marks this map cycles through |
 | `^L` | change the shape of the map |
 | `c` | colour by depth, or by branch |
 | `^Z` `^Y` | undo, redo |
@@ -138,13 +139,13 @@ not lose it when the editor closes.
 
 ## Settings
 
-`^,` holds autosave, the set of marks, and a shortcut to your config file:
+`^,` holds autosave and a shortcut to your config file:
 `~/.config/spoider/spoider.conf`, a flat rc file: one setting per line, `#` for
 comments, every chord listed and commented out until you want it.
 
 ```
 autosave = false
-marks = ⭐ 💡 ❓ ⚠️ ✅ 📌 ⌛ 🤡
+marks_default = ⭐ 💡 ❓ ⚠️ ✅ 📌 ⌛ 🤡
 justify_width_default = 66
 
 # save = ctrl+w
@@ -154,10 +155,11 @@ justify_width_default = 66
 A chord line lists every chord that action answers to, separated by spaces, so
 `edit = e ctrl+e` binds both and a chord left off the line stops working.
 
-Editor preferences live there and stay out of the map: `justify_width_default` is
-the width `^J` offers before a map has been justified once. Spacing, shape, marks,
-the cut stack and the width a map was last justified to belong to the map and
-travel with it, so a file looks the same wherever it is opened.
+Editor preferences live there and stay out of the map: `marks_default` is the set a
+new map starts with, and `justify_width_default` is the width `^J` offers before a map
+has been justified once. Everything the map looks like belongs to the map and travels
+with it: spacing, shape, colouring, the marks it cycles with `^M`, the cut stack and
+the width it was last justified to, so a file reads the same wherever it is opened.
 
 ## Limits
 

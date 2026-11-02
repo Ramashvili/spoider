@@ -6,7 +6,7 @@ look the same everywhere; how the *editor* behaves lives here.
 
 ```
 autosave = false
-marks = ⭐ 💡 ❓ ⚠️ ✅ 📌 ⌛ 🤡
+marks_default = ⭐ 💡 ❓ ⚠️ ✅ 📌 ⌛ 🤡
 
 # add a child and type its name
 # add_child = tab
@@ -21,11 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .files import write_atomic
-from .model import MARKS
-from .text import clean
-
-#: More than this and ^G takes too long to come back around.
-MAX_MARKS = 8
+from .model import MARKS, marks_of
 
 TRUE_WORDS = frozenset({"1", "true", "yes", "on"})
 
@@ -36,7 +32,7 @@ class Config:
     #: What ^J asks for by default: the width last used, or this. Named apart from
     #: the `justify` binding, which may also live in this file as a chord.
     justify_width_default: int = 66
-    marks: tuple[str, ...] = field(default_factory=lambda: tuple(MARKS))
+    marks_default: tuple[str, ...] = field(default_factory=lambda: tuple(MARKS))
     # binding id -> chord(s). Only what was actually changed; the defaults live in
     # the app, and the file shows them commented out.
     keys: dict[str, str] = field(default_factory=dict)
@@ -106,10 +102,10 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
                 pass
         elif name == "autosave":
             config.autosave = value.lower() in TRUE_WORDS
-        elif name == "marks":
-            marks = tuple(cleaned for token in value.split() if (cleaned := clean(token)))
+        elif name == "marks_default":
+            marks = marks_of(value.split())
             if marks:
-                config.marks = marks[:MAX_MARKS]
+                config.marks_default = marks
         elif value and (known is None or name in known):
             # a line lists every chord for that action, separated by spaces; one
             # that is not a key at all is dropped rather than read as a chord
@@ -137,7 +133,7 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
         "# with # is doing nothing.",
         "",
         f"autosave = {'true' if config.autosave else 'false'}",
-        "marks = " + " ".join(config.marks),
+        "marks_default = " + " ".join(config.marks_default),
         f"justify_width_default = {config.justify_width_default}",
         "",
         "# Chords. An action can have more than one chord: they are separated by a",

@@ -15,9 +15,8 @@ from textual.binding import Binding, BindingType
 from textual.notifications import SeverityLevel
 
 from . import nav
-from .chrome import FooterBar, ask_chunks, help_chunks, prompt_chunks, settings_chunks
+from .chrome import FooterBar, ask_chunks, help_chunks, key_cap, prompt_chunks, settings_chunks
 from .config import (
-    MAX_MARKS,
     Config,
     default_config_path,
     is_stale,
@@ -27,7 +26,7 @@ from .config import (
 from .drawers import AskBar, PanelBar, PromptBar
 from .editing import Buffer, reflow
 from .layout import MAX_SPACING, MIN_SPACING, compute_stack, label
-from .model import LAYOUTS, MARKS, MapFileError, MindMap, Node
+from .model import LAYOUTS, MapFileError, MindMap, Node, marks_of
 from .screens import help_text, settings_text
 from .text import clean, find_all
 from .widgets import MindMapView, TopBar
@@ -143,6 +142,7 @@ BINDINGS: list[BindingType] = [
     Binding("t", "fold", "fold", id="fold"),
     Binding("ctrl+t", "fold", "fold", show=False, id="fold_alt"),
     Binding("m", "mark", "mark", id="mark"),
+    Binding("ctrl+m", "set_marks", "set marks", id="set_marks"),
     # search sits with the other editing keys: it is what you reach for while
     # reading a map, and the bar has room for one more
     Binding("ctrl+f", "search", "search", id="search"),
@@ -297,15 +297,17 @@ class SpoiderApp(App[None]):
         self.load_error: str | None = None
         if self.has_file and self.path is not None:
             try:
-                self.mm = MindMap.load(self.path)
+                self.mm = MindMap.load(self.path, marks=self.config.marks_default)
             except MapFileError as exc:
                 # Starting on an empty map beats a traceback on the terminal; the
                 # reason is reported once the screen exists.
-                self.mm = MindMap()
+                self.mm = MindMap(marks=self.config.marks_default)
                 self.has_file = False
                 self.load_error = str(exc)
         else:
-            self.mm = MindMap.demo() if demo else MindMap()
+            self.mm = MindMap.demo(marks=self.config.marks_default) if demo else MindMap(
+                marks=self.config.marks_default
+            )
         self.selected: str = self.mm.root.id
         #: The far end of a run of selected siblings; None means one cell.
         self.anchor: str | None = None
@@ -551,16 +553,16 @@ class SpoiderApp(App[None]):
 
     @property
     def marks(self) -> tuple[str, ...]:
-        """The emoji ^G cycles through — an editor preference, like autosave."""
-        return self.config.marks
+        """The marks this map cycles through, in the order m walks them."""
+        return self.mm.marks
 
     def set_marks(self, marks: Iterable[object]) -> None:
-        cleaned = tuple(seen for mark in marks if (seen := clean(mark).strip()))
-        cleaned = cleaned[:MAX_MARKS] or tuple(MARKS)
-        if cleaned == self.config.marks:
+        """The palette is the map's, so it goes into the map rather than the rc."""
+        cleaned = marks_of(marks)
+        if cleaned == self.mm.marks:
             return
-        self.config.marks = cleaned
-        self._save_config()
+        self.mm.marks = cleaned
+        self._mark_dirty()
 
     def _save_config(self) -> None:
         try:
@@ -783,7 +785,7 @@ class SpoiderApp(App[None]):
 
     def _restore(self, snapshot: dict) -> None:
         try:
-            self.mm = MindMap.from_dict(snapshot)
+            self.mm = MindMap.from_dict(snapshot, marks=self.mm.marks)
         except MapFileError as exc:  # only reachable if a snapshot were corrupt
             self.notify(f"Cannot restore that state: {exc}", severity="error", timeout=4)
             return
@@ -1528,32 +1530,38 @@ class SpoiderApp(App[None]):
             self._settings_row = max(0, self._settings_row - 1)
             self._draw_settings()
         elif key in ("down", "j"):
-            self._settings_row = min(2, self._settings_row + 1)
+            self._settings_row = min(1, self._settings_row + 1)
             self._draw_settings()
         elif key in ("enter", "space"):
             self._settings_activate()
 
     def _settings_activate(self) -> None:
-        row = self._settings_row
-        if row == 0:
+        if self._settings_row == 0:
             self.set_autosave(not self.autosave)
             self._draw_settings()
-        elif row == 1:
-            self._show_prompt(
-                "marks",
-                "Marks, in the order ^G cycles: ",
-                " ".join(self.marks),
-                preselect=True,
-                submit=self._marks_submitted,
-                cancel=self._open_settings,
-            )
-        else:
-            self.open_config()
-            self._open_settings()  # back to the list you left
+            return
+        self.open_config()
+        self._open_settings()  # back to the list you left
+
+    def action_set_marks(self) -> None:
+        """^M — the marks this map cycles through, in the order m walks them.
+
+        A line of its own rather than something buried in the settings: the
+        vocabulary is part of the map, and it is edited while the map is in front
+        of you. The list is not preselected — appending to it is the common case.
+        """
+        self._show_prompt(
+            "marks",
+            f"Marks, in the order {key_cap(self.keymap.get('mark', 'm'))} cycles: ",
+            " ".join(self.marks),
+            submit=self._marks_submitted,
+            cancel=self._close_drawers,
+        )
 
     def _marks_submitted(self, value: str) -> None:
         self.set_marks(value.split())
-        self._open_settings()
+        self._close_drawers()
+        self.view.focus()
 
     def action_mark(self) -> None:
         """m — cycle the mark: none, ⭐, 💡, ❓, ⚠️, ✅, 📌, ⌛, 🤡, none.

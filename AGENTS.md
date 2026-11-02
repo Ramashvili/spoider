@@ -44,8 +44,8 @@ ready to move out.
   selection and search hits, `\e[7m` blocks in the top bar. No hex, no RGB, no fixed
   named colour — `orange1` does not parse at all and `orange` is a hard-coded RGB.
 - **Document vs editor state.** The map file holds the tree, text, `collapsed`,
-  `mark`, `spacing`, `layout`, `colours` and `cut_stack`. `spoider.conf` holds autosave, the mark
-  set and chord overrides. Anything that changes how a map looks belongs to the
+  `mark`, `marks`, `spacing`, `layout`, `colours` and `cut_stack`. `spoider.conf` holds
+  autosave, `marks_default` and chord overrides. Anything that changes how a map looks belongs to the
   document, so a file looks the same wherever it is opened.
 - **Chords are spelled nano's way** everywhere — `^` ctrl, `M-` alt, `S-` shift — never
   `⌥`/`⇧` glyphs. Ctrl chords first; a bare key only where it collides with nothing

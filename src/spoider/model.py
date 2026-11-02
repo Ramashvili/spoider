@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -13,9 +13,19 @@ from .text import clean, clean_text
 
 DEFAULT_ROOT_TEXT = "Mind map"
 
-#: The default set ^G cycles through, in press order. The editor can replace it;
-#: see spoider.config. "None" always comes first so the cycle can end.
+#: The marks a map cycles through, in press order, before anyone changes them. A
+#: map carries its own list; `marks_default` in the config is what a new one starts
+#: from. "None" always comes first in the cycle, so a press can end it.
 MARKS = ('⭐', '💡', '❓', '⚠️', '✅', '📌', '⌛', '🤡')
+
+#: More than this and m takes too long to come back around.
+MAX_MARKS = 8
+
+
+def marks_of(tokens: Iterable[object]) -> tuple[str, ...]:
+    """A palette from whatever was typed or read: cleaned, capped, never empty."""
+    cleaned = tuple(seen for token in tokens if (seen := clean(token).strip()))
+    return cleaned[:MAX_MARKS] or MARKS
 
 #: A map nested deeper than this is either a mistake or an attack: the loader is
 #: recursive, so an unbounded document would exhaust the stack (RecursionError).
@@ -140,12 +150,16 @@ class MindMap:
         cut_stack: list[Node] | None = None,
         colours: str = DEFAULT_COLOURS,
         justify: int | None = None,
+        marks: Sequence[str] | None = None,
     ) -> None:
         self.root = root if root is not None else Node(clean_text(DEFAULT_ROOT_TEXT))
         #: The width this map was last justified to, or None before the first
         #: justify. Document state: the same file reflows the same way wherever it
         #: is opened, and the config only offers a default to start from.
         self.justify = justify
+        #: The marks m cycles through, in order. Document state: two maps can have
+        #: different vocabularies, and a map keeps its own wherever it is opened.
+        self.marks = marks_of(marks) if marks is not None else MARKS
         #: How the cells are coloured: `depth` gives every level one colour, `family`
         #: gives every branch under the root one colour for its whole subtree.
         self.colours = colours if colours in COLOURS else DEFAULT_COLOURS
@@ -364,13 +378,14 @@ class MindMap:
             "spacing": self.spacing,
             "layout": self.layout,
             "colours": self.colours,
+            "marks": list(self.marks),
             **({"justify": self.justify} if self.justify else {}),
             "root": self.root.to_dict(),
             "cut": [node.to_dict() for node in self.cut_stack],
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> MindMap:
+    def from_dict(cls, data: dict, marks: Sequence[str] | None = None) -> MindMap:
         if not isinstance(data, dict):
             raise MapFileError("a map file must hold a JSON object at the top level")
         root_data = data.get("root")
@@ -400,15 +415,20 @@ class MindMap:
             cut,
             colours if isinstance(colours, str) else DEFAULT_COLOURS,
             justify,
+            data.get("marks") if isinstance(data.get("marks"), list) else marks,
         )
 
     def save(self, path: Path) -> None:
         write_atomic(path, json.dumps(self.to_dict(), indent=2, ensure_ascii=False) + "\n")
 
     @classmethod
-    def load(cls, path: Path) -> MindMap:
+    def load(cls, path: Path, marks: Sequence[str] | None = None) -> MindMap:
         """Read a map file, raising MapFileError for anything the app can report
-        instead of crashing on: unreadable, not JSON, wrong shape, too deep."""
+        instead of crashing on: unreadable, not JSON, wrong shape, too deep.
+
+        `marks` is the palette to use when the file records none of its own, which
+        is how the editor's default reaches a map written before marks were
+        document state."""
         path = Path(path)
         try:
             raw = path.read_text(encoding="utf-8")
@@ -423,14 +443,14 @@ class MindMap:
         except ValueError as exc:
             raise MapFileError(f"{path.name} is not valid JSON: {exc}") from exc
         try:
-            return cls.from_dict(data)
+            return cls.from_dict(data, marks=marks)
         except RecursionError as exc:  # belt and braces: _build is bounded too
             raise MapFileError(f"{path.name} is nested far too deeply") from exc
 
     # -- fixtures -------------------------------------------------------
 
     @classmethod
-    def demo(cls) -> MindMap:
+    def demo(cls, marks: Sequence[str] | None = None) -> MindMap:
         """The map `--demo` opens: the manual, as a map.
 
         One branch per thing the editor does — what it is, who it is for, and then
@@ -497,4 +517,4 @@ class MindMap:
         # the cell that explains marks carries one, so the demo shows rather than
         # tells
         root.children[3].children[1].mark = MARKS[0]
-        return cls(root)
+        return cls(root, marks=marks)
