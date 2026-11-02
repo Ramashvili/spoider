@@ -236,8 +236,12 @@ def stack_chunks(bindings: Iterable, keymap: dict[str, str] | None = None) -> li
         if binding.id:
             chords.setdefault(binding.action, keymap.get(binding.id, binding.key) or binding.key)
 
+    # The panel's own ranking: the work it exists for first (cut, paste, drop),
+    # then naming and growing cuts, then the rest. The words and chords are still
+    # the map's, so a key is called the same thing in both bars.
+    wanted = ("cut", "paste", "delete", "edit", "add_child", "add_sibling", "justify", "undo", "mark")
     chunks = [entry("^I", "hide stack", literal=True), entry("↑↓←→", "move", literal=True)]
-    for action in ("edit", "mark", "cut", "paste", "delete", "undo"):
+    for action in wanted:
         if action in chords:
             chunks.append(entry(chords[action], labels.get(action, action)))
     return chunks

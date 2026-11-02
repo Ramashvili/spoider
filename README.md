@@ -131,8 +131,9 @@ the file with the shape and the spacing.
 a stack, where cuts wait last-in-first-out: the most recent is on top. `^U` takes the
 newest cut and hangs it under whatever is selected, which is how a branch moves: cut
 it, walk to the new parent, paste it there. `^I` opens that stack as a column of its
-own, where you can rename, mark, fold, reorder, cut again (which returns a cell to the
-top), or nest one cut inside another. The stack is saved in the map file, so you will
+own, where the map's keys keep their meaning: rename, mark, fold, reorder, cut again
+(which returns a cell to the top), nest one cut inside another, and `Tab`/`Return` to
+grow a cut or start a new one. The stack is saved in the map file, so you will
 not lose it when the editor closes.
 
 ## Settings

@@ -3167,3 +3167,106 @@ async def test_ctrl_a_selects_all_the_text_inside_a_cell(tmp_path: Path):
         await pilot.pause()
         assert app._buffer.text == ""
         assert app._text_clip == "alpha beta"
+
+
+async def _panel_with_two_cuts(app, pilot):
+    alpha, beta = _branch_map(app)
+    app.select(alpha.id)
+    await pilot.press("ctrl+k")
+    await pilot.pause()
+    app.select(beta.id)
+    await pilot.press("ctrl+k")
+    await pilot.press("ctrl+i")
+    await pilot.pause()
+
+
+async def test_a_cut_can_be_renamed_inside_the_panel(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await _panel_with_two_cuts(app, pilot)
+        before = app.mm.cut_stack[-1].text
+
+        await pilot.press("e")
+        await pilot.pause()
+        assert app.editing is True
+        await pilot.press("!", "x")
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert app.mm.cut_stack[-1].text == before + "!x", "the cut itself changed"
+        assert app.dirty is True, "and the file knows"
+
+
+async def test_new_cells_can_be_made_inside_a_cut(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await _panel_with_two_cuts(app, pilot)
+        top = app.mm.cut_stack[-1]
+        map_before = len(app.mm.root.children)
+
+        await pilot.press("tab")  # a child of the cut under the cursor
+        await pilot.pause()
+        assert app.editing is True
+        await pilot.press("k", "i", "d")
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert [child.text for child in app.mm.cut_stack[-1].children] == ["kid"]
+        assert len(app.mm.root.children) == map_before, "the map is left alone"
+        assert app.mm.cut_stack[-1].id == top.id
+
+
+async def test_a_new_sibling_of_a_cut_is_a_new_entry_on_the_stack(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await _panel_with_two_cuts(app, pilot)
+        depth = len(app.mm.cut_stack)
+        await pilot.press("up")  # the older cut, a top-level entry
+        await pilot.pause()
+
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.press("f", "r", "e", "s", "h")
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert len(app.mm.cut_stack) == depth + 1
+        assert "fresh" in [node.text for node in app.mm.cut_stack]
+
+
+async def test_justify_from_the_panel_reflows_the_cut(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "one two three four five six seven")
+        app.select(node.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("ctrl+i")
+        await pilot.pause()
+
+        await pilot.press("ctrl+j")
+        await pilot.pause()
+        assert app.mode == "justify"
+        app.query_one(PromptBar).value = "12"
+        await pilot.press("enter")
+        await pilot.pause()
+
+        cut = app.mm.cut_stack[-1]
+        assert cut.text.count("\n") >= 1
+        assert all(len(line) <= 12 for line in cut.text.split("\n"))
+
+
+async def test_select_all_inside_a_cut_selects_its_text(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await _panel_with_two_cuts(app, pilot)
+        top = app.mm.cut_stack[-1]
+
+        await pilot.press("e")
+        await pilot.pause()
+        await pilot.press("ctrl+a")
+        await pilot.pause()
+        assert app._buffer.selected_text() == top.text
+
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+        assert app._text_clip == top.text

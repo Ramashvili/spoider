@@ -906,7 +906,7 @@ class SpoiderApp(App[None]):
         if self.editing:
             self._cut_or_copy(cut=False)
             return
-        node = self.mm.find(self.selected)
+        node = self.document.find(self.focus)
         if node is None or not node.text.strip():
             return
         self._text_clip = node.text
@@ -943,7 +943,7 @@ class SpoiderApp(App[None]):
 
     def action_justify(self) -> None:
         """^J — reflow a cell's text to a width you give, the way nano justifies."""
-        node_id = self._edit_id if self.editing else self.selected
+        node_id = self._edit_id if self.editing else self.focus
         if node_id is None:
             return
         self._justify_id = node_id
@@ -974,7 +974,7 @@ class SpoiderApp(App[None]):
             self._buffer.anchor = None
             self._sync_preview()
             return
-        node = self.mm.find(node_id)
+        node = self.document.find(node_id)
         if node is None:
             return
         wrapped = reflow(node.text, width)
@@ -1157,6 +1157,23 @@ class SpoiderApp(App[None]):
             return None
         return compute_stack(self._stack_entries(), self.mm.spacing)
 
+    @property
+    def document(self) -> MindMap:
+        """The tree the keys are in.
+
+        The stack panel is an ordinary MindMap built over the same Node objects, so
+        everything below can work on `self.document` and mean the right thing in
+        both places: editing, marks, folds, justify, new cells.
+        """
+        return self._stack_doc() if self.stack_open else self.mm
+
+    @property
+    def focus(self) -> str:
+        """The cell the keys are on, in whichever document has them."""
+        if self.stack_open and self.stack_selected:
+            return self.stack_selected
+        return self.selected
+
     def _stack_doc(self) -> MindMap:
         """The stack as a document, made of the same Node objects.
 
@@ -1165,6 +1182,10 @@ class SpoiderApp(App[None]):
         are the stack, newest first.
         """
         return MindMap(Node("", children=self._stack_entries()))
+
+    def _commit_stack(self, doc: MindMap) -> None:
+        """The panel's top level *is* the stack: structural changes go back to it."""
+        self.mm.cut_stack = list(reversed(doc.root.children))
 
     def _stack_changed(self) -> None:
         """Write the panel's state back and let the document know."""
@@ -1248,6 +1269,14 @@ class SpoiderApp(App[None]):
             self._stack_take(doc, selected, discard=False)
         elif action == "paste":
             self._stack_paste()
+        elif action == "add_child":
+            self._stack_insert(doc, selected, child=True)
+        elif action == "add_sibling":
+            self._stack_insert(doc, selected, child=False)
+        elif action == "justify":
+            self.action_justify()
+        elif action == "copy":
+            self.action_copy()
         elif action == "delete":
             self._stack_take(doc, selected, discard=True)
         elif action == "move_up":
@@ -1267,6 +1296,23 @@ class SpoiderApp(App[None]):
         else:
             return False
         return True
+
+    def _stack_insert(self, doc: MindMap, node_id: str, *, child: bool) -> None:
+        """Tab and Enter in the panel, meaning what they mean on the map: a new
+        cell under this one, or beside it. A sibling of a top-level cut is a new
+        entry on the stack, because at that level the stack *is* the top level."""
+        self._push_undo()
+        if child or doc.parent(node_id) is None:
+            node = doc.add_child(node_id)
+        else:
+            node = doc.add_sibling(node_id)
+        if node is None:
+            self._undo.pop()
+            return
+        self._commit_stack(doc)
+        self.stack_selected = node.id
+        self._stack_changed()
+        self.begin_edit(node.id, fresh=True)
 
     def _stack_reorder(self, doc: MindMap, node_id: str, delta: int) -> None:
         """Move a cell among its siblings inside the panel. For an entry at the
@@ -1554,6 +1600,8 @@ class SpoiderApp(App[None]):
                 self._buffer.select_all()
                 self._sync_preview()
             return
+        if self.stack_open:
+            return  # the panel works one cut at a time; there is no run to take
         parent = self.mm.parent(self.selected)
         if parent is None or len(parent.children) < 2:
             return
