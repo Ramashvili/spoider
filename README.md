@@ -1,8 +1,8 @@
 # spoider
 
 A minimalist mind map editor for the terminal. One map, one bar of keys, no
-windows, no mouse menus, no colours of its own. It borrows every colour from your
-terminal. The map is a plain JSON file you can read, diff and version.
+floating windows, no colours of its own: it borrows every colour from your terminal.
+The map is a plain JSON file you can read, diff and version.
 
 ```
  ╭─────────────╮      ╭──────╮      ╭─────────╮      ╭────────╮      ╭─────────────────╮
@@ -157,9 +157,6 @@ the cut stack and the width a map was last justified to belong to the map and
 travel with it, so a file looks the same wherever it is opened.
 
 ## Limits
-
-- The mouse is off. Every action has a key, and the terminal keeps its own
-  selection, so copying text out of a cell works the way it does everywhere else.
 
 - A map wider than the window is clipped at the edges; there is no zoom out.
 - `^K` and `^U` are the only way to reparent a branch.
