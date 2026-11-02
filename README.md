@@ -64,13 +64,13 @@ name when there is none, `^O` writes a copy, `^X` asks before throwing edits awa
 | `t` | fold or unfold the branch |
 | `^K` | cut the branch onto the stack |
 | `^U` | paste the newest cut under the selection |
-| `^I` | show the stack |
+| `^I` | show the cut stack, and work inside it |
 | `↑↓←→` `hjkl` | move |
 | `shift` + sibling arrow | select a run of siblings |
 | `^A` | select every sibling of the selected cell, or all the text while typing |
 | `alt` + `↑` `↓` | move the cell among its siblings |
 | `=` `-` | more or less air between cells |
-| `^J` | justify the selected cell's text to a width you type |
+| `^J` | justify the selected cell's text to a width you type (the map remembers it) |
 | `^F` | search |
 | `^L` | change the shape of the map |
 | `c` | colour by depth, or by branch |
@@ -145,14 +145,16 @@ comments, every chord listed and commented out until you want it.
 ```
 autosave = false
 marks = ✅ ❌ ❓ ❔ 🕐
+justify_width_default = 66
 
 # save = ctrl+w
 # edit = ctrl+e
 ```
 
-Editor preferences live there and stay out of the map. Spacing, shape, marks and
-the cut stack belong to the map and travel with it, so a file looks the same
-wherever it is opened.
+Editor preferences live there and stay out of the map: `justify_width_default` is
+the width `^J` offers before a map has been justified once. Spacing, shape, marks,
+the cut stack and the width a map was last justified to belong to the map and
+travel with it, so a file looks the same wherever it is opened.
 
 ## Limits
 

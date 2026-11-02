@@ -1656,10 +1656,11 @@ def test_the_bar_ranks_its_hints_from_leaving_down_to_the_air():
         "^F search",
         "e edit",
         "m mark",
+        "^J justify",
         "^D del",
         "^K cut",
         "^U paste",
-        "^I stack",
+        "^I show stack",
         "t fold",
         "^L layout",
         "= looser",
@@ -2651,7 +2652,7 @@ async def test_a_cell_can_be_renamed_inside_the_panel(tmp_path: Path):
 
 async def test_the_bar_switches_to_the_panel_keys(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
-    async with app.run_test(size=(110, 24)) as pilot:
+    async with app.run_test(size=(200, 24)) as pilot:  # wide enough to see the tail
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+k")
@@ -2659,9 +2660,12 @@ async def test_the_bar_switches_to_the_panel_keys(tmp_path: Path):
         await pilot.pause()
 
         bar = app.query_one("#footer", FooterBar).render().plain
-        # the same verbs as the main bar, only the first one is new
-        assert "^I hide stack" in bar
-        assert "^K cut" in bar and "^D del" in bar and "edit" in bar
+        # the panel is the map with one difference, so the bar is the map's bar
+        assert bar.startswith(" ^I hide stack"), "the way out comes first"
+        assert "^K cut" in bar and "e edit" in bar and "^J justify" in bar
+        assert "^I show stack" not in bar, "one ^I per bar"
+        for word in ("^X quit", "^S save", "^Z undo", "^F search", "t fold"):
+            assert word in bar, f"the panel keeps {word}"
 
         await pilot.press("ctrl+i")
         await pilot.pause()
@@ -2745,7 +2749,7 @@ async def test_the_panel_bar_borrows_the_main_bars_words(tmp_path: Path):
     config = tmp_path / "config.conf"
     config.write_text("cut = ctrl+w\n")
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
-    async with app.run_test(size=(120, 30)) as pilot:
+    async with app.run_test(size=(220, 30)) as pilot:
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+w")
@@ -2937,7 +2941,7 @@ async def test_the_colouring_shows_in_the_help_and_the_bar(tmp_path: Path):
     from spoider.screens import help_text
 
     app = SpoiderApp(tmp_path / "map.json", demo=False)
-    async with app.run_test(size=(200, 30)) as pilot:
+    async with app.run_test(size=(240, 30)) as pilot:
         await pilot.pause()
         assert "c colours" in str(app.query_one("#footer").render().plain)
         assert "colour by depth, or by family" in help_text(app).plain
@@ -3067,7 +3071,7 @@ async def test_a_selection_is_cut_copied_and_pasted_inside_the_cell(tmp_path: Pa
         assert app._buffer.text == " betaalpha", "the selection went to the clipboard"
 
 
-async def test_justify_rewraps_the_cell_and_remembers_the_width(tmp_path: Path):
+async def test_justify_rewraps_the_cell_and_the_map_keeps_the_width(tmp_path: Path):
     config_path = tmp_path / "config.conf"
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
     async with app.run_test() as pilot:
@@ -3090,7 +3094,18 @@ async def test_justify_rewraps_the_cell_and_remembers_the_width(tmp_path: Path):
         wrapped = app.mm.find(node.id).text
         assert wrapped.count("\n") >= 1
         assert all(len(line) <= 20 for line in wrapped.split("\n"))
-        assert load_config(config_path).justify_width == 20, "the width is remembered"
+        assert app.mm.justify == 20, "the map remembers the width"
+
+        # it is document state, so it travels with the file
+        path = tmp_path / "map.json"
+        app.mm.save(path)
+        assert json.loads(path.read_text())["justify"] == 20
+        assert MindMap.load(path).justify == 20
+        assert load_config(config_path).justify_width_default == 66, "the config keeps its default"
+
+        await pilot.press("ctrl+j")
+        await pilot.pause()
+        assert app.query_one(PromptBar).value == "20", "and the next justify starts there"
 
 
 async def test_undo_and_redo_work_inside_the_cell(tmp_path: Path):
@@ -3270,3 +3285,32 @@ async def test_select_all_inside_a_cut_selects_its_text(tmp_path: Path):
         await pilot.press("ctrl+k")
         await pilot.pause()
         assert app._text_clip == top.text
+
+
+def test_a_leftover_setting_never_becomes_a_chord(tmp_path: Path):
+    """`justify = 12` was a *setting* before the key was renamed to `justify_width`.
+    Read back as a chord it bound justify to a key called "12", which nothing can
+    press, and then wrote itself into the file again on every save."""
+    from spoider.app import build_keymap
+    from spoider.config import load_config
+
+    config = tmp_path / "config.conf"
+    config.write_text("justify_width_default = 60\njustify = 12\n")
+    loaded = load_config(config, SpoiderApp._binding_ids())
+
+    assert loaded.justify_width_default == 60
+    assert loaded.keys == {}, "a name that is not a binding id is not a chord"
+    assert build_keymap(loaded.keys).get("justify") == "ctrl+j"
+
+
+async def test_the_leftover_line_is_wiped_from_the_file(tmp_path: Path):
+    config = tmp_path / "config.conf"
+    config.write_text("justify_width_default = 60\njustify = 12\n")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.query_one("#footer")  # the app is up and has had a chance to tidy up
+
+    text = config.read_text()
+    assert "\njustify = 12" not in text, "the stale chord is gone"
+    assert "justify_width_default = 60" in text

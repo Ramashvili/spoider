@@ -16,7 +16,7 @@ marks = ✅ ❌ ❓ ❗ 🕐
 from __future__ import annotations
 
 import os
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -35,7 +35,7 @@ class Config:
     autosave: bool = False
     #: What ^J asks for by default: the width last used, or this. Named apart from
     #: the `justify` binding, which may also live in this file as a chord.
-    justify_width: int = 66
+    justify_width_default: int = 66
     marks: tuple[str, ...] = field(default_factory=lambda: tuple(MARKS))
     # binding id -> chord(s). Only what was actually changed; the defaults live in
     # the app, and the file shows them commented out.
@@ -60,7 +60,36 @@ def _without_comment(line: str) -> str:
     return line.strip()
 
 
-def parse(text: str) -> Config:
+_MODIFIERS = frozenset({"ctrl", "alt", "shift", "meta", "super", "hyper"})
+_KEYS = frozenset(
+    {
+        "tab", "enter", "escape", "space", "up", "down", "left", "right",
+        "home", "end", "insert", "delete", "backspace", "pageup", "pagedown",
+        "pause", "print_screen", "scroll_lock", "menu", "caps_lock", "num_lock",
+        *(f"f{number}" for number in range(1, 25)),
+    }
+)
+
+
+def is_chord(text: str) -> bool:
+    """Whether the right-hand side of a line could ever be pressed.
+
+    A chord is a single character, a key by name, or either behind modifiers. This
+    keeps a line that was once a setting — `justify = 12`, from before that setting
+    was named `justify_width` — from silently rebinding a key to "12", which no
+    keyboard sends, and then writing itself back into the file on every save.
+    """
+    parts = text.strip().lower().split("+")
+    *modifiers, key = parts
+    if not all(modifier in _MODIFIERS for modifier in modifiers):
+        return False
+    return len(key) == 1 or key in _KEYS
+
+
+def parse(text: str, known: Collection[str] | None = None) -> Config:
+    """Read the rc file. `known` is the set of binding ids this build has: a name
+    that is neither a setting nor one of them is a leftover, not a chord, and must
+    not be read back and written out again."""
     config = Config()
     for raw in text.splitlines():
         line = _without_comment(raw)
@@ -70,9 +99,9 @@ def parse(text: str) -> Config:
         name, value = name.strip(), value.strip()
         if not name:
             continue
-        if name == "justify_width":
+        if name == "justify_width_default":
             try:
-                config.justify_width = max(10, min(int(value), 400))
+                config.justify_width_default = max(10, min(int(value), 400))
             except ValueError:
                 pass
         elif name == "autosave":
@@ -81,17 +110,16 @@ def parse(text: str) -> Config:
             marks = tuple(cleaned for token in value.split() if (cleaned := clean(token)))
             if marks:
                 config.marks = marks[:MAX_MARKS]
-        elif value:
-            # anything else is a chord override; unknown names are ignored later
+        elif value and is_chord(value) and (known is None or name in known):
             config.keys[name] = value
     return config
 
 
-def load_config(path: Path | None = None) -> Config:
+def load_config(path: Path | None = None, known: Collection[str] | None = None) -> Config:
     """The flat rc file, or the defaults when there is none to read."""
     path = Path(path) if path is not None else default_config_path()
     try:
-        return parse(path.read_text())
+        return parse(path.read_text(), known)
     except (OSError, UnicodeDecodeError):
         return Config()
 
@@ -106,7 +134,7 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
         "",
         f"autosave = {'true' if config.autosave else 'false'}",
         "marks = " + " ".join(config.marks),
-        f"justify_width = {config.justify_width}",
+        f"justify_width_default = {config.justify_width_default}",
         "",
         "# Chords. Uncomment a line to change it, e.g.  save = ctrl+w",
     ]

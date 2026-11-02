@@ -118,7 +118,7 @@ BINDINGS: list[BindingType] = [
     # tab needs priority to beat Textual's focus-next binding.
     Binding("tab", "add_child", "child", priority=True, id="add_child"),
     # ^A selects: the whole text while typing, every sibling on the map
-    Binding("ctrl+a", "select_all", "select all", id="select_all"),
+    Binding("ctrl+a", "select_all", show=False, id="select_all"),
     Binding("enter", "add_sibling", "sib", id="add_sibling"),
     Binding("ctrl+j", "justify", "justify", id="justify"),
     Binding("alt+6", "copy", "copy", show=False, id="copy"),
@@ -128,7 +128,7 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+e", "edit", "edit", show=False, id="edit_alt"),
     Binding("ctrl+k", "cut", "cut", id="cut"),
     Binding("ctrl+u", "paste", "paste", id="paste"),
-    Binding("ctrl+i", "toggle_stack", "stack", id="toggle_stack"),
+    Binding("ctrl+i", "toggle_stack", "show stack", id="toggle_stack"),
     Binding("ctrl+d", "delete", "del", id="delete"),
     Binding("t", "fold", "fold", id="fold"),
     Binding("ctrl+t", "fold", "fold", show=False, id="fold_alt"),
@@ -250,7 +250,7 @@ class SpoiderApp(App[None]):
     ) -> None:
         super().__init__()
         self.config_path = Path(config_path) if config_path is not None else default_config_path()
-        self.config: Config = load_config(self.config_path)
+        self.config: Config = load_config(self.config_path, self._binding_ids())
         self.theme = "textual-ansi"
         # No file named means a new buffer: spoider never guesses at one. The
         # default location is only *offered* when you first write it out.
@@ -449,6 +449,11 @@ class SpoiderApp(App[None]):
         """binding id -> chord(s) in force: the defaults with the config on top."""
         return build_keymap(self.config.keys)
 
+    @staticmethod
+    def _binding_ids() -> set[str]:
+        """Every id the config file may name: the chords this build can bind."""
+        return {binding.id for binding in BINDINGS if isinstance(binding, Binding) and binding.id}
+
     def _key_entries(self) -> list[tuple[str, str, str]]:
         """(id, default chord, what it does) for every rebindable binding."""
         from .screens import describe_action
@@ -476,7 +481,7 @@ class SpoiderApp(App[None]):
             self.notify(f"Could not start an editor: {exc}", severity="error", timeout=4)
             return
 
-        self.config = load_config(self.config_path)
+        self.config = load_config(self.config_path, self._binding_ids())
         self.set_keymap(self.config.keys)  # new chords take effect straight away
         self._refresh_chrome()
         self.notify("Config reloaded", timeout=2)
@@ -950,7 +955,8 @@ class SpoiderApp(App[None]):
         self._show_prompt(
             "justify",
             "Justify to width: ",
-            str(self.config.justify_width),
+            str(self.mm.justify or self.config.justify_width_default),
+            preselect=True,
             submit=self._justify_submitted,
             cancel=self._close_drawers,
         )
@@ -960,11 +966,13 @@ class SpoiderApp(App[None]):
         try:
             width = int(value.strip())
         except ValueError:
-            width = self.config.justify_width
+            width = self.mm.justify or self.config.justify_width_default
         width = max(10, min(width, 400))
-        if width != self.config.justify_width:
-            self.config.justify_width = width  # remembered for next time
-            self._save_config()
+        if width != self.mm.justify:
+            # the width is part of the map, so a file opened elsewhere justifies
+            # the same way; the config only holds the default to offer
+            self.mm.justify = width
+            self._mark_dirty()
         node_id, self._justify_id = self._justify_id, None
         if node_id is None:
             return

@@ -63,6 +63,27 @@ ready to move out.
   loaded.
 - **Don't invent scope.** Build what was asked for; propose the rest and wait.
 
+## The map and the stack panel are one document
+
+The panel is an ordinary `MindMap` built over the same `Node` objects, not a list view
+beside the map. Actions therefore ask `SpoiderApp.document` (the panel's view of the
+cuts while it is open, else the map) and `SpoiderApp.focus` (the cell the keys are on
+in whichever of them has them) instead of reaching for `self.mm` and `self.selected`.
+Anything that only knows about `self.mm` works on the map and silently does nothing in
+the panel, which is exactly how the panel came to be missing justify, copy and new
+cells while editing happened to work. The bars are one bar too: `stack_chunks` is
+`hint_chunks` with the toggle renamed and moved to the head.
+
+## The map file, the config file
+
+Anything that decides how a map *looks* goes in the map file: tree, text, marks,
+folds, spacing, layout, colouring, the cut stack, and the width the map was last
+justified to (`justify`). Anything about how the *editor* behaves goes in the rc file
+(`autosave`, `marks`, `justify_width_default`, chord overrides). The rc file is read
+through `parse(text, known)`: a name that is not a setting and not a binding id, or a
+value that is not a chord (`is_chord`), is a leftover and is dropped, so a stale line
+cannot silently rebind a key and cannot be written back.
+
 ## Traps
 
 - `App.clipboard` already exists (Textual's OSC 52 bridge) — shadowing it raises at

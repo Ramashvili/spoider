@@ -139,8 +139,13 @@ class MindMap:
         layout: str = DEFAULT_LAYOUT,
         cut_stack: list[Node] | None = None,
         colours: str = DEFAULT_COLOURS,
+        justify: int | None = None,
     ) -> None:
         self.root = root if root is not None else Node(clean_text(DEFAULT_ROOT_TEXT))
+        #: The width this map was last justified to, or None before the first
+        #: justify. Document state: the same file reflows the same way wherever it
+        #: is opened, and the config only offers a default to start from.
+        self.justify = justify
         #: How the cells are coloured: `depth` gives every level one colour, `family`
         #: gives every branch under the root one colour for its whole subtree.
         self.colours = colours if colours in COLOURS else DEFAULT_COLOURS
@@ -359,6 +364,7 @@ class MindMap:
             "spacing": self.spacing,
             "layout": self.layout,
             "colours": self.colours,
+            **({"justify": self.justify} if self.justify else {}),
             "root": self.root.to_dict(),
             "cut": [node.to_dict() for node in self.cut_stack],
         }
@@ -384,12 +390,16 @@ class MindMap:
                 if built is not None:
                     cut.append(built)
         colours = data.get("colours")
+        justify = data.get("justify")
+        if not isinstance(justify, int) or isinstance(justify, bool) or not 1 <= justify <= 4000:
+            justify = None
         return cls(
             root,
             spacing,
             layout if isinstance(layout, str) else DEFAULT_LAYOUT,
             cut,
             colours if isinstance(colours, str) else DEFAULT_COLOURS,
+            justify,
         )
 
     def save(self, path: Path) -> None:

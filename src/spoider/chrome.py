@@ -112,6 +112,9 @@ def hint_chunks(
     bindings: Iterable,
     skip: frozenset[str] = frozenset(),
     keymap: dict[str, str] | None = None,
+    *,
+    rename: dict[str, str] | None = None,
+    first: str | None = None,
 ) -> list[Text]:
     """`skip` drops whole actions from the bar — autosave hides ^S, for instance.
     `keymap` holds the chords in force after the config has had its say."""
@@ -123,13 +126,16 @@ def hint_chunks(
         if not isinstance(binding, Binding) or not binding.show or binding.action in skip:
             continue
         key = keymap.get(binding.id or "", binding.key) or binding.key
-        shown.append((binding.id or "", entry(key, binding.description)))
+        label = (rename or {}).get(binding.action, binding.description)
+        shown.append((binding.id or "", entry(key, label)))
 
     def rank(pair: tuple[str, Text]) -> int:
         # anything missing from the ranking goes after it, in binding order
         return BAR_ORDER.index(pair[0]) if pair[0] in BAR_ORDER else len(BAR_ORDER)
 
     shown.sort(key=rank)
+    if first is not None:  # stable: the rest keep their ranking
+        shown.sort(key=lambda pair: 0 if pair[0] == first else 1)
     return [chunk for _, chunk in shown]
 
 
@@ -217,34 +223,15 @@ def help_chunks() -> list[Text]:
 
 
 def stack_chunks(bindings: Iterable, keymap: dict[str, str] | None = None) -> list[Text]:
-    """The bar while the cut stack has the keys.
+    """The bar while the cut stack has the keys: the map's own bar.
 
-    A key keeps its name and its chord wherever it is used: the words come from the
-    binding table and the chords from the keymap, so `^K` says "cut" here because
-    it says "cut" there. Hiding the panel comes first — it is the one thing a
-    reader who is stuck needs to find.
+    The panel is the map with one difference, so its bar is the map's, with the key
+    that closes it saying "hide stack" instead of "show stack" and standing first,
+    because it is the one a reader who is stuck needs to find.
     """
-    from textual.binding import Binding
-
-    keymap = keymap or {}
-    labels: dict[str, str] = {}
-    chords: dict[str, str] = {}
-    for binding in bindings:
-        if not isinstance(binding, Binding) or not binding.action:
-            continue
-        labels.setdefault(binding.action, binding.description)
-        if binding.id:
-            chords.setdefault(binding.action, keymap.get(binding.id, binding.key) or binding.key)
-
-    # The panel's own ranking: the work it exists for first (cut, paste, drop),
-    # then naming and growing cuts, then the rest. The words and chords are still
-    # the map's, so a key is called the same thing in both bars.
-    wanted = ("cut", "paste", "delete", "edit", "add_child", "add_sibling", "justify", "undo", "mark")
-    chunks = [entry("^I", "hide stack", literal=True), entry("↑↓←→", "move", literal=True)]
-    for action in wanted:
-        if action in chords:
-            chunks.append(entry(chords[action], labels.get(action, action)))
-    return chunks
+    return hint_chunks(
+        bindings, keymap=keymap, rename={"toggle_stack": "hide stack"}, first="toggle_stack"
+    )
 
 
 def settings_chunks() -> list[Text]:
