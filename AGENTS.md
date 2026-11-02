@@ -106,6 +106,17 @@ through `parse(text, known)`: a name that is not a setting and not a binding id,
 value that is not a chord (`is_chord`), is a leftover and is dropped, so a stale line
 cannot silently rebind a key and cannot be written back.
 
+## Tests
+
+`uv run pytest` runs with `-n auto` (pytest-xdist): one test drives one app through its
+message loop, so the suite waits as much as it computes and separate processes keep the
+cores busy. `-n 0` runs serially, for a debugger or readable failures. On a six-core
+machine `-n 12` is faster still than `-n auto`, because the waiting is what dominates;
+the default stays portable.
+
+Each test gets its own `XDG_CONFIG_HOME` from the autouse fixture in `conftest.py`, so
+the suite neither reads nor writes the real `~/.config/spoider/config.conf`.
+
 ## Traps
 
 - `App.clipboard` already exists (Textual's OSC 52 bridge) — shadowing it raises at
