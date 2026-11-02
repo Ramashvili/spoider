@@ -30,7 +30,7 @@ from .editing import Buffer, reflow
 from .layout import MAX_SPACING, MIN_SPACING, compute_stack, label
 from .model import LAYOUTS, MapFileError, MindMap, Node, marks_of
 from .screens import help_text, settings_text
-from .text import clean, find_all
+from .text import clean, find_all, one_line
 from .widgets import MindMapView, TopBar
 
 # No colours here on purpose: the app runs on Textual's ansi theme, so every
@@ -433,9 +433,15 @@ class SpoiderApp(App[None]):
     ) -> None:
         """A toast is written straight to the terminal, and some of what goes into
         one is untrusted — a file name, a cell's text, a parse error quoting the
-        file. Clean it here so no call site has to remember."""
+        file. Clean it here so no call site has to remember, and flatten it: a toast
+        is one row, so the line break in a cell's text becomes a space instead of
+        joining two words."""
         super().notify(
-            clean(message), title=clean(title), severity=severity, timeout=timeout, markup=markup
+            one_line(message),
+            title=one_line(title),
+            severity=severity,
+            timeout=timeout,
+            markup=markup,
         )
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
