@@ -6,7 +6,7 @@ look the same everywhere; how the *editor* behaves lives here.
 
 ```
 autosave = false
-marks = ✅ ❌ ❓ ❗ 🕐
+marks = ⭐ 💡 ❓ ⚠️ ✅ 📌 ⌛ 🤡
 
 # add a child and type its name
 # add_child = tab

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from spoider.model import MindMap, Node
+from spoider.model import MARKS, MindMap, Node
 
 
 def test_add_child_and_sibling():
@@ -79,7 +79,7 @@ def test_marks_roundtrip_through_json():
     mm.cycle_mark(node.id)
 
     clone = MindMap.from_dict(mm.to_dict())
-    assert clone.find(node.id).mark == "✅"
+    assert clone.find(node.id).mark == MARKS[0]
 
     assert MindMap().root.mark is None
 

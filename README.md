@@ -144,7 +144,7 @@ comments, every chord listed and commented out until you want it.
 
 ```
 autosave = false
-marks = ✅ ❌ ❓ ❔ 🕐
+marks = ⭐ 💡 ❓ ⚠️ ✅ 📌 ⌛ 🤡
 justify_width_default = 66
 
 # save = ctrl+w

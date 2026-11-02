@@ -568,7 +568,7 @@ async def test_marks_survive_a_write(tmp_path: Path):
         await pilot.press("ctrl+s")
         await pilot.pause()
 
-    assert SpoiderApp(path).mm.find(node.id).mark == "✅"
+    assert SpoiderApp(path).mm.find(node.id).mark == "⭐"
 
 
 async def test_spacing_keys_resize_the_canvas(tmp_path: Path):
@@ -759,7 +759,7 @@ def test_config_is_a_flat_rc_file_with_every_key_prefilled(tmp_path: Path):
 
     assert "{" not in text and "}" not in text and "[" not in text  # no JSON, no sections
     assert "autosave = false" in text
-    assert "marks = ✅ ❌ ❓ ❗ 🕐" in text  # space separated, no quotes
+    assert "marks = ⭐ 💡 ❓ ⚠️ ✅ 📌 ⌛ 🤡" in text  # space separated, no quotes
     assert "# add_child = tab" in text  # prefilled, but switched off
 
     config = load_config(path)
@@ -2274,8 +2274,8 @@ async def test_one_mark_press_marks_the_whole_run(tmp_path: Path):
         await pilot.press("m")
         await pilot.pause()
 
-        assert app.marks[0] == "✅"
-        assert a.mark == b.mark == "✅"
+        assert app.marks[0] == "⭐"
+        assert a.mark == b.mark == "⭐"
         assert c.mark is None
 
 

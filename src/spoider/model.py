@@ -15,7 +15,7 @@ DEFAULT_ROOT_TEXT = "Mind map"
 
 #: The default set ^G cycles through, in press order. The editor can replace it;
 #: see spoider.config. "None" always comes first so the cycle can end.
-MARKS = ("✅", "❌", "❓", "❗", "🕐")
+MARKS = ('⭐', '💡', '❓', '⚠️', '✅', '📌', '⌛', '🤡')
 
 #: A map nested deeper than this is either a mistake or an attack: the loader is
 #: recursive, so an unbounded document would exhaust the stack (RecursionError).

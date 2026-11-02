@@ -1556,7 +1556,7 @@ class SpoiderApp(App[None]):
         self._open_settings()
 
     def action_mark(self) -> None:
-        """g — cycle the mark: none, ✅, ❌, ❓, ❗, 🕐, none.
+        """m — cycle the mark: none, ⭐, 💡, ❓, ⚠️, ✅, 📌, ⌛, 🤡, none.
 
         A run of cells all take the mark the first one was about to show, so one
         press gives them one meaning instead of a spectrum.

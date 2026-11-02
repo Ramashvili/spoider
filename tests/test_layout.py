@@ -90,7 +90,7 @@ def test_mark_prefixes_the_label_and_widens_the_box():
     plain_width = box_width(node)
 
     mm.cycle_mark(node.id)
-    assert label(node) == "✅ task"
+    assert label(node) == "⭐ task"  # the first mark of the palette
     assert box_width(node) > plain_width  # emoji + space take cells
 
     layout = compute(mm.root)
@@ -100,7 +100,7 @@ def test_mark_prefixes_the_label_and_widens_the_box():
         for (x, y), (char, _) in sorted(grid.cells.items())
         if y == layout.box(node.id).y + 1
     )
-    assert "✅" in row and "task" in row
+    assert "⭐" in row and "task" in row
 
 
 def test_grid_draws_boxes_and_links():
