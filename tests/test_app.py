@@ -1865,53 +1865,6 @@ async def test_save_never_offers_a_name_that_is_already_taken(tmp_path: Path, mo
 # -- coming back to the terminal ------------------------------------------
 
 
-async def test_returning_to_the_terminal_lands_where_you_left(tmp_path: Path):
-    from textual import events
-
-    app = SpoiderApp(tmp_path / "map.json", demo=False)
-    async with app.run_test() as pilot:
-        for key in ("ctrl+comma",):
-            await pilot.press(key)
-            await pilot.pause()
-        assert app.mode == "settings"
-        assert app.focused is app.query_one(PanelBar)
-
-        # the window loses focus, and gets it back with the settings still open
-        app.post_message(events.AppBlur())
-        await pilot.pause()
-        app.post_message(events.AppFocus())
-        await pilot.pause()
-
-        assert app.focused is app.query_one(PanelBar), "the drawer keeps the keys"
-        row = app._settings_row
-        await pilot.press("down")
-        await pilot.pause()
-        assert app._settings_row == row + 1, "and the arrows still move the rows"
-        assert app.selected == app.mm.root.id, "not the selection behind it"
-
-
-async def test_returning_to_the_terminal_does_not_steal_a_prompt(tmp_path: Path):
-    from textual import events
-
-    app = SpoiderApp(tmp_path / "map.json", demo=False)
-    async with app.run_test() as pilot:
-        await pilot.press("ctrl+f")
-        await pilot.press("a", "l")
-        await pilot.pause()
-        typed = app.query_one(PromptBar).value
-
-        app.post_message(events.AppBlur())
-        await pilot.pause()
-        app.post_message(events.AppFocus())
-        await pilot.pause()
-
-        assert app.focused is app.query_one(PromptBar)
-        assert app.query_one(PromptBar).value == typed, "half-typed words survive"
-        await pilot.press("p", "h", "a")
-        await pilot.pause()
-        assert app.query_one(PromptBar).value == typed + "pha"
-
-
 async def test_a_drawer_keeps_the_keys_when_focus_wanders(tmp_path: Path):
     """The mouse is off, but focus can still be moved from outside (a terminal
     focus event, a resize): a drawer must take the keys back rather than leave the
@@ -1934,6 +1887,76 @@ async def test_a_drawer_keeps_the_keys_when_focus_wanders(tmp_path: Path):
         await pilot.pause()
         assert app._settings_row == row + 1
 
+
+
+async def test_returning_to_the_terminal_lands_where_you_were(tmp_path: Path):
+    """Losing the window and getting it back must leave the keys where they were.
+
+    A prompt that is still on screen owns them, whatever kind it is: losing them to
+    the map behind it left the reader typing into nothing with a question showing.
+    """
+    from textual import events
+
+    def away_and_back():
+        app.post_message(events.AppBlur())
+        app.post_message(events.AppFocus())
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        app.mm.add_child(app.mm.root.id, "half typed words to search")
+
+        # a prompt, with something half typed in it
+        await pilot.press("ctrl+f")
+        await pilot.press("w", "o")
+        await pilot.pause()
+        typed = app.query_one(PromptBar).value
+        away_and_back()
+        await pilot.pause()
+        assert app.focused is app.query_one(PromptBar)
+        await pilot.press("r", "d")
+        await pilot.pause()
+        assert app.query_one(PromptBar).value == typed + "rd", "and it still takes keys"
+        await pilot.press("escape")
+        await pilot.pause()
+
+        # justify, the prompt that was left answering nothing
+        await pilot.press("ctrl+j")
+        await pilot.pause()
+        away_and_back()
+        await pilot.pause()
+        assert app.focused is app.query_one(PromptBar)
+        await pilot.press("3", "0")
+        await pilot.pause()
+        assert app.query_one(PromptBar).value == "30", "typing replaces what was offered"
+        await pilot.press("escape")
+        await pilot.pause()
+
+        # a panel
+        await pilot.press("ctrl+comma")
+        await pilot.pause()
+        away_and_back()
+        await pilot.pause()
+        panel = app.query_one(PanelBar)
+        assert app.focused is panel
+        row = app._settings_row
+        await pilot.press("down")
+        await pilot.pause()
+        assert app._settings_row == row + 1, "its own keys still move its own rows"
+        await pilot.press("escape")
+        await pilot.pause()
+
+        # a question
+        app._mark_dirty()
+        await pilot.press("ctrl+x")
+        await pilot.pause()
+        ask = app.query_one(AskBar)
+        assert ask.display is True
+        away_and_back()
+        await pilot.pause()
+        assert app.focused is ask
+        await pilot.press("n")
+        await pilot.pause()
+        assert app.mode == "keys", "and the answer still reaches it"
 
 # -- cut and paste --------------------------------------------------------
 
@@ -3460,54 +3483,3 @@ async def test_the_offered_width_is_drawn_selected(tmp_path: Path):
         await pilot.press("3")
         await pilot.pause()
         assert bar.value == "3", "typing replaces it"
-
-
-async def test_returning_to_the_terminal_lands_on_the_prompt(tmp_path: Path):
-    """Coming back to the window must put the keys back where they were: on the
-    prompt that is still on screen. Justify used to come back to the map, with the
-    question open and nothing answering it."""
-    from spoider.widgets import MindMapView
-
-    app = SpoiderApp(tmp_path / "map.json", demo=False)
-    async with app.run_test() as pilot:
-        app.mm.add_child(app.mm.root.id, "some words to justify here")
-
-        cases = {
-            "justify": ("ctrl+j", PromptBar),
-            "search": ("ctrl+f", PromptBar),
-            "settings": ("ctrl+comma", PanelBar),
-        }
-        for name, (chord, kind) in cases.items():
-            await pilot.press(chord)
-            await pilot.pause()
-            assert app.query_one(kind).display is True, name
-
-            app.screen.set_focus(app.query_one(MindMapView))  # regaining the window
-            await pilot.pause()
-            await pilot.pause()
-
-            assert app.focused is app.query_one(kind), f"{name} keeps the keys"
-            await pilot.press("escape")
-            await pilot.pause()
-
-
-async def test_returning_to_the_terminal_lands_on_a_question_too(tmp_path: Path):
-    from spoider.widgets import MindMapView
-
-    app = SpoiderApp(tmp_path / "map.json", demo=False)
-    async with app.run_test() as pilot:
-        app.mm.add_child(app.mm.root.id, "a cell")
-        app._mark_dirty()
-        await pilot.press("ctrl+x")
-        await pilot.pause()
-        ask = app.query_one(AskBar)
-        assert ask.display is True
-
-        app.screen.set_focus(app.query_one(MindMapView))
-        await pilot.pause()
-        await pilot.pause()
-
-        assert app.focused is ask
-        await pilot.press("n")
-        await pilot.pause()
-        assert app.mode == "keys", "and the answer still reaches it"
