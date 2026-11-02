@@ -2,6 +2,7 @@
   "version": 1,
   "spacing": -1,
   "layout": "spider",
+  "colours": "family",
   "root": {
     "id": "37df30253785",
     "text": "spoider",
@@ -283,7 +284,7 @@
       {
         "id": "44204f38a813",
         "text": "inside the stack",
-        "collapsed": true,
+        "collapsed": false,
         "mark": null,
         "children": [
           {
@@ -312,7 +313,7 @@
       {
         "id": "5b57bf8da1e8",
         "text": "keeping it",
-        "collapsed": true,
+        "collapsed": false,
         "mark": null,
         "children": [
           {
@@ -341,7 +342,7 @@
       {
         "id": "9dc900fc4ec7",
         "text": "reading this",
-        "collapsed": true,
+        "collapsed": false,
         "mark": null,
         "children": [
           {

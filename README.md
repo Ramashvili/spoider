@@ -10,6 +10,10 @@ terminal. The map is a plain JSON file you can read, diff and version.
  ╰─────────────╯      ╰──────╯      ╰─────────╯      ╰────────╯      ╰─────────────────╯
 ```
 
+Ninety-six seconds of it in use: [media/spoider-tour.mp4](media/spoider-tour.mp4) — a
+map built cell by cell, marks and folds, both colourings, cutting and pasting through
+the LIFO stack, the help screen, all four shapes, and a recipe in the bush.
+
 ## Install
 
 ```bash
