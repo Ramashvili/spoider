@@ -1818,7 +1818,7 @@ async def test_the_quit_question_is_a_line_not_a_dialog(tmp_path: Path):
 
 def test_without_a_file_spoider_starts_a_new_buffer(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-    default = tmp_path / "data" / "spoider" / "map.json"
+    default = tmp_path / "data" / "spoider" / "map.spoider"
     default.parent.mkdir(parents=True)
     default.write_text(json.dumps({"version": 1, "root": {"text": "last time"}}))
 
@@ -1853,7 +1853,7 @@ async def test_save_asks_for_a_name_when_the_buffer_has_none(tmp_path: Path, mon
 
         assert app.mode == "write", "there is no file to save over"
         prompt = app.query_one(PromptBar)
-        offered = tmp_path / "data" / "spoider" / "map.json"
+        offered = tmp_path / "data" / "spoider" / "map.spoider"
         assert prompt.value == str(offered), "the default place is offered, not used"
 
         await pilot.press("enter")
@@ -1884,7 +1884,7 @@ def test_the_demo_map_is_something_you_ask_for():
 
 async def test_save_never_offers_a_name_that_is_already_taken(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-    default = tmp_path / "data" / "spoider" / "map.json"
+    default = tmp_path / "data" / "spoider" / "map.spoider"
     default.parent.mkdir(parents=True)
     existing = json.dumps({"version": 1, "root": {"text": "someone else's map"}})
     default.write_text(existing)
@@ -3688,3 +3688,27 @@ async def test_the_vim_block_works_when_uncommented(tmp_path: Path):
         await pilot.press("i")
         await pilot.pause()
         assert app.editing is True, "i renames"
+
+
+def test_a_map_names_itself(tmp_path: Path):
+    """`.spoider` is what a map is called, so a file in a folder says what it is."""
+    from spoider.app import default_path
+
+    assert default_path().name == "map.spoider"
+    assert default_path().parent.name == "spoider"
+
+
+def test_the_packaging_tells_the_desktop_what_a_map_is():
+    """The MIME type and the desktop entry are what make double-click work; they are
+    kept honest by reading them rather than copying their contents here."""
+    from pathlib import Path as Pathlib
+
+    root = Pathlib(__file__).resolve().parent.parent
+    mime = (root / "packaging" / "x-spoider.xml").read_text()
+    desktop = (root / "packaging" / "spoider.desktop").read_text()
+
+    assert '<mime-type type="application/x-spoider">' in mime
+    assert '<glob pattern="*.spoider"/>' in mime
+    assert "MimeType=application/x-spoider;" in desktop
+    assert "Exec=spoider %f" in desktop, "the map is handed to the editor"
+    assert "Terminal=true" in desktop, "spoider is a terminal program"

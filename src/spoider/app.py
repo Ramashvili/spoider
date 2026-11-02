@@ -1850,7 +1850,7 @@ def _standing_after(parent: Node, index: int) -> str:
 def default_path() -> Path:
     base = os.environ.get("XDG_DATA_HOME")
     root = Path(base) if base else Path.home() / ".local" / "share"
-    return root / "spoider" / "map.json"
+    return root / "spoider" / "map.spoider"
 
 
 def main(argv: list[str] | None = None) -> None:

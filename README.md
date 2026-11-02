@@ -41,11 +41,28 @@ uv sync && uv run spoider
 Python 3.11 or newer; uv will fetch one if you have none. Upgrade a tool install
 with `uv tool upgrade spoider`.
 
+### Opening a map by double-click
+
+A map is a `.spoider` file. To have the desktop hand it to the editor, install the two
+files from a clone and tell the system about the type:
+
+```bash
+install -Dm644 packaging/x-spoider.xml ~/.local/share/mime/packages/x-spoider.xml
+install -Dm644 packaging/spoider.desktop ~/.local/share/applications/spoider.desktop
+update-mime-database ~/.local/share/mime
+update-desktop-database ~/.local/share/applications
+xdg-mime default spoider.desktop application/x-spoider
+```
+
+`gio info map.spoider` should then report `application/x-spoider`, and a file manager
+shows the map with the editor's name on it. This needs `spoider` on `PATH`, which the
+`uv tool install` above takes care of.
+
 ## Run
 
 ```bash
 spoider                # a new, empty map
-spoider ideas.json     # open that map, or start one there
+spoider ideas.spoider   # open that map, or start one there
 spoider --demo         # the manual, as a map
 ```
 

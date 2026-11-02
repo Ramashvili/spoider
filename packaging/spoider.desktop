@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=spoider
+GenericName=Mind map editor
+Comment=A mind map in the terminal
+Exec=spoider %f
+Terminal=true
+Categories=Office;TextEditor;Utility;
+MimeType=application/x-spoider;

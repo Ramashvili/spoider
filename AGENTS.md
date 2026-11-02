@@ -109,6 +109,13 @@ through `parse(text, known)`: a name that is not a setting and not a binding id,
 value that is not a chord (`is_chord`), is a leftover and is dropped, so a stale line
 cannot silently rebind a key and cannot be written back.
 
+## Maps are `.spoider` files
+
+Content stays plain JSON — strict, round-trips exactly, one parser — and the extension is
+only the label that says what the JSON is. `packaging/` holds the MIME type and the
+desktop entry that make double-click work; the app itself never looks at an extension,
+so any path opens. Import and export in other formats are separate jobs from the file.
+
 ## Tests
 
 `uv run pytest` runs twelve at a time (pytest-xdist): one test drives one app through
