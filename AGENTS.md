@@ -87,6 +87,11 @@ stashes the map's pair and closing puts it back. `selected_ids` reads the run fr
 the map and inside a cut, and the panel draws the run through the same `build_grid`.
 Anything that reaches for `self.mm` instead of `self.document` is a bug in the panel.
 
+`_drawer_owner` answers "who holds the keys" by asking which drawer is *displayed*,
+never by matching mode names: a new prompt mode keeps the keys on return without anyone
+remembering to list it, which is how `justify` came to be left open with the map taking
+its keys after the terminal regained focus.
+
 The mouse is deliberately off (`run(mouse=False)` and no click handlers): a click that
 moved focus away from a drawer left the reader typing into the map with a question on
 screen, and terminal-native selection is worth more than click-to-select.

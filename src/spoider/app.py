@@ -340,13 +340,17 @@ class SpoiderApp(App[None]):
             self.call_later(owner.focus)
 
     def _drawer_owner(self):
-        """The widget that must hold the keys for the current mode, if any."""
-        if self._mode in ("search", "write", "marks"):
-            return self.query_one(PromptBar)
-        if self._mode == "ask":
-            return self.query_one(AskBar)
-        if self._mode in ("settings", "help"):
-            return self.query_one(PanelBar)
+        """The widget that must hold the keys: whatever prompt is on screen.
+
+        Reading the widget rather than a list of mode names is the point. A mode
+        added later — justify was one — keeps the keys on return without anyone
+        remembering to add it here, which is how a prompt came to be left open with
+        the map taking its keys.
+        """
+        for kind in (PromptBar, AskBar, PanelBar):
+            drawer = self.query_one(kind)
+            if drawer.display:
+                return drawer
         return None
 
     def _restore_focus(self) -> None:

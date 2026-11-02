@@ -3460,3 +3460,54 @@ async def test_the_offered_width_is_drawn_selected(tmp_path: Path):
         await pilot.press("3")
         await pilot.pause()
         assert bar.value == "3", "typing replaces it"
+
+
+async def test_returning_to_the_terminal_lands_on_the_prompt(tmp_path: Path):
+    """Coming back to the window must put the keys back where they were: on the
+    prompt that is still on screen. Justify used to come back to the map, with the
+    question open and nothing answering it."""
+    from spoider.widgets import MindMapView
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        app.mm.add_child(app.mm.root.id, "some words to justify here")
+
+        cases = {
+            "justify": ("ctrl+j", PromptBar),
+            "search": ("ctrl+f", PromptBar),
+            "settings": ("ctrl+comma", PanelBar),
+        }
+        for name, (chord, kind) in cases.items():
+            await pilot.press(chord)
+            await pilot.pause()
+            assert app.query_one(kind).display is True, name
+
+            app.screen.set_focus(app.query_one(MindMapView))  # regaining the window
+            await pilot.pause()
+            await pilot.pause()
+
+            assert app.focused is app.query_one(kind), f"{name} keeps the keys"
+            await pilot.press("escape")
+            await pilot.pause()
+
+
+async def test_returning_to_the_terminal_lands_on_a_question_too(tmp_path: Path):
+    from spoider.widgets import MindMapView
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        app.mm.add_child(app.mm.root.id, "a cell")
+        app._mark_dirty()
+        await pilot.press("ctrl+x")
+        await pilot.pause()
+        ask = app.query_one(AskBar)
+        assert ask.display is True
+
+        app.screen.set_focus(app.query_one(MindMapView))
+        await pilot.pause()
+        await pilot.pause()
+
+        assert app.focused is ask
+        await pilot.press("n")
+        await pilot.pause()
+        assert app.mode == "keys", "and the answer still reaches it"
