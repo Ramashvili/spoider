@@ -248,7 +248,7 @@ def test_a_file_without_a_stack_loads_with_an_empty_one(tmp_path):
 
 def test_the_colouring_is_document_state(tmp_path):
     mm = MindMap()
-    assert mm.colours == "depth", "depth is what a map has always meant"
+    assert mm.colours == "family", "a new map is coloured by branch"
     mm.colours = "family"
     path = tmp_path / "map.json"
     mm.save(path)
@@ -256,4 +256,4 @@ def test_the_colouring_is_document_state(tmp_path):
 
     # a colouring this build does not know falls back rather than raising
     data = mm.to_dict() | {"colours": "sparkle"}
-    assert MindMap.from_dict(data).colours == "depth"
+    assert MindMap.from_dict(data).colours == "family"

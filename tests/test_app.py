@@ -2959,17 +2959,17 @@ async def test_c_cycles_the_colouring_and_says_so(tmp_path: Path):
 
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(notifications=True) as pilot:
+        assert app.mm.colours == "family"
+
+        await pilot.press("c")
+        await pilot.pause()
         assert app.mm.colours == "depth"
+        assert app.dirty is True, "the colouring is written into the map"
+        assert "depth" in str(app.query(Toast).last().render())
 
         await pilot.press("c")
         await pilot.pause()
         assert app.mm.colours == "family"
-        assert app.dirty is True, "the colouring is written into the map"
-        assert "family" in str(app.query(Toast).last().render())
-
-        await pilot.press("c")
-        await pilot.pause()
-        assert app.mm.colours == "depth"
 
 
 async def test_the_colouring_shows_in_the_help_and_the_bar(tmp_path: Path):
@@ -3361,10 +3361,10 @@ async def test_the_rest_of_the_bar_works_inside_the_panel(tmp_path: Path):
 
         await pilot.press("c")  # colouring
         await pilot.pause()
-        assert app.mm.colours == "family"
+        assert app.mm.colours == "depth"
         await pilot.press("c")
         await pilot.pause()
-        assert app.mm.colours == "depth"
+        assert app.mm.colours == "family"
 
         await pilot.press("ctrl+l")  # shape
         await pilot.pause()

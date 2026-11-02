@@ -118,12 +118,12 @@ the file.
 | `bush` | at the bottom | grow upwards |
 | `branch` | at the left margin | hang to the right, like a contents page |
 
-`c` switches how the cells are coloured. By **depth**, every level wears one colour
-and a row of the map matches all the way across. By **family**, every branch under
-the root wears one colour for its whole subtree: the cells under `canvas` agree
-whatever their depth, and cells at the same depth under different branches do not.
-The root and the first level look the same either way, and the choice is saved in
-the file with the shape and the spacing.
+`c` switches how the cells are coloured. By **family**, which is how a new map
+starts, every branch under the root wears one colour for its whole subtree: the cells
+under `canvas` agree whatever their depth, and cells at the same depth under different
+branches do not. By **depth**, every level wears one colour and a row of the map
+matches all the way across. The root and the first level look the same either way, and
+the choice is saved in the file with the shape and the spacing.
 
 ## Cutting and pasting
 

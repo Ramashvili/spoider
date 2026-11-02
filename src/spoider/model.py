@@ -27,7 +27,7 @@ LAYOUTS = ("spider", "pyramid", "bush", "branch")
 DEFAULT_LAYOUT = "spider"
 #: `depth`: one colour per level. `family`: one colour per branch under the root.
 COLOURS = ("depth", "family")
-DEFAULT_COLOURS = "depth"
+DEFAULT_COLOURS = "family"
 
 
 class MapFileError(Exception):

@@ -11,6 +11,7 @@ from rich.text import Text
 
 from .chrome import CARET_STYLE
 from .layout import DOWN, PAD, RIGHT, UP, Layout, Placed, caret_pos, lines_of, selection_span
+from .model import DEFAULT_COLOURS
 from .text import find_all
 
 R, D, L, U = 1, 2, 4, 8
@@ -137,7 +138,7 @@ def build_grid(
     query: str = "",
     *,
     lead: str | None = None,
-    colours: str = "depth",
+    colours: str = DEFAULT_COLOURS,
 ) -> Grid:
     """`selected` is one id or a whole run of them; `lead` is the one the cursor
     is on, which is only worth marking when the run is longer than one."""

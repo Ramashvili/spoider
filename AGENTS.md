@@ -98,6 +98,9 @@ screen, and terminal-native selection is worth more than click-to-select.
 
 ## The map file, the config file
 
+A new map is coloured by family (`DEFAULT_COLOURS` in `model.py`); depth is the other
+choice and the key cycles between them, saving the choice in the file.
+
 Anything that decides how a map *looks* goes in the map file: tree, text, marks,
 folds, spacing, layout, colouring, the cut stack, and the width the map was last
 justified to (`justify`). Anything about how the *editor* behaves goes in the rc file
