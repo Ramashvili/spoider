@@ -58,7 +58,7 @@ name when there is none, `^O` writes a copy, `^X` asks before throwing edits awa
 | --- | --- |
 | `Tab` | add a child and type its name |
 | `Return` | add a sibling and type its name |
-| `e` | rename the selected cell |
+| `e` | rename the selected cell, on the canvas |
 | `^D` | delete the branch |
 | `m` | cycle the cell's mark |
 | `t` | fold or unfold the branch |
@@ -69,6 +69,7 @@ name when there is none, `^O` writes a copy, `^X` asks before throwing edits awa
 | `shift` + sibling arrow | select a run of siblings |
 | `alt` + `↑` `↓` | move the cell among its siblings |
 | `=` `-` | more or less air between cells |
+| `^J` | justify the selected cell's text to a width you type |
 | `^F` | search |
 | `^L` | change the shape of the map |
 | `c` | colour by depth, or by branch |
@@ -79,6 +80,23 @@ name when there is none, `^O` writes a copy, `^X` asks before throwing edits awa
 
 `^/` has the whole list with a line of explanation, and the bar at the bottom
 always shows the keys that work where you are.
+
+## Writing in a cell
+
+A cell holds as many lines as you give it, and the box grows with them; the widest
+line decides how wide it is. `Tab` or `e` starts typing, `Return` finishes, and
+`Shift+Return` starts a new line. Inside the cell the usual editing keys work: arrows
+and `Home`/`End` (with `Ctrl` for the whole text), `Backspace`/`Del` at a line end join
+lines, `Alt+Backspace` and `Alt+Delete` eat whole words, `Insert` switches to
+overwriting the character under the caret, and `Shift` with an arrow selects text,
+which `^K` cuts and `M-6` copies to the clipboard; `^U` pastes.
+
+`^J` justifies: it asks for a width, remembers the answer, and reflows the cell one
+paragraph at a time, a blank line keeping paragraphs apart. It works on the selected
+cell from the map as well as while you are typing in it.
+
+Two of those keys need a terminal that speaks the kitty keyboard protocol, `Shift+Return`
+and `^J`; a plain terminal sends them as `Return`, so both become "finish the cell".
 
 ## Shapes
 

@@ -10,7 +10,7 @@ from rich.cells import cell_len
 from rich.text import Text
 
 from .chrome import CARET_STYLE
-from .layout import DOWN, PAD, RIGHT, UP, Layout, Placed, caret_index, label
+from .layout import DOWN, PAD, RIGHT, UP, Layout, Placed, caret_pos, lines_of
 from .text import find_all
 
 R, D, L, U = 1, 2, 4, 8
@@ -193,15 +193,16 @@ def _draw_box(grid: Grid, box: Placed, style: str, query: str = "") -> None:
     fighting over the same cell.
     """
     left, right = box.x, box.x + box.w - 1
-    top, middle, bottom = box.y, box.y + 1, box.y + 2
+    top, bottom = box.y, box.y + box.h - 1
 
     for x in range(left + 1, right):
         grid.add_edge(x, top, L | R, style)
     grid.add_edge(left, top, R | D, style)
     grid.add_edge(right, top, L | D, style)
 
-    grid.add_edge(left, middle, U | D, style)
-    grid.add_edge(right, middle, U | D, style)
+    for y in range(top + 1, bottom):
+        grid.add_edge(left, y, U | D, style)
+        grid.add_edge(right, y, U | D, style)
 
     for x in range(left + 1, right):
         grid.add_edge(x, bottom, L | R, style)
@@ -209,15 +210,16 @@ def _draw_box(grid: Grid, box: Placed, style: str, query: str = "") -> None:
     grid.add_edge(right, bottom, L | U, style)
 
     inner = box.w - 2
-    text = label(box.node)
-    row = " " * PAD + text + " " * (inner - PAD - cell_len(text))
-    grid.put_text(left + 1, middle, row, style, _mask(row, query))
-    at = caret_index(box.node)
+    for index, text in enumerate(lines_of(box.node)):
+        row = " " * PAD + text + " " * max(0, inner - PAD - cell_len(text))
+        grid.put_text(left + 1, top + 1 + index, row, style, _mask(row, query))
+    at = caret_pos(box.node)
     if at is not None:
-        _hang_caret(grid, left + 1 + PAD + at, middle, style)
+        line, column = at
+        _hang_caret(grid, left + 1 + PAD + column, top + 1 + line, style, box.node.overwrite)
 
 
-def _hang_caret(grid: Grid, x: int, y: int, style: str) -> None:
+def _hang_caret(grid: Grid, x: int, y: int, style: str, overwrite: bool = False) -> None:
     """Invert the cell the renaming caret is over rather than giving it a column.
 
     The character stays where it is and only its colours change, so a word is never
@@ -225,7 +227,10 @@ def _hang_caret(grid: Grid, x: int, y: int, style: str) -> None:
     way a mark or a search hit is.
     """
     ch, under = grid.cells.get((x, y), (" ", style))
-    grid.put(x, y, ch, f"{under} {CARET_STYLE}".strip())
+    # In overwrite mode the caret also underlines, which survives the inversion and
+    # is the only visible difference between typing over and typing in.
+    mark = f"{CARET_STYLE} underline" if overwrite else CARET_STYLE
+    grid.put(x, y, ch, f"{under} {mark}".strip())
 
 
 def _draw_link(grid: Grid, parent: Placed, child: Placed) -> None:

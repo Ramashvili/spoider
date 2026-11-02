@@ -22,11 +22,31 @@ _UNSAFE = frozenset({"Cc", "Cs"})
 
 
 def clean(value: object) -> str:
-    """`value` as a string with control characters removed."""
+    """`value` as a string with control characters removed, line breaks included.
+
+    For anything that must stay on one line: ids, marks, file names, the top bar.
+    Cell text uses `clean_text`, which keeps the line breaks a cell may hold.
+    """
     text = value if isinstance(value, str) else str(value)
     if not any(unicodedata.category(ch) in _UNSAFE for ch in text):
         return text
     return "".join(ch for ch in text if unicodedata.category(ch) not in _UNSAFE)
+
+
+def clean_text(value: object) -> str:
+    """`value` with control characters removed, except the line break.
+
+    A cell holds more than one line now, so a newline is content. Tabs and the rest
+    are still stripped: a tab in a box would land the following text wherever the
+    terminal's tab stops happen to be, and nothing here needs that.
+    """
+    text = value if isinstance(value, str) else str(value)
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    if not any(unicodedata.category(ch) in _UNSAFE and ch != "\n" for ch in text):
+        return text
+    return "".join(
+        ch for ch in text if ch == "\n" or unicodedata.category(ch) not in _UNSAFE
+    )
 
 
 def clip_head(text: str, limit: int) -> str:

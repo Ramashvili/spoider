@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from rich.cells import cell_len
 
 from .model import DEFAULT_LAYOUT, LAYOUTS, Node
-from .text import clean
+from .text import clean, clean_text
 
 #: Columns between a box and what hangs off it, and rows between siblings.
 #: Sideways shapes need the columns: that is where the connector runs. Stacked
@@ -92,50 +92,64 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
     )
 
 
-def label(node: Node) -> str:
-    """What the cell shows. Cleaned here as well as when the file is read, so a
-    text that reached the model by any other route still cannot emit an escape."""
+def lines_of(node: Node) -> list[str]:
+    """What the cell shows, one entry per row.
+
+    A cell may hold several lines, so the box grows downwards with them; the mark
+    rides on the first line and the folded-children count on the last.
+    """
     if node.preview is not None:
-        text = clean(node.preview)
+        text = clean_text(node.preview)
     else:
-        text = clean(node.text or "").strip() or "(untitled)"
+        text = clean_text(node.text or "").strip() or "(untitled)"
         if node.children and node.collapsed:
             text = f"{text} +{len(node.children)}"
+    lines = text.split("\n")
     if node.mark:
-        text = f"{clean(node.mark)} {text}"
-    return text
+        lines[0] = f"{clean(node.mark)} {lines[0]}"
+    return lines
 
 
-def caret_index(node: Node) -> int | None:
-    """Where the renaming caret sits inside `label(node)`, in cells, or None.
-
-    The caret takes no column of its own: it hangs over the character it is on and
-    inverts it, the way nano's does, so a word is never split by a character that is
-    not in it. At the end of the text there is nothing to hang over, which is why
-    `box_width` adds a column for that one case.
-    """
-    if node.preview is None or node.caret is None:
-        return None
-    offset = cell_len(f"{clean(node.mark)} ") if node.mark else 0
-    return offset + cell_len(clean(node.preview)[: node.caret])
+def label(node: Node) -> str:
+    """The whole cell as one string: search reads this, and so does the width."""
+    return "\n".join(lines_of(node))
 
 
 def box_width(node: Node) -> int:
-    text = label(node)
-    width = cell_len(text) + 2 * PAD + 2
+    width = max((cell_len(line) for line in lines_of(node)), default=0) + 2 * PAD + 2
     if node.preview is not None:
         width += 1  # the caret's column, kept even when it hangs over a character:
         # a box that changes width as the caret moves re-centres the whole map
     return width
 
 
+def box_height(node: Node) -> int:
+    """A border, the text, and a border."""
+    return len(lines_of(node)) + 2
+
+
+def caret_pos(node: Node) -> tuple[int, int] | None:
+    """(row, column in cells) of the renaming caret, inside the box's text."""
+    if node.preview is None or node.caret is None:
+        return None
+    buffer = clean_text(node.preview)
+    caret = max(0, min(node.caret, len(buffer)))
+    line = buffer.count("\n", 0, caret)
+    start = buffer.rfind("\n", 0, caret) + 1
+    column = cell_len(buffer[start:caret])
+    if node.mark and line == 0:
+        column += cell_len(clean(node.mark)) + 1
+    return line, column
+
+
 def subtree_height(node: Node, gap_y: int = GAP_Y) -> int:
     """How tall a subtree is when its children stack vertically (side layouts)."""
+    own = box_height(node)
     if node.collapsed or not node.children:
-        return BOX_H
+        return own
     total = sum(subtree_height(child, gap_y) for child in node.children)
     total += gap_y * (len(node.children) - 1)
-    return max(BOX_H, total)
+    return max(own, total)
 
 
 @dataclass
@@ -214,7 +228,8 @@ def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout
         _place_stack(boxes, root, gaps, flow)
     else:
         root_width = box_width(root)
-        root_box = Placed(root, -root_width // 2, -(BOX_H // 2), root_width, BOX_H, 0, 1, RIGHT)
+        root_height = box_height(root)
+        root_box = Placed(root, -root_width // 2, -(root_height // 2), root_width, root_height, 0, 1, RIGHT)
         boxes[root.id] = root_box
         if root.children and not root.collapsed:
             if layout == "spider":
@@ -295,10 +310,20 @@ def _place_subtree(
 ) -> None:
     width = box_width(node)
     left = x if side > 0 else x - width
-    box = Placed(node, left, cy - BOX_H // 2, width, BOX_H, depth, side, flow)
+    height = box_height(node)
+    box = Placed(node, left, cy - height // 2, width, height, depth, side, flow)
     boxes[node.id] = box
     if node.children and not node.collapsed:
         _place_children(boxes, box, node.children, side, gaps, flow)
+
+
+def _walk(root: Node):
+    """Every node under `root`, root included, without recursion."""
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        yield node
+        stack.extend(node.children)
 
 
 def _place_stack(boxes: dict[str, Placed], root: Node, gaps: Gaps, flow: str) -> None:
@@ -314,16 +339,31 @@ def _place_stack(boxes: dict[str, Placed], root: Node, gaps: Gaps, flow: str) ->
     depths: dict[str, int] = {}
     _stack_outline(root, 0, gaps, offsets, depths)
 
-    step = BOX_H + gaps.y
+    # A level is as tall as its tallest cell, so a cell with three lines does not
+    # overlap the level below it.
+    level_height: dict[int, int] = {}
+    for node in _walk(root):
+        depth = depths.get(node.id, 0)
+        level_height[depth] = max(level_height.get(depth, 0), box_height(node))
+    top_of: dict[int, int] = {}
+    running = 0
+    for depth in range(max(level_height, default=0) + 1):
+        top_of[depth] = running
+        running += level_height.get(depth, 0) + gaps.y
+
     centres: dict[str, int] = {root.id: 0}
     pending = [root]
     while pending:
         node = pending.pop()
         centre = centres[node.id]
         width = box_width(node)
+        height = box_height(node)
         depth = depths[node.id]
-        y = depth * step if flow == DOWN else -depth * step
-        boxes[node.id] = Placed(node, centre - width // 2, y, width, BOX_H, depth, 1, flow)
+        top = top_of.get(depth, 0)
+        # Downwards, a level starts at its top; upwards, it ends at its bottom, so
+        # the cells of one row still line up with the links that join them.
+        y = top if flow == DOWN else -(top + level_height.get(depth, height))
+        boxes[node.id] = Placed(node, centre - width // 2, y, width, height, depth, 1, flow)
         for child in node.children:
             if child.id in offsets:
                 centres[child.id] = centre + offsets[child.id]

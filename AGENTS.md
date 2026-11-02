@@ -81,9 +81,12 @@ ready to move out.
   ignored, and `_restore_focus()` puts the keys back when the terminal regains focus.
 - The map draws no cursor while the stack panel is open: one cursor on screen means
   one place the keys are.
-- The caret is a style, not a character: `Node.preview` holds the plain buffer and
-  `Node.caret` an index into it, and the renderer inverts that one cell. Never insert
-  a cursor glyph into the text — it splits the word it is sitting in.
+- The caret is a style, not a character: `Node.preview` holds the plain buffer,
+  `Node.caret` an index into it and `Node.overwrite` whether it replaces or inserts.
+  The renderer inverts that one cell, underlining it in overwrite mode. Never insert a
+  cursor glyph into the text: it splits the word it is sitting in.
+- `Shift+Return` and `^J` are only separable from `Return` under the kitty keyboard
+  protocol, like `^I` and `^M`. In a plain terminal both arrive as Enter.
 
 ## Known limits
 

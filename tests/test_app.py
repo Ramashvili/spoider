@@ -46,7 +46,7 @@ def test_footer_lists_the_visible_bindings_plus_the_pinned_cluster():
     assert "⇥ child" in line and "^X quit" in line
     assert "^, settings" in line and "^/ help" in line
     assert "^Y" not in line  # redo stays out of the bar
-    assert "^A" not in line and "^J" not in line  # aliases stay off the bar
+    assert "^A" not in line  # the child alias stays off the bar
     for nav in ("^P", "^N", "^B"):
         assert nav not in line, nav
     # ^F is the search now, so it has earned its place in the bar
@@ -83,7 +83,15 @@ def test_hints_are_dropped_before_the_pinned_cluster():
 
 
 def test_help_documents_every_binding():
-    documented = {action for _, rows in HELP for actions, _ in rows for action in actions}
+    from spoider.screens import Literal
+
+    documented = {
+        action
+        for _, rows in HELP
+        for actions, _ in rows
+        if not isinstance(actions, Literal)
+        for action in actions
+    }
     bound = {binding.action for binding in BINDINGS}
     assert bound - documented == set(), f"undocumented: {sorted(bound - documented)}"
     assert documented - bound == set(), f"stale help entries: {sorted(documented - bound)}"
@@ -208,7 +216,7 @@ async def test_tab_adds_a_child_and_enter_adds_a_sibling(tmp_path: Path):
         assert [c.text for c in app.mm.root.children] == ["kid", "sib"]
 
 
-async def test_ctrl_aliases_still_add_nodes(tmp_path: Path):
+async def test_the_ctrl_alias_still_adds_a_child(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         branch = app.mm.add_child(app.mm.root.id, "branch")
@@ -220,10 +228,7 @@ async def test_ctrl_aliases_still_add_nodes(tmp_path: Path):
         assert len(app.mm.find(branch.id).children) == 1
         await pilot.press("escape")
         await pilot.pause()
-
-        await pilot.press("ctrl+j")
-        await pilot.pause()
-        assert len(app.mm.root.children) == 2
+        assert len(app.mm.find(branch.id).children) == 0, "abandoned, so it is gone"
 
 
 async def test_new_node_is_typed_into_directly(tmp_path: Path):
@@ -351,14 +356,14 @@ async def test_backspace_and_caret_moves(tmp_path: Path):
         assert app.mm.root.children[0].caret == 1
 
 
-async def test_add_sibling_on_ctrl_j(tmp_path: Path):
+async def test_add_sibling_on_enter(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         first = app.mm.add_child(app.mm.root.id, "first")
         app.select(first.id)
         app.view.refresh_map()
 
-        await pilot.press("ctrl+j")
+        await pilot.press("enter")
         await pilot.pause()
         await pilot.press("s", "e", "c", "o", "n", "d")
         await pilot.press("enter")
@@ -2924,3 +2929,153 @@ async def test_the_colouring_shows_in_the_help_and_the_bar(tmp_path: Path):
         await pilot.pause()
         assert "c colours" in str(app.query_one("#footer").render().plain)
         assert "colour by depth, or by family" in help_text(app).plain
+
+
+async def test_shift_enter_starts_a_new_line_and_enter_finishes_the_cell(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("tab")
+        await pilot.press("f", "i", "r", "s", "t")
+        await pilot.press("shift+enter")
+        await pilot.press("s", "e", "c", "o", "n", "d")
+        await pilot.pause()
+
+        cell = app.mm.root.children[0]
+        assert cell.preview == "first\nsecond", "a line break, not a commit"
+        assert app.editing is True
+
+        await pilot.press("enter")
+        await pilot.pause()
+        assert cell.text == "first\nsecond"
+        assert app.editing is False
+
+
+async def test_a_line_break_is_written_into_the_map_file(tmp_path: Path):
+    path = tmp_path / "map.json"
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("tab")
+        await pilot.press("o", "n", "e")
+        await pilot.press("shift+enter")
+        await pilot.press("t", "w", "o")
+        await pilot.press("enter")
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+
+    saved = json.loads(path.read_text())
+    assert saved["root"]["children"][0]["text"] == "one\ntwo"
+
+
+async def test_arrows_move_between_lines_and_keep_the_column(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "long line\nxy")
+        app.select(node.id)
+        await pilot.press("e")
+        await pilot.press("up", "home")  # the caret starts at the end, on line two
+        await pilot.press("right", "right", "right", "right")
+        await pilot.pause()
+        assert app._buffer.column() == 4
+
+        await pilot.press("down")
+        await pilot.pause()
+        assert app._buffer.line_number() == 1
+        assert app._buffer.column() == 2, "the short line clamps the column"
+
+        await pilot.press("up")
+        await pilot.pause()
+        assert app._buffer.column() == 4, "and the caret came back to where it was"
+
+
+async def test_alt_backspace_and_alt_d_eat_whole_words(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "alpha beta gamma")
+        app.select(node.id)
+        await pilot.press("e")
+        await pilot.pause()
+
+        await pilot.press("alt+backspace")
+        await pilot.pause()
+        assert app._buffer.text == "alpha beta "
+
+        await pilot.press("home")
+        await pilot.press("alt+d")
+        await pilot.pause()
+        assert app._buffer.text == " beta "
+
+
+async def test_insert_toggles_overwrite_and_typing_replaces(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "abc")
+        app.select(node.id)
+        await pilot.press("e")
+        await pilot.press("home")
+        await pilot.pause()
+
+        await pilot.press("insert")
+        await pilot.pause()
+        assert app._buffer.overwrite is True
+
+        await pilot.press("x")
+        await pilot.pause()
+        assert app._buffer.text == "xbc", "the character under the caret was replaced"
+
+        await pilot.press("insert")
+        await pilot.press("y")
+        await pilot.pause()
+        assert app._buffer.text.startswith("xybc"), "back to inserting"
+
+
+async def test_a_selection_is_cut_copied_and_pasted_inside_the_cell(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "alpha beta")
+        app.select(node.id)
+        await pilot.press("e")
+        await pilot.press("home")
+        await pilot.press("shift+right", "shift+right", "shift+right", "shift+right", "shift+right")
+        await pilot.pause()
+        assert app._buffer.selected_text() == "alpha"
+
+        await pilot.press("alt+6")  # copy
+        await pilot.pause()
+        assert app._text_clip == "alpha"
+
+        await pilot.press("end")
+        await pilot.press("ctrl+u")  # paste
+        await pilot.pause()
+        assert app._buffer.text == "alpha betaalpha"
+
+        await pilot.press("home")
+        await pilot.press("shift+right", "shift+right", "shift+right", "shift+right", "shift+right")
+        await pilot.press("ctrl+k")  # cut
+        await pilot.pause()
+        assert app._buffer.text == " betaalpha", "the selection went to the clipboard"
+
+
+async def test_justify_rewraps_the_cell_and_remembers_the_width(tmp_path: Path):
+    config_path = tmp_path / "config.conf"
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(
+            app.mm.root.id,
+            "one two three four five six seven eight nine ten eleven twelve",
+        )
+        app.select(node.id)
+
+        await pilot.press("ctrl+j")
+        await pilot.pause()
+        prompt = app.query_one(PromptBar)
+        assert prompt.display is True
+        assert prompt.value == "66", "the remembered width, or the default"
+
+        prompt.value = "20"
+        await pilot.press("enter")
+        await pilot.pause()
+
+        wrapped = app.mm.find(node.id).text
+        assert wrapped.count("\n") >= 1
+        assert all(len(line) <= 20 for line in wrapped.split("\n"))
+        assert load_config(config_path).justify_width == 20, "the width is remembered"

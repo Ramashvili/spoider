@@ -6,6 +6,7 @@ screen never draws its own footer and there is only ever the one bar.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from rich.cells import cell_len
@@ -20,12 +21,21 @@ if TYPE_CHECKING:
 
 
 #: (heading, ((actions, explanation), …))
-HelpRow = tuple[tuple[str, ...], str]
+#: A row is either binding ids, or literal keys for the editor (see `Literal`).
+HelpRow = tuple["tuple[str, ...] | Literal", str]
 HelpSection = tuple[str, tuple[HelpRow, ...]]
 
 # The chords are not written here: they are read from the keymap, so a rebound
 # key cannot leave the help lying. Every binding action must appear — the tests
 # enforce that in both directions.
+@dataclass(frozen=True)
+class Literal:
+    """Keys that belong to the editor rather than to a binding: they are handled
+    while a cell is being typed into, so they have no id for `keys_for` to find."""
+
+    keys: str
+
+
 HELP: tuple[HelpSection, ...] = (
     (
         "Making cells",
@@ -38,6 +48,7 @@ HELP: tuple[HelpSection, ...] = (
             (("toggle_stack",), "open the cut stack, and work inside it"),
             (("delete",), "delete the cell and everything under it"),
             (("mark",), "cycle the mark, then off (the set is in settings)"),
+            (("justify",), "reflow the cell's text to a width you type"),
             (("fold",), "fold or unfold the branch"),
         ),
     ),
@@ -83,6 +94,18 @@ HELP: tuple[HelpSection, ...] = (
         ),
     ),
     (
+        "While typing",
+        (
+            (Literal("⏎"), "done: keep the text and leave the cell"),
+            (Literal("S-⏎"), "start a new line"),
+            (Literal("^J"), "justify to a width you type; the width is remembered"),
+            (Literal("^K  M-6  ^U"), "cut, copy and paste the text"),
+            (Literal("ins"), "overwrite: typing replaces the character under the caret"),
+            (Literal("M-⌫  M-d"), "delete a word back, or forward"),
+            (Literal("S-←↑↓→"), "select text; home and end keep to the line"),
+        ),
+    ),
+    (
         "This screen",
         (
             (("help",), "this help"),
@@ -99,6 +122,8 @@ def describe_action(action: str, fallback: str = "") -> str:
     """The one-line explanation for an action, as used by the help screen."""
     for _, rows in HELP:
         for actions, explanation in rows:
+            if isinstance(actions, Literal):
+                continue
             if action in actions:
                 return explanation
     return fallback or action
@@ -145,7 +170,8 @@ def help_text(app: SpoiderApp) -> Text:
     for heading, rows in HELP:
         text.append(f"\n{heading}\n", style="bold reverse")
         for actions, explanation in rows:
-            text.append(f"  {_pad(keys_for(app, actions), 16)}", style="bold")
+            keys = actions.keys if isinstance(actions, Literal) else keys_for(app, actions)
+            text.append(f"  {_pad(keys, 16)}", style="bold")
             text.append(f"{explanation}\n")
     return text
 

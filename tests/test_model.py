@@ -109,9 +109,10 @@ def test_the_demo_says_what_a_mind_map_is_and_what_the_app_does():
     assert any("tab" in text for text in texts) and any("^F" in text for text in texts)
     assert any("^S" in text for text in texts), "and where the map goes"
 
-    # short enough to read at a glance, and one cell shows a mark rather than
-    # only talking about them
-    assert all(len(text) <= 40 for text in texts)
+    # short enough to read at a glance (a cell may hold more than one line, so it is
+    # the lines that must stay short), and one cell shows a mark rather than only
+    # talking about them
+    assert all(len(line) <= 40 for text in texts for line in text.split("\n"))
     assert any(node.mark for node in mm.nodes())
     assert 30 <= mm.count() <= 48, "a manual: long enough to cover the surface"
 

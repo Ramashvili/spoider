@@ -33,6 +33,9 @@ TRUE_WORDS = frozenset({"1", "true", "yes", "on"})
 @dataclass
 class Config:
     autosave: bool = False
+    #: What ^J asks for by default: the width last used, or this. Named apart from
+    #: the `justify` binding, which may also live in this file as a chord.
+    justify_width: int = 66
     marks: tuple[str, ...] = field(default_factory=lambda: tuple(MARKS))
     # binding id -> chord(s). Only what was actually changed; the defaults live in
     # the app, and the file shows them commented out.
@@ -67,7 +70,12 @@ def parse(text: str) -> Config:
         name, value = name.strip(), value.strip()
         if not name:
             continue
-        if name == "autosave":
+        if name == "justify_width":
+            try:
+                config.justify_width = max(10, min(int(value), 400))
+            except ValueError:
+                pass
+        elif name == "autosave":
             config.autosave = value.lower() in TRUE_WORDS
         elif name == "marks":
             marks = tuple(cleaned for token in value.split() if (cleaned := clean(token)))
@@ -98,6 +106,7 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
         "",
         f"autosave = {'true' if config.autosave else 'false'}",
         "marks = " + " ".join(config.marks),
+        f"justify_width = {config.justify_width}",
         "",
         "# Chords. Uncomment a line to change it, e.g.  save = ctrl+w",
     ]

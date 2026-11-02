@@ -52,6 +52,7 @@ BAR_ORDER: tuple[str, ...] = (
     "search",
     "edit",
     "mark",
+    "justify",
     "delete",
     "cut",
     "paste",

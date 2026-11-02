@@ -25,6 +25,7 @@ from .config import (
     write_config,
 )
 from .drawers import AskBar, PanelBar, PromptBar
+from .editing import Buffer, reflow
 from .layout import MAX_SPACING, MIN_SPACING, compute_stack, label
 from .model import LAYOUTS, MARKS, MapFileError, MindMap, Node
 from .screens import help_text, settings_text
@@ -118,7 +119,7 @@ BINDINGS: list[BindingType] = [
     Binding("tab", "add_child", "child", priority=True, id="add_child"),
     Binding("ctrl+a", "add_child", "child", show=False, id="add_child_alt"),
     Binding("enter", "add_sibling", "sib", id="add_sibling"),
-    Binding("ctrl+j", "add_sibling", "sib", show=False, id="add_sibling_alt"),
+    Binding("ctrl+j", "justify", "justify", id="justify"),
     # Five of these have earned a bare key: they are reached for constantly and
     # collide with nothing, since h/j/k/l are the only bare letters spoken for.
     Binding("e", "edit", "edit", id="edit"),
@@ -286,8 +287,12 @@ class SpoiderApp(App[None]):
         self._undo: list[dict] = []
         self._redo: list[dict] = []
         self._edit_id: str | None = None
-        self._edit_buffer = ""
-        self._edit_cursor = 0
+        self._buffer: Buffer | None = None
+        #: Text cut or copied out of a cell. Kept here as well as pushed to the
+        #: system clipboard, because reading that back needs a query a terminal may
+        #: not answer.
+        self._text_clip = ""
+        self._justify_id: str | None = None
         self._edit_fresh = False
 
     # -- composition ----------------------------------------------------
@@ -740,8 +745,7 @@ class SpoiderApp(App[None]):
             self._push_undo()
         self._edit_id = node_id
         self._edit_fresh = fresh
-        self._edit_buffer = "" if fresh else (node.text or "")
-        self._edit_cursor = len(self._edit_buffer)
+        self._buffer = Buffer("" if fresh else (node.text or ""))
         self._sync_preview()
         self._sync_footer()
 
@@ -749,8 +753,11 @@ class SpoiderApp(App[None]):
         node = self._live_node(self._edit_id) if self._edit_id else None
         if node is None:
             return
-        node.preview = self._edit_buffer
-        node.caret = self._edit_cursor
+        if self._buffer is None:
+            return
+        node.preview = self._buffer.text
+        node.caret = self._buffer.caret
+        node.overwrite = self._buffer.overwrite
         self.view.refresh_map()
 
     def _sync_footer(self) -> None:
@@ -766,9 +773,9 @@ class SpoiderApp(App[None]):
                 footer.mode = "keys"
         elif mode == "search":
             footer.mode = "search"
-        elif mode in ("write", "marks"):
+        elif mode in ("write", "marks", "justify"):
             footer.mode = "custom"
-            footer.custom = prompt_chunks("write" if mode == "write" else "save")
+            footer.custom = prompt_chunks("save" if mode == "marks" else mode)
         elif mode == "ask":
             footer.mode = "custom"
             footer.custom = ask_chunks()
@@ -825,57 +832,149 @@ class SpoiderApp(App[None]):
         self._refresh_chrome()
 
     def handle_edit_key(self, key: str, character: str | None) -> bool:
-        """Every keystroke while typing into a node. Returns True if consumed."""
-        if not self.editing:
+        """Every keystroke while typing into a cell. Returns True if consumed.
+
+        The cell is a small text editor, so these are a text editor's keys: lines,
+        a selection dragged out with shift, word deletes, an overwrite mode, cut
+        and copy through the clipboard, and ^J to reflow the text. Enter keeps its
+        meaning here, which is to finish the cell; a line break is its own key.
+        """
+        if not self.editing or self._buffer is None:
             return False
+        buffer = self._buffer
         if key in ("ctrl+slash", "ctrl+comma"):
             return False  # help and settings stay reachable mid-typing
+
         if key == "enter":
             self.finish_edit(commit=True)
-        elif key in ("escape", "ctrl+c"):
+            return True
+        if key in ("escape", "ctrl+c"):
             self.finish_edit(commit=False)
-        elif key == "backspace" and self._edit_cursor:
-            self._edit_buffer = (
-                self._edit_buffer[: self._edit_cursor - 1] + self._edit_buffer[self._edit_cursor :]
-            )
-            self._edit_cursor -= 1
-            self._sync_preview()
+            return True
+
+        base = key.removeprefix("shift+")
+        extend = base != key
+        moves = {
+            "left": buffer.left,
+            "right": buffer.right,
+            "up": buffer.up,
+            "down": buffer.down,
+            "home": buffer.home,
+            "end": buffer.end,
+            "ctrl+a": buffer.home,
+            "ctrl+e": buffer.end,
+            "ctrl+home": buffer.document_home,
+            "ctrl+end": buffer.document_end,
+        }
+        if base in moves:
+            moves[base](extend=extend)
+        elif key == "shift+enter":
+            buffer.insert("\n")
+        elif key == "backspace":
+            buffer.backspace()
         elif key == "delete":
-            self._edit_buffer = (
-                self._edit_buffer[: self._edit_cursor] + self._edit_buffer[self._edit_cursor + 1 :]
-            )
-            self._sync_preview()
-        elif key in ("left", "ctrl+b"):
-            self._edit_cursor = max(0, self._edit_cursor - 1)
-            self._sync_preview()
-        elif key in ("right", "ctrl+f"):
-            self._edit_cursor = min(len(self._edit_buffer), self._edit_cursor + 1)
-            self._sync_preview()
-        elif key in ("home", "ctrl+a"):
-            self._edit_cursor = 0
-            self._sync_preview()
-        elif key in ("end", "ctrl+e"):
-            self._edit_cursor = len(self._edit_buffer)
-            self._sync_preview()
+            buffer.delete()
+        elif key in ("alt+backspace", "ctrl+w"):
+            buffer.delete_word_before()
+        elif key == "alt+d":
+            buffer.delete_word_after()
+        elif key == "insert":
+            buffer.overwrite = not buffer.overwrite
+        elif key == "ctrl+k":
+            self._cut_or_copy(cut=True)
+        elif key == "alt+6":
+            self._cut_or_copy(cut=False)
+        elif key == "ctrl+u":
+            buffer.insert(self._text_clip)
+        elif key == "ctrl+j":
+            self.action_justify()
         elif character and character.isprintable():
-            self._edit_buffer = (
-                self._edit_buffer[: self._edit_cursor]
-                + character
-                + self._edit_buffer[self._edit_cursor :]
-            )
-            self._edit_cursor += len(character)
-            self._sync_preview()
+            buffer.insert(character)
+        self._sync_preview()
         return True
+
+    def _cut_or_copy(self, *, cut: bool) -> None:
+        """^K cuts the selection out of a cell, M-6 copies it.
+
+        With nothing selected the whole cell's text goes, which is what a box this
+        size usually wants. The text also goes to the system clipboard (OSC 52), so
+        it can leave spoider.
+        """
+        if self._buffer is None:
+            return
+        text = self._buffer.selected_text() or self._buffer.text
+        if not text:
+            return
+        self._text_clip = text
+        self.copy_to_clipboard(text)
+        if cut:
+            if self._buffer.selection() is None:
+                self._buffer.select_all()
+            self._buffer.insert("")
+
+    def on_paste(self, event: events.Paste) -> None:
+        """Text the terminal pasted (ctrl+shift+v) lands at the caret."""
+        if self.editing and self._buffer is not None:
+            self._buffer.insert(event.text)
+            self._sync_preview()
+            event.stop()
+
+    # -- justify ---------------------------------------------------------------
+
+    def action_justify(self) -> None:
+        """^J — reflow a cell's text to a width you give, the way nano justifies."""
+        node_id = self._edit_id if self.editing else self.selected
+        if node_id is None:
+            return
+        self._justify_id = node_id
+        self._show_prompt(
+            "justify",
+            "Justify to width: ",
+            str(self.config.justify_width),
+            submit=self._justify_submitted,
+            cancel=self._close_drawers,
+        )
+
+    def _justify_submitted(self, value: str) -> None:
+        self._close_drawers()
+        try:
+            width = int(value.strip())
+        except ValueError:
+            width = self.config.justify_width
+        width = max(10, min(width, 400))
+        if width != self.config.justify_width:
+            self.config.justify_width = width  # remembered for next time
+            self._save_config()
+        node_id, self._justify_id = self._justify_id, None
+        if node_id is None:
+            return
+        if self.editing and self._buffer is not None and node_id == self._edit_id:
+            self._buffer.text = reflow(self._buffer.text, width)
+            self._buffer.caret = min(self._buffer.caret, len(self._buffer.text))
+            self._buffer.anchor = None
+            self._sync_preview()
+            return
+        node = self.mm.find(node_id)
+        if node is None:
+            return
+        wrapped = reflow(node.text, width)
+        if wrapped == node.text:
+            return
+        self._push_undo()
+        node.text = wrapped
+        self._mark_dirty()
 
     def finish_edit(self, *, commit: bool) -> None:
         node_id = self._edit_id
         self._edit_id = None
         node = self._live_node(node_id) if node_id else None
-        text = self._edit_buffer.strip()
+        text = self._buffer.text.strip() if self._buffer is not None else ""
         fresh = self._edit_fresh
         if node is not None:
             node.preview = None
             node.caret = None
+            node.overwrite = False
+        self._buffer = None
 
         if node is None or not commit or not text:
             # An abandoned new node was only ever a promise; take it away again.

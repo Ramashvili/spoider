@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .files import write_atomic
-from .text import clean
+from .text import clean, clean_text
 
 DEFAULT_ROOT_TEXT = "Mind map"
 
@@ -52,6 +52,9 @@ class Node:
     # Live inline-edit caret: an index into `preview`. It does not take a column —
     # the renderer hangs it over the character it is on. Never serialised.
     caret: int | None = field(default=None, compare=False, repr=False)
+    #: Overwrite mode while renaming: the caret underlines itself so the two modes
+    #: are told apart on screen. Editor state, never serialised.
+    overwrite: bool = field(default=False, compare=False, repr=False)
 
     def walk(self) -> Iterator[Node]:
         """Depth-first, without recursion: a deep map must not blow the stack."""
@@ -109,7 +112,7 @@ class Node:
         raw_text = data.get("text")
         raw_mark = data.get("mark")
         node = cls(
-            text=clean("" if raw_text is None else raw_text),
+            text=clean_text("" if raw_text is None else raw_text),
             id=node_id,
             collapsed=bool(data.get("collapsed", False)),
             mark=clean(raw_mark) or None if isinstance(raw_mark, str) else None,
@@ -134,7 +137,7 @@ class MindMap:
         cut_stack: list[Node] | None = None,
         colours: str = DEFAULT_COLOURS,
     ) -> None:
-        self.root = root if root is not None else Node(clean(DEFAULT_ROOT_TEXT))
+        self.root = root if root is not None else Node(clean_text(DEFAULT_ROOT_TEXT))
         #: How the cells are coloured: `depth` gives every level one colour, `family`
         #: gives every branch under the root one colour for its whole subtree.
         self.colours = colours if colours in COLOURS else DEFAULT_COLOURS
@@ -229,7 +232,7 @@ class MindMap:
 
     def add_child(self, parent_id: str, text: str = "") -> Node:
         parent = self.find(parent_id) or self.root
-        node = Node(text=clean(text))
+        node = Node(text=clean_text(text))
         parent.children.append(node)
         parent.collapsed = False
         self._by_id[node.id] = node
@@ -240,7 +243,7 @@ class MindMap:
         parent = self.parent(node_id)
         if parent is None:
             return None
-        node = Node(text=clean(text))
+        node = Node(text=clean_text(text))
         index = self._index(parent, node_id)
         parent.children.insert(index + 1, node)
         self._by_id[node.id] = node
@@ -436,7 +439,7 @@ class MindMap:
             ],
             "making cells": [
                 "tab a child, enter a sibling",
-                "e renames it in place",
+                "e renames it in place\nS-\u23ce starts a new line",
                 "^D deletes the branch for good",
             ],
             "marks and folds": [
@@ -463,6 +466,7 @@ class MindMap:
                 "= and - change the air",
                 "^L cycles four shapes",
                 "^F finds it, ↑ recalls a search",
+                "^J reflows a cell to a width",
             ],
             "keeping it": [
                 "^S writes plain json, ^O a copy",

@@ -7,6 +7,8 @@ terminal.
 
 from __future__ import annotations
 
+from rich.cells import cell_len
+
 from spoider.layout import compute
 from spoider.model import MindMap, Node
 from spoider.render import build_grid, render_text
@@ -45,11 +47,15 @@ def test_the_inline_edit_buffer_is_cleaned_too():
     assert "typ[2Jing" in drawn
 
 
-def test_a_pasted_line_break_cannot_break_the_box():
+def test_a_line_break_grows_the_box_instead_of_escaping_it():
     mm = MindMap(Node("two\nlines"))
     layout = compute(mm.root, 0)
-    assert layout.boxes[mm.root.id].h == 3  # still a three-row box
-    assert len(_render(mm).splitlines()) >= 3
+    box = layout.boxes[mm.root.id]
+    assert box.h == 4, "one border, two lines of text, one border"
+    assert box.w == cell_len("lines") + 4, "the widest line decides the width"
+    drawn = _render(mm).splitlines()
+    assert "│ two   │" in drawn[1]
+    assert "│ lines │" in drawn[2]
 
 
 def test_every_row_is_exactly_the_layout_width():
