@@ -148,8 +148,11 @@ marks = ✅ ❌ ❓ ❔ 🕐
 justify_width_default = 66
 
 # save = ctrl+w
-# edit = ctrl+e
+# edit = e ctrl+e
 ```
+
+A chord line lists every chord that action answers to, so `edit = e ctrl+e` binds
+both and a chord left off the line stops working.
 
 Editor preferences live there and stay out of the map: `justify_width_default` is
 the width `^J` offers before a map has been justified once. Spacing, shape, marks,

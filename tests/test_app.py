@@ -990,14 +990,24 @@ async def test_settings_opens_the_config_in_an_editor(tmp_path: Path, monkeypatc
 
 
 def test_the_saved_config_mentions_every_rebindable_chord(tmp_path: Path):
-    from spoider.app import default_keymap
+    """One line per action, carrying every chord it answers to: an alias shares
+    its action's line instead of getting an entry of its own."""
+    from spoider.app import action_chords
 
     config_path = tmp_path / "config.conf"
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
     app._save_config()
     text = config_path.read_text()
-    for ident, chord in default_keymap().items():
-        assert f"# {ident} = {chord}" in text, ident
+
+    chords = action_chords()
+    entries = app._key_entries()
+    for ident, listed, _ in entries:
+        assert f"# {ident} = {listed}" in text, ident
+        action = next(binding.action for binding in BINDINGS if binding.id == ident)
+        assert listed.split() == chords[action], f"{ident} lists all of its chords"
+
+    assert "edit_alt" not in text and "prev_vim" not in text, "aliases are not lines"
+    assert "# edit = e ctrl+e" in text, "and the aliases are on the line that matters"
 
 
 async def test_autosave_writes_after_every_edit(tmp_path: Path):
@@ -3541,3 +3551,44 @@ async def test_a_panel_keeps_one_blank_line_above_the_bar(tmp_path: Path):
         # reader still sees one empty line above the bar
         assert panel.region.bottom == foot.y
         assert panel.render().plain.endswith("\n"), "and it is blank"
+
+
+async def test_a_line_can_hold_two_chords(tmp_path: Path):
+    """`edit = e ctrl+g` binds both: an rc file lists a thing on one line rather
+    than saying the same thing twice."""
+    config_path = tmp_path / "config.conf"
+    config_path.write_text("edit = e ctrl+g\n")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+g")
+        await pilot.pause()
+        assert app.editing is True, "the second chord works"
+        await pilot.press("escape")
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.pause()
+        assert app.editing is True, "and so does the first"
+
+
+async def test_a_line_left_empty_of_a_chord_does_nothing(tmp_path: Path):
+    config_path = tmp_path / "config.conf"
+    config_path.write_text("edit = ctrl+g\n")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
+    async with app.run_test() as pilot:
+        await pilot.press("e")
+        await pilot.pause()
+        assert app.editing is False, "a chord left off the line stops working"
+
+
+def test_a_token_that_is_not_a_key_is_dropped_from_the_line(tmp_path: Path):
+    """`copy = alt+6 12` keeps alt+6: the leftover that once broke justify is
+    dropped, and the rest of the line still counts."""
+    from spoider.app import action_chords
+    from spoider.config import load_config
+
+    config_path = tmp_path / "config.conf"
+    config_path.write_text("copy = alt+6 12\n")
+    loaded = load_config(config_path, SpoiderApp._binding_ids())
+
+    assert action_chords(loaded.keys)["copy"] == ["alt+6"]

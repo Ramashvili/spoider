@@ -110,8 +110,12 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
             marks = tuple(cleaned for token in value.split() if (cleaned := clean(token)))
             if marks:
                 config.marks = marks[:MAX_MARKS]
-        elif value and is_chord(value) and (known is None or name in known):
-            config.keys[name] = value
+        elif value and (known is None or name in known):
+            # a line lists every chord for that action, separated by spaces; one
+            # that is not a key at all is dropped rather than read as a chord
+            chords = [token for token in value.split() if is_chord(token)]
+            if chords:
+                config.keys[name] = " ".join(chords)
     return config
 
 
@@ -136,7 +140,8 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
         "marks = " + " ".join(config.marks),
         f"justify_width_default = {config.justify_width_default}",
         "",
-        "# Chords. Uncomment a line to change it, e.g.  save = ctrl+w",
+        "# Chords. One line per action, listing every chord it answers to, so",
+        "# `left = ctrl+b left h` is all three. Uncomment a line to change it.",
     ]
     for ident, default, description in key_entries:
         lines.append("")

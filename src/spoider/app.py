@@ -211,13 +211,39 @@ DOWN_MEANING: dict[str, str] = {
 }
 
 
+def action_chords(overrides: dict[str, str] | None = None) -> dict[str, list[str]]:
+    """Every chord each action answers to, in the order the bindings list them.
+
+    A config line names one action and lists the chords it answers to, so the line
+    is the whole truth for that action: a chord left off it stops working, which is
+    what "the file says what the keys are" means. Defaults come from the binding
+    table, split where a single binding already carries several keys ("ctrl+p,up").
+    """
+    chords: dict[str, list[str]] = {}
+    action_of: dict[str, str] = {}
+    for binding in BINDINGS:
+        if not isinstance(binding, Binding) or not binding.id:
+            continue
+        action_of[binding.id] = binding.action
+        keys = [part for part in binding.key.split(",") if part]
+        chords.setdefault(binding.action, []).extend(keys)
+    for ident, value in (overrides or {}).items():
+        action = action_of.get(ident)
+        listed = [part for part in (value or "").split() if part]
+        if action is not None and listed:
+            chords[action] = listed
+    return chords
+
+
+def build_action_keymap(overrides: dict[str, str] | None = None) -> dict[str, str]:
+    """action -> "a,b", which is the shape Textual's own keymap wants."""
+    return {action: ",".join(chords) for action, chords in action_chords(overrides).items()}
+
+
 def default_keymap() -> dict[str, str]:
-    """id -> the chord(s) that action was born with."""
-    return {
-        binding.id: binding.key
-        for binding in BINDINGS
-        if isinstance(binding, Binding) and binding.id
-    }
+    """id -> the first chord that action was born with; the whole of it in
+    `action_chords`, so the two cannot drift apart."""
+    return build_keymap()
 
 
 def editor_command() -> list[str]:
@@ -233,15 +259,17 @@ def edit_in_editor(path: Path) -> None:
     subprocess.run([*editor_command(), str(path)], check=False)
 
 
-def build_keymap(overrides: dict[str, str]) -> dict[str, str]:
-    """Defaults, with whatever the config says laid over the top.
+def build_keymap(overrides: dict[str, str] | None = None) -> dict[str, str]:
+    """id -> the first chord its action answers to, which is what the bars show.
 
-    Unknown ids and blank chords are ignored, so a typo in the config cannot take
-    a key away from you."""
-    keymap = default_keymap()
-    for ident, keys in (overrides or {}).items():
-        if ident in keymap and isinstance(keys, str) and keys.strip():
-            keymap[ident] = keys.strip()
+    Unknown ids and blank lines are ignored, so a typo in the config cannot take a
+    key away from you. The whole list lives in `action_chords`."""
+    chords = action_chords(overrides)
+    keymap: dict[str, str] = {}
+    for binding in BINDINGS:
+        if not isinstance(binding, Binding) or not binding.id:
+            continue
+        keymap.setdefault(binding.id, chords.get(binding.action, [binding.key])[0])
     return keymap
 
 
@@ -337,7 +365,7 @@ class SpoiderApp(App[None]):
             self._save_config()
         if self.load_error is not None:
             self.notify(self.load_error, severity="error", timeout=8)
-        self.set_keymap(self.config.keys)
+        self.set_keymap(build_action_keymap(self.config.keys))
         self._set_terminal_title()
         self.query_one(MindMapView).focus()
 
@@ -482,19 +510,27 @@ class SpoiderApp(App[None]):
         return {binding.id for binding in BINDINGS if isinstance(binding, Binding) and binding.id}
 
     def _key_entries(self) -> list[tuple[str, str, str]]:
-        """(id, default chord, what it does) for every rebindable binding."""
+        """(id, every chord that action answers to, what it does), one line each.
+
+        Aliases share their action's line: two entries saying the same thing would
+        be two places to keep in step.
+        """
         from .screens import describe_action
 
+        chords = action_chords()
         entries: list[tuple[str, str, str]] = []
         seen: set[str] = set()
         for binding in BINDINGS:
-            if not isinstance(binding, Binding) or not binding.id:
+            if not isinstance(binding, Binding) or not binding.id or binding.action in seen:
                 continue
-            description = describe_action(binding.action, binding.description)
-            if binding.action in seen:
-                description = f"{description} (alias)"
             seen.add(binding.action)
-            entries.append((binding.id, binding.key, description))
+            entries.append(
+                (
+                    binding.id,
+                    " ".join(chords[binding.action]),
+                    describe_action(binding.action, binding.description),
+                )
+            )
         return entries
 
     def open_config(self) -> None:
@@ -509,7 +545,7 @@ class SpoiderApp(App[None]):
             return
 
         self.config = load_config(self.config_path, self._binding_ids())
-        self.set_keymap(self.config.keys)  # new chords take effect straight away
+        self.set_keymap(build_action_keymap(self.config.keys))  # new chords take effect straight away
         self._refresh_chrome()
         self.notify("Config reloaded", timeout=2)
 
@@ -1269,12 +1305,9 @@ class SpoiderApp(App[None]):
         The stack panel reads keys through this instead of matching strings, so a
         chord the reader has rebound works there too.
         """
-        for binding in BINDINGS:
-            if not isinstance(binding, Binding) or not binding.action:
-                continue
-            chord = self.keymap.get(binding.id or "", binding.key) or binding.key
-            if key in (part.strip() for part in chord.split(",")):
-                return binding.action
+        for action, chords in action_chords(self.config.keys).items():
+            if key in chords:
+                return action
         return None
 
     def handle_stack_key(self, key: str, character: str | None) -> bool:

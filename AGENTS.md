@@ -121,6 +121,19 @@ the autouse fixture, its own `XDG_CONFIG_HOME`.
 Each test gets its own `XDG_CONFIG_HOME` from the autouse fixture in `conftest.py`, so
 the suite neither reads nor writes the real `~/.config/spoider/config.conf`.
 
+## Chords: one line per action
+
+The rc file names an action and lists *every* chord that action answers to, space
+separated (`left = ctrl+b left h`). `action_chords` is the one table: the file is
+rendered from it, `_action_for` matches a pressed key against it, the bars show the
+first chord of the list, and `build_action_keymap` joins them into the comma form
+Textual's own `App.set_keymap` expects. Aliases are extra bindings with the same
+action, so they never get a line of their own and cannot drift out of step.
+
+A chord left off the line stops working — the line is the truth, not a patch over the
+defaults. A token that is not a key is dropped from the line rather than read as a
+chord, which is what keeps a leftover setting from rebinding a key.
+
 ## Traps
 
 - `App.clipboard` already exists (Textual's OSC 52 bridge) — shadowing it raises at
