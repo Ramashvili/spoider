@@ -43,20 +43,17 @@ with `uv tool upgrade spoider`.
 
 ### Opening a map by double-click
 
-A map is a `.spoider` file. To have the desktop hand it to the editor, install the two
-files from a clone and tell the system about the type:
+A map is a `.spoider` file. To have the desktop hand it to the editor, say so once:
 
 ```bash
-install -Dm644 packaging/x-spoider.xml ~/.local/share/mime/packages/x-spoider.xml
-install -Dm644 packaging/spoider.desktop ~/.local/share/applications/spoider.desktop
-update-mime-database ~/.local/share/mime
-update-desktop-database ~/.local/share/applications
-xdg-mime default spoider.desktop application/x-spoider
+spoider --install-desktop
 ```
 
-`gio info map.spoider` should then report `application/x-spoider`, and a file manager
-shows the map with the editor's name on it. This needs `spoider` on `PATH`, which the
-`uv tool install` above takes care of.
+That writes the MIME type and a launcher into your XDG directories, sets the default,
+and refreshes the caches — after which `gio info map.spoider` reports
+`application/x-spoider` and a file manager opens the map with spoider. It writes nothing
+outside those directories, and running it twice does no harm. Skip it if you always open
+maps from a shell.
 
 ## Run
 

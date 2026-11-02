@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from spoider.app import BINDINGS, SpoiderApp
 from spoider.chrome import FooterBar, compose_footer, hint_chunks
 from spoider.config import load_config
@@ -3704,11 +3706,56 @@ def test_the_packaging_tells_the_desktop_what_a_map_is():
     from pathlib import Path as Pathlib
 
     root = Pathlib(__file__).resolve().parent.parent
-    mime = (root / "packaging" / "x-spoider.xml").read_text()
-    desktop = (root / "packaging" / "spoider.desktop").read_text()
+    mime = (root / "src" / "spoider" / "data" / "x-spoider.xml").read_text()
+    desktop = (root / "src" / "spoider" / "data" / "spoider.desktop").read_text()
 
     assert '<mime-type type="application/x-spoider">' in mime
     assert '<glob pattern="*.spoider"/>' in mime
     assert "MimeType=application/x-spoider;" in desktop
     assert "Exec=spoider %f" in desktop, "the map is handed to the editor"
     assert "Terminal=true" in desktop, "spoider is a terminal program"
+
+
+def test_install_desktop_writes_the_files_where_the_system_looks(tmp_path: Path, monkeypatch):
+    """One command after an install, and it must work from a wheel: the files ship
+    inside the package, not in a clone."""
+    from spoider.app import install_desktop
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr("spoider.app._run_tool", lambda argv: calls.append(argv) or True)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+
+    assert install_desktop() == 0
+
+    mime = tmp_path / "share" / "mime" / "packages" / "x-spoider.xml"
+    entry = tmp_path / "share" / "applications" / "spoider.desktop"
+    assert '<glob pattern="*.spoider"/>' in mime.read_text()
+    assert "MimeType=application/x-spoider;" in entry.read_text()
+    assert "Exec=" in entry.read_text() and "spoider --install-desktop" not in entry.read_text()
+
+    commands = [call[0] for call in calls]
+    assert commands == ["update-mime-database", "update-desktop-database", "xdg-mime"]
+    assert calls[-1][-2:] == ["spoider.desktop", "application/x-spoider"]
+
+
+def test_install_desktop_survives_a_tool_that_is_not_installed(tmp_path: Path, monkeypatch):
+    from spoider.app import _run_tool, install_desktop
+
+    monkeypatch.setattr("spoider.app._run_tool", lambda argv: False)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+
+    assert install_desktop() == 0, "the files are still written"
+    assert (tmp_path / "share" / "mime" / "packages" / "x-spoider.xml").exists()
+    assert _run_tool(["definitely-not-a-tool-on-this-machine"]) is False
+
+
+def test_install_desktop_does_not_open_the_editor(monkeypatch, tmp_path: Path):
+    from spoider import app as module
+
+    monkeypatch.setattr("spoider.app.install_desktop", lambda: 0)
+    monkeypatch.setattr(
+        module, "SpoiderApp", lambda *a, **k: pytest.fail("the editor must not start")
+    )
+    with pytest.raises(SystemExit) as stop:
+        module.main(["--install-desktop"])
+    assert stop.value.code == 0

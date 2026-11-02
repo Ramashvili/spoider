@@ -112,9 +112,14 @@ cannot silently rebind a key and cannot be written back.
 ## Maps are `.spoider` files
 
 Content stays plain JSON — strict, round-trips exactly, one parser — and the extension is
-only the label that says what the JSON is. `packaging/` holds the MIME type and the
-desktop entry that make double-click work; the app itself never looks at an extension,
-so any path opens. Import and export in other formats are separate jobs from the file.
+only the label that says what the JSON is. The app never looks at an extension, so any
+path opens. Import and export in other formats are separate jobs from the file.
+
+`src/spoider/data/` holds the MIME type and the desktop entry, inside the package so a
+wheel carries them; `spoider --install-desktop` copies both into the XDG directories,
+runs the cache rebuilders and sets the default. It writes nothing unless asked, and it
+resolves the launcher's `Exec=` to the real binary path because a desktop session does
+not always have `~/.local/bin` on PATH.
 
 ## Tests
 
