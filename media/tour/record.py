@@ -150,11 +150,11 @@ def scene() -> list[tuple[float, bytes]]:
     wait(0.8)
     key(0.45, b"=")
     wait(2.0)
-    key(0.55, b"-")
-    key(0.45, b"-")
-    wait(0.8)
-    key(0.45, b"-")
-    wait(1.6)
+    # tighten all the way to the floor and stay there: five presses from +3 reach -2,
+    # the tightest the map allows, and the sixth shows that it goes no further
+    for index in range(6):
+        key(0.55 if index == 0 else 0.45, b"-")
+    wait(2.8)
 
     key(0.7, b"c")
     wait(2.0)
