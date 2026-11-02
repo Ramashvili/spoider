@@ -115,6 +115,33 @@ def label(node: Node) -> str:
     return "\n".join(lines_of(node))
 
 
+def selection_span(node: Node, line: int) -> tuple[int, int] | None:
+    """The selected columns of display line `line`, in cells, or None.
+
+    The mark rides on the first line, so its width shifts the columns there; the
+    span itself is in buffer coordinates, which are one line shorter than the drawn
+    box by the borders.
+    """
+    if node.preview is None or node.sel is None:
+        return None
+    text = clean_text(node.preview)
+    rows = text.split("\n")
+    if line >= len(rows):
+        return None
+    offset = sum(len(row) + 1 for row in rows[:line])
+    end_of_line = offset + len(rows[line])
+    start, end = node.sel
+    low, high = max(start, offset), min(end, end_of_line)
+    if low >= high:
+        return None
+    left = cell_len(text[offset:low])
+    right = cell_len(text[offset:high])
+    if node.mark and line == 0:
+        shift = cell_len(clean(node.mark)) + 1
+        left, right = left + shift, right + shift
+    return left, right
+
+
 def box_width(node: Node) -> int:
     width = max((cell_len(line) for line in lines_of(node)), default=0) + 2 * PAD + 2
     if node.preview is not None:

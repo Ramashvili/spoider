@@ -10,7 +10,7 @@ from rich.cells import cell_len
 from rich.text import Text
 
 from .chrome import CARET_STYLE
-from .layout import DOWN, PAD, RIGHT, UP, Layout, Placed, caret_pos, lines_of
+from .layout import DOWN, PAD, RIGHT, UP, Layout, Placed, caret_pos, lines_of, selection_span
 from .text import find_all
 
 R, D, L, U = 1, 2, 4, 8
@@ -212,7 +212,13 @@ def _draw_box(grid: Grid, box: Placed, style: str, query: str = "") -> None:
     inner = box.w - 2
     for index, text in enumerate(lines_of(box.node)):
         row = " " * PAD + text + " " * max(0, inner - PAD - cell_len(text))
-        grid.put_text(left + 1, top + 1 + index, row, style, _mask(row, query))
+        mask = _mask(row, query) or [False] * len(row)
+        span = selection_span(box.node, index)
+        if span is not None:
+            start = PAD + span[0]
+            for column in range(start, min(start + (span[1] - span[0]), len(mask))):
+                mask[column] = True
+        grid.put_text(left + 1, top + 1 + index, row, style, mask)
     at = caret_pos(box.node)
     if at is not None:
         line, column = at
@@ -227,9 +233,9 @@ def _hang_caret(grid: Grid, x: int, y: int, style: str, overwrite: bool = False)
     way a mark or a search hit is.
     """
     ch, under = grid.cells.get((x, y), (" ", style))
-    # In overwrite mode the caret also underlines, which survives the inversion and
-    # is the only visible difference between typing over and typing in.
-    mark = f"{CARET_STYLE} underline" if overwrite else CARET_STYLE
+    # Two cursors, two shapes: a filled block while inserting, an underline while
+    # overwriting, so the mode is visible at a glance rather than by remembering.
+    mark = "underline" if overwrite else CARET_STYLE
     grid.put(x, y, ch, f"{under} {mark}".strip())
 
 

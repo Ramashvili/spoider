@@ -120,6 +120,7 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+a", "add_child", "child", show=False, id="add_child_alt"),
     Binding("enter", "add_sibling", "sib", id="add_sibling"),
     Binding("ctrl+j", "justify", "justify", id="justify"),
+    Binding("alt+6", "copy", "copy", show=False, id="copy"),
     # Five of these have earned a bare key: they are reached for constantly and
     # collide with nothing, since h/j/k/l are the only bare letters spoken for.
     Binding("e", "edit", "edit", id="edit"),
@@ -758,6 +759,7 @@ class SpoiderApp(App[None]):
         node.preview = self._buffer.text
         node.caret = self._buffer.caret
         node.overwrite = self._buffer.overwrite
+        node.sel = self._buffer.selection()
         self.view.refresh_map()
 
     def _sync_footer(self) -> None:
@@ -880,18 +882,34 @@ class SpoiderApp(App[None]):
             buffer.delete_word_after()
         elif key == "insert":
             buffer.overwrite = not buffer.overwrite
-        elif key == "ctrl+k":
+        elif self._action_for(key) == "cut":
             self._cut_or_copy(cut=True)
-        elif key == "alt+6":
+        elif self._action_for(key) == "copy":
             self._cut_or_copy(cut=False)
-        elif key == "ctrl+u":
+        elif self._action_for(key) == "paste":
             buffer.insert(self._text_clip)
-        elif key == "ctrl+j":
+        elif self._action_for(key) == "justify":
             self.action_justify()
+        elif self._action_for(key) == "undo":
+            buffer.undo()
+        elif self._action_for(key) == "redo":
+            buffer.redo()
         elif character and character.isprintable():
             buffer.insert(character)
         self._sync_preview()
         return True
+
+    def action_copy(self) -> None:
+        """M-6 — copy text: the selection while typing, else the selected cell's."""
+        if self.editing:
+            self._cut_or_copy(cut=False)
+            return
+        node = self.mm.find(self.selected)
+        if node is None or not node.text.strip():
+            return
+        self._text_clip = node.text
+        self.copy_to_clipboard(node.text)
+        self.notify("Copied the cell's text", timeout=1)
 
     def _cut_or_copy(self, *, cut: bool) -> None:
         """^K cuts the selection out of a cell, M-6 copies it.
@@ -974,6 +992,7 @@ class SpoiderApp(App[None]):
             node.preview = None
             node.caret = None
             node.overwrite = False
+            node.sel = None
         self._buffer = None
 
         if node is None or not commit or not text:

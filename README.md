@@ -93,7 +93,12 @@ which `^K` cuts and `M-6` copies to the clipboard; `^U` pastes.
 
 `^J` justifies: it asks for a width, remembers the answer, and reflows the cell one
 paragraph at a time, a blank line keeping paragraphs apart. It works on the selected
-cell from the map as well as while you are typing in it.
+cell from the map as well as while you are typing in it, and every one of these keys
+answers to whatever chord you bound it to: the bar under the cell names the ones that
+matter and the cell's own `^Z`/`^Y` undo its text, not the map.
+
+The caret says which mode you are in: a filled block while inserting, an underline
+while overwriting. Selected text is drawn reversed, the way a search hit is.
 
 Two of those keys need a terminal that speaks the kitty keyboard protocol, `Shift+Return`
 and `^J`; a plain terminal sends them as `Return`, so both become "finish the cell".

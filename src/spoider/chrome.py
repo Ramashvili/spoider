@@ -162,11 +162,17 @@ def compose_footer(width: int, hints: Sequence[Text], pinned: Text | None = None
     return line
 
 
+#: Ranked, like the map's bar: finishing the cell first, then the keys that do
+#: something the arrows cannot. A narrow bar drops the tail.
 EDIT_HINTS = (
     ("⏎", "done"),
+    ("S-⏎", "new line"),
     ("esc/^C", "cancel"),
+    ("^K", "cut"),
+    ("^U", "paste"),
+    ("^J", "justify"),
+    ("ins", "overwrite"),
     ("←→", "move"),
-    ("⌫", "erase"),
 )
 
 

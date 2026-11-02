@@ -33,6 +33,11 @@ class Buffer:
         #: The column `up`/`down` try to keep, so a run of vertical moves through
         #: short lines does not drift left.
         self.goal: int | None = None
+        #: History of (text, caret). A run of typed characters is one step; anything
+        #: else starts a new one, which is what makes ^Z feel like an editor's.
+        self._undo: list[tuple[str, int]] = []
+        self._redo: list[tuple[str, int]] = []
+        self._typing = False
 
     # -- geometry --------------------------------------------------------------
 
@@ -89,8 +94,36 @@ class Buffer:
 
     # -- editing ---------------------------------------------------------------
 
+    def _remember(self, *, typing: bool = False) -> None:
+        """Snapshot before a change. A run of single characters is one step."""
+        if typing and self._typing:
+            return
+        self._undo.append((self.text, self.caret))
+        self._redo.clear()
+        self._typing = typing
+
+    def undo(self) -> bool:
+        if not self._undo:
+            return False
+        self._redo.append((self.text, self.caret))
+        self.text, self.caret = self._undo.pop()
+        self.anchor = None
+        self._typing = False
+        return True
+
+    def redo(self) -> bool:
+        if not self._redo:
+            return False
+        self._undo.append((self.text, self.caret))
+        self.text, self.caret = self._redo.pop()
+        self.anchor = None
+        self._typing = False
+        return True
+
     def insert(self, chunk: str) -> None:
         chunk = chunk.replace("\r\n", "\n").replace("\r", "\n")
+        single = len(chunk) == 1 and chunk != "\n"
+        self._remember(typing=single)
         if self._replace_selection(chunk):
             return
         if self.overwrite and self.caret < len(self.text) and self.text[self.caret] != "\n":
@@ -101,6 +134,7 @@ class Buffer:
         self.caret += len(chunk)
 
     def backspace(self) -> None:
+        self._remember()
         if self._replace_selection(""):
             return
         if self.caret == 0:
@@ -109,6 +143,7 @@ class Buffer:
         self.caret -= 1
 
     def delete(self) -> None:
+        self._remember()
         if self._replace_selection(""):
             return
         if self.caret >= len(self.text):
@@ -132,6 +167,7 @@ class Buffer:
         return index
 
     def delete_word_before(self) -> None:
+        self._remember()
         if self._replace_selection(""):
             return
         start = self._word_before()
@@ -139,6 +175,7 @@ class Buffer:
         self.caret = start
 
     def delete_word_after(self) -> None:
+        self._remember()
         if self._replace_selection(""):
             return
         end = self._word_after()

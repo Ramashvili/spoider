@@ -49,6 +49,7 @@ HELP: tuple[HelpSection, ...] = (
             (("delete",), "delete the cell and everything under it"),
             (("mark",), "cycle the mark, then off (the set is in settings)"),
             (("justify",), "reflow the cell's text to a width you type"),
+            (("copy",), "copy the cell's text to the clipboard"),
             (("fold",), "fold or unfold the branch"),
         ),
     ),

@@ -3079,3 +3079,60 @@ async def test_justify_rewraps_the_cell_and_remembers_the_width(tmp_path: Path):
         assert wrapped.count("\n") >= 1
         assert all(len(line) <= 20 for line in wrapped.split("\n"))
         assert load_config(config_path).justify_width == 20, "the width is remembered"
+
+
+async def test_undo_and_redo_work_inside_the_cell(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "abc")
+        app.select(node.id)
+        await pilot.press("e")
+        await pilot.press("x", "y", "z")
+        await pilot.pause()
+        assert app._buffer.text == "abcxyz"
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app._buffer.text == "abc", "the run of typing came off in one step"
+
+        await pilot.press("ctrl+y")
+        await pilot.pause()
+        assert app._buffer.text == "abcxyz"
+
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.mm.find(node.id).text == "abcxyz"
+
+
+async def test_the_editor_bar_shows_its_own_keys(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(160, 30)) as pilot:
+        node = app.mm.add_child(app.mm.root.id, "abc")
+        app.select(node.id)
+        await pilot.press("e")
+        await pilot.pause()
+        bar = app.query_one("#footer", FooterBar).render().plain
+        assert "⏎ done" in bar
+        assert "S-⏎ new line" in bar
+        assert "^J justify" in bar
+        assert "^K cut" in bar and "^U paste" in bar
+
+
+async def test_justify_follows_the_chord_it_was_bound_to(tmp_path: Path):
+    config_path = tmp_path / "config.conf"
+    config_path.write_text("justify = ctrl+g\n")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "one two three four five six seven")
+        app.select(node.id)
+        await pilot.press("e")
+        await pilot.pause()
+
+        await pilot.press("ctrl+g")
+        await pilot.pause()
+        assert app.mode == "justify", "the cell answers to the rebound chord"
+
+        app.query_one(PromptBar).value = "12"
+        await pilot.press("enter")
+        await pilot.pause()
+        assert "\n" in app._buffer.text

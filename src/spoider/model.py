@@ -55,6 +55,9 @@ class Node:
     #: Overwrite mode while renaming: the caret underlines itself so the two modes
     #: are told apart on screen. Editor state, never serialised.
     overwrite: bool = field(default=False, compare=False, repr=False)
+    #: Selected span of `preview`, as (start, end) indices, while renaming. Drawn as
+    #: reverse video inside the cell. Editor state, never serialised.
+    sel: tuple[int, int] | None = field(default=None, compare=False, repr=False)
 
     def walk(self) -> Iterator[Node]:
         """Depth-first, without recursion: a deep map must not blow the stack."""

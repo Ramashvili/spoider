@@ -356,3 +356,36 @@ def test_the_grid_follows_the_colouring_the_document_asks_for():
     assert style_of("family", "mid under left") != style_of("family", "shallow under right")
     assert style_of("family", "deep under left") == style_of("family", "mid under left")
     assert style_of("family", "deep under left") != style_of("depth", "deep under left")
+
+
+def _cell_styles(node: Node, width: int = 60):
+    """The grid cells of one cell's text row, as (char, style)."""
+    mm = MindMap(node)
+    layout = compute(mm.root, 0)
+    grid = build_grid(layout, (), colours="depth")
+    box = layout.boxes[node.id]
+    return [grid.cells[(x, box.y + 1)] for x in range(box.x + 1, box.right)]
+
+
+def test_the_two_caret_modes_are_drawn_differently():
+    inserting, overwriting = Node("abcd"), Node("abcd")
+    for node, flag in ((inserting, False), (overwriting, True)):
+        node.preview, node.caret, node.overwrite = "abcd", 2, flag
+
+    insert_styles = [style for _, style in _cell_styles(inserting)]
+    overwrite_styles = [style for _, style in _cell_styles(overwriting)]
+    caret_insert = [style for style in insert_styles if "reverse" in style]
+    caret_overwrite = [style for style in overwrite_styles if "underline" in style]
+    assert caret_insert, "inserting draws a filled block"
+    assert caret_overwrite and "reverse" not in caret_overwrite[0], (
+        "overwriting draws an underline, not another block"
+    )
+
+
+def test_selected_text_is_highlighted_in_the_cell():
+    node = Node("alpha beta")
+    node.preview, node.caret, node.sel = "alpha beta", 5, (0, 5)
+    cells = _cell_styles(node)
+    highlighted = "".join(ch for ch, style in cells if "reverse" in style)
+    # the trailing space is the caret, which sits at the end of the selection
+    assert highlighted == "alpha ", "the selection, and only it, is reversed"
