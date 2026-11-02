@@ -49,6 +49,16 @@ MindMapView {
     width: 100%;
     height: 1fr;
 }
+/* A row of air under the header and under the map, so the map does not butt
+   against either. Only when the window is tall enough to spare the rows: at the
+   height below, every row is content and the air goes first. The drawers are not
+   wrapped: a panel already keeps a blank line above the bar, and one is enough. */
+Screen.roomy #topbar {
+    margin-bottom: 1;
+}
+Screen.roomy MindMapView {
+    margin-bottom: 1;
+}
 /* The drawers sit above the bar, never over the map. One of them is shown at a
    time and each takes only the rows it needs. */
 #panel, #ask, #prompt {
@@ -311,6 +321,14 @@ class SpoiderApp(App[None]):
         yield AskBar(id="ask")
         yield PromptBar(id="prompt")
         yield FooterBar(id="footer")
+
+    #: Rows a window needs before it can afford air around the map: below this,
+    #: two rows of map are worth more than the tidier picture.
+    ROOMY_HEIGHT = 30
+
+    def on_resize(self, event: events.Resize) -> None:
+        """Give the bars a row of air each while the window can spare them."""
+        self.screen.set_class(event.size.height > self.ROOMY_HEIGHT, "roomy")
 
     def on_mount(self) -> None:
         # A file written by an older build keeps listing chords that no longer

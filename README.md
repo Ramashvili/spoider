@@ -159,6 +159,7 @@ travel with it, so a file looks the same wherever it is opened.
 ## Limits
 
 - A map wider than the window is clipped at the edges; there is no zoom out.
+- Below 31 rows the map keeps the row of air the bars would otherwise get.
 - `^K` and `^U` are the only way to reparent a branch.
 - Undo history lives in memory for the session, and is not capped.
 - Nothing locks the map file: two editors on one map, last save wins.

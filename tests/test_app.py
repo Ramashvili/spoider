@@ -3483,3 +3483,61 @@ async def test_the_offered_width_is_drawn_selected(tmp_path: Path):
         await pilot.press("3")
         await pilot.pause()
         assert bar.value == "3", "typing replaces it"
+
+
+# -- air around the map ---------------------------------------------------
+async def test_a_tall_window_gives_the_map_a_row_of_air_twice(tmp_path: Path):
+    """Below the header and above the bar, so the map does not butt against
+    either. The drawers are left alone: a panel keeps its own blank line."""
+    from spoider.widgets import MindMapView
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 40)) as pilot:
+        await pilot.pause()
+        top = app.query_one("#topbar").region
+        view = app.query_one(MindMapView).region
+        foot = app.query_one("#footer").region
+
+        assert view.y == top.bottom + 1, "a row of air under the header"
+        assert view.bottom == foot.y - 1, "and one under the map"
+
+
+async def test_a_window_of_thirty_rows_spends_every_row_on_the_map(tmp_path: Path):
+    from spoider.widgets import MindMapView
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        top = app.query_one("#topbar").region
+        view = app.query_one(MindMapView).region
+        foot = app.query_one("#footer").region
+
+        assert view.y == top.bottom
+        assert view.bottom == foot.y
+        assert view.height == 28, "all the rows the two bars left"
+
+
+async def test_the_air_comes_back_at_thirty_one_rows(tmp_path: Path):
+    from spoider.widgets import MindMapView
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 31)) as pilot:
+        await pilot.pause()
+        top = app.query_one("#topbar").region
+        view = app.query_one(MindMapView).region
+        assert view.y == top.bottom + 1
+
+
+async def test_a_panel_keeps_one_blank_line_above_the_bar(tmp_path: Path):
+    """The footer is not what carries the air: a panel already ends with a blank
+    line, and two of them would read as a gap in the panel."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 40)) as pilot:
+        await pilot.press("ctrl+comma")
+        await pilot.pause()
+        panel = app.query_one(PanelBar)
+        foot = app.query_one("#footer").region
+        # the blank line is the panel's own last row, so the two touch and the
+        # reader still sees one empty line above the bar
+        assert panel.region.bottom == foot.y
+        assert panel.render().plain.endswith("\n"), "and it is blank"
