@@ -3721,10 +3721,10 @@ def test_the_packaging_tells_the_desktop_what_a_map_is():
 def test_install_desktop_writes_the_files_where_the_system_looks(tmp_path: Path, monkeypatch):
     """One command after an install, and it must work from a wheel: the files ship
     inside the package, not in a clone."""
-    from spoider.app import install_desktop
+    from spoider.desktop import install_desktop
 
     calls: list[list[str]] = []
-    monkeypatch.setattr("spoider.app._run_tool", lambda argv: calls.append(argv) or True)
+    monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: calls.append(argv) or True)
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
 
     assert install_desktop() == 0
@@ -3741,9 +3741,9 @@ def test_install_desktop_writes_the_files_where_the_system_looks(tmp_path: Path,
 
 
 def test_install_desktop_survives_a_tool_that_is_not_installed(tmp_path: Path, monkeypatch):
-    from spoider.app import _run_tool, install_desktop
+    from spoider.desktop import _run_tool, install_desktop
 
-    monkeypatch.setattr("spoider.app._run_tool", lambda argv: False)
+    monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: False)
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
 
     assert install_desktop() == 0, "the files are still written"
