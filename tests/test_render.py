@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from rich.cells import cell_len
 
-from spoider.layout import compute
+from spoider.layout import PAD, compute
 from spoider.model import MindMap, Node
 from spoider.render import build_grid, render_text
 
@@ -74,6 +74,22 @@ def test_cropping_past_the_map_leaves_blank_cells():
     grid = build_grid(layout, mm.root.id)
     text = render_text(grid, layout.width + 5, layout.height + 5, 4, 2)
     assert text.plain.strip() == ""
+
+
+def test_a_mark_keeps_its_own_colours_when_its_cell_is_selected():
+    """An emoji mark is a picture: reversed, a star turns into a block of inverted colour."""
+    mm = MindMap(Node("root"))
+    child = mm.add_child(mm.root.id, "child")
+    child.mark = "⭐"
+    layout = compute(mm.root, 0)
+    plain = build_grid(layout, child.id)
+    box = layout.boxes[child.id]
+    row = box.y + 1
+    mark_style = plain.cells[(box.x + 1 + PAD, row)][1]
+    # the first column of the text: padding, the two-cell star, and its space
+    text_style = plain.cells[(box.x + 1 + PAD + cell_len("⭐") + 1, row)][1]
+    assert "reverse" not in mark_style, "the mark should keep its own colours"
+    assert "reverse" in text_style, "the text beside it should still be selected"
 
 
 def test_only_the_selected_box_is_reversed():
