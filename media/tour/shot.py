@@ -107,7 +107,9 @@ def main() -> int:
         time.sleep(1)
         if "spoider 0.1.0" in run(["tmux", "capture-pane", "-p", "-t", SESSION]).stdout:
             break
-    time.sleep(2.0)
+    # the demo opens at spacing 0; the picture reads better one step tighter
+    run(["tmux", "send-keys", "-t", SESSION, "-l", "--", "-"])
+    time.sleep(1.0)
 
     grid = run(["tmux", "display", "-p", "-t", SESSION, "#{client_width}x#{client_height}"]).stdout.strip()
     border = int(run(["hyprctl", "getoption", "general:border_size"]).stdout.split("int:")[1].split()[0])
