@@ -15,15 +15,18 @@ spacing, moving branches through the cut stack, and justifying a long note in pl
 
 ## Install
 
-spoider uses [uv](https://docs.astral.sh/uv/), which also fetches a matching Python if needed:
+spoider needs [uv](https://docs.astral.sh/uv/), which also brings a matching Python. Your
+distribution may package it, and that is the tidier way to install it:
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh    # or: pacman -S uv
+sudo pacman -S uv                                  # Arch and derivatives
+curl -LsSf https://astral.sh/uv/install.sh | sh    # anywhere else
 uv tool install git+https://github.com/Ramashvili/spoider
 ```
 
-On first launch, `spoider` asks if you want your desktop to open `.spoider` files
-with it automatically.
+That puts `spoider` on your PATH. On first launch, spoider asks whether your desktop should
+always recognise `.spoider` files and open them in spoider when you open one from your file
+browser; `spoider --install-desktop` does the same thing by hand, without the question.
 
 ## Try it without installing
 
