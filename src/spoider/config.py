@@ -54,6 +54,9 @@ class Config:
     #: the `justify` binding, which may also live in this file as a chord.
     justify_width_default: int = 66
     marks_default: tuple[str, ...] = field(default_factory=lambda: tuple(MARKS))
+    #: Whether the first-run question about registering .spoider with the desktop has
+    #: been answered. Asking once is the point: a "no" is an answer, not a delay.
+    desktop_asked: bool = False
     # binding id -> chord(s). Only what was actually changed; the defaults live in
     # the app, and the file shows them commented out.
     keys: dict[str, str] = field(default_factory=dict)
@@ -123,6 +126,8 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
                 pass
         elif name == "autosave":
             config.autosave = value.lower() in TRUE_WORDS
+        elif name == "desktop_asked":
+            config.desktop_asked = value.lower() in TRUE_WORDS
         elif name == "marks_default":
             marks = marks_of(value.split())
             if marks:
@@ -156,6 +161,7 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
         f"autosave = {'true' if config.autosave else 'false'}",
         "marks_default = " + " ".join(config.marks_default),
         f"justify_width_default = {config.justify_width_default}",
+        f"desktop_asked = {'true' if config.desktop_asked else 'false'}",
         "",
         "# Chords. An action can have more than one chord: they are separated by a",
         "# space. Uncomment a line to change it.",

@@ -33,7 +33,7 @@ def test_every_shortcut_uses_a_modifier():
         "l",
         "e",
         "t",
-        "m",
+        "w",
         "c",
         "equals_sign",
         "minus",
@@ -500,7 +500,7 @@ async def test_mark_cycles_through_the_emoji_then_off(tmp_path: Path):
 
         seen = []
         for _ in range(len(MARKS) + 1):
-            await pilot.press("m")
+            await pilot.press("w")
             await pilot.pause()
             seen.append(app.mm.find(node.id).mark)
         assert seen == [*MARKS, None]
@@ -565,7 +565,7 @@ async def test_marks_survive_a_write(tmp_path: Path):
     async with app.run_test() as pilot:
         node = app.mm.add_child(app.mm.root.id, "checked")
         app.select(node.id)
-        await pilot.press("m")
+        await pilot.press("w")
         await pilot.pause()
         await pilot.press("ctrl+s")
         await pilot.pause()
@@ -607,12 +607,12 @@ def test_help_text_covers_keys(tmp_path: Path):
 
 def test_help_follows_a_rebound_chord(tmp_path: Path):
     config = tmp_path / "config.conf"
-    config.write_text("mark = ctrl+m\n")
+    config.write_text("mark = alt+w\n")
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
     body = help_text(app).plain
 
     row = next(line for line in body.splitlines() if "cycle the mark" in line)
-    assert row.strip().startswith("^M"), "the rebound chord leads its row"
+    assert row.strip().startswith("M-W"), "the rebound chord leads its row"
     assert "g" not in row.split("cycle")[0].split(), "the default key is gone"
 
 
@@ -859,14 +859,14 @@ def test_comments_and_loose_spacing_are_tolerated(tmp_path: Path):
     assert config.keys == {"save": "ctrl+w"}
 
 
-async def test_ctrl_m_sets_the_marks_of_the_map(tmp_path: Path):
+async def test_ctrl_w_sets_the_marks_of_the_map(tmp_path: Path):
     """Its own key, and the field is not preselected: appending a mark is the
     common case, and sweeping the list away is the rare one."""
     config_path = tmp_path / "config.conf"
     path = tmp_path / "map.json"
     app = SpoiderApp(path, demo=False, config_path=config_path)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+m")
+        await pilot.press("ctrl+w")
         await pilot.pause()
         assert app.mode == "marks"
         field = app.query_one(PromptBar)
@@ -900,7 +900,7 @@ async def test_the_mark_key_cycles_the_configured_marks(tmp_path: Path):
 
         seen = []
         for _ in range(4):
-            await pilot.press("m")
+            await pilot.press("w")
             await pilot.pause()
             seen.append(app.mm.find(node.id).mark)
         assert seen == ["🔴", "🟢", None, "🔴"]
@@ -909,7 +909,7 @@ async def test_the_mark_key_cycles_the_configured_marks(tmp_path: Path):
 async def test_prompt_supports_undo_and_redo(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+m")
+        await pilot.press("ctrl+w")
         await pilot.pause()
         assert app.mode == "marks"
 
@@ -952,18 +952,18 @@ def test_config_can_rebind_every_chord(tmp_path: Path):
 
 async def test_a_rebound_chord_takes_effect(tmp_path: Path):
     config_path = tmp_path / "config.conf"
-    config_path.write_text("save = ctrl+w\ndelete = ctrl+k\n")
+    config_path.write_text("save = ctrl+g\ndelete = ctrl+k\n")
 
     path = tmp_path / "map.json"
     app = SpoiderApp(path, demo=False, config_path=config_path)
     async with app.run_test() as pilot:
-        assert app.keymap["save"] == "ctrl+w"
+        assert app.keymap["save"] == "ctrl+g"
 
         await pilot.press("tab")
         await pilot.press("a", "enter")
         await pilot.pause()
 
-        await pilot.press("ctrl+w")  # the new save chord
+        await pilot.press("ctrl+g")  # the new save chord
         await pilot.pause()
         assert path.exists()
         assert app.dirty is False
@@ -1695,7 +1695,7 @@ def test_the_bar_ranks_its_hints_from_leaving_down_to_the_air():
         "^Z undo",
         "^F search",
         "e edit",
-        "m mark",
+        "w mark",
         "^J justify",
         "^D del",
         "^K cut",
@@ -1848,6 +1848,9 @@ async def test_a_file_named_on_the_command_line_is_opened(tmp_path: Path):
 
 async def test_save_asks_for_a_name_when_the_buffer_has_none(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    entry = tmp_path / "data" / "applications" / "spoider.desktop"
+    entry.parent.mkdir(parents=True)  # registered, so the first-run question stays away
+    entry.write_text("[Desktop Entry]\nName=spoider\n")
     app = SpoiderApp(None, demo=False)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+s")
@@ -2301,7 +2304,7 @@ async def test_one_mark_press_marks_the_whole_run(tmp_path: Path):
         app.select(a.id)
         await pilot.press("shift+down")
 
-        await pilot.press("m")
+        await pilot.press("w")
         await pilot.pause()
 
         assert app.marks[0] == "⭐"
@@ -2569,7 +2572,7 @@ async def test_undo_lets_go_of_the_selected_run(tmp_path: Path):
         await pilot.press("shift+down")  # a and its sibling
         assert app.anchor == a.id
 
-        await pilot.press("m")  # mark both: an undoable change, run intact
+        await pilot.press("w")  # mark both: an undoable change, run intact
         await pilot.pause()
         await pilot.press("ctrl+z")
         await pilot.pause()
@@ -2798,7 +2801,7 @@ async def test_the_gap_keys_work_inside_the_panel(tmp_path: Path):
 
 async def test_a_rebound_chord_works_inside_the_panel(tmp_path: Path):
     config = tmp_path / "config.conf"
-    config.write_text("mark = ctrl+m\n")
+    config.write_text("mark = alt+w\n")
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
     async with app.run_test(size=(110, 24)) as pilot:
         alpha, _beta = _branch_map(app)
@@ -2807,7 +2810,7 @@ async def test_a_rebound_chord_works_inside_the_panel(tmp_path: Path):
         await pilot.press("ctrl+i")
         await pilot.pause()
 
-        await pilot.press("ctrl+m")
+        await pilot.press("alt+w")
         await pilot.pause()
         assert app.mm.cut_stack[0].mark == app.marks[0], "the panel honours the config"
 
@@ -3761,3 +3764,61 @@ def test_install_desktop_does_not_open_the_editor(monkeypatch, tmp_path: Path):
     with pytest.raises(SystemExit) as stop:
         module.main(["--install-desktop"])
     assert stop.value.code == 0
+
+
+# -- the first-run question about the desktop ------------------------------
+
+
+async def test_the_first_run_asks_about_opening_maps_from_the_desktop(tmp_path: Path, monkeypatch):
+    from spoider.chrome import hint_chunks  # noqa: F401  (keeps the import graph honest)
+
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "empty-data"))
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=tmp_path / "c.conf")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.mode == "ask"
+        assert "spoider from now on" in app.query_one(AskBar).question
+
+
+async def test_answering_no_is_not_asked_again(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "empty-data"))
+    config = tmp_path / "c.conf"
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("n")
+        await pilot.pause()
+
+    assert app.mode == "keys"
+    assert "desktop_asked = true" in config.read_text()
+    assert not (tmp_path / "empty-data" / "applications" / "spoider.desktop").exists()
+
+    again = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with again.run_test() as pilot:
+        await pilot.pause()
+        assert again.mode == "keys", "a no is an answer, not a delay"
+
+
+async def test_answering_yes_registers_it(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    calls: list[str] = []
+    monkeypatch.setattr("spoider.app.install_desktop", lambda: calls.append("registered") or 0)
+
+    config = tmp_path / "c.conf"
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        await pilot.press("y")
+        await pilot.pause()
+
+    assert calls == ["registered"]
+    assert "desktop_asked = true" in config.read_text()
+
+
+async def test_there_is_no_question_when_it_is_already_registered(tmp_path: Path):
+    """The conftest fixture registers it, so this is the ordinary test case."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.mode == "keys"
+        assert not app.query_one(AskBar).display

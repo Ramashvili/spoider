@@ -97,7 +97,7 @@ class MapActions:
         """
         self._show_prompt(
             "marks",
-            f"Marks, in the order {key_cap(self.keymap.get('mark', 'm'))} cycles: ",
+            f"Marks, in the order {key_cap(self.keymap.get('mark', 'w'))} cycles: ",
             # a trailing space so a typed mark starts a token of its own rather
             # than growing the last one; it is stripped before anything is saved
             " ".join(self.marks) + " ",

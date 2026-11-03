@@ -51,3 +51,13 @@ def install_desktop() -> int:
     else:
         print("The type is installed; set the default with xdg-mime when it is available.")
     return 0
+
+
+def entry_path() -> Path:
+    """Where the desktop entry lives when it is installed."""
+    data_home = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+    return data_home / "applications" / "spoider.desktop"
+
+
+def registered() -> bool:
+    return entry_path().exists()

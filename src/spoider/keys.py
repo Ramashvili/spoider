@@ -27,8 +27,8 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+d", "delete", "del", id="delete"),
     Binding("t", "fold", "fold", id="fold"),
     Binding("ctrl+t", "fold", "fold", show=False, id="fold_alt"),
-    Binding("m", "mark", "mark", id="mark"),
-    Binding("ctrl+m", "set_marks", "set marks", id="set_marks"),
+    Binding("w", "mark", "mark", id="mark"),
+    Binding("ctrl+w", "set_marks", "set marks", id="set_marks"),
     # search sits with the other editing keys: it is what you reach for while
     # reading a map, and the bar has room for one more
     Binding("ctrl+f", "search", "search", id="search"),

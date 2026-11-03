@@ -28,3 +28,10 @@ def write_atomic(path: Path, text: str) -> None:
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise
+
+
+def default_path() -> Path:
+    """Where a map goes when the program is asked for one and there is no name."""
+    base = os.environ.get("XDG_DATA_HOME")
+    root = Path(base) if base else Path.home() / ".local" / "share"
+    return root / "spoider" / "map.spoider"

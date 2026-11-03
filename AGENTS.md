@@ -164,7 +164,11 @@ chord, which is what keeps a leftover setting from rebinding a key.
 - `App.clipboard` already exists (Textual's OSC 52 bridge) — shadowing it raises at
   construction. The cut cell is `cut_cell`.
 - `^M` arrives as `Return` on any terminal, and `^I` as `Tab` where the kitty keyboard
-  protocol is missing. That is why `m` is bare and `ctrl+m` is not bound at all.
+  protocol is missing. That is why the mark keys are bare `w` and `^W`: both survive a
+  plain terminal, and `^M` is not bound at all.
+- Installing cannot do anything: `uv tool install` and a wheel run no code at install
+  time, so the offer to register `.spoider` with the desktop happens on the first launch
+  instead, once, recorded in the config as `desktop_asked`.
 - `run_test` suppresses notifications unless you pass `notifications=True`.
 - `Text.split("\n")` drops blank lines — pass `allow_blank=True` when splicing
   rendered text back together.

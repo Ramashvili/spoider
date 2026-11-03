@@ -64,5 +64,5 @@ def test_the_readme_key_table_still_covers_the_common_actions() -> None:
     """The table is a summary, not the whole keymap, but the everyday keys belong in it."""
     section = README.read_text(encoding="utf-8").split("## Keys", 1)[1].split("\n## ", 1)[0]
     chords = {name for token in re.findall(r"`([^`]+)`", section) for name in key_names(token)}
-    for chord in ("tab", "enter", "e", "ctrl+k", "ctrl+u", "ctrl+i", "ctrl+d", "m", "t", "ctrl+f"):
+    for chord in ("tab", "enter", "e", "ctrl+k", "ctrl+u", "ctrl+i", "ctrl+d", "w", "t", "ctrl+f"):
         assert chord in chords, f"the README key table no longer mentions {chord}"

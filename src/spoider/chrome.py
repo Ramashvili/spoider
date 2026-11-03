@@ -209,10 +209,11 @@ def prompt_chunks(verb: str) -> list[Text]:
     ]
 
 
-def ask_chunks() -> list[Text]:
+def ask_chunks(affirm: str = "save", deny: str = "discard") -> list[Text]:
+    """The keys a yes/no question accepts, worded the way that question asked it."""
     return [
-        entry("y", "save", literal=True),
-        entry("n", "discard", literal=True),
+        entry("y", affirm, literal=True),
+        entry("n", deny, literal=True),
         entry("esc", "cancel", literal=True),
     ]
 

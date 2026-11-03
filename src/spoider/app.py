@@ -5,10 +5,8 @@ from __future__ import annotations
 import argparse
 import os
 import shlex
-import shutil
 import subprocess
 from collections.abc import Iterable
-from importlib import resources
 from pathlib import Path
 
 from textual import events
@@ -27,8 +25,10 @@ from .config import (
     load_config,
     write_config,
 )
+from .desktop import install_desktop, registered
 from .drawers import AskBar, PanelBar, PromptBar
 from .editing import Buffer
+from .files import default_path
 from .keys import (
     BINDINGS,
     action_chords,
@@ -212,6 +212,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._settings_row = 0
         #: keys | search | write | marks | ask | settings | help
         self._mode = "keys"
+        #: The words the open yes/no question offers, so the bar can name them.
+        self._ask_words: tuple[str, str] = ("save", "discard")
         self._show_matches = False  # the count sits in the bar only for a while
         self._count_timer = None
         self._undo: list[dict] = []
@@ -255,6 +257,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.set_keymap(build_action_keymap(self.config.keys))
         self._set_terminal_title()
         self.query_one(MindMapView).focus()
+        self._offer_desktop_once()
 
     def on_app_focus(self, event: events.AppFocus) -> None:
         """Come back to the terminal exactly where you left it."""
@@ -720,7 +723,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             footer.custom = prompt_chunks("save" if mode == "marks" else mode)
         elif mode == "ask":
             footer.mode = "custom"
-            footer.custom = ask_chunks()
+            footer.custom = ask_chunks(*self._ask_words)
         elif mode == "settings":
             footer.mode = "custom"
             footer.custom = settings_chunks()
@@ -844,10 +847,35 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._sync_footer()
 
     def _ask_to_save(self) -> None:
+        self._ask_words = ("save", "discard")
         self._mode = "ask"
         self._hide_drawers(AskBar)
         self.query_one(AskBar).ask("Save modified buffer?", self._save_answered)
         self._sync_footer()
+
+    def _offer_desktop_once(self) -> None:
+        """Ask, on the first run, whether .spoider files should open in spoider.
+
+        Installation cannot do it: neither `uv tool install` nor any wheel runs code at
+        install time, so the first launch is the first moment the program can ask.
+        """
+        if self.config.desktop_asked or registered():
+            return
+        self._ask_words = ("register", "not now")
+        self._mode = "ask"
+        self._hide_drawers(AskBar)
+        self.query_one(AskBar).ask(
+            "Open .spoider files with spoider from now on?", self._desktop_answered
+        )
+        self._sync_footer()
+
+    def _desktop_answered(self, choice: str | None) -> None:
+        self._close_drawers()
+        self.config.desktop_asked = True
+        self._save_config()
+        if choice == "yes":
+            install_desktop()
+            self.notify("A .spoider map now opens with spoider", timeout=3)
 
     def _settings_key(self, key: str) -> None:
         if key in ("escape", "ctrl+c", "ctrl+comma", "ctrl+x"):
@@ -950,53 +978,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self._ask_where_to_write(then_quit=True)
 
 
-
-
-def _run_tool(argv: list[str]) -> bool:
-    """Run a system tool that may not be installed; say whether it ran."""
-    try:
-        subprocess.run(argv, check=False, capture_output=True)
-    except OSError:
-        return False
-    return True
-
-
-def install_desktop() -> int:
-    """Register `.spoider` with the desktop: the MIME type, the entry, the default.
-
-    Two files copied where the system looks for them, then the tools that rebuild
-    its caches. Nothing is written anywhere the user did not ask for, and running it
-    twice is harmless.
-    """
-    data_home = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
-    mime_dir = data_home / "mime" / "packages"
-    apps_dir = data_home / "applications"
-    mime_dir.mkdir(parents=True, exist_ok=True)
-    apps_dir.mkdir(parents=True, exist_ok=True)
-
-    source = resources.files("spoider").joinpath("data")
-    (mime_dir / "x-spoider.xml").write_bytes(source.joinpath("x-spoider.xml").read_bytes())
-    entry = source.joinpath("spoider.desktop").read_text(encoding="utf-8")
-    # the launcher is told where the program is, not just its name: a desktop
-    # session does not always have ~/.local/bin on PATH
-    command = shutil.which("spoider") or "spoider"
-    (apps_dir / "spoider.desktop").write_text(
-        entry.replace("Exec=spoider ", f"Exec={command} "), encoding="utf-8"
-    )
-
-    _run_tool(["update-mime-database", str(data_home / "mime")])
-    _run_tool(["update-desktop-database", str(apps_dir)])
-    if _run_tool(["xdg-mime", "default", "spoider.desktop", "application/x-spoider"]):
-        print("A .spoider map now opens with spoider.")
-    else:
-        print("The type is installed; set the default with xdg-mime when it is available.")
-    return 0
-
-
-def default_path() -> Path:
-    base = os.environ.get("XDG_DATA_HOME")
-    root = Path(base) if base else Path.home() / ".local" / "share"
-    return root / "spoider" / "map.spoider"
 
 
 def main(argv: list[str] | None = None) -> None:

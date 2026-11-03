@@ -4,31 +4,34 @@ A mind map editor for the terminal. One map, one bar of keys, no floating
 windows, no colours of its own: every colour comes from your terminal. The map is
 a plain JSON file you can read, diff and version.
 
-```
- ╭─────────────╮      ╭──────╮      ╭─────────╮      ╭────────╮      ╭─────────────────╮
- │ nano chords ├──────┤ keys ├──────┤ spoider ├──────┤ canvas ├──────┤ boxes and links │
- ╰─────────────╯      ╰──────╯      ╰─────────╯      ╰────────╯      ╰─────────────────╯
-```
+![a mind map in spoider](media/spoider.png)
 
-Two minutes of it in use: [media/spoider-tour.mp4](media/spoider-tour.mp4), a map built cell by cell, marks, folds, the four shapes, the air between cells, a branch cut and worked on inside the stack, and a paragraph justified in place.
+Thirty seconds of it working, then the [full two-minute tour](media/spoider-tour.mp4):
+the four shapes, marks, folds, the air between cells, a branch cut and worked on inside
+the stack, and a paragraph justified in place.
+
+![the tour](media/spoider-preview.gif)
 
 ## Install
 
+spoider needs [uv](https://docs.astral.sh/uv/), which also brings a matching Python:
+
 ```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh    # or: pacman -S uv
 uv tool install git+https://github.com/Ramashvili/spoider
 ```
 
-That puts `spoider` on your PATH. To try it first without keeping anything:
+That puts `spoider` on your PATH. The first time it starts it asks whether your desktop
+should open `.spoider` files with it; `spoider --install-desktop` does the same thing by
+hand, without the question.
+
+## Try it without installing
 
 ```bash
 uvx --from git+https://github.com/Ramashvili/spoider spoider --demo
 ```
 
-A map is a `.spoider` file. To have the desktop open them for you, run once:
-
-```bash
-spoider --install-desktop
-```
+`--demo` starts with the manual as a map rather than an empty buffer.
 
 ## Run
 
@@ -51,7 +54,8 @@ name when there is none, `^O` writes a copy, `^X` asks before throwing edits awa
 | `^K` / `^U` | cut a branch onto the stack, paste it back |
 | `^I` | open the cut stack and work inside it |
 | `^D` | delete the branch |
-| `m` | cycle the cell's mark |
+| `w` | cycle the cell's mark |
+| `^W` | set the marks this map cycles |
 | `t` | fold or unfold |
 | `^J` | justify the cell's text to a width you type |
 | `^F` | search |
@@ -108,16 +112,17 @@ justify_width_default = 66
 ```
 
 Everything about how the editor behaves lives there (`marks_default`,
-`justify_width_default`, every chord). Everything about how the map looks lives in the
-map and travels with it: spacing, shape, colouring, its marks, its cut stack.
+`justify_width_default`, `desktop_asked`, every chord). Everything about how the map
+looks lives in the map and travels with it: spacing, shape, colouring, its marks, its cut
+stack.
 
 ## Limits
 
 - A map wider than the window is clipped at the edges; there is no zoom out.
 - `^K` and `^U` are the only way to reparent a branch.
 - Nothing locks the map file: two editors on one map, last save wins.
-- On a terminal without the kitty keyboard protocol, `^I` arrives as `Tab` and `^M`
-  as `Return`. Rebind the keys that overlap if that is your terminal.
+- On a terminal without the kitty keyboard protocol, `^I` arrives as `Tab`. Rebind the
+  keys that overlap if that is your terminal.
 
 ## Development
 
