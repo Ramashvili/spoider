@@ -232,11 +232,13 @@ class MindMapView(Widget, can_focus=True):
         for index, char in enumerate(STACK_TITLE[:inner]):
             combined.cells[(self._offset_x + wall + 2 + index, self._offset_y)] = (char, "")
 
+        # The panel colours by level, never by family: its entries are separate
+        # little trees, so "family" would give two children of one cut two colours.
         art = build_grid(
             panel,
             tuple(self.spoider.selected_ids),
             lead=None,
-            colours=self.spoider.mm.colours,
+            colours="depth",
             depth_shift=DEPTH_COLORS.index(STACK_START) + 1,
         )
         # a stack taller than the column follows its own selection

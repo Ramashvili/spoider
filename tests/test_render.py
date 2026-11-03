@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from rich.cells import cell_len
 
-from spoider.layout import PAD, compute
+from spoider.layout import PAD, compute, compute_stack
 from spoider.model import MindMap, Node
 from spoider.render import DEPTH_COLORS, STACK_START, build_grid, render_text
 
@@ -109,6 +109,21 @@ def test_the_cut_stack_starts_further_down_the_palette():
     drawn = build_grid(layout, "", depth_shift=DEPTH_COLORS.index(STACK_START) + 1)
     box = layout.boxes[mm.root.id]
     assert drawn.cells[(box.x + 1, box.y + 1)][1] == STACK_START
+
+
+def test_children_of_one_cut_share_a_colour_in_the_panel():
+    """A stack is a list, so it colours by level: two children of one cut must match,
+    which "family" breaks because each entry is a little tree of its own."""
+    entry = Node("cut", children=[Node("a"), Node("b")])
+    layout = compute_stack([entry], 0)
+    drawn = build_grid(
+        layout, "", colours="depth", depth_shift=DEPTH_COLORS.index(STACK_START) + 1
+    )
+    styles = {
+        box.node.text: drawn.cells[(box.x + 1, box.y + 1)][1]
+        for box in layout.boxes.values()
+    }
+    assert styles["a"] == styles["b"]
 
 
 def test_only_the_selected_box_frame_is_reversed():
