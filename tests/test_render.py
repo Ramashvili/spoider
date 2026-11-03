@@ -76,8 +76,8 @@ def test_cropping_past_the_map_leaves_blank_cells():
     assert text.plain.strip() == ""
 
 
-def test_a_mark_keeps_its_own_colours_when_its_cell_is_selected():
-    """An emoji mark is a picture: reversed, a star turns into a block of inverted colour."""
+def test_a_selected_cell_keeps_its_text_and_mark_in_their_own_colours():
+    """Selection is a block around a cell, so nothing written inside it is inverted."""
     mm = MindMap(Node("root"))
     child = mm.add_child(mm.root.id, "child")
     child.mark = "⭐"
@@ -89,7 +89,9 @@ def test_a_mark_keeps_its_own_colours_when_its_cell_is_selected():
     # the first column of the text: padding, the two-cell star, and its space
     text_style = plain.cells[(box.x + 1 + PAD + cell_len("⭐") + 1, row)][1]
     assert "reverse" not in mark_style, "the mark should keep its own colours"
-    assert "reverse" in text_style, "the text beside it should still be selected"
+    assert "reverse" not in text_style, "the letters keep the terminal's own colours"
+    wall = plain.cells[(box.x, box.y)][1]
+    assert "reverse" in wall, "the frame is what marks the selection"
 
     # and selection must not move a single character: a split run that is placed one
     # cell off swallows the first letter of the cell and leaves a stray blank at the end
@@ -99,14 +101,16 @@ def test_a_mark_keeps_its_own_colours_when_its_cell_is_selected():
     assert drawn == quiet
 
 
-def test_only_the_selected_box_is_reversed():
+def test_only_the_selected_box_frame_is_reversed():
     mm = MindMap(Node("root"))
     child = mm.add_child(mm.root.id, "child")
     layout = compute(mm.root, 0)
     plain = build_grid(layout, child.id)
-    styles = {box.node.text: plain.cells[(box.x + 1, box.y + 1)][1] for box in layout.boxes.values()}
-    assert "reverse" in styles["child"]
-    assert "reverse" not in styles["root"]
+    frames = {box.node.text: plain.cells[(box.x, box.y)][1] for box in layout.boxes.values()}
+    assert "reverse" in frames["child"]
+    assert "reverse" not in frames["root"]
+    for box in layout.boxes.values():
+        assert "reverse" not in plain.cells[(box.x + 1, box.y + 1)][1]
 
 
 def _stacked(spacing: int, first: str = "one", second: str = "two") -> str:

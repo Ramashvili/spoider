@@ -12,7 +12,7 @@ from rich.text import Text
 from .chrome import CARET_STYLE
 from .layout import DOWN, PAD, RIGHT, UP, Layout, Placed, caret_pos, lines_of, selection_span
 from .model import DEFAULT_COLOURS
-from .text import clean, find_all
+from .text import find_all
 
 R, D, L, U = 1, 2, 4, 8
 
@@ -151,10 +151,13 @@ def build_grid(
         # there, and a reverse-on-reverse caret would be invisible.
         editing = box.node.preview is not None
         colour = cell_colour(colours, box.depth, layout.families.get(box.node.id, -1))
-        style = node_style(
-            colour, box.node.id in chosen and not editing, lead=box.node.id == lead
-        )
-        _draw_box(grid, box, style, query)
+        chosen_here = box.node.id in chosen and not editing
+        frame = node_style(colour, chosen_here, lead=box.node.id == lead)
+        # Selection is a block around the cell, never over its text: inverting the
+        # letters fights the terminal's own colours, and an emoji mark comes out as a
+        # block of reversed picture instead of a star.
+        inside = node_style(colour, selected=False)
+        _draw_box(grid, box, frame, inside, query)
     for box in layout.boxes.values():
         if box.node.collapsed:
             continue
@@ -186,7 +189,7 @@ def _mask(row: str, query: str) -> list[bool] | None:
     return mask
 
 
-def _draw_box(grid: Grid, box: Placed, style: str, query: str = "") -> None:
+def _draw_box(grid: Grid, box: Placed, style: str, inside: str, query: str = "") -> None:
     """Draw a box as four walls that know which way they continue.
 
     Nothing here picks a glyph: a corner is "right and down", a side is "up and
@@ -213,14 +216,6 @@ def _draw_box(grid: Grid, box: Placed, style: str, query: str = "") -> None:
     grid.add_edge(right, bottom, L | U, style)
 
     inner = box.w - 2
-    # A mark is a picture, not a letter: reversed, an emoji turns into a block of
-    # inverted colour and stops reading as a star or a tick. So the mark keeps the
-    # cell's own colours even when the cell is selected, and only the text inverts.
-    mark = clean(box.node.mark) if box.node.mark else ""
-    # counted in characters, because `row` below is a string: the mark, plus the space
-    # that `lines_of` puts after it
-    mark_chars = len(mark) + 1 if mark else 0
-    plain = " ".join(part for part in style.split() if part not in ("reverse", "underline"))
     for index, text in enumerate(lines_of(box.node)):
         row = " " * PAD + text + " " * max(0, inner - PAD - cell_len(text))
         mask = _mask(row, query) or [False] * len(row)
@@ -229,19 +224,11 @@ def _draw_box(grid: Grid, box: Placed, style: str, query: str = "") -> None:
             start = PAD + span[0]
             for column in range(start, min(start + (span[1] - span[0]), len(mask))):
                 mask[column] = True
-        cut = PAD + mark_chars
-        # the row is sliced by character, but the run is placed by cell: a wide mark
-        # covers two columns for one character
-        after = PAD + cell_len(mark) + 1
-        if index == 0 and mark_chars and "reverse" in style and cut < len(row):
-            grid.put_text(left + 1, top + 1 + index, row[:cut], plain, mask[:cut])
-            grid.put_text(left + 1 + after, top + 1 + index, row[cut:], style, mask[cut:])
-        else:
-            grid.put_text(left + 1, top + 1 + index, row, style, mask)
+        grid.put_text(left + 1, top + 1 + index, row, inside, mask)
     at = caret_pos(box.node)
     if at is not None:
         line, column = at
-        _hang_caret(grid, left + 1 + PAD + column, top + 1 + line, style, box.node.overwrite)
+        _hang_caret(grid, left + 1 + PAD + column, top + 1 + line, inside, box.node.overwrite)
 
 
 def _hang_caret(grid: Grid, x: int, y: int, style: str, overwrite: bool = False) -> None:
