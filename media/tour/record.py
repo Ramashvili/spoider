@@ -278,6 +278,24 @@ def workspace_of(name: str) -> None:
     run(["hyprctl", "eval", f'hl.dispatch(hl.dsp.focus({{ workspace = "{name}" }}))'])
 
 
+def short_scene() -> list[Step]:
+    """Ten seconds of the work a tour shows: walking the map, typing, relayout."""
+    plan: list[Step] = [(1.5, b"", "")]
+    for _ in range(5):
+        plan.append((0.18, b"\x0e", "^N"))
+    plan.append((0.3, b"\x10", "^P"))
+    plan.append((0.6, b"\t", "tab"))
+    plan.append((0.35, b"", ""))
+    for character in "sharp letters hold their shape":
+        plan.append((FAST, character.encode(), ""))
+    plan.append((0.25, ENTER.encode(), "⏎"))
+    plan.append((0.8, b"-", "-"))
+    plan.append((0.5, b"-", "-"))
+    plan.append((0.9, b"\x0c", "^L"))
+    plan.append((1.2, b"", ""))
+    return plan
+
+
 def send(payload: bytes | str) -> None:
     """Every byte as hex, so control chords and CSI-u sequences arrive unchanged."""
     data = payload.encode() if isinstance(payload, str) else payload
@@ -324,6 +342,7 @@ def main() -> int:
     cbr: str | None = None
     lossless = False
     capture = "wf"  # the default: a lossless master, encoded once for publishing
+    short = False
     out = WORKDIR / "media" / "spoider-tour.mp4"
     show_keys = True
     argv = sys.argv[1:]
@@ -343,6 +362,9 @@ def main() -> int:
         elif arg == "--out":
             out = Path(argv[index + 1])
         elif arg == "--no-keys":
+            show_keys = False
+        elif arg == "--short":
+            short = True
             show_keys = False
     TAKES.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y-%m-%dT%H-%M-%S")
@@ -445,7 +467,7 @@ def main() -> int:
         # input to the one encode that is.
         recorder = subprocess.Popen(
             ["wf-recorder", "-g", f"{x},{y} {width}x{height}", "-r", "30", "-f", str(raw),
-             "-c", "libx264rgb", "-p", "crf=0"],
+             "-D", "-c", "libx264rgb", "-p", "crf=0"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -462,7 +484,7 @@ def main() -> int:
     started = time.monotonic()
     keys: list[dict] = []
 
-    for pause, payload, chord in scene():
+    for pause, payload, chord in (short_scene() if short else scene()):
         time.sleep(pause)
         if payload:
             send(payload)
