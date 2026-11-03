@@ -5,7 +5,7 @@ windows, no colours of its own: every colour comes from your terminal. The map i
 a plain JSON file you can read, diff and version.
 
 It is built on [Textual](https://textual.textualize.io/), and it is vibecoded: an AI
-assistant writes the code under the author's direction and review.
+assistant writes the code under the author's direction.
 
 ![a mind map in spoider](media/spoider.png)
 
