@@ -36,11 +36,17 @@ def clients() -> list[dict]:
 
 def main() -> int:
     workspace = "9"
+    font_family: str | None = None
+    font_size: str | None = None
     out = Path(__file__).resolve().parent.parent / "spoider.png"
     argv = sys.argv[1:]
     for index, arg in enumerate(argv):
         if arg == "--workspace":
             workspace = argv[index + 1]
+        elif arg == "--font-family":
+            font_family = argv[index + 1]
+        elif arg == "--font-size":
+            font_size = argv[index + 1]
         elif arg == "--out":
             out = Path(argv[index + 1])
 
@@ -48,11 +54,16 @@ def main() -> int:
     subprocess.run(["tmux", "kill-session", "-t", SESSION], capture_output=True)
     time.sleep(0.5)
 
+    font_args = [item for pair in (
+        ("-o", f"font_family={font_family}") if font_family else None,
+        ("-o", f"font_size={font_size}") if font_size else None,
+    ) if pair for item in pair]
     kitty = subprocess.Popen(
         [
             "kitty",
             "--instance-group",
             GROUP,
+            *font_args,
             "-o",
             "window_padding_width=0",
             "-o",

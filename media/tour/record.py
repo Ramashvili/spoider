@@ -316,12 +316,21 @@ def stamp(seconds: float) -> str:
 
 def main() -> int:
     workspace = "9"
+    font_family: str | None = None
+    font_size: str | None = None
+    cbr: str | None = None
     out = WORKDIR / "media" / "spoider-tour.mp4"
     show_keys = True
     argv = sys.argv[1:]
     for index, arg in enumerate(argv):
         if arg == "--workspace":
             workspace = argv[index + 1]
+        elif arg == "--font-family":
+            font_family = argv[index + 1]
+        elif arg == "--font-size":
+            font_size = argv[index + 1]
+        elif arg == "--cbr":
+            cbr = argv[index + 1]
         elif arg == "--out":
             out = Path(argv[index + 1])
         elif arg == "--no-keys":
@@ -337,11 +346,16 @@ def main() -> int:
     raw.unlink(missing_ok=True)
     out.parent.mkdir(parents=True, exist_ok=True)
 
+    font_args = [item for pair in (
+        ("-o", f"font_family={font_family}") if font_family else None,
+        ("-o", f"font_size={font_size}") if font_size else None,
+    ) if pair for item in pair]
     kitty = subprocess.Popen(
         [
             "kitty",
             "--instance-group",
             GROUP,
+            *font_args,
             "-o",
             "window_padding_width=0",
             "-o",
@@ -407,9 +421,12 @@ def main() -> int:
     height = round(ROWS * cell_h)
     print(f"pane {pane} grid {grid} cell {cell_w:.2f}x{cell_h:.2f} -> capture {width}x{height}+{x}+{y}")
 
+    rate_args = ["-bm", "cbr", "-q", cbr] if cbr else []
     recorder = subprocess.Popen(
         ["gpu-screen-recorder", "-w", f"{width}x{height}+{x}+{y}", "-f", "30", "-k", "h264",
-         "-c", "mp4", "-cursor", "no", "-fallback-cpu-encoding", "yes", "-o", str(raw)],
+         "-c", "mp4", "-cursor", "no", "-encoder", "cpu", "-fallback-cpu-encoding", "yes",
+         *rate_args,
+         "-o", str(raw)],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )

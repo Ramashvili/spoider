@@ -23,10 +23,10 @@ SESSION = "qual"
 COLS, ROWS = 150, 50
 
 SETTINGS = [
-    ("default (very_high, qp)", []),
-    ("ultra (qp)", ["-q", "ultra"]),
-    ("cbr 1200 kbps", ["-bm", "cbr", "-q", "1200"]),
-    ("cbr 3000 kbps", ["-bm", "cbr", "-q", "3000"]),
+    ("default", []),
+    ("no deblocking", ["-ffmpeg-video-opts", "-x264-params deblock=0"]),
+    ("no deblock, no psy", ["-ffmpeg-video-opts", "-x264-params deblock=0:psy=0"]),
+    ("no deblock, cbr 800", ["-bm", "cbr", "-q", "800", "-ffmpeg-video-opts", "-x264-params deblock=0"]),
 ]
 
 
@@ -40,8 +40,13 @@ def clients() -> list[dict]:
 
 def main() -> int:
     run(["tmux", "kill-session", "-t", SESSION])
+    font_args: list[str] = []
+    if "--font-family" in sys.argv:
+        font_args += ["-o", f"font_family={sys.argv[sys.argv.index('--font-family') + 1]}"]
+    if "--font-size" in sys.argv:
+        font_args += ["-o", f"font_size={sys.argv[sys.argv.index('--font-size') + 1]}"]
     process = subprocess.Popen(
-        ["kitty", "--instance-group", GROUP, "-o", "window_padding_width=0",
+        ["kitty", "--instance-group", GROUP, *font_args, "-o", "window_padding_width=0",
          "-o", "tab_bar_style=hidden", "-o", "tab_bar_min_tabs=2",
          "-T", "qual", "-e", "sh", "-c",
          f'tmux -f /dev/null new-session -d -s {SESSION} "cd {Path.home()}/Projects/spoider && uv run spoider --demo";'
@@ -94,6 +99,9 @@ def main() -> int:
             time.sleep(7)
             recorder.send_signal(signal.SIGINT)
             recorder.wait(timeout=60)
+            if not out.exists() or out.stat().st_size < 1000:
+                print(f"{name:26} unavailable ({'-k'} not supported by this encoder)")
+                continue
             frame = Path(f"/tmp/qual-{name.split()[0]}.png")
             run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "2", "-i", str(out),
                  "-vframes", "1", str(frame)])
