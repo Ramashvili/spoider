@@ -1,31 +1,29 @@
 # spoider
 
-A mind map editor for the terminal. One map, one bar of keys, no floating
-windows, no colours of its own: every colour comes from your terminal. The map is
-a plain JSON file you can read, diff and version.
+A mind map editor for the terminal. Start with one thought in the middle, branch
+out with `Tab` and `Return`, and walk the tree with the arrow keys. Every colour
+comes straight from your terminal theme.
 
-It is built on [Textual](https://textual.textualize.io/), and it is vibecoded.
+It is a Python TUI built on [Textual](https://textual.textualize.io/), and it is vibecoded.
 
 ![a mind map in spoider](media/spoider.png)
 
 https://github.com/user-attachments/assets/a8818b5e-8f63-490f-9e02-c3ee17aec757
 
-Two minutes and twenty-three seconds of it working: the four shapes, marks, folds, the air
-between cells, a branch cut and worked on inside the stack, and a paragraph justified in
-place.
+Two minutes and twenty-three seconds of it working: the four layouts, marks, folds,
+spacing, moving branches through the cut stack, and justifying a long note in place.
 
 ## Install
 
-spoider needs [uv](https://docs.astral.sh/uv/), which also brings a matching Python:
+spoider uses [uv](https://docs.astral.sh/uv/), which also fetches a matching Python if needed:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh    # or: pacman -S uv
 uv tool install git+https://github.com/Ramashvili/spoider
 ```
 
-That puts `spoider` on your PATH. The first time it starts it asks whether your desktop
-should open `.spoider` files with it; `spoider --install-desktop` does the same thing by
-hand, without the question.
+On first launch, `spoider` asks if you want your desktop to open `.spoider` files
+with it automatically.
 
 ## Try it without installing
 
@@ -33,109 +31,83 @@ hand, without the question.
 uvx --from git+https://github.com/Ramashvili/spoider spoider --demo
 ```
 
-`--demo` starts with the manual as a map rather than an empty buffer.
+`--demo` opens the built-in manual as a mind map you can explore and edit.
 
 ## Run
 
 ```bash
-spoider                # a new, empty map
-spoider ideas.spoider  # open that map, or start one there
-spoider --demo         # the manual, as a map
+spoider                # start a new map
+spoider ideas.spoider  # open a map, or create one at that path
+spoider --demo         # open the interactive manual
 ```
-
-Nothing is written until you ask: `^S` saves over the current file and asks for a
-name when there is none, `^O` writes a copy, `^X` asks before throwing edits away.
 
 ## Keys
 
 | Key | Does |
 | --- | --- |
-| `Tab` / `Return` | a child, a sibling |
-| `e` | rename on the canvas |
-| `↑↓←→` `hjkl` | move |
-| `^K` / `^U` | cut a branch onto the stack, paste it back |
-| `^I` | open the cut stack and work inside it |
-| `^D` | delete the branch |
-| `w` | cycle the cell's mark |
-| `^W` | set the marks this map cycles |
-| `t` | fold or unfold |
-| `^J` | justify the cell's text to a width you type |
-| `^F` | search |
-| `^L` / `c` | change the shape, change the colouring |
-| `=` / `-` | more or less air |
+| `Tab` / `Return` | add a child, add a sibling |
+| `e` | edit the cell's text |
+| `↑↓←→` `hjkl` | walk the tree |
+| `Alt+↑` / `Alt+↓` | reorder siblings |
+| `^K` / `^U` | cut a branch to the stack, paste it under the current cell |
+| `^I` | open the cut stack panel to inspect or edit cut branches |
+| `^D` | delete a branch |
+| `w` / `^W` | cycle a cell's mark, or choose which marks this map uses |
+| `t` | fold or unfold children |
+| `^J` | wrap a cell's text to a chosen column width |
+| `^F` | search cells |
+| `^L` / `c` | cycle the layout shape, switch colour mode |
+| `=` / `-` | loosen or tighten the spacing |
 | `^Z` `^Y` | undo, redo |
-| `^S` `^O` `^X` | save, write out, quit |
-| `^,` `^/` | settings, help |
+| `^S` `^O` `^X` | save, save as, quit |
+| `^,` `^/` | settings, full key list |
 
-`^/` has the whole list with a line of explanation, and the bar at the bottom always
-shows the keys that work where you are. Everything rebinds, and a commented vim block
-sits at the end of the config if that is your hand.
+## How it works
 
-## Editing
+### Writing in cells
 
-A cell holds as many lines as you give it, and the box grows with them. Inside one,
-the usual keys work: arrows and `Home`/`End`, word delete with `Alt+Backspace`,
-`Insert` for overwrite, `Shift` with an arrow to select (then `^K` cuts, `M-6`
-copies, `^U` pastes), and `^Z`/`^Y` undo the cell's text alone. `Shift+Return` starts
-a new line, and `^J` reflows the paragraphs to a width it asks for and remembers.
+A cell grows to fit as many lines as you type. `Shift+Return` adds a new line,
+`Shift` with the arrow keys selects text, and `^J` wraps long notes into clean
+paragraphs at whatever width you prefer.
 
-## Shapes and colour
+### Four ways to draw the tree
 
-`^L` cycles four drawings of the same tree and the arrows follow the drawing:
+Press `^L` to cycle through four shapes for the same map. The arrow keys adapt
+automatically to match the drawing on screen:
 
-| Shape | Root sits | Children |
-| --- | --- | --- |
-| `spider` | in the middle | fan out both sides |
-| `pyramid` | at the top | stack below it |
-| `bush` | at the bottom | grow upwards |
-| `branch` | at the left | hang right, like a contents page |
+- **spider:** root in the centre, branches fanning out left and right.
+- **pyramid:** root at the top, children stacked below.
+- **bush:** root at the bottom, growing upwards.
+- **branch:** root on the left, unfolding to the right like an outline.
 
-`c` colours the cells either by branch, one colour for each whole subtree (how a new
-map starts), or by depth, one colour per level. The shape and the colouring are saved
-in the file.
+Press `c` to colour either by family (one colour per main branch) or by depth
+(one colour per level).
 
-## Cutting and pasting
+### Moving branches with the stack
 
-`^K` lifts the whole branch onto a stack, where cuts wait last-in-first-out, and `^U`
-hangs the newest cut under whatever is selected: cut, walk to the new parent, paste.
-`^I` opens the stack as a column of its own, where you can rename, mark, fold,
-reorder, cut again, or nest one cut inside another. The stack is saved in the map
-file, so you will not lose it when the editor closes.
+Cutting with `^K` places a branch onto a stack, and `^U` pastes the most recent
+cut under whichever cell you select next. If you are reorganising a large map,
+press `^I` to open the stack side-by-side: you can browse what you cut, edit or
+fold items inside it, or reorder them before pasting them back.
 
-## Settings
+### Maps that look the same everywhere
 
-`^,` toggles autosave and opens your config, a flat rc file at
-`~/.config/spoider/spoider.conf`:
+Your layout shape, spacing, colour mode, custom marks, and even unpasted branches
+on the stack are saved inside the `.spoider` file itself. Opening the same file
+on another machine gives you the exact same view.
 
-```
-autosave = false
-marks_default = ⭐ 💡 ❓ ⚠️ ✅ 📌 ⌛ 🤡
-justify_width_default = 66
-```
-
-Everything about how the editor behaves lives there (`marks_default`,
-`justify_width_default`, `desktop_asked`, every chord). Everything about how the map
-looks lives in the map and travels with it: spacing, shape, colouring, its marks, its cut
-stack.
-
-## Limits
-
-- A map wider than the window is clipped at the edges; there is no zoom out.
-- `^K` and `^U` are the only way to reparent a branch.
-- Nothing locks the map file: two editors on one map, last save wins.
-- On a terminal without the kitty keyboard protocol, `^I` arrives as `Tab`. Rebind the
-  keys that overlap if that is your terminal.
+Editor preferences like autosave and custom keybindings live in
+`~/.config/spoider/spoider.conf`, which you can open directly from `^,`.
 
 ## Development
 
 ```bash
 git clone https://github.com/Ramashvili/spoider && cd spoider
-uv sync && uv run spoider     # run it
-uv run pytest                 # test it
+uv sync && uv run spoider
+uv run pytest
 ```
 
-[AGENTS.md](AGENTS.md) has the layout, the rules and the traps, for people and for
-coding agents alike.
+See [AGENTS.md](AGENTS.md) for the codebase layout and design notes.
 
 ## Licence
 
