@@ -2732,7 +2732,8 @@ async def test_the_bar_switches_to_the_panel_keys(tmp_path: Path):
 
         bar = app.query_one("#footer", FooterBar).render().plain
         # the panel is the map with one difference, so the bar is the map's bar
-        assert bar.startswith(" p hide stack"), "the way out comes first"
+        assert "p hide stack" in bar, "the panel says how to shut it"
+        assert bar.index("^U paste") < bar.index("p hide stack"), "it keeps its place"
         assert "^K cut" in bar and "e edit" in bar and "^J justify" in bar
         assert "p show stack" not in bar, "one ^I per bar"
         for word in ("^X quit", "^S save", "^Z undo", "^F search", "t fold"):

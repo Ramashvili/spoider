@@ -227,13 +227,11 @@ def help_chunks() -> list[Text]:
 def stack_chunks(bindings: Iterable, keymap: dict[str, str] | None = None) -> list[Text]:
     """The bar while the cut stack has the keys: the map's own bar.
 
-    The panel is the map with one difference, so its bar is the map's, with the key
-    that closes it saying "hide stack" instead of "show stack" and standing first,
-    because it is the one a reader who is stuck needs to find.
+    The panel is the map with one difference, so its bar is the map's with one word
+    changed: the key that closes it says "hide stack". It keeps its place next to cut and
+    paste, because a key that moves around the bar is a key the reader has to find twice.
     """
-    return hint_chunks(
-        bindings, keymap=keymap, rename={"toggle_stack": "hide stack"}, first="toggle_stack"
-    )
+    return hint_chunks(bindings, keymap=keymap, rename={"toggle_stack": "hide stack"})
 
 
 def settings_chunks() -> list[Text]:
