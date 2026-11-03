@@ -3,12 +3,12 @@
   python3 record.py [--workspace 9] [--out media/spoider-tour.mp4] [--no-keys]
 
 The program runs in a kitty window on an empty desktop, inside a tmux window pinned to
-150x50, and gpu-screen-recorder captures that pane's pixel box. Nothing is repainted, so
-the emoji, the typeface and the colours are the terminal's own: the window is opened
-without a font override, so whatever the terminal is configured with is what gets filmed.
-A bitmap-style face at integer metrics leaves almost no antialiasing, which is sharp on
-screen and smaller after encoding (measured: 0.26% of pixels are blends with Spleen 8x16
-against 2.11% with JetBrains Mono).
+150x50, and wf-recorder captures that pane's pixel box losslessly. Nothing is repainted, so
+the emoji, the typeface and the colours are the terminal's own.
+
+The face is JetBrains Mono at 12, which is what the published tour was filmed in. A face is
+judged on how it survives being scaled, because a video is watched in a window of some
+other size, and that is the trade this one wins.
 
 Key presses are burned in afterwards from the scene itself. A keystroke overlay such as
 showmethekey or wshowkeys reads the keyboard devices, and these keys arrive through tmux
@@ -337,8 +337,11 @@ def stamp(seconds: float) -> str:
 
 def main() -> int:
     workspace = "9"
-    font_family: str | None = None
-    font_size: str | None = None
+    # The published bench. Spleen 8x16 is the terminal's own face and is exact at 1:1,
+    # but a video is watched in a window of some other size, so the face is judged on how
+    # it survives being scaled. This one does.
+    font_family: str | None = "JetBrainsMono Nerd Font"
+    font_size: str | None = "12"
     cbr: str | None = None
     lossless = False
     capture = "wf"  # the default: a lossless master, encoded once for publishing

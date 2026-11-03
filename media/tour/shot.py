@@ -36,8 +36,11 @@ def clients() -> list[dict]:
 
 def main() -> int:
     workspace = "9"
-    font_family: str | None = None
-    font_size: str | None = None
+    # The published bench. Spleen 8x16 is the terminal's own face and is exact at 1:1,
+    # but a video is watched in a window of some other size, so the face is judged on how
+    # it survives being scaled. This one does.
+    font_family: str | None = "JetBrainsMono Nerd Font"
+    font_size: str | None = "12"
     out = Path(__file__).resolve().parent.parent / "spoider.png"
     argv = sys.argv[1:]
     for index, arg in enumerate(argv):
@@ -58,6 +61,9 @@ def main() -> int:
         ("-o", f"font_family={font_family}") if font_family else None,
         ("-o", f"font_size={font_size}") if font_size else None,
     ) if pair for item in pair]
+    for index, item in enumerate(sys.argv):
+        if item == "-o":
+            font_args += ["-o", sys.argv[index + 1]]
     kitty = subprocess.Popen(
         [
             "kitty",
