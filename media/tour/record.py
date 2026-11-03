@@ -319,6 +319,7 @@ def main() -> int:
     font_family: str | None = None
     font_size: str | None = None
     cbr: str | None = None
+    lossless = False
     out = WORKDIR / "media" / "spoider-tour.mp4"
     show_keys = True
     argv = sys.argv[1:]
@@ -331,6 +332,8 @@ def main() -> int:
             font_size = argv[index + 1]
         elif arg == "--cbr":
             cbr = argv[index + 1]
+        elif arg == "--lossless":
+            lossless = True
         elif arg == "--out":
             out = Path(argv[index + 1])
         elif arg == "--no-keys":
@@ -422,6 +425,9 @@ def main() -> int:
     print(f"pane {pane} grid {grid} cell {cell_w:.2f}x{cell_h:.2f} -> capture {width}x{height}+{x}+{y}")
 
     rate_args = ["-bm", "cbr", "-q", cbr] if cbr else []
+    if lossless:
+        # what the screen shows, in the file: constant QP at 0 is lossless in x264
+        rate_args = ["-bm", "qp", "-q", "0"]
     recorder = subprocess.Popen(
         ["gpu-screen-recorder", "-w", f"{width}x{height}+{x}+{y}", "-f", "30", "-k", "h264",
          "-c", "mp4", "-cursor", "no", "-encoder", "cpu", "-fallback-cpu-encoding", "yes",
