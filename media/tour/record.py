@@ -320,7 +320,7 @@ def main() -> int:
     font_size: str | None = None
     cbr: str | None = None
     lossless = False
-    capture = "gsr"
+    capture = "wf"  # the default: a lossless master, encoded once for publishing
     out = WORKDIR / "media" / "spoider-tour.mp4"
     show_keys = True
     argv = sys.argv[1:]
@@ -436,7 +436,7 @@ def main() -> int:
         # every pixel exactly as composited. The master is never published: it is the
         # input to the one encode that is.
         recorder = subprocess.Popen(
-            ["wf-recorder", "-g", f"{x},{y} {width}x{height}", "-f", str(raw),
+            ["wf-recorder", "-g", f"{x},{y} {width}x{height}", "-r", "30", "-f", str(raw),
              "-c", "libx264rgb", "-p", "crf=0"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -494,7 +494,9 @@ def main() -> int:
                 raw.replace(out)
         else:
             print(f"{len(keys)} chords drawn in over the frames")
-            raw.unlink(missing_ok=True)
+            # the master is kept: it is what a later encode, a different bitrate or a
+            # different overlay is made from, and it is never published
+            print(f"master kept at {raw} ({raw.stat().st_size / 1_000_000:.0f} MB)")
     else:
         raw.replace(out)
 

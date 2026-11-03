@@ -25,10 +25,11 @@ GROUP = "fid" + "elity"
 SESSION = "fid"
 COLS, ROWS = 150, 50
 
+#: (name, gpu-screen-recorder extra args, wf-recorder codec args)
 SETTINGS = [
-    ("default", []),
-    ("x264 qp 0 via passthrough", ["-ffmpeg-video-opts", "-qp 0"]),
-    ("x264 crf 0 via passthrough", ["-ffmpeg-video-opts", "-crf 0"]),
+    ("gsr default", [], None),
+    ("wf libx264rgb crf 0", [], ["-c", "libx264rgb", "-p", "crf=0"]),
+    ("wf ffv1", [], ["-c", "ffv1"]),
 ]
 
 
@@ -107,18 +108,22 @@ def main() -> int:
             y += int(sys.argv[sys.argv.index("--dy") + 1])
         print(f"cell {cell_w:.3f}x{cell_h:.3f} -> capture {width}x{height}")
 
-        for name, extra in SETTINGS:
+        for name, extra, wf in SETTINGS:
             still = Path(f"/tmp/fid-{name.split()[0]}-still.png")
             video = Path(f"/tmp/fid-{name.split()[0]}.mp4")
             frame = Path(f"/tmp/fid-{name.split()[0]}-frame.png")
             video.unlink(missing_ok=True)
             run(["grim", "-g", f"{x},{y} {width}x{height}", "-t", "png", str(still)])
-            recorder = subprocess.Popen(
-                ["gpu-screen-recorder", "-w", f"{width}x{height}+{x}+{y}", "-f", "30",
-                 "-k", "h264", "-c", "mp4", "-cursor", "no", "-encoder", "cpu",
-                 "-fallback-cpu-encoding", "yes", *extra, "-o", str(video)],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
+            if wf is not None:
+                command = ["wf-recorder", "-g", f"{x},{y} {width}x{height}", "-r", "30",
+                           "-f", str(video.with_suffix(".mkv")), *wf]
+                video = video.with_suffix(".mkv")
+            else:
+                video = video.with_suffix(".mp4")
+                command = ["gpu-screen-recorder", "-w", f"{width}x{height}+{x}+{y}", "-f", "30",
+                           "-k", "h264", "-c", "mp4", "-cursor", "no", "-encoder", "cpu",
+                           "-fallback-cpu-encoding", "yes", *extra, "-o", str(video)]
+            recorder = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             time.sleep(7)
             recorder.send_signal(signal.SIGINT)
             recorder.wait(timeout=60)
