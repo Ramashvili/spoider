@@ -8,7 +8,7 @@ a plain JSON file you can read, diff and version.
 
 ![the whole tour](media/spoider-tour.gif)
 
-Two minutes and sixteen seconds of it working: the four shapes, marks, folds, the air
+Two minutes and nineteen seconds of it working: the four shapes, marks, folds, the air
 between cells, a branch cut and worked on inside the stack, and a paragraph justified in
 place. The same take is kept as [an mp4](media/spoider-tour.mp4) at full resolution.
 
