@@ -35,6 +35,7 @@ def test_every_shortcut_uses_a_modifier():
         "t",
         "w",
         "c",
+        "p",
         "equals_sign",
         "minus",
     }
@@ -1700,7 +1701,7 @@ def test_the_bar_ranks_its_hints_from_leaving_down_to_the_air():
         "^D del",
         "^K cut",
         "^U paste",
-        "^I show stack",
+        "p show stack",
         "t fold",
         "^L layout",
         "= looser",
@@ -2581,7 +2582,7 @@ async def test_undo_lets_go_of_the_selected_run(tmp_path: Path):
         assert app.selected_ids == [app.selected]
 
 
-# -- the cut stack, opened with ^I ----------------------------------------
+# -- the cut stack, opened with p ----------------------------------------
 
 
 async def test_the_stack_panel_opens_on_the_newest_cut(tmp_path: Path):
@@ -2594,7 +2595,7 @@ async def test_the_stack_panel_opens_on_the_newest_cut(tmp_path: Path):
         await pilot.pause()
         assert [cell.text for cell in app.mm.cut_stack] == ["alpha", "beta"]
 
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         assert app.stack_open
@@ -2605,7 +2606,7 @@ async def test_the_stack_panel_opens_on_the_newest_cut(tmp_path: Path):
 async def test_the_panel_says_nothing_when_the_stack_is_empty(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         assert not app.stack_open
@@ -2617,7 +2618,7 @@ async def test_the_panel_is_drawn_in_the_top_right_of_the_map(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         lines = app.view.render().plain.split("\n")
@@ -2633,7 +2634,7 @@ async def test_navigation_inside_the_panel_walks_the_stack(tmp_path: Path):
         app.select(alpha.id)
         await pilot.press("ctrl+k")
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         await pilot.press("down")  # the older cut, below the newest
@@ -2655,7 +2656,7 @@ async def test_the_map_is_not_touched_while_the_panel_is_open(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
         cells = app.mm.count()
 
@@ -2674,7 +2675,7 @@ async def test_cutting_again_moves_it_to_the_top(tmp_path: Path):
         app.select(alpha.id)
         await pilot.press("ctrl+k")
         await pilot.press("ctrl+k")  # the sibling it landed on
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         await pilot.press("down")  # onto the older one
@@ -2691,7 +2692,7 @@ async def test_dropping_the_last_cut_closes_the_panel(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         await pilot.press("ctrl+d")
@@ -2707,7 +2708,7 @@ async def test_a_cell_can_be_renamed_inside_the_panel(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         await pilot.press("e")
@@ -2726,20 +2727,20 @@ async def test_the_bar_switches_to_the_panel_keys(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         bar = app.query_one("#footer", FooterBar).render().plain
         # the panel is the map with one difference, so the bar is the map's bar
-        assert bar.startswith(" ^I hide stack"), "the way out comes first"
+        assert bar.startswith(" p hide stack"), "the way out comes first"
         assert "^K cut" in bar and "e edit" in bar and "^J justify" in bar
-        assert "^I show stack" not in bar, "one ^I per bar"
+        assert "p show stack" not in bar, "one ^I per bar"
         for word in ("^X quit", "^S save", "^Z undo", "^F search", "t fold"):
             assert word in bar, f"the panel keeps {word}"
 
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
-        assert "^I hide stack" not in app.query_one("#footer", FooterBar).render().plain
+        assert "p hide stack" not in app.query_one("#footer", FooterBar).render().plain
 
 
 def test_the_cut_count_is_marked_when_the_panel_is_open():
@@ -2766,7 +2767,7 @@ async def test_alt_arrows_move_an_entry_up_and_down_the_stack(tmp_path: Path):
         app.select(alpha.id)
         await pilot.press("ctrl+k")
         await pilot.press("ctrl+k")  # cuts beta too: it lands on the stack above alpha
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
         assert [cell.text for cell in app._stack_entries()] == ["beta", "alpha"]
 
@@ -2786,7 +2787,7 @@ async def test_the_gap_keys_work_inside_the_panel(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
         before = app.spacing
 
@@ -2807,7 +2808,7 @@ async def test_a_rebound_chord_works_inside_the_panel(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         await pilot.press("alt+w")
@@ -2823,7 +2824,7 @@ async def test_the_panel_bar_borrows_the_main_bars_words(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+w")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         bar = app.query_one("#footer", FooterBar).render().plain
@@ -2837,7 +2838,7 @@ async def test_paste_inside_the_panel_nests_the_cut_under_the_selection(tmp_path
         app.select(alpha.id)
         await pilot.press("ctrl+k")  # cuts alpha
         await pilot.press("ctrl+k")  # cuts beta, where the cursor landed
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
         cells = app.mm.count()
 
@@ -2857,7 +2858,7 @@ async def test_pasting_a_cell_into_itself_does_nothing(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         # the cursor starts on the top of the stack, which is the cell ^U would paste
@@ -2876,7 +2877,7 @@ async def test_pasting_a_cell_into_its_own_child_does_nothing(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         await pilot.press("right")  # into alpha's own child
@@ -2894,7 +2895,7 @@ async def test_the_panel_is_a_column_with_a_wall_and_a_title(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         lines = app.view.render().plain.split("\n")
@@ -2911,13 +2912,13 @@ async def test_the_map_shows_no_cursor_while_the_panel_is_open(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
 
-        await pilot.press("ctrl+i")  # with nothing cut, the panel stays shut
+        await pilot.press("p")  # with nothing cut, the panel stays shut
         await pilot.pause()
         before = {style for _, style in app.view._grid.cells.values()}
         assert any("reverse" in style for style in before), "the map shows where you are"
 
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
         during = {style for _, style in app.view._grid.cells.values()}
 
@@ -2932,7 +2933,7 @@ async def test_undo_works_inside_the_stack_view(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
         assert [cell.text for cell in app._stack_entries()] == ["alpha"]
 
@@ -2945,7 +2946,7 @@ async def test_undo_works_inside_the_stack_view(tmp_path: Path):
         await pilot.pause()
         assert [cell.text for cell in app._stack_entries()] == ["alpha"], "it is back"
 
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
         assert app.stack_open
         assert app.document.find(app.selected) is not None, "cursor re-pointed"
@@ -2957,7 +2958,7 @@ async def test_redo_works_inside_the_stack_view(tmp_path: Path):
         alpha, _beta = _branch_map(app)
         app.select(alpha.id)
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.press("ctrl+d")  # the stack is empty again
         await pilot.press("ctrl+z")
         await pilot.pause()
@@ -2975,7 +2976,7 @@ async def test_undo_after_reordering_the_stack_puts_the_order_back(tmp_path: Pat
         app.select(alpha.id)
         await pilot.press("ctrl+k")
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
         assert [cell.text for cell in app._stack_entries()] == ["beta", "alpha"]
 
@@ -3261,7 +3262,7 @@ async def _panel_with_two_cuts(app, pilot):
     await pilot.pause()
     app.select(beta.id)
     await pilot.press("ctrl+k")
-    await pilot.press("ctrl+i")
+    await pilot.press("p")
     await pilot.pause()
 
 
@@ -3325,7 +3326,7 @@ async def test_justify_from_the_panel_reflows_the_cut(tmp_path: Path):
         node = app.mm.add_child(app.mm.root.id, "one two three four five six seven")
         app.select(node.id)
         await pilot.press("ctrl+k")
-        await pilot.press("ctrl+i")
+        await pilot.press("p")
         await pilot.pause()
 
         await pilot.press("ctrl+j")
@@ -3434,7 +3435,7 @@ async def _panel_with_three_cuts(app, pilot):
         app.select(cell.id)
         await pilot.press("ctrl+k")
         await pilot.pause()
-    await pilot.press("ctrl+i")
+    await pilot.press("p")
     await pilot.pause()
 
 

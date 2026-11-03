@@ -493,7 +493,7 @@ class MindMap:
             "cut and paste": [
                 "^K lifts a branch onto a stack",
                 "^U pastes latest item from stack",
-                "^I opens the stack to work in",
+                "p opens the stack to work in",
             ],
             "inside the stack": [
                 "↑↓ walk it, e renames a cut",

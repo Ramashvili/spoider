@@ -65,7 +65,7 @@ spoider --demo         # open the interactive manual
 | `↑↓←→` `hjkl` | walk the tree |
 | `Alt+↑` / `Alt+↓` | reorder siblings |
 | `^K` / `^U` | cut a branch to the stack, paste it under the current cell |
-| `^I` | open the cut stack panel to inspect or edit cut branches |
+| `p` | open the cut stack panel to inspect or edit cut branches |
 | `^D` | delete a branch |
 | `w` / `^W` | cycle a cell's mark, or choose which marks this map uses |
 | `t` | fold or unfold children |
@@ -102,7 +102,7 @@ Press `c` to colour either by family (one colour per main branch) or by depth
 
 Cutting with `^K` places a branch onto a stack, and `^U` pastes the most recent
 cut under whichever cell you select next. If you are reorganising a large map,
-press `^I` to open the stack side-by-side: you can browse what you cut, edit or
+press `p` to open the stack side-by-side: you can browse what you cut, edit or
 fold items inside it, or reorder them before pasting them back.
 
 ### Maps that look the same everywhere

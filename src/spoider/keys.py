@@ -17,13 +17,14 @@ BINDINGS: list[BindingType] = [
     Binding("enter", "add_sibling", "sib", id="add_sibling"),
     Binding("ctrl+j", "justify", "justify", id="justify"),
     Binding("alt+6", "copy", "copy", show=False, id="copy"),
-    # Five of these have earned a bare key: they are reached for constantly and
-    # collide with nothing, since h/j/k/l are the only bare letters spoken for.
+    # Six of these have earned a bare key: they are reached for constantly and
+    # collide with nothing, since h/j/k/l are the only bare letters spoken for. The
+    # stack is `p` because ^I is Tab on a terminal without the kitty protocol.
     Binding("e", "edit", "edit", id="edit"),
     Binding("ctrl+e", "edit", "edit", show=False, id="edit_alt"),
     Binding("ctrl+k", "cut", "cut", id="cut"),
     Binding("ctrl+u", "paste", "paste", id="paste"),
-    Binding("ctrl+i", "toggle_stack", "show stack", id="toggle_stack"),
+    Binding("p", "toggle_stack", "show stack", id="toggle_stack"),
     Binding("ctrl+d", "delete", "del", id="delete"),
     Binding("t", "fold", "fold", id="fold"),
     Binding("ctrl+t", "fold", "fold", show=False, id="fold_alt"),

@@ -74,7 +74,7 @@ class StackActions:
         self._mark_dirty()
         self.notify("Pasted from the stack", severity="warning", timeout=2)
     def action_toggle_stack(self) -> None:
-        """^I — the stack itself, as a panel of cells over the map.
+        """`p` — the stack itself, as a panel of cells over the map.
 
         The stack is where every cut cell waits, last in first out, until it is
         pasted somewhere; the panel shows what is on it and lets you work on a
@@ -164,7 +164,7 @@ class StackActions:
         doc = self._stack_doc()
         selected = self.selected or doc.root.id
 
-        if action is None and key not in ("escape", "ctrl+c", "ctrl+i"):
+        if action is None and key not in ("escape", "ctrl+c"):
             return False
         if action == "toggle_stack" or key in ("escape", "ctrl+c"):
             self.action_toggle_stack()
