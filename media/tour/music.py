@@ -3,12 +3,18 @@
   python3 music.py --music ~/Music/tune.mp3 --video ../spoider-tour.mp4 \
       --out ../spoider-tour-with-music.mp4
 
-A thirty-second loop played five times would click four times if the tune's tail does not
-match its head, and a crossfade at each join inside one file cannot fix that. So the tune
-is folded into a real loop first: its last `--cross` seconds fade into its first
-`--cross` seconds, and the result is what gets repeated. The seam is then measured, not
-assumed: two copies are decoded and the sample jump at the join is compared with the
-largest jump inside the music itself.
+A loop repeated five times can click five times. Two different causes, two different
+answers:
+
+- an **mp3 restarted** by `-stream_loop` is not sample-exact, so the tune is decoded once
+  to PCM and that is what repeats. `--cross 0`, the default, does exactly this and keeps
+  the tune's own length, which is what keeps a beat continuous across the wrap.
+- a tail that **does not suit its head** is fixed by folding the last `--cross` seconds
+  into the first. That shortens the loop, and a shortened loop shifts the beat by that
+  much on every repeat, so use it only for a tune with no grid to lose.
+
+The seam is measured rather than assumed: the sample jump at the wrap is compared with
+the largest jump inside the music itself.
 """
 
 from __future__ import annotations
@@ -34,7 +40,15 @@ def duration(path: Path) -> float:
 def build_loop(music: Path, crossfade: float, target: Path) -> float:
     """The tune with its tail folded into its head, ready to be repeated."""
     length = duration(music)
-    if crossfade <= 0 or crossfade * 2 >= length:
+    if crossfade <= 0:
+        # no fold: decode once and repeat, which keeps the tune's own length and so
+        # keeps the beat where it was
+        result = run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(music),
+                      "-c:a", "pcm_s16le", str(target)])
+        if result.returncode != 0:
+            raise SystemExit(f"decoding failed: {result.stderr[-400:]}")
+        return duration(target)
+    if crossfade * 2 >= length:
         raise ValueError("the crossfade has to be shorter than half the tune")
     body = length - crossfade
     graph = (
@@ -76,7 +90,8 @@ def main() -> int:
     parser.add_argument("--music", required=True, type=Path)
     parser.add_argument("--video", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
-    parser.add_argument("--cross", type=float, default=0.30)
+    parser.add_argument("--cross", type=float, default=0.0,
+                        help="fold this many seconds of tail into the head; 0 keeps the beat")
     parser.add_argument("--fade-in", type=float, default=1.5)
     parser.add_argument("--fade-out", type=float, default=3.0)
     parser.add_argument("--bitrate", default="128k")
