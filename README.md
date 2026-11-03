@@ -6,11 +6,11 @@ a plain JSON file you can read, diff and version.
 
 ![a mind map in spoider](media/spoider.png)
 
-Thirty seconds of it working, then the [full two-minute tour](media/spoider-tour.mp4):
-the four shapes, marks, folds, the air between cells, a branch cut and worked on inside
-the stack, and a paragraph justified in place.
+![the whole tour](media/spoider-tour.gif)
 
-![the tour](media/spoider-preview.gif)
+Two minutes and twenty seconds of it working: the four shapes, marks, folds, the air
+between cells, a branch cut and worked on inside the stack, and a paragraph justified in
+place. The same take is kept as [an mp4](media/spoider-tour.mp4) at full resolution.
 
 ## Install
 
