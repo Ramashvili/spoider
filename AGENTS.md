@@ -231,8 +231,9 @@ the map they build, which is how a mis-anchored scene is caught in twenty second
 
 The recording is lossless and the published file is the only encode. `wf-recorder -c
 libx264rgb -p crf=0 -r 30 -D` writes the master (about 3.7 MB for 137 s of a 1197x802
-pane), the chords are drawn and the mp4 encoded from it at crf 20, and the master stays in
-the scratch directory for later encodes. `-D` is required: with damage tracking a still
+pane), the chords are drawn and the mp4 encoded from it at crf 20. Every take's master goes to
+`~/Video/spoider/` with its timestamp in the name: the user watches candidates there, and
+a later encode starts from them without re-filming. `-D` is required: with damage tracking a still
 screen produces no frames at all. `media/tour/fidelity.py` measures how far a file is from
 the screen, which is how the flag and the settings were settled: the master differs by 0 on
 every pixel, while the gpu-screen-recorder path changed all of them, worst case 219 levels.

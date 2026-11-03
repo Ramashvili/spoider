@@ -32,6 +32,9 @@ from pathlib import Path
 HOME = Path.home()
 WORKDIR = HOME / "Projects/spoider"
 SCRATCH = Path(tempfile.gettempdir()) / "spoider-tour"
+#: Every take keeps its lossless master here, so a candidate can be looked at again and
+#: re-encoded without re-filming. Nothing here is published.
+TAKES = HOME / "Video" / "spoider"
 MAP = SCRATCH / "tour.spoider"
 SESSION = "tourrec"
 GROUP = "tourrec"
@@ -341,7 +344,12 @@ def main() -> int:
             out = Path(argv[index + 1])
         elif arg == "--no-keys":
             show_keys = False
-    raw = out.with_suffix(".master.mkv" if capture == "wf" else ".raw.mp4")
+    TAKES.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%Y-%m-%dT%H-%M-%S")
+    if capture == "wf":
+        raw = TAKES / f"{out.stem}-{stamp}.master.mkv"
+    else:
+        raw = out.with_suffix(".raw.mp4")
 
     subprocess.run(["pkill", "-f", f"instance-group {GROUP}"], capture_output=True)
     subprocess.run(["tmux", "kill-session", "-t", SESSION], capture_output=True)

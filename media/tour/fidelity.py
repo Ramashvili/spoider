@@ -127,7 +127,17 @@ def main() -> int:
                            "-k", "h264", "-c", "mp4", "-cursor", "no", "-encoder", "cpu",
                            "-fallback-cpu-encoding", "yes", *extra, "-o", str(video)]
             recorder = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(7)
+            time.sleep(4)
+            # Movement, so the take has something to encode. The frame compared below is
+            # taken at two seconds, before any of this, so the still still matches it.
+            # 2d is "-", 3d is "=": spacing, which redraws the whole map
+            before = run(["tmux", "capture-pane", "-p", "-t", SESSION]).stdout
+            run(["tmux", "send-keys", "-H", "-t", SESSION, "2d", "2d", "2d", "3d", "3d"])
+            time.sleep(0.5)
+            after = run(["tmux", "capture-pane", "-p", "-t", SESSION]).stdout
+            spacing = next((line for line in after.splitlines() if "spacing" in line), "")
+            print(f"  motion: {'seen' if before != after else 'NOT SEEN'}  {spacing[-58:].strip()}")
+            time.sleep(3)
             recorder.send_signal(signal.SIGINT)
             recorder.wait(timeout=60)
             if not video.exists() or video.stat().st_size < 1000:
