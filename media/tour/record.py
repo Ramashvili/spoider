@@ -320,6 +320,7 @@ def main() -> int:
     font_size: str | None = None
     cbr: str | None = None
     lossless = False
+    capture = "gsr"
     out = WORKDIR / "media" / "spoider-tour.mp4"
     show_keys = True
     argv = sys.argv[1:]
@@ -334,11 +335,13 @@ def main() -> int:
             cbr = argv[index + 1]
         elif arg == "--lossless":
             lossless = True
+        elif arg == "--capture":
+            capture = argv[index + 1]
         elif arg == "--out":
             out = Path(argv[index + 1])
         elif arg == "--no-keys":
             show_keys = False
-    raw = out.with_suffix(".raw.mp4")
+    raw = out.with_suffix(".master.mkv" if capture == "wf" else ".raw.mp4")
 
     subprocess.run(["pkill", "-f", f"instance-group {GROUP}"], capture_output=True)
     subprocess.run(["tmux", "kill-session", "-t", SESSION], capture_output=True)
@@ -428,14 +431,25 @@ def main() -> int:
     if lossless:
         # what the screen shows, in the file: constant QP at 0 is lossless in x264
         rate_args = ["-bm", "qp", "-q", "0"]
-    recorder = subprocess.Popen(
-        ["gpu-screen-recorder", "-w", f"{width}x{height}+{x}+{y}", "-f", "30", "-k", "h264",
-         "-c", "mp4", "-cursor", "no", "-encoder", "cpu", "-fallback-cpu-encoding", "yes",
-         *rate_args,
-         "-o", str(raw)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    if capture == "wf":
+        # wf-recorder grabs the same wlroots region and, with libx264rgb at crf 0, keeps
+        # every pixel exactly as composited. The master is never published: it is the
+        # input to the one encode that is.
+        recorder = subprocess.Popen(
+            ["wf-recorder", "-g", f"{x},{y} {width}x{height}", "-f", str(raw),
+             "-c", "libx264rgb", "-p", "crf=0"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    else:
+        recorder = subprocess.Popen(
+            ["gpu-screen-recorder", "-w", f"{width}x{height}+{x}+{y}", "-f", "30", "-k", "h264",
+             "-c", "mp4", "-cursor", "no", "-encoder", "cpu", "-fallback-cpu-encoding", "yes",
+             *rate_args,
+             "-o", str(raw)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
     time.sleep(1.2)
     started = time.monotonic()
     keys: list[dict] = []
@@ -459,24 +473,28 @@ def main() -> int:
     subprocess.run(["pkill", "-f", f"instance-group {GROUP}"], capture_output=True)
     tmux("kill-session", "-t", SESSION)
 
-    if keys and show_keys:
-        manifest = SCRATCH / "keys.json"
-        manifest.write_text(json.dumps(keys, indent=0) + "\n")
-        subtitle = SCRATCH / "keys.ass"
-        subtitle.write_text(ass(keys, width, height))
-        burn = subprocess.run(
-            ["ffmpeg", "-y", "-loglevel", "error", "-i", str(raw), "-vf", f"ass={subtitle}",
-             "-c:v", "libx264", "-crf", "20", "-preset", "medium", "-pix_fmt", "yuv420p",
-             "-movflags", "+faststart", str(out)],
-            capture_output=True, text=True,
-        )
+    # One encode, from the master to the file that ships. With wf-recorder the master is
+    # lossless, so this is the only place the picture is compressed, and the keys are
+    # drawn here rather than over an already compressed recording.
+    if capture == "wf" or (keys and show_keys):
+        encode = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(raw)]
+        if keys and show_keys:
+            manifest = SCRATCH / "keys.json"
+            manifest.write_text(json.dumps(keys, indent=0) + "\n")
+            subtitle = SCRATCH / "keys.ass"
+            subtitle.write_text(ass(keys, width, height))
+            encode += ["-vf", f"ass={subtitle}"]
+        encode += ["-c:v", "libx264", "-crf", "20", "-preset", "medium", "-pix_fmt", "yuv420p",
+                   "-movflags", "+faststart", str(out)]
+        burn = subprocess.run(encode, capture_output=True, text=True)
         if burn.returncode != 0:
-            print("the key overlay failed, keeping the plain recording")
+            print("the encode failed, keeping the master as it is")
             print(burn.stderr[-400:])
-            raw.replace(out)
+            if raw.exists():
+                raw.replace(out)
         else:
-            raw.unlink(missing_ok=True)
             print(f"{len(keys)} chords drawn in over the frames")
+            raw.unlink(missing_ok=True)
     else:
         raw.replace(out)
 
