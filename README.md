@@ -4,14 +4,16 @@ A mind map editor for the terminal. One map, one bar of keys, no floating
 windows, no colours of its own: every colour comes from your terminal. The map is
 a plain JSON file you can read, diff and version.
 
+It is built on [Textual](https://textual.textualize.io/), and it is vibecoded: an AI
+assistant writes the code under the author's direction and review.
+
 ![a mind map in spoider](media/spoider.png)
 
 https://github.com/user-attachments/assets/a8818b5e-8f63-490f-9e02-c3ee17aec757
 
 Two minutes and twenty-three seconds of it working: the four shapes, marks, folds, the air
 between cells, a branch cut and worked on inside the stack, and a paragraph justified in
-place. The same take is kept as [an mp4](media/spoider-tour.mp4) at full resolution, with
-the music mix at [four megabytes](media/spoider-tour-with-music.mp4).
+place.
 
 ## Install
 
