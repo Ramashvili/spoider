@@ -27,87 +27,246 @@ GROUP = "stackshot"
 TAXONOMY: dict[str, object] = {
     "animals": {
         "mammals": {
-            "primates": ["human", "chimpanzee", "bonobo", "gorilla", "orangutan", "lemur", "loris"],
-            "carnivora": {
-                "felidae": ["lion", "tiger", "leopard", "cheetah", "lynx", "domestic cat"],
-                "canidae": ["wolf", "fox", "coyote", "jackal", "dingo", "domestic dog"],
-                "ursidae": ["brown bear", "polar bear", "panda", "black bear", "sloth bear"],
-                "mustelidae": ["otter", "badger", "weasel", "wolverine", "polecat"],
+            "primates": {
+                "hominidae": {"homo": ["human"], "pan": ["chimpanzee", "bonobo"], "gorilla": ["gorilla"]},
+                "cercopithecidae": {"macaca": ["rhesus", "macaque"], "papio": ["baboon", "mandrill"]},
+                "lemuridae": {"lemur": ["ring-tailed lemur", "ruffed lemur"], "varecia": ["black lemur"]},
+                "lorisidae": {"loris": ["slender loris"], "galago": ["bushbaby"]},
             },
-            "cetacea": ["blue whale", "humpback", "orca", "dolphin", "narwhal", "sperm whale"],
-            "rodentia": ["mouse", "rat", "squirrel", "beaver", "capybara", "hamster"],
-            "chiroptera": ["fruit bat", "horseshoe bat", "vampire bat", "pipistrelle"],
-            "artiodactyla": ["cow", "sheep", "pig", "deer", "giraffe", "hippopotamus"],
-            "proboscidea": ["african bush elephant", "asian elephant", "mammoth"],
-            "marsupialia": ["kangaroo", "koala", "wombat", "opossum", "tasmanian devil"],
-            "lagomorpha": ["rabbit", "hare", "pika"],
+            "carnivora": {
+                "felidae": {
+                    "panthera": {
+                        "leo": ["barbary lion", "asiatic lion", "masai lion"],
+                        "tigris": ["bengal tiger", "siberian tiger", "sumatran tiger"],
+                        "onca": ["jaguar"],
+                        "pardus": ["african leopard", "snow leopard", "amur leopard"],
+                    },
+                    "felis": {"silvestris": ["wildcat", "domestic cat"]},
+                    "lynx": {"lynx": ["eurasian lynx"], "rufus": ["bobcat"]},
+                    "acinonyx": {"jubatus": ["cheetah"]},
+                },
+                "canidae": {
+                    "canis": {"lupus": ["grey wolf", "arctic wolf", "dingo"], "latrans": ["coyote"], "aureus": ["golden jackal"]},
+                    "vulpes": {"vulpes": ["red fox"], "zerda": ["fennec"], "lagopus": ["arctic fox"]},
+                    "lycaon": {"pictus": ["african wild dog"]},
+                },
+                "ursidae": {
+                    "ursus": ["brown bear", "polar bear", "black bear"],
+                    "ailuropoda": ["panda"],
+                    "melursus": ["sloth bear"],
+                },
+                "mustelidae": {
+                    "lutra": ["eurasian otter", "sea otter"],
+                    "meles": ["badger"],
+                    "mustela": ["weasel", "stoat", "polecat"],
+                    "gulo": ["wolverine"],
+                },
+            },
+            "cetacea": {
+                "balaenopteridae": {"balaenoptera": ["blue whale", "humpback", "fin whale"]},
+                "delphinidae": {"delphinus": ["common dolphin"], "orcinus": ["orca"], "tursiops": ["bottlenose"]},
+                "monodontidae": {"monodon": ["narwhal"], "delphinapterus": ["beluga"]},
+            },
+            "rodentia": {
+                "muridae": {"mus": ["house mouse"], "rattus": ["brown rat", "black rat"]},
+                "sciuridae": {"sciurus": ["red squirrel", "grey squirrel"], "marmota": ["marmot"]},
+                "castoridae": {"castor": ["beaver"]},
+                "caviidae": {"cavia": ["guinea pig"], "hydrochoerus": ["capybara"]},
+            },
+            "chiroptera": {
+                "pteropodidae": {"pteropus": ["flying fox", "fruit bat"]},
+                "rhinolophidae": {"rhinolophus": ["horseshoe bat"]},
+                "phyllostomidae": {"desmodus": ["vampire bat"]},
+            },
+            "artiodactyla": {
+                "bovidae": {"bos": ["cow"], "ovis": ["sheep"], "capra": ["goat"], "gazella": ["gazelle"]},
+                "cervidae": {"cervus": ["red deer"], "alces": ["moose"], "capreolus": ["roe deer"]},
+                "giraffidae": {"giraffa": ["giraffe"], "okapia": ["okapi"]},
+                "suidae": {"sus": ["wild boar", "pig"]},
+            },
+            "proboscidea": {"elephantidae": {"loxodonta": ["african bush elephant"], "elephas": ["asian elephant"]}},
+            "marsupialia": {
+                "macropodidae": {"macropus": ["kangaroo", "wallaby"]},
+                "phascolarctidae": {"phascolarctos": ["koala"]},
+                "dasyuridae": {"sarcophilus": ["tasmanian devil"]},
+            },
+            "lagomorpha": {"leporidae": {"lepus": ["hare"], "oryctolagus": ["rabbit"], "ochotona": ["pika"]}},
         },
         "birds": {
-            "accipitriformes": ["golden eagle", "bald eagle", "sparrowhawk", "red kite", "buzzard"],
-            "passeriformes": ["robin", "sparrow", "starling", "crow", "magpie", "swallow"],
-            "psittaciformes": ["macaw", "cockatoo", "budgerigar", "african grey", "kea"],
-            "struthioniformes": ["ostrich", "emu", "rhea", "cassowary"],
-            "sphenisciformes": ["emperor penguin", "adelie penguin", "gentoo", "rockhopper"],
-            "anatidae": ["mallard", "swan", "goose", "eider", "teal"],
-            "columbidae": ["wood pigeon", "turtle dove", "collared dove"],
+            "accipitriformes": {
+                "accipitridae": {"aquila": ["golden eagle"], "haliaeetus": ["bald eagle"], "buteo": ["buzzard"], "milvus": ["red kite"]},
+            },
+            "passeriformes": {
+                "turdidae": {"turdus": ["blackbird", "song thrush"]},
+                "corvidae": {"corvus": ["rook", "carrion crow", "raven"], "pica": ["magpie"]},
+                "hirundinidae": {"hirundo": ["barn swallow"]},
+                "paridae": {"parus": ["great tit"]},
+            },
+            "psittaciformes": {
+                "psittacidae": {"ara": ["scarlet macaw", "blue macaw"], "psittacus": ["african grey"]},
+                "cacatuidae": {"cacatua": ["cockatoo"], "melopsittacus": ["budgerigar"]},
+                "nestoridae": {"nestor": ["kea"]},
+            },
+            "struthioniformes": {"struthionidae": {"struthio": ["ostrich"]}, "casuariidae": {"dromaius": ["emu"], "casuarius": ["cassowary"]}},
+            "sphenisciformes": {
+                "spheniscidae": {
+                    "aptenodytes": {"patagonicus": ["king penguin"], "forsteri": ["emperor penguin"]},
+                    "pygoscelis": {"adeliae": ["adelie"], "papua": ["gentoo"]},
+                    "eudyptes": {"chrysocome": ["rockhopper"]},
+                },
+            },
+            "anatidae": {"anatidae": {"anas": ["mallard", "teal"], "cygnus": ["mute swan", "whooper"], "branta": ["brent goose"]}},
+            "columbidae": {"columbidae": {"columba": ["wood pigeon"], "streptopelia": ["collared dove", "turtle dove"]}},
         },
         "reptiles": {
-            "squamata": ["komodo dragon", "gecko", "chameleon", "python", "cobra", "viper"],
-            "testudines": ["green turtle", "galapagos tortoise", "snapping turtle", "terrapin"],
-            "crocodilia": ["nile crocodile", "alligator", "gharial", "caiman"],
-            "rhynchocephalia": ["tuatara"],
+            "squamata": {
+                "varanidae": {"varanus": ["komodo dragon", "monitor"]},
+                "gekkonidae": {"gekko": ["leopard gecko"], "hemidactylus": ["house gecko"]},
+                "chamaeleonidae": {"chamaeleo": ["common chameleon"]},
+                "pythonidae": {"python": ["ball python", "reticulated python"]},
+                "elapidae": {"naja": ["cobra"], "bungarus": ["krait"]},
+                "viperidae": {"vipera": ["adder"], "crotalus": ["rattlesnake"]},
+            },
+            "testudines": {
+                "cheloniidae": {"chelonia": ["green turtle"], "caretta": ["loggerhead"]},
+                "testudinidae": {"chelonoidis": ["galapagos tortoise"], "testudo": ["hermann's tortoise"]},
+                "chelydridae": {"chelydra": ["snapping turtle"]},
+            },
+            "crocodilia": {
+                "crocodylidae": {"crocodylus": ["nile crocodile", "saltwater crocodile"]},
+                "alligatoridae": {"alligator": ["american alligator"], "caiman": ["spectacled caiman"]},
+                "gavialidae": {"gavialis": ["gharial"]},
+            },
+            "rhynchocephalia": {"sphenodontidae": {"sphenodon": ["tuatara"]}},
         },
         "amphibians": {
-            "anura": ["common frog", "tree frog", "cane toad", "poison dart frog", "midwife toad"],
-            "caudata": ["fire salamander", "axolotl", "newt", "olm"],
-            "gymnophiona": ["ringed caecilian", "rubber eel"],
+            "anura": {
+                "ranidae": {"rana": ["common frog"], "pelophylax": ["edible frog"]},
+                "hylidae": {"hyla": ["tree frog"]},
+                "bufonidae": {"bufo": ["common toad"], "rhinella": ["cane toad"]},
+                "dendrobatidae": {"dendrobates": ["poison dart frog"]},
+            },
+            "caudata": {
+                "salamandridae": {"salamandra": ["fire salamander"], "triturus": ["newt"]},
+                "ambystomatidae": {"ambystoma": ["axolotl"]},
+                "proteidae": {"proteus": ["olm"]},
+            },
+            "gymnophiona": {"caeciliidae": {"caecilia": ["ringed caecilian"]}},
         },
         "fish": {
-            "chondrichthyes": ["great white shark", "hammerhead", "manta ray", "stingray", "sawfish"],
-            "actinopterygii": ["salmon", "tuna", "clownfish", "seahorse", "eel", "pike"],
-            "dipnoi": ["lungfish", "australian lungfish"],
-        },
-        "insects": {
-            "hymenoptera": ["honey bee", "bumblebee", "ant", "wasp", "sawfly"],
-            "lepidoptera": ["monarch", "swallowtail", "moth", "silkmoth"],
-            "coleoptera": ["ladybird", "stag beetle", "firefly", "weevil", "dung beetle"],
-            "diptera": ["housefly", "mosquito", "hoverfly", "cranefly"],
-            "odonata": ["dragonfly", "damselfly", "hawker"],
-            "orthoptera": ["grasshopper", "cricket", "locust", "katydid"],
-        },
-        "arachnids": {
-            "araneae": ["garden spider", "tarantula", "jumping spider", "widow"],
-            "scorpiones": ["emperor scorpion", "bark scorpion"],
-            "acari": ["tick", "dust mite", "harvest mite"],
-        },
-        "crustaceans": {
-            "decapoda": ["crab", "lobster", "shrimp", "prawn", "hermit crab", "crayfish"],
-            "isopoda": ["woodlouse", "sea slater", "giant isopod"],
-            "amphipoda": ["sand hopper", "skeleton shrimp"],
-        },
-        "annelids": {
-            "polychaeta": ["ragworm", "fan worm", "bristleworm"],
-            "clitellata": ["earthworm", "leech"],
+            "chondrichthyes": {
+                "lamnidae": {"carcharodon": ["great white"], "isurus": ["mako"]},
+                "sphyrnidae": {"sphyrna": ["hammerhead"]},
+                "mobulidae": {"mobula": ["manta ray"]},
+                "dasyatidae": {"dasyatis": ["stingray"]},
+                "pristidae": {"pristis": ["sawfish"]},
+            },
+            "actinopterygii": {
+                "salmonidae": {"salmo": ["atlantic salmon"], "oncorhynchus": ["sockeye"]},
+                "scombridae": {"thunnus": ["bluefin tuna", "yellowfin"]},
+                "pomacentridae": {"amphiprion": ["clownfish"]},
+                "syngnathidae": {"hippocampus": ["seahorse"]},
+                "anguillidae": {"anguilla": ["european eel"]},
+                "esocidae": {"esox": ["pike"]},
+            },
+            "dipnoi": {"lepidosirenidae": {"lepidosiren": ["south american lungfish"]}, "neoceratodontidae": {"neoceratodus": ["australian lungfish"]}},
         },
         "molluscs": {
-            "cephalopoda": ["octopus", "squid", "cuttlefish", "nautilus"],
-            "gastropoda": ["garden snail", "sea slug", "limpet", "whelk"],
-            "bivalvia": ["mussel", "oyster", "scallop", "clam"],
+            "cephalopoda": {
+                "octopodidae": {"octopus": ["common octopus"]},
+                "loliginidae": {"loligo": ["squid"]},
+                "sepiolidae": {"sepia": ["cuttlefish"]},
+                "nautilidae": {"nautilus": ["chambered nautilus"]},
+            },
+            "gastropoda": {
+                "helicidae": {"helix": ["garden snail"]},
+                "dorididae": {"doris": ["sea slug"]},
+                "patellidae": {"patella": ["limpet"]},
+            },
+            "bivalvia": {"mytilidae": {"mytilus": ["mussel"]}, "ostreidae": {"ostrea": ["oyster"]}, "pectinidae": {"pecten": ["scallop"]}},
+        },
+        "insects": {
+            "hymenoptera": {
+                "apidae": {"apis": ["honey bee"], "bombus": ["bumblebee"]},
+                "formicidae": {"formica": ["wood ant"], "lasius": ["black ant"]},
+                "vespidae": {"vespa": ["hornet"], "vespula": ["wasp"]},
+                "tenthredinidae": {"tenthredo": ["sawfly"]},
+            },
+            "lepidoptera": {
+                "nymphalidae": {"danaus": ["monarch"], "vanessa": ["painted lady"]},
+                "papilionidae": {"papilio": ["swallowtail"]},
+                "saturniidae": {"bombyx": ["silkmoth"], "saturnia": ["emperor moth"]},
+            },
+            "coleoptera": {
+                "coccinellidae": {"coccinella": {"septempunctata": ["seven-spot ladybird"], "undecimpunctata": ["eleven-spot"]}},
+                "lucanidae": {"lucanus": ["stag beetle"]},
+                "lampyridae": {"lampyris": ["firefly"]},
+                "curculionidae": {"curculio": ["weevil"]},
+                "scarabaeidae": {"scarabaeus": ["dung beetle"]},
+            },
+            "diptera": {
+                "muscidae": {"musca": ["housefly"]},
+                "culicidae": {"culex": ["mosquito"], "anopheles": ["malaria mosquito"]},
+                "syrphidae": {"syrphus": ["hoverfly"]},
+                "tipulidae": {"tipula": ["cranefly"]},
+            },
+            "odonata": {
+                "aeshnidae": {"aeshna": ["hawker"]},
+                "libellulidae": {"libellula": ["dragonfly"]},
+                "coenagrionidae": {"ischnura": ["damselfly"]},
+            },
+            "orthoptera": {
+                "acrididae": {"locusta": ["locust"], "schistocerca": ["desert locust"]},
+                "gryllidae": {"gryllus": ["field cricket"]},
+                "tettigoniidae": {"tettigonia": ["katydid"]},
+            },
+        },
+        "arachnids": {
+            "araneae": {
+                "araneidae": {"araneus": ["garden spider"]},
+                "theraphosidae": {"theraphosa": ["goliath tarantula"]},
+                "salticidae": {"salticus": ["jumping spider"]},
+                "theridiidae": {"latrodectus": ["widow"]},
+            },
+            "scorpiones": {"scorpionidae": {"pandinus": ["emperor scorpion"]}, "buthidae": {"centruroides": ["bark scorpion"]}},
+            "acari": {"ixodidae": {"ixodes": ["tick"]}, "pyroglyphidae": {"dermatophagoides": ["dust mite"]}},
+        },
+        "crustaceans": {
+            "decapoda": {
+                "cancridae": {"cancer": ["crab"]},
+                "nephropidae": {"homarus": ["lobster"]},
+                "palaemonidae": {"palaemon": ["prawn"]},
+                "paguridae": {"pagurus": ["hermit crab"]},
+            },
+            "isopoda": {"armadillidiidae": {"armadillidium": ["woodlouse"]}, "cirolanidae": {"cirolana": ["sea slater"]}},
+            "amphipoda": {"talitridae": {"talitrus": ["sand hopper"]}},
+        },
+        "annelids": {
+            "polychaeta": {"nereididae": {"nereis": ["ragworm"]}, "sabellidae": {"sabella": ["fan worm"]}},
+            "clitellata": {"lumbricidae": {"lumbricus": ["earthworm"]}, "hirudinidae": {"hirudo": ["leech"]}},
         },
     }
 }
 
+#: One rank above the classes, so the tree runs deeper without the classes being repeated.
+PHYLA: dict[str, list[str]] = {
+    "chordates": ["mammals", "birds", "reptiles", "amphibians", "fish"],
+    "molluscs": ["molluscs"],
+    "arthropods": ["insects", "arachnids", "crustaceans"],
+    "annelids": ["annelids"],
+}
+
 #: What is already on the stack, newest first. A cut takes its branch out of the map, so
 #: these are not in the tree above.
-STACK: list[tuple[str, list[str]]] = [
-    ("penguins", ["emperor", "adelie", "gentoo", "rockhopper"]),
+STACK: list[tuple[str, object]] = [
+    ("penguins", {"aptenodytes": ["emperor", "king"], "pygoscelis": ["adelie", "gentoo"]}),
     ("tuatara", []),
-    ("sharks", ["great white", "hammerhead", "sawfish"]),
+    ("sharks", {"lamnidae": ["great white", "mako"], "sphyrnidae": ["hammerhead"]}),
     ("beetles", []),
-    ("primates", ["human", "gorilla", "lemur", "loris"]),
+    ("primates", {"hominidae": ["human", "gorilla"], "lemuridae": {"lemur": ["ring-tailed", "ruffed"]}}),
     ("cetaceans", ["blue whale", "orca", "narwhal"]),
     ("crocodilians", ["nile crocodile", "gharial"]),
-    ("cephalopods", ["octopus", "cuttlefish", "nautilus"]),
+    ("cephalopods", {"octopodidae": ["octopus"], "nautilidae": ["nautilus"]}),
 ]
 
 
@@ -144,16 +303,23 @@ def build_document() -> dict:
                 parent["children"].append(node(name))
 
     root = node("animals")
-    fill(root, TAXONOMY["animals"])
+    classes = TAXONOMY["animals"]
+    assert isinstance(classes, dict)
+    for phylum, members in PHYLA.items():
+        branch = node(phylum)
+        root["children"].append(branch)
+        for name in members:
+            child = node(name)
+            branch["children"].append(child)
+            fill(child, classes[name])
     stack = []
-    for name, children in STACK:
+    for name, below in STACK:
         entry = node(name)
-        for child in children:
-            entry["children"].append(node(child))
+        fill(entry, below)
         stack.append(entry)
     return {
         "version": 1,
-        "spacing": -2,
+        "spacing": -1,
         "layout": "spider",
         "colours": "family",
         "marks": ["⭐", "❓", "✅"],
@@ -199,6 +365,19 @@ def main() -> int:
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
 
+    try:
+        return capture(kitty, document, out)
+    finally:
+        kitty.terminate()
+        try:
+            kitty.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            kitty.kill()
+        run(["tmux", "kill-session", "-t", SESSION])
+        print("window closed")
+
+
+def capture(kitty: subprocess.Popen, document: Path, out: Path) -> int:
     window = ""
     for _ in range(30):
         time.sleep(1)
@@ -237,9 +416,20 @@ def main() -> int:
         if "animals" in run(["tmux", "capture-pane", "-p", "-t", SESSION]).stdout:
             break
     time.sleep(1.0)
-    # open the stack panel; `p` toggles it
+    # colour by depth rather than by family, then open the panel and walk to the fourth cut
+    run(["tmux", "send-keys", "-t", SESSION, "-l", "--", "c"])
+    time.sleep(1.2)
     run(["tmux", "send-keys", "-t", SESSION, "-l", "--", "p"])
-    time.sleep(2.0)
+    time.sleep(1.5)
+    for _ in range(3):
+        run(["tmux", "send-keys", "-t", SESSION, "-H", "0e"])
+        time.sleep(0.6)
+    time.sleep(1.0)
+    # the fourth entry in the panel: three steps down from the newest cut
+    for _ in range(3):
+        run(["tmux", "send-keys", "-t", SESSION, "-H", "1b", "5b", "42"])
+        time.sleep(0.35)
+    time.sleep(1.0)
 
     x = client["at"][0] + border
     y = client["at"][1] + border

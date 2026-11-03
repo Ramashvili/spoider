@@ -7,6 +7,7 @@ build/
 *.egg-info/
 .coverage
 *.spoider
+!examples/*.spoider
 # takes are delivered as an attachment, not committed
 *.mp4
 # same: a video belongs in the release or the attachment

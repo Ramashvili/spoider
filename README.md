@@ -105,6 +105,12 @@ cut under whichever cell you select next. If you are reorganising a large map,
 press `p` to open the stack side-by-side: you can browse what you cut, edit or
 fold items inside it, or reorder them before pasting them back.
 
+![the cut stack beside a large map](media/spoider-stack.png)
+
+That map is [examples/animals.spoider](examples/animals.spoider): an animal taxonomy of
+622 cells, eight levels deep, with eight branches waiting on the stack. Open it with
+`spoider examples/animals.spoider` to see a map that does not fit on any screen.
+
 ### Maps that look the same everywhere
 
 Your layout shape, spacing, colour mode, custom marks, and even unpasted branches
