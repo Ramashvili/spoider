@@ -217,7 +217,9 @@ def _draw_box(grid: Grid, box: Placed, style: str, query: str = "") -> None:
     # inverted colour and stops reading as a star or a tick. So the mark keeps the
     # cell's own colours even when the cell is selected, and only the text inverts.
     mark = clean(box.node.mark) if box.node.mark else ""
-    mark_cells = cell_len(mark) + 1 if mark else 0  # the glyph and the space after it
+    # counted in characters, because `row` below is a string: the mark, plus the space
+    # that `lines_of` puts after it
+    mark_chars = len(mark) + 1 if mark else 0
     plain = " ".join(part for part in style.split() if part not in ("reverse", "underline"))
     for index, text in enumerate(lines_of(box.node)):
         row = " " * PAD + text + " " * max(0, inner - PAD - cell_len(text))
@@ -227,10 +229,13 @@ def _draw_box(grid: Grid, box: Placed, style: str, query: str = "") -> None:
             start = PAD + span[0]
             for column in range(start, min(start + (span[1] - span[0]), len(mask))):
                 mask[column] = True
-        cut = PAD + mark_cells
-        if index == 0 and mark_cells and "reverse" in style and cut < len(row):
+        cut = PAD + mark_chars
+        # the row is sliced by character, but the run is placed by cell: a wide mark
+        # covers two columns for one character
+        after = PAD + cell_len(mark) + 1
+        if index == 0 and mark_chars and "reverse" in style and cut < len(row):
             grid.put_text(left + 1, top + 1 + index, row[:cut], plain, mask[:cut])
-            grid.put_text(left + 1 + cut, top + 1 + index, row[cut:], style, mask[cut:])
+            grid.put_text(left + 1 + after, top + 1 + index, row[cut:], style, mask[cut:])
         else:
             grid.put_text(left + 1, top + 1 + index, row, style, mask)
     at = caret_pos(box.node)

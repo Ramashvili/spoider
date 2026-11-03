@@ -91,6 +91,13 @@ def test_a_mark_keeps_its_own_colours_when_its_cell_is_selected():
     assert "reverse" not in mark_style, "the mark should keep its own colours"
     assert "reverse" in text_style, "the text beside it should still be selected"
 
+    # and selection must not move a single character: a split run that is placed one
+    # cell off swallows the first letter of the cell and leaves a stray blank at the end
+    unselected = build_grid(layout, "")
+    drawn = render_text(plain, 0, 0, layout.width, layout.height).plain
+    quiet = render_text(unselected, 0, 0, layout.width, layout.height).plain
+    assert drawn == quiet
+
 
 def test_only_the_selected_box_is_reversed():
     mm = MindMap(Node("root"))
