@@ -31,12 +31,20 @@ it.
 | `screens.py` | the text help and settings show |
 | `chrome.py` | the shortcut bar: ranking, chunks, pinned cluster |
 | `config.py` | editor preferences in `~/.config/spoider/spoider.conf` |
-| `app.py` | bindings, modes, the stack panel, undo history, write/quit |
+| `keys.py` | `BINDINGS` and the keymap built from it |
+| `desktop.py` | registering `.spoider`: the MIME type, the entry, the default |
+| `actions_map.py` | `MapActions`: cells, marks, folding, navigation, spacing, shape, ordering |
+| `actions_stack.py` | `StackActions`: cut, paste, the panel, and the stack's own history |
+| `actions_edit.py` | `EditActions`: typing in a cell, the clipboard, justify |
+| `app.py` | the app object: lifecycle, focus and the document, chrome, files, search |
 | `text.py`, `files.py` | cleaning untrusted text; atomic writes |
 
-`app.py` is a third of the code and one class. Its seams are marked with section
-comments; the search machinery and the history/quit machinery are the two pieces most
-ready to move out.
+`SpoiderApp` is three action mixins plus the app itself. The mixins hold no state and no
+bindings: they read `self.mm`, `self.selected`, `self.focus` and the helpers the app
+keeps, which is why each one opens with a pyright note that the rest of the object comes
+from `SpoiderApp`. A new key's action goes in the mixin that owns that area and its
+binding goes in `keys.py`; a binding that lives anywhere else is invisible to the bar and
+to help.
 
 ## Rules the code is held to
 
