@@ -229,6 +229,14 @@ tmux window to 150x50, captures that pane's pixel box and burns in the chords it
 `media/tour/check_scene.py` plays the same keys through a pty at reduced speed and prints
 the map they build, which is how a mis-anchored scene is caught in twenty seconds.
 
+The recording is lossless and the published file is the only encode. `wf-recorder -c
+libx264rgb -p crf=0 -r 30 -D` writes the master (about 3.7 MB for 137 s of a 1197x802
+pane), the chords are drawn and the mp4 encoded from it at crf 20, and the master stays in
+the scratch directory for later encodes. `-D` is required: with damage tracking a still
+screen produces no frames at all. `media/tour/fidelity.py` measures how far a file is from
+the screen, which is how the flag and the settings were settled: the master differs by 0 on
+every pixel, while the gpu-screen-recorder path changed all of them, worst case 219 levels.
+
 Run the check before recording, and read the map it prints: a fold on a leaf, a cell that
 landed a level too high or a missing cell are all invisible in a thumbnail and obvious in
 the tree.

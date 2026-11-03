@@ -139,8 +139,10 @@ def main() -> int:
             size_kb = video.stat().st_size / 1000
             duration = float(run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                                   "-of", "default=noprint_wrappers=1:nokey=1", str(video)]).stdout.strip() or 1)
+            print(f"{name:26} master on disk {size_kb / 1000:5.1f} MB for {duration:4.1f} s "
+                  f"= {size_kb / 1000 / duration:5.3f} MB/s")
             print(f"{name:26} worst difference {worst:3} | {differing:7} pixels differ | "
-                  f"{size_kb / duration * 139 / 1000:5.1f} MB for the take")
+                  f"{size_kb / duration * 139 / 1000:5.1f} MB if it ran 139 s")
 
             if wf is not None:
                 # the published file, made the way record.py makes it
