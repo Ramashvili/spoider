@@ -34,7 +34,7 @@ WORKDIR = HOME / "Projects/spoider"
 SCRATCH = Path(tempfile.gettempdir()) / "spoider-tour"
 #: Every take keeps its lossless master here, so a candidate can be looked at again and
 #: re-encoded without re-filming. Nothing here is published.
-TAKES = HOME / "Video" / "spoider"
+TAKES = HOME / "Videos" / "spoider"
 MAP = SCRATCH / "tour.spoider"
 SESSION = "tourrec"
 GROUP = "tourrec"
