@@ -37,13 +37,20 @@ def duration(path: Path) -> float:
     return float(out)
 
 
-def build_loop(music: Path, crossfade: float, target: Path) -> float:
-    """The tune with its tail folded into its head, ready to be repeated."""
+def build_loop(music: Path, crossfade: float, target: Path, dip: float = 0.03) -> float:
+    """The tune as a loop: same length, with a short fade at each end of the wrap."""
     length = duration(music)
     if crossfade <= 0:
-        # no fold: decode once and repeat, which keeps the tune's own length and so
-        # keeps the beat where it was
+        # No fold: decode once and repeat, which keeps the tune's own length and so keeps
+        # the beat where it was. A tune that ends quietly still jumps when its head comes
+        # back at full level, so both ends get a few milliseconds of fade: the wrap lands
+        # in silence instead of in the middle of an attack.
+        graph = (
+            f"[0:a]afade=t=in:st=0:d={dip},"
+            f"afade=t=out:st={length - dip}:d={dip}[out]"
+        )
         result = run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(music),
+                      "-filter_complex", graph, "-map", "[out]",
                       "-c:a", "pcm_s16le", str(target)])
         if result.returncode != 0:
             raise SystemExit(f"decoding failed: {result.stderr[-400:]}")
@@ -95,12 +102,15 @@ def main() -> int:
     parser.add_argument("--fade-in", type=float, default=1.5)
     parser.add_argument("--fade-out", type=float, default=3.0)
     parser.add_argument("--bitrate", default="128k")
+    parser.add_argument("--dip", type=float, default=0.03,
+                        help="milliseconds of fade at each end of the loop, so the wrap "
+                             "lands in silence rather than on an attack")
     args = parser.parse_args()
 
     total = duration(args.video)
     with tempfile.TemporaryDirectory() as tmp:
         loop = Path(tmp) / "loop.wav"
-        loop_length = build_loop(args.music, args.cross, loop)
+        loop_length = build_loop(args.music, args.cross, loop, args.dip)
         wrap, worst = seam(loop)
         print(f"loop {loop_length:.2f}s from a {duration(args.music):.2f}s tune "
               f"(crossfade {args.cross}s)")
