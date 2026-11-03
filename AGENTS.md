@@ -176,6 +176,51 @@ chord, which is what keeps a leftover setting from rebinding a key.
 - `Shift+Return` and `^J` are only separable from `Return` under the kitty keyboard
   protocol, like `^I` and `^M`. In a plain terminal both arrive as Enter.
 
+## Navigating the map from a script
+
+Driving spoider from a key sequence is how the tour video and its checks are built, and
+the arrows are the part that surprises everyone. In the **branch** shape, which is where
+a tree is easiest to build:
+
+- `←` climbs to the parent, but on the root it goes **into the last child**. So never
+  press `←` "until it stops": count the levels you came down and press exactly that many.
+- `→` goes into the first child. On a leaf it stays put.
+- `↑` and `↓` walk siblings, and climb out of the branch at either end.
+- Building: `Tab` makes a child and starts typing, `Return` makes a sibling and starts
+  typing, and one `Return` commits. Two Enters in a row therefore name a cell and then
+  open another one.
+- `^A` selects every sibling of the cell under the cursor and leaves the cursor on the
+  last of the run; `esc` drops the run. A shift-arrow grows the run one cell at a time.
+- `^D` deletes whatever is selected as a single undo step, and a run leaves the cursor on
+  the parent it hung from. That parent is the most reliable anchor in the whole keymap.
+- `^K` cuts the selection to the stack and leaves the cursor on the cell that closes the
+  gap, or on the one before it when the run ended the branch, or on the parent when the
+  cell was an only child.
+- `^U` pastes under the selected cell and **keeps the selection there**, so a `Tab` right
+  after a paste adds a child to the cell that received it.
+- `^I` opens the stack panel, which takes every key the map takes; closing it puts the
+  map cursor back where it was before it opened.
+- `^L` cycles the shape spider, pyramid, bush, branch, spider. Build in branch, show the
+  others, and step back to branch to keep building.
+- While a cell is being typed into, `Home` puts the caret at column 0, so `Home` then
+  `BackSpace` clears nothing; send forward-delete (`\x1b[3~`) instead.
+
+Two habits follow from this. Anchor every block on a known count of `←` from the place
+the previous block left the cursor, and verify the map instead of the picture: the map is
+ground truth for whether the keys did what the scene meant.
+
+## The tour video
+
+`media/spoider-tour.mp4` is recorded from a real terminal window, not repainted by hand:
+`media/tour/record.py` runs the program in a kitty window on an empty desktop, pins the
+tmux window to 150x50, captures that pane's pixel box and burns in the chords it sent.
+`media/tour/check_scene.py` plays the same keys through a pty at reduced speed and prints
+the map they build, which is how a mis-anchored scene is caught in twenty seconds.
+
+Run the check before recording, and read the map it prints: a fold on a leaf, a cell that
+landed a level too high or a missing cell are all invisible in a thumbnail and obvious in
+the tree.
+
 ## Known limits
 
 - A map wider than the terminal is clipped at the edges; there is no zoom out.

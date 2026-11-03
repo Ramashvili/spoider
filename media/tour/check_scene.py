@@ -16,13 +16,14 @@ import os
 import pty
 import struct
 import sys
+import tempfile
 import termios
 import threading
 import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-MAP = Path("/tmp/spoider-tour/tour.spoider")
+MAP = Path(tempfile.gettempdir()) / "spoider-tour" / "tour.spoider"
 WORKDIR = Path.home() / "Projects/spoider"
 
 
@@ -41,6 +42,7 @@ def main() -> int:
     if "--scale" in argv:
         scale = float(argv[argv.index("--scale") + 1])
 
+    MAP.parent.mkdir(parents=True, exist_ok=True)
     MAP.unlink(missing_ok=True)
     plan = load_scene()
     env = dict(os.environ, TERM="xterm-256color", COLUMNS="150", LINES="50")

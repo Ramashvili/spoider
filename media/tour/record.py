@@ -10,6 +10,10 @@ Key presses are burned in afterwards from the scene itself. A keystroke overlay 
 showmethekey or wshowkeys reads the keyboard devices, and these keys arrive through tmux
 send-keys, so an overlay would show nothing at all; the scene already knows every chord it
 sends, so it writes them to keys.json and the same times are drawn over the frames.
+
+The scene builds one specific map. Run `check_scene.py` before recording: it plays the
+same keys through a pty at reduced speed and prints the map that results, which is how
+drift in the anchors is caught without spending a take.
 """
 
 from __future__ import annotations
@@ -17,12 +21,14 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
 HOME = Path.home()
 WORKDIR = HOME / "Projects/spoider"
-MAP = "/tmp/spoider-tour/tour.spoider"
+SCRATCH = Path(tempfile.gettempdir()) / "spoider-tour"
+MAP = SCRATCH / "tour.spoider"
 SESSION = "tourrec"
 GROUP = "tourrec"
 COLS, ROWS = 150, 50
@@ -77,7 +83,11 @@ def scene() -> list[Step]:
         wait(0.6)
 
     def up(levels: int) -> None:
-        """Three LEFT presses: a child goes to its parent, the root goes nowhere."""
+        """Climb exactly this many levels.
+
+        LEFT goes to the parent, but on the root it goes into the last child, so the
+        number of presses is counted per scene rather than pressed until it stops.
+        """
         for index in range(levels):
             key(0.45 if index == 0 else 0.35, LEFT.encode(), "←")
         wait(0.4)
@@ -289,9 +299,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         end = min(end, start + 1.6)
         if end - start < 0.25:
             end = start + 0.25
-        lines.append(
-            f"Dialogue: 0,{stamp(start)},{stamp(end)},Key,,0,0,0,,{item['key']}"
-        )
+        lines.append(f"Dialogue: 0,{stamp(start)},{stamp(end)},Key,,0,0,0,,{item['key']}")
     return head + "\n".join(lines) + "\n"
 
 
@@ -321,7 +329,8 @@ def main() -> int:
     subprocess.run(["tmux", "kill-session", "-t", SESSION], capture_output=True)
     subprocess.run(["pkill", "-f", "gpu-screen-recorder -w "], capture_output=True)
     time.sleep(0.6)
-    Path(MAP).unlink(missing_ok=True)
+    SCRATCH.mkdir(parents=True, exist_ok=True)
+    MAP.unlink(missing_ok=True)
     raw.unlink(missing_ok=True)
     out.parent.mkdir(parents=True, exist_ok=True)
 
