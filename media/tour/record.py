@@ -438,15 +438,15 @@ def main() -> int:
     tmux("kill-session", "-t", SESSION)
 
     if keys and show_keys:
-        manifest = out.with_name("keys.json")
+        manifest = SCRATCH / "keys.json"
         manifest.write_text(json.dumps(keys, indent=0) + "\n")
-        subtitle = out.with_name("keys.ass")
+        subtitle = SCRATCH / "keys.ass"
         subtitle.write_text(ass(keys, width, height))
         burn = subprocess.run(
-            ["ffmpeg", "-y", "-loglevel", "error", "-i", raw.name, "-vf", f"ass={subtitle.name}",
+            ["ffmpeg", "-y", "-loglevel", "error", "-i", raw.name, "-vf", f"ass={subtitle}",
              "-c:v", "libx264", "-crf", "20", "-preset", "medium", "-pix_fmt", "yuv420p",
              "-movflags", "+faststart", out.name],
-            capture_output=True, text=True, cwd=out.parent,
+            capture_output=True, text=True,
         )
         if burn.returncode != 0:
             print("the key overlay failed, keeping the plain recording")
