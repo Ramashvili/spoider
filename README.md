@@ -4,8 +4,7 @@ A mind map editor for the terminal. One map, one bar of keys, no floating
 windows, no colours of its own: every colour comes from your terminal. The map is
 a plain JSON file you can read, diff and version.
 
-It is built on [Textual](https://textual.textualize.io/), and it is vibecoded: an AI
-assistant writes the code under the author's direction.
+It is built on [Textual](https://textual.textualize.io/), and it is vibecoded.
 
 ![a mind map in spoider](media/spoider.png)
 
