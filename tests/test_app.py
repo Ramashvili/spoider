@@ -1541,7 +1541,7 @@ async def test_arrows_follow_a_bush(tmp_path: Path):
 
 
 def test_up_and_down_mean_what_is_drawn():
-    from spoider.app import DOWN_MEANING, UP_MEANING
+    from spoider.actions_map import DOWN_MEANING, UP_MEANING
     from spoider.model import LAYOUTS
 
     assert set(UP_MEANING) == set(LAYOUTS) == set(DOWN_MEANING)

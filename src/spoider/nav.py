@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .model import MindMap
+from .model import MindMap, Node
 
 
 def to_parent(mm: MindMap, node_id: str) -> str:
@@ -63,3 +63,13 @@ def side(mm: MindMap, node_id: str, layout: str = "spider") -> int:
         if child.id == owner.id:
             return 1 if index < split else -1
     return 1
+
+
+def _standing_after(parent: Node, index: int) -> str:
+    """Where the cursor goes when the cells at `index` and above are gone: the cell
+    that slid into the gap, else the last one before it, else the parent."""
+    if index < len(parent.children):
+        return parent.children[index].id
+    if parent.children:
+        return parent.children[-1].id
+    return parent.id

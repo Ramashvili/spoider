@@ -16,8 +16,10 @@ from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding
 from textual.notifications import SeverityLevel
 
-from . import nav
-from .chrome import FooterBar, ask_chunks, help_chunks, key_cap, prompt_chunks, settings_chunks
+from .actions_edit import EditActions
+from .actions_map import MapActions
+from .actions_stack import StackActions
+from .chrome import FooterBar, ask_chunks, help_chunks, prompt_chunks, settings_chunks
 from .config import (
     Config,
     default_config_path,
@@ -26,15 +28,15 @@ from .config import (
     write_config,
 )
 from .drawers import AskBar, PanelBar, PromptBar
-from .editing import Buffer, reflow
+from .editing import Buffer
 from .keys import (
     BINDINGS,
     action_chords,
     build_action_keymap,
     build_keymap,
 )
-from .layout import MAX_SPACING, MIN_SPACING, compute_stack, label
-from .model import LAYOUTS, MapFileError, MindMap, Node, marks_of
+from .layout import label
+from .model import MapFileError, MindMap, Node, marks_of
 from .screens import help_text, settings_text
 from .text import clean, find_all, one_line
 from .widgets import MindMapView, TopBar
@@ -134,19 +136,7 @@ Toast .toast--title {
 #: What ↑ and ↓ do in each shape. The siblings always sit side by side; it is the
 #: level that moves. A pyramid hangs its children below the parent, so down goes
 #: deeper; a bush hangs them above it, so up goes deeper and down goes home.
-UP_MEANING: dict[str, str] = {
-    "spider": "prev",
-    "branch": "prev",
-    "pyramid": "parent",
-    "bush": "child",
-}
 
-DOWN_MEANING: dict[str, str] = {
-    "spider": "next",
-    "branch": "next",
-    "pyramid": "child",
-    "bush": "parent",
-}
 
 
 
@@ -170,7 +160,7 @@ def edit_in_editor(path: Path) -> None:
 
 
 
-class SpoiderApp(App[None]):
+class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     CSS = APP_CSS
     TITLE = "spoider"
     BINDINGS = BINDINGS
@@ -710,29 +700,7 @@ class SpoiderApp(App[None]):
                 return found
         return self.mm.find(node_id)
 
-    def begin_edit(self, node_id: str, *, fresh: bool = False) -> None:
-        node = self._live_node(node_id)
-        if node is None:
-            return
-        if not fresh:
-            self._push_undo()
-        self._edit_id = node_id
-        self._edit_fresh = fresh
-        self._buffer = Buffer("" if fresh else (node.text or ""))
-        self._sync_preview()
-        self._sync_footer()
 
-    def _sync_preview(self) -> None:
-        node = self._live_node(self._edit_id) if self._edit_id else None
-        if node is None:
-            return
-        if self._buffer is None:
-            return
-        node.preview = self._buffer.text
-        node.caret = self._buffer.caret
-        node.overwrite = self._buffer.overwrite
-        node.sel = self._buffer.selection()
-        self.view.refresh_map()
 
     def _sync_footer(self) -> None:
         """The bar never leaves; it swaps to the keys of whatever has them now."""
@@ -805,354 +773,26 @@ class SpoiderApp(App[None]):
         self.view.focus()
         self._refresh_chrome()
 
-    def handle_edit_key(self, key: str, character: str | None) -> bool:
-        """Every keystroke while typing into a cell. Returns True if consumed.
 
-        The cell is a small text editor, so these are a text editor's keys: lines,
-        a selection dragged out with shift, word deletes, an overwrite mode, cut
-        and copy through the clipboard, and ^J to reflow the text. Enter keeps its
-        meaning here, which is to finish the cell; a line break is its own key.
-        """
-        if not self.editing or self._buffer is None:
-            return False
-        buffer = self._buffer
-        if key in ("ctrl+slash", "ctrl+comma"):
-            return False  # help and settings stay reachable mid-typing
 
-        if key == "enter":
-            self.finish_edit(commit=True)
-            return True
-        if key in ("escape", "ctrl+c"):
-            self.finish_edit(commit=False)
-            return True
 
-        base = key.removeprefix("shift+")
-        extend = base != key
-        moves = {
-            "left": buffer.left,
-            "right": buffer.right,
-            "up": buffer.up,
-            "down": buffer.down,
-            "home": buffer.home,
-            "end": buffer.end,
-            "ctrl+e": buffer.end,
-            "ctrl+home": buffer.document_home,
-            "ctrl+end": buffer.document_end,
-        }
-        if base in moves:
-            moves[base](extend=extend)
-        elif key == "shift+enter":
-            buffer.insert("\n")
-        elif key == "backspace":
-            buffer.backspace()
-        elif key == "delete":
-            buffer.delete()
-        elif key in ("alt+backspace", "ctrl+w"):
-            buffer.delete_word_before()
-        elif key == "alt+d":
-            buffer.delete_word_after()
-        elif self._action_for(key) == "select_all":
-            buffer.select_all()
-        elif key == "insert":
-            buffer.overwrite = not buffer.overwrite
-        elif self._action_for(key) == "cut":
-            self._cut_or_copy(cut=True)
-        elif self._action_for(key) == "copy":
-            self._cut_or_copy(cut=False)
-        elif self._action_for(key) == "paste":
-            buffer.insert(self._text_clip)
-        elif self._action_for(key) == "justify":
-            self.action_justify()
-        elif self._action_for(key) == "undo":
-            buffer.undo()
-        elif self._action_for(key) == "redo":
-            buffer.redo()
-        elif character and character.isprintable():
-            buffer.insert(character)
-        self._sync_preview()
-        return True
-
-    def action_copy(self) -> None:
-        """M-6 — copy text: the selection while typing, else the selected cell's."""
-        if self.editing:
-            self._cut_or_copy(cut=False)
-            return
-        node = self.document.find(self.focus)
-        if node is None or not node.text.strip():
-            return
-        self._text_clip = node.text
-        self.copy_to_clipboard(node.text)
-        self.notify("Copied the cell's text", timeout=1)
-
-    def _cut_or_copy(self, *, cut: bool) -> None:
-        """^K cuts the selection out of a cell, M-6 copies it.
-
-        With nothing selected the whole cell's text goes, which is what a box this
-        size usually wants. The text also goes to the system clipboard (OSC 52), so
-        it can leave spoider.
-        """
-        if self._buffer is None:
-            return
-        text = self._buffer.selected_text() or self._buffer.text
-        if not text:
-            return
-        self._text_clip = text
-        self.copy_to_clipboard(text)
-        if cut:
-            if self._buffer.selection() is None:
-                self._buffer.select_all()
-            self._buffer.insert("")
-
-    def on_paste(self, event: events.Paste) -> None:
-        """Text the terminal pasted (ctrl+shift+v) lands at the caret."""
-        if self.editing and self._buffer is not None:
-            self._buffer.insert(event.text)
-            self._sync_preview()
-            event.stop()
 
     # -- justify ---------------------------------------------------------------
 
-    def action_justify(self) -> None:
-        """^J — reflow a cell's text to a width you give, the way nano justifies."""
-        node_id = self._edit_id if self.editing else self.focus
-        if node_id is None:
-            return
-        self._justify_id = node_id
-        self._show_prompt(
-            "justify",
-            "Justify to width: ",
-            str(self.mm.justify or self.config.justify_width_default),
-            preselect=True,
-            submit=self._justify_submitted,
-            cancel=self._close_drawers,
-        )
 
-    def _justify_submitted(self, value: str) -> None:
-        self._close_drawers()
-        try:
-            width = int(value.strip())
-        except ValueError:
-            width = self.mm.justify or self.config.justify_width_default
-        width = max(10, min(width, 400))
-        if width != self.mm.justify:
-            # the width is part of the map, so a file opened elsewhere justifies
-            # the same way; the config only holds the default to offer
-            self.mm.justify = width
-            self._mark_dirty()
-        node_id, self._justify_id = self._justify_id, None
-        if node_id is None:
-            return
-        if self.editing and self._buffer is not None and node_id == self._edit_id:
-            self._buffer.text = reflow(self._buffer.text, width)
-            self._buffer.caret = min(self._buffer.caret, len(self._buffer.text))
-            self._buffer.anchor = None
-            self._sync_preview()
-            return
-        node = self.document.find(node_id)
-        if node is None:
-            return
-        wrapped = reflow(node.text, width)
-        if wrapped == node.text:
-            return
-        self._push_undo()
-        node.text = wrapped
-        self._mark_dirty()
 
-    def finish_edit(self, *, commit: bool) -> None:
-        node_id = self._edit_id
-        self._edit_id = None
-        node = self._live_node(node_id) if node_id else None
-        text = self._buffer.text.strip() if self._buffer is not None else ""
-        fresh = self._edit_fresh
-        if node is not None:
-            node.preview = None
-            node.caret = None
-            node.overwrite = False
-            node.sel = None
-        self._buffer = None
-
-        if node is None or not commit or not text:
-            # An abandoned new node was only ever a promise; take it away again.
-            if fresh and node is not None:
-                result = self.mm.delete(node.id)
-                if result is not None:
-                    self.selected = result[1]
-            self._sync_footer()
-            self.view.refresh_map()
-            return
-
-        if node.text != text:
-            node.text = text
-            self._mark_dirty()
-        else:
-            self.view.refresh_map()
-        self._sync_footer()
 
     # -- editing actions ------------------------------------------------
 
-    def action_add_child(self) -> None:
-        """^Tab — a new cell under the selection, in the map or in a cut."""
-        doc = self.document
-        self._push_undo()
-        node = doc.add_child(self.focus)
-        if node is None:
-            self._undo.pop()
-            return
-        self._inserted(node, doc)
 
-    def action_add_sibling(self) -> None:
-        """⏎ — a new cell beside the selection; a sibling of a top-level cut is a
-        new entry on the stack, because at that level the stack is the top level."""
-        doc = self.document
-        if doc.parent(self.focus) is None:
-            self.action_add_child()
-            return
-        self._push_undo()
-        node = doc.add_sibling(self.focus)
-        if node is None:
-            self._undo.pop()
-            return
-        self._inserted(node, doc)
 
-    def _inserted(self, node: Node, doc: MindMap) -> None:
-        """Stand on a cell that has just been made, and type its name."""
-        if self.stack_open:
-            self._commit_stack(doc)  # the document the cell was made in
-            self.selected, self.anchor = node.id, None
-            self._stack_changed()
-        else:
-            self.anchor = None
-            self.selected = node.id
-            self.view.refresh_map()
-        self.begin_edit(node.id, fresh=True)
 
-    def action_edit(self) -> None:
-        """Renaming a run of cells at once would give them all one name, so this
-        is the one action that stays with the cell the cursor is on."""
-        if self.node is not None:
-            self.anchor = None
-            self.begin_edit(self.selected)
 
-    def action_delete(self) -> None:
-        """^D — delete everything selected, as one undoable step."""
-        ids = self.selected_ids
-        if self.mm.root.id in ids:
-            self.notify("The root node cannot be deleted", severity="error", timeout=2)
-            return
-        self._push_undo()
-        if len(ids) == 1:
-            result = self.mm.delete(ids[0])
-            if result is None:
-                self._undo.pop()
-                return
-            _, successor = result
-            self.selected = successor
-        else:
-            # a run leaves you on the parent it hung from
-            parent = self.mm.parent(ids[0])
-            for node_id in ids:
-                self.mm.delete(node_id)
-            self.selected = parent.id if parent is not None else self.mm.root.id
-        self.anchor = None
-        self._mark_dirty()
 
-    def action_cut(self) -> None:
-        """^K — take the selected cells out of the map and put them on the stack.
 
-        They are not deleted: the stack is last in, first out, and any of the cuts
-        on it can be pasted back under whatever cell is selected. The cursor stays
-        on a sibling, where the eye already is.
 
-        The cursor stays where the eye already is: on the cell that closes the gap
-        the cut left, or on the one before it when the run ended the branch. Only
-        an only child leaves you on the parent, because there is nothing else
-        left to stand on.
-        """
-        ids = self.selected_ids
-        if self.mm.root.id in ids:
-            self.notify("The root node cannot be cut", severity="error", timeout=2)
-            return
-        parent = self.mm.parent(ids[0])
-        if parent is None:
-            return
-        # the slot the run will leave behind, read before it is closed up
-        end = [child.id for child in parent.children].index(ids[-1])
-        self._push_undo()
-        taken: list[Node] = []
-        for node_id in ids:
-            result = self.mm.delete(node_id)
-            if result is not None:
-                taken.append(result[0])
-        if not taken:
-            self._undo.pop()
-            return
-        self.mm.push_cut(taken)
-        self.anchor = None
-        self.selected = _standing_after(parent, end)
-        self._mark_dirty()
-        if len(taken) == 1:
-            self.notify("Cut onto the stack", severity="warning", timeout=2)
-        else:
-            self.notify(f"{len(taken)} cells cut onto the stack", severity="warning", timeout=2)
 
-    def action_paste(self) -> None:
-        """^U — take the most recent cut off the stack and hang it here.
 
-        Last in, first out: cutting three branches and pressing ^U three times
-        puts them back in the order they were cut, and each press empties the
-        stack by one. A paste the eye cannot see is worth nothing, so the
-        selection stays on the target as its children arrive.
-        """
-        if not self.mm.cut_stack:
-            self.notify("Nothing to paste", severity="error", timeout=2)
-            return
-        self._push_undo()  # the snapshot holds the stack, so undo puts it back
-        cell = self.mm.pop_cut()
-        if cell is None or self.mm.paste(self.selected, cell) is None:
-            self._undo.pop()
-            return
-        self._mark_dirty()
-        self.notify("Pasted from the stack", severity="warning", timeout=2)
-
-    def action_toggle_stack(self) -> None:
-        """^I — the stack itself, as a panel of cells over the map.
-
-        The stack is where every cut cell waits, last in first out, until it is
-        pasted somewhere; the panel shows what is on it and lets you work on a
-        cell — rename it, mark it, cut it again, drop it — without pasting it back
-        into the map first.
-        """
-        if self.stack_open:
-            self._stack_open = False
-            if self._map_cursor is not None:
-                selected, anchor = self._map_cursor
-                if selected is not None and self.mm.find(selected) is not None:
-                    self.selected, self.anchor = selected, anchor
-                self._map_cursor = None
-            self.view.refresh()
-            self._sync_footer()
-            self._refresh_chrome()
-            return
-        entries = self._stack_entries()
-        if not entries:
-            self.notify("Nothing cut yet", severity="error", timeout=2)
-            return
-        self._map_cursor = (self.selected, self.anchor)  # where the map left off
-        self._stack_open = True
-        self.selected, self.anchor = entries[0].id, None  # the newest cut
-        self.view.refresh()
-        self._sync_footer()
-        self._refresh_chrome()
-
-    def _stack_entries(self) -> list[Node]:
-        """The stack as the panel reads it: newest first."""
-        return list(reversed(self.mm.cut_stack))
-
-    def stack_layout(self):
-        """The picture of the stack, or None when the panel is shut."""
-        if not self.stack_open:
-            return None
-        return compute_stack(self._stack_entries(), self.mm.spacing)
 
     @property
     def document(self) -> MindMap:
@@ -1169,233 +809,16 @@ class SpoiderApp(App[None]):
         """The cell the keys are on, in whichever document has them."""
         return self.selected
 
-    def _stack_doc(self) -> MindMap:
-        """The stack as a document, made of the same Node objects.
 
-        Its root is a cell of its own that nothing draws: it is there so the
-        ordinary navigation helpers have a parent to walk up to, and its children
-        are the stack, newest first.
-        """
-        return MindMap(Node("", children=self._stack_entries()))
 
-    def _commit_stack(self, doc: MindMap) -> None:
-        """The panel's top level *is* the stack: structural changes go back to it."""
-        self.mm.cut_stack = list(reversed(doc.root.children))
 
-    def _stack_changed(self) -> None:
-        """Write the panel's state back and let the document know."""
-        self._mark_dirty()
-        self.view.refresh()
 
-    def _stack_after_history(self) -> None:
-        """Undo and redo swap the whole document, so the panel's cursor has to be
-        put somewhere that still exists — and the panel closed if the stack the
-        restored document carries is empty."""
-        entries = self._stack_entries()
-        if not entries:
-            self.stack_open_or_close_after_undo()
-            return
-        known = {node.id for entry in entries for node in entry.walk()}
-        if self.selected not in known:
-            self.selected, self.anchor = entries[0].id, None  # the top of the stack
-        self.view.refresh()
 
-    def _stack_select(self, doc: MindMap, node_id: str) -> None:
-        if node_id != doc.root.id:  # the invisible root is not a cell you can be on
-            self.select(node_id)
 
-    def _action_for(self, key: str) -> str | None:
-        """Which action a chord belongs to, according to the keymap in force.
 
-        The stack panel reads keys through this instead of matching strings, so a
-        chord the reader has rebound works there too.
-        """
-        for action, chords in action_chords(self.config.keys).items():
-            if key in chords:
-                return action
-        return None
 
-    def handle_stack_key(self, key: str, character: str | None) -> bool:
-        """Every key while the stack panel is open.
 
-        The actions are the map's own — navigation is the branch shape's, because
-        that is how the panel is drawn (up and down walk the stack, right goes into
-        a cell's children, left comes back out) — so every key means what it means
-        on the map, and the bar can say so in the same words.
-        """
-        if not self.stack_open:
-            return False
-        action = None if key in ("escape", "ctrl+c") else self._action_for(key)
-        doc = self._stack_doc()
-        selected = self.selected or doc.root.id
 
-        if action is None and key not in ("escape", "ctrl+c", "ctrl+i"):
-            return False
-        if action == "toggle_stack" or key in ("escape", "ctrl+c"):
-            self.action_toggle_stack()
-        elif action == "prev":
-            self._stack_select(doc, nav.to_sibling(doc, selected, -1))
-        elif action == "next":
-            self._stack_select(doc, nav.to_sibling(doc, selected, 1))
-        elif action == "go_right":
-            self._stack_select(doc, nav.to_child(doc, selected))
-        elif action == "go_left":
-            self._stack_select(doc, nav.to_parent(doc, selected))
-        elif action == "edit":
-            if doc.find(selected) is not None:
-                self.begin_edit(selected)
-        elif action == "select_all":
-            self.action_select_all()
-        elif action in ("extend_prev", "extend_next"):
-            # the panel is always the branch shape: up and down walk siblings, so
-            # those are the arrows that grow a run there
-            self._extend("prev" if action == "extend_prev" else "next")
-        elif action in ("extend_left", "extend_right"):
-            pass  # left and right go to the parent and into a cell, never sideways
-        elif action == "mark":
-            self._push_undo()
-            mark = doc.next_mark(selected, self.marks)
-            for node_id in self.selected_ids:
-                node = doc.find(node_id)
-                if node is not None:
-                    node.mark = mark
-            self._stack_changed()
-        elif action == "fold":
-            lead = doc.find(selected)
-            if lead is not None and lead.children:
-                self._push_undo()
-                fold = not lead.collapsed
-                for node_id in self.selected_ids:
-                    node = doc.find(node_id)
-                    if node is not None and node.children:
-                        node.collapsed = fold
-                self._stack_changed()
-        elif action == "cut":
-            self._stack_take(doc, self.selected_ids, discard=False)
-        elif action == "paste":
-            self._stack_paste()
-        elif action == "justify":
-            self.action_justify()
-        elif action == "copy":
-            self.action_copy()
-        elif action == "delete":
-            self._stack_take(doc, self.selected_ids, discard=True)
-        elif action == "move_up":
-            self._stack_reorder(doc, selected, -1)
-        elif action == "move_down":
-            self._stack_reorder(doc, selected, 1)
-        elif action == "spacing_more":
-            self._set_spacing(self.mm.spacing + 1)
-        elif action == "spacing_less":
-            self._set_spacing(self.mm.spacing - 1)
-        elif action == "undo":
-            self.action_undo()
-            self._stack_after_history()
-        elif action == "redo":
-            self.action_redo()
-            self._stack_after_history()
-        else:
-            return False
-        return True
-
-    def _stack_reorder(self, doc: MindMap, node_id: str, delta: int) -> None:
-        """Move a cell among its siblings inside the panel. For an entry at the
-        top level that is the stack's own order, so alt+↑ puts it nearer the top."""
-        parent = doc.parent(node_id)
-        if parent is None:
-            return
-        order = [child.id for child in parent.children]
-        index = order.index(node_id)
-        target = index + delta
-        if not 0 <= target < len(order):
-            return
-        self._push_undo()
-        node = parent.children.pop(index)
-        parent.children.insert(target, node)
-        self.mm.cut_stack = list(reversed(doc.root.children))
-        self._stack_changed()
-
-    def stack_open_or_close_after_undo(self) -> None:
-        """Undo can empty the stack a panel is showing; the panel goes with it."""
-        self._stack_open = False
-        if self._map_cursor is not None:
-            selected, anchor = self._map_cursor
-            if selected is not None and self.mm.find(selected) is not None:
-                self.selected, self.anchor = selected, anchor
-            self._map_cursor = None
-        self._sync_footer()
-        self._refresh_chrome()
-        self.view.refresh()
-
-    def _stack_paste(self) -> None:
-        """^U inside the panel: hang the newest cut under the selected cell.
-
-        This rearranges the stack without touching the map — the top comes off the
-        stack and becomes a child of whatever is selected in the panel. A cell
-        cannot be pasted into itself or into one of its own children (that would
-        be a cycle), so that case does nothing at all and leaves the stack as it
-        was, rather than reporting a failure for a key that cannot work here.
-        """
-        if not self.mm.cut_stack:
-            self.notify("Nothing to paste", severity="error", timeout=2)
-            return
-        top = self.mm.cut_stack[-1]
-        target = self.selected
-        if target is None or any(node.id == target for node in top.walk()):
-            return  # into itself, or into something it already contains
-
-        self._push_undo()  # the stack is document state, so undo covers this too
-        cell = self.mm.pop_cut()
-        doc = self._stack_doc()  # rebuilt without the cell that left the stack
-        if cell is None or doc.find(target) is None:
-            self.mm.cut_stack.append(cell) if cell is not None else None
-            self._undo.pop()
-            return
-        doc.paste(target, cell)
-        self.mm.cut_stack = list(reversed(doc.root.children))
-        self._mark_dirty()
-        self.view.refresh()
-
-    def _stack_take(self, doc: MindMap, ids: list[str], *, discard: bool) -> None:
-        """Take cells off the stack: throw them away, or cut them again.
-
-        Cutting again is the whole point of a stack — the cells go back on top,
-        which is where a cut always goes, and the panel shows them at the top.
-        A run keeps its order, so the first of them ends up highest in the panel.
-        """
-        if not ids:
-            return
-        parent = doc.parent(ids[0])
-        if parent is None:
-            return
-        self._push_undo()  # every stack change is one step, like a map change
-        taken: list[Node] = []
-        for node_id in ids:
-            holder = doc.parent(node_id)
-            if holder is None:
-                continue
-            for position, child in enumerate(holder.children):
-                if child.id == node_id:
-                    taken.append(holder.children.pop(position))
-                    break
-        node = taken[0] if taken else None
-        if node is None:
-            self._undo.pop()
-            return
-        index = 0
-        if not discard:
-            # the panel reads newest first, so the top of the stack is its index 0
-            for cell in reversed(taken):
-                doc.root.children.insert(0, cell)
-        entries = list(reversed(doc.root.children))  # the file's order: oldest first
-        self.mm.cut_stack = entries
-        self._stack_changed()
-        if not entries:  # nothing left to show
-            self.stack_open_or_close_after_undo()
-            return
-        self.anchor = None
-        self.selected = node.id if not discard else entries[min(index, len(entries) - 1)].id
-        self.view.refresh()
 
     def action_help(self) -> None:
         """^/ — every key and option, with a line of explanation."""
@@ -1446,252 +869,37 @@ class SpoiderApp(App[None]):
         self.open_config()
         self._open_settings()  # back to the list you left
 
-    def action_set_marks(self) -> None:
-        """^M — the marks this map cycles through, in the order m walks them.
 
-        A line of its own rather than something buried in the settings: the
-        vocabulary is part of the map, and it is edited while the map is in front
-        of you. The list is not preselected — appending to it is the common case.
-        """
-        self._show_prompt(
-            "marks",
-            f"Marks, in the order {key_cap(self.keymap.get('mark', 'm'))} cycles: ",
-            # a trailing space so a typed mark starts a token of its own rather
-            # than growing the last one; it is stripped before anything is saved
-            " ".join(self.marks) + " ",
-            submit=self._marks_submitted,
-            cancel=self._close_drawers,
-        )
 
-    def _marks_submitted(self, value: str) -> None:
-        self.set_marks(value.split())
-        self._close_drawers()
-        self.view.focus()
 
-    def action_mark(self) -> None:
-        """m — cycle the mark: none, ⭐, 💡, ❓, ⚠️, ✅, 📌, ⌛, 🤡, none.
-
-        A run of cells all take the mark the first one was about to show, so one
-        press gives them one meaning instead of a spectrum.
-        """
-        ids = self.selected_ids
-        if not ids:
-            return
-        self._push_undo()
-        mark = self.mm.next_mark(ids[0], self.marks)
-        for node_id in ids:
-            node = self.mm.find(node_id)
-            if node is not None:
-                node.mark = mark
-        self._mark_dirty()
-
-    def action_fold(self) -> None:
-        """t — fold or unfold, following the lead cell's state across the run."""
-        ids = self.selected_ids
-        lead = self.mm.find(ids[0])
-        if lead is None:
-            return
-        fold = not lead.collapsed
-        targets = [node for node in map(self.mm.find, ids) if node is not None and node.children]
-        if not targets:
-            return
-        self._push_undo()
-        for node in targets:
-            node.collapsed = fold
-        self._mark_dirty()
 
     # -- movement -------------------------------------------------------
 
-    def _to_parent(self) -> None:
-        self.select(nav.to_parent(self.mm, self.selected))
 
-    def _expand_if_collapsed(self) -> bool:
-        node = self.node
-        if node is not None and node.children and node.collapsed:
-            self._push_undo()
-            node.collapsed = False
-            self._mark_dirty()
-            return True
-        return False
 
-    def _into_child(self) -> None:
-        if self._expand_if_collapsed():
-            return
-        self.select(nav.to_child(self.mm, self.selected))
 
-    def _from_root(self, want: int) -> None:
-        """The root branches both ways, so ← and → each pick their own side."""
-        if self._expand_if_collapsed():
-            return
-        self.select(nav.to_child_on_side(self.mm, self.selected, want))
 
-    @property
-    def _at_root(self) -> bool:
-        return self.selected == self.mm.root.id
 
-    def action_go_left(self) -> None:
-        """^B / ←. On a left-hand branch the children are drawn to the left, so
-        the directions swap: left goes deeper, right goes back towards the root.
-        From the root itself, left is its left-hand branch. Where the levels are
-        stacked the siblings sit side by side, so left is simply the one before."""
-        if self.siblings_are_sideways:
-            self.select(nav.to_sibling(self.mm, self.selected, -1))
-            return
-        if self._at_root:
-            self._from_root(-1)
-        elif nav.side(self.mm, self.selected, self.mm.layout) < 0:
-            self._into_child()
-        else:
-            self._to_parent()
 
-    def action_go_right(self) -> None:
-        """^F / →. Mirrors action_go_left."""
-        if self.siblings_are_sideways:
-            self.select(nav.to_sibling(self.mm, self.selected, +1))
-            return
-        if self._at_root:
-            self._from_root(+1)
-        elif nav.side(self.mm, self.selected, self.mm.layout) < 0:
-            self._to_parent()
-        else:
-            self._into_child()
 
-    @property
-    def siblings_are_sideways(self) -> bool:
-        """True when the levels are stacked, so ← / → walk the row of siblings
-        and ↑ / ↓ are left to cross a level."""
-        return self.mm.layout in ("pyramid", "bush")
 
-    def action_prev(self) -> None:
-        """^P / ↑ — whatever is above the selection in this shape."""
-        self._move(UP_MEANING[self.mm.layout])
 
-    def action_next(self) -> None:
-        """^N / ↓ — whatever is below the selection in this shape."""
-        self._move(DOWN_MEANING[self.mm.layout])
 
-    def _move(self, kind: str) -> None:
-        if kind == "prev":
-            self.select(nav.to_sibling(self.mm, self.selected, -1))
-        elif kind == "next":
-            self.select(nav.to_sibling(self.mm, self.selected, +1))
-        elif kind == "parent":
-            self._to_parent()
-        else:  # "child"
-            self._into_child()
 
-    def action_extend_prev(self) -> None:
-        """Shift + the arrow that walks back between siblings."""
-        self._extend(UP_MEANING[self.mm.layout])
 
-    def action_extend_next(self) -> None:
-        self._extend(DOWN_MEANING[self.mm.layout])
 
-    def action_extend_left(self) -> None:
-        self._extend("prev" if self.siblings_are_sideways else None)
 
-    def action_extend_right(self) -> None:
-        self._extend("next" if self.siblings_are_sideways else None)
 
-    def _extend(self, kind: str | None) -> None:
-        """Grow or shrink the run by one sibling. Arrows that do not walk between
-        siblings in this shape do nothing rather than jump somewhere else."""
-        if kind not in ("prev", "next"):
-            return
-        parent = self.document.parent(self.selected)
-        if parent is None:
-            return
-        order = [child.id for child in parent.children]
-        target = order.index(self.selected) + (-1 if kind == "prev" else +1)
-        if not 0 <= target < len(order):
-            return
-        if self.anchor is None:
-            self.anchor = self.selected
-        self.selected = order[target]
-        self.view.refresh()
 
-    def action_select_all(self) -> None:
-        """^A — the whole text while a cell is being typed into, every sibling on
-        the map (which is what a run is: siblings, never cousins)."""
-        if self.editing:
-            if self._buffer is not None:
-                self._buffer.select_all()
-                self._sync_preview()
-            return
-        parent = self.document.parent(self.selected)
-        if parent is None or len(parent.children) < 2:
-            return
-        order = [child.id for child in parent.children]
-        self.anchor = order[0]
-        self.selected = order[-1]
-        self.view.refresh()
 
-    def action_clear_selection(self) -> None:
-        """esc — back to one cell without moving it."""
-        if self.anchor is None:
-            return
-        self.anchor = None
-        self.view.refresh()
 
-    def action_move_up(self) -> None:
-        self._reorder(-1)
 
-    def action_move_down(self) -> None:
-        self._reorder(+1)
 
-    def action_spacing_more(self) -> None:
-        """^= — breathe: one more column between boxes and one more row between
-        subtrees."""
-        self._set_spacing(self.spacing + 1)
 
-    def action_spacing_less(self) -> None:
-        """^- — tighten. Stops before boxes would touch or overlap."""
-        self._set_spacing(self.spacing - 1)
 
-    def _set_spacing(self, value: int) -> None:
-        value = max(MIN_SPACING, min(MAX_SPACING, value))
-        if value == self.mm.spacing:
-            return
-        self.mm.spacing = value
-        # Document state, so it makes the buffer dirty — but it stays out of the
-        # undo stack: nudging the air in three steps should not bury the edit you
-        # actually want to undo.
-        self._mark_dirty()
 
-    def action_colours(self) -> None:
-        """c — cycle the colouring: by depth, or by family.
 
-        `depth` gives every level one colour, `family` gives every branch under the
-        root one colour for its whole subtree. Like the shape and the spacing it is
-        document state, and like them it is not an edit worth undoing.
-        """
-        self.mm.colours = "family" if self.mm.colours == "depth" else "depth"
-        self._mark_dirty()
-        self.notify(f"Colours by {self.mm.colours}", timeout=1)
 
-    def action_layout(self) -> None:
-        """^L — cycle the shape of the map: spider, pyramid, bush, branch."""
-        order = LAYOUTS
-        self.mm.layout = order[(order.index(self.mm.layout) + 1) % len(order)]
-        # like spacing, the shape is document state but not an edit worth undoing
-        self._mark_dirty()
-        self.notify(f"Layout: {self.mm.layout}", timeout=1)
-
-    def _reorder(self, delta: int) -> None:
-        """alt+↑ / alt+↓ — move the run as one block, keeping its order."""
-        ids = self.selected_ids
-        parent = self.mm.parent(ids[0])
-        if parent is None:
-            return
-        order = [child.id for child in parent.children]
-        if (delta < 0 and order.index(ids[0]) == 0) or (
-            delta > 0 and order.index(ids[-1]) == len(order) - 1
-        ):
-            return  # the block is against the edge
-        self._push_undo()
-        for node_id in ids if delta < 0 else list(reversed(ids)):
-            self.mm.move_sibling(node_id, delta)
-        self._mark_dirty()
 
     # -- history and files ----------------------------------------------
 
@@ -1742,14 +950,6 @@ class SpoiderApp(App[None]):
             self._ask_where_to_write(then_quit=True)
 
 
-def _standing_after(parent: Node, index: int) -> str:
-    """Where the cursor goes when the cells at `index` and above are gone: the cell
-    that slid into the gap, else the last one before it, else the parent."""
-    if index < len(parent.children):
-        return parent.children[index].id
-    if parent.children:
-        return parent.children[-1].id
-    return parent.id
 
 
 def _run_tool(argv: list[str]) -> bool:
