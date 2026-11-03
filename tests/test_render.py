@@ -11,7 +11,7 @@ from rich.cells import cell_len
 
 from spoider.layout import PAD, compute
 from spoider.model import MindMap, Node
-from spoider.render import build_grid, render_text
+from spoider.render import DEPTH_COLORS, STACK_START, build_grid, render_text
 
 EVIL = "\x1b[2J\x1b[31mred\x1b]52;c;SGVsbG8=\x07\x9b31m"
 
@@ -99,6 +99,16 @@ def test_a_selected_cell_keeps_its_text_and_mark_in_their_own_colours():
     drawn = render_text(plain, 0, 0, layout.width, layout.height).plain
     quiet = render_text(unselected, 0, 0, layout.width, layout.height).plain
     assert drawn == quiet
+
+
+def test_the_cut_stack_starts_further_down_the_palette():
+    """The panel is a document of its own: its top cells take a colour rather than the
+    map's plain foreground."""
+    mm = MindMap(Node("root"))
+    layout = compute(mm.root, 0)
+    drawn = build_grid(layout, "", depth_shift=DEPTH_COLORS.index(STACK_START) + 1)
+    box = layout.boxes[mm.root.id]
+    assert drawn.cells[(box.x + 1, box.y + 1)][1] == STACK_START
 
 
 def test_only_the_selected_box_frame_is_reversed():

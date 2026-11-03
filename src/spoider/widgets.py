@@ -11,7 +11,7 @@ from textual.widget import Widget
 
 from .chrome import DIVIDER
 from .layout import BOX_H, Layout, compute
-from .render import Grid, build_grid, render_text
+from .render import DEPTH_COLORS, STACK_START, Grid, build_grid, render_text
 from .text import clean, clip_head
 
 if TYPE_CHECKING:
@@ -237,6 +237,7 @@ class MindMapView(Widget, can_focus=True):
             tuple(self.spoider.selected_ids),
             lead=None,
             colours=self.spoider.mm.colours,
+            depth_shift=DEPTH_COLORS.index(STACK_START) + 1,
         )
         # a stack taller than the column follows its own selection
         shift = 0

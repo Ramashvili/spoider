@@ -35,6 +35,10 @@ BOX_CHARS = {
 }
 
 DEPTH_COLORS = ["cyan", "green", "yellow", "magenta", "blue", "red"]
+#: The cut stack is its own document, so its top cells would wear the map's plain
+#: foreground. It starts further down the palette instead, on yellow, which is also the
+#: colour the top bar turns when the panel is open.
+STACK_START = "yellow"
 LINK_COLOR = "bright_black"
 
 
@@ -141,6 +145,7 @@ def build_grid(
     *,
     lead: str | None = None,
     colours: str = DEFAULT_COLOURS,
+    depth_shift: int = 0,
 ) -> Grid:
     """`selected` is one id or a whole run of them; `lead` is the one the cursor
     is on, which is only worth marking when the run is longer than one."""
@@ -150,7 +155,9 @@ def build_grid(
         # A cell being renamed drops its selection block: the caret is the highlight
         # there, and a reverse-on-reverse caret would be invisible.
         editing = box.node.preview is not None
-        colour = cell_colour(colours, box.depth, layout.families.get(box.node.id, -1))
+        colour = cell_colour(
+            colours, box.depth + depth_shift, layout.families.get(box.node.id, -1)
+        )
         chosen_here = box.node.id in chosen and not editing
         frame = node_style(colour, chosen_here, lead=box.node.id == lead)
         # Selection is a block around the cell, never over its text: inverting the
