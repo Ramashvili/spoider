@@ -11,6 +11,7 @@ the recorder: a single frame, no key overlay, no cursor.
 from __future__ import annotations
 
 import json
+import pathlib
 import subprocess
 import sys
 import time
@@ -33,6 +34,14 @@ def hypr(*args: str) -> str:
 
 def clients() -> list[dict]:
     return json.loads(hypr("clients", "-j") or "[]")
+
+
+def app_version() -> str:
+    """The version the program draws in its bar, read from the one place it is written."""
+    import tomllib
+
+    project = pathlib.Path(__file__).resolve().parents[2] / "pyproject.toml"
+    return tomllib.loads(project.read_text(encoding="utf-8"))["project"]["version"]
 
 
 def main() -> int:
@@ -117,7 +126,7 @@ def main() -> int:
     time.sleep(1.0)
     for _ in range(30):
         time.sleep(1)
-        if "spoider 0.1.0" in run(["tmux", "capture-pane", "-p", "-t", SESSION]).stdout:
+        if f"spoider {app_version()}" in run(["tmux", "capture-pane", "-p", "-t", SESSION]).stdout:
             break
     # the demo opens at spacing 0; the picture reads better one step tighter
     run(["tmux", "send-keys", "-t", SESSION, "-l", "--", "-"])

@@ -15,6 +15,7 @@ answers it as well as two minutes at a hundredth of the cost.
 from __future__ import annotations
 
 import json
+import pathlib
 import signal
 import subprocess
 import sys
@@ -59,6 +60,14 @@ def compare(a: Path, b: Path) -> tuple[int, int, str]:
     return worst, differing, f"mean {mean:4.1f} | {tails}"
 
 
+def app_version() -> str:
+    """The version the program draws in its bar, read from the one place it is written."""
+    import tomllib
+
+    project = pathlib.Path(__file__).resolve().parents[2] / "pyproject.toml"
+    return tomllib.loads(project.read_text(encoding="utf-8"))["project"]["version"]
+
+
 def main() -> int:
     font_args: list[str] = []
     for flag in ("--font-family", "--font-size"):
@@ -95,7 +104,7 @@ def main() -> int:
         time.sleep(1)
         for _ in range(25):
             time.sleep(1)
-            if "spoider 0.1.0" in run(["tmux", "capture-pane", "-p", "-t", SESSION]).stdout:
+            if f"spoider {app_version()}" in run(["tmux", "capture-pane", "-p", "-t", SESSION]).stdout:
                 break
         time.sleep(2)
 
