@@ -1,6 +1,6 @@
 """One still of the demo map, for the README.
 
-  python3 shot.py [--workspace 9] [--font 12] [--out ../spoider.png]
+  python3 shot.py [--workspace 9] [--out ../spoider.png]
 
 Same window, same face and same 150x50 grid as the tour, captured with grim instead of
 the recorder: a single frame, no key overlay, no cursor.
@@ -35,14 +35,12 @@ def clients() -> list[dict]:
 
 
 def main() -> int:
-    workspace, font = "9", "12"
+    workspace = "9"
     out = Path(__file__).resolve().parent.parent / "spoider.png"
     argv = sys.argv[1:]
     for index, arg in enumerate(argv):
         if arg == "--workspace":
             workspace = argv[index + 1]
-        elif arg == "--font":
-            font = argv[index + 1]
         elif arg == "--out":
             out = Path(argv[index + 1])
 
@@ -55,10 +53,6 @@ def main() -> int:
             "kitty",
             "--instance-group",
             GROUP,
-            "-o",
-            "font_family=JetBrainsMono Nerd Font",
-            "-o",
-            f"font_size={font}",
             "-o",
             "window_padding_width=0",
             "-o",

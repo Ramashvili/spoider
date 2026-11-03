@@ -21,11 +21,11 @@ if TYPE_CHECKING:
 #: Each count is its own block: reverse video, so the terminal's own colours show
 #: through inverted — light on a dark theme, dark on a light one. A single space
 #: separates them, which is what makes them read as items rather than a sentence.
-STAT_STYLE = "bold reverse"
+STAT_STYLE = "reverse"
 
 #: The stack count turns yellow while the panel is open. One item changing colour
 #: says which one is live; changing all of them says nothing.
-STAT_ACTIVE_STYLE = "bold black on yellow"
+STAT_ACTIVE_STYLE = "black on yellow"
 
 
 def compose_top_bar(
@@ -82,7 +82,7 @@ def compose_top_bar(
     if band >= 6:
         middle = where if cell_len(where) <= band else "…" + where[-(band - 1) :]
 
-    bar = Text(name, style="bold")
+    bar = Text(name)
     if middle:
         pad = (band - cell_len(middle)) // 2
         bar.append(" " * (1 + pad))
@@ -230,7 +230,7 @@ class MindMapView(Widget, can_focus=True):
 
         inner = max(0, column - 3)
         for index, char in enumerate(STACK_TITLE[:inner]):
-            combined.cells[(self._offset_x + wall + 2 + index, self._offset_y)] = (char, "bold")
+            combined.cells[(self._offset_x + wall + 2 + index, self._offset_y)] = (char, "")
 
         art = build_grid(
             panel,

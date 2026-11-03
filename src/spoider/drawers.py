@@ -206,7 +206,7 @@ class PromptBar(Drawer):
             # once the first key has replaced it
             line.stylize("reverse", 0, len(value.rstrip(" ")))
         line.stylize(CARET_STYLE, caret, caret + 1)
-        bar = Text(self.label, style="bold")
+        bar = Text(self.label)
         bar.append(line)
         return bar
 

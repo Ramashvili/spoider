@@ -1,10 +1,14 @@
 """Record the tour from the real terminal window, and show the keys it used.
 
-  python3 record.py [--workspace 9] [--font 12] [--out media/spoider-tour.mp4] [--no-keys]
+  python3 record.py [--workspace 9] [--out media/spoider-tour.mp4] [--no-keys]
 
 The program runs in a kitty window on an empty desktop, inside a tmux window pinned to
 150x50, and gpu-screen-recorder captures that pane's pixel box. Nothing is repainted, so
-the emoji, the typeface and the colours are the terminal's own.
+the emoji, the typeface and the colours are the terminal's own: the window is opened
+without a font override, so whatever the terminal is configured with is what gets filmed.
+A bitmap-style face at integer metrics leaves almost no antialiasing, which is sharp on
+screen and smaller after encoding (measured: 0.26% of pixels are blends with Spleen 8x16
+against 2.11% with JetBrains Mono).
 
 Key presses are burned in afterwards from the scene itself. A keystroke overlay such as
 showmethekey or wshowkeys reads the keyboard devices, and these keys arrive through tmux
@@ -92,13 +96,14 @@ def scene() -> list[Step]:
             key(0.45 if index == 0 else 0.35, LEFT.encode(), "←")
         wait(0.4)
 
-    wait(1.6)
+    wait(1.0)
 
-    # shapes first: the tree is built in the branch shape, where LEFT always climbs and
-    # RIGHT always goes in, so the anchors below can be counted instead of guessed
+    # three presses to the branch shape, where LEFT always climbs and RIGHT always goes
+    # in, so the anchors below are counted instead of guessed. The opening used to dwell
+    # on every shape; the tour shows all four of them again later, so it is brisk here
     for index in range(3):
-        key(0.9 if index else 0.8, CTRL_L, "^L")
-        wait(1.2 if index == 2 else 1.1)
+        key(0.45 if index else 0.4, CTRL_L, "^L")
+        wait(0.4 if index < 2 else 0.7)
 
     key(0.5, b"e", "e")
     wait(0.4)
@@ -310,15 +315,13 @@ def stamp(seconds: float) -> str:
 
 
 def main() -> int:
-    workspace, font = "9", "12"
+    workspace = "9"
     out = WORKDIR / "media" / "spoider-tour.mp4"
     show_keys = True
     argv = sys.argv[1:]
     for index, arg in enumerate(argv):
         if arg == "--workspace":
             workspace = argv[index + 1]
-        elif arg == "--font":
-            font = argv[index + 1]
         elif arg == "--out":
             out = Path(argv[index + 1])
         elif arg == "--no-keys":
@@ -339,10 +342,6 @@ def main() -> int:
             "kitty",
             "--instance-group",
             GROUP,
-            "-o",
-            "font_family=JetBrainsMono Nerd Font",
-            "-o",
-            f"font_size={font}",
             "-o",
             "window_padding_width=0",
             "-o",

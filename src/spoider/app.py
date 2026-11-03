@@ -127,9 +127,6 @@ Toast.-error {
     color: ansi_bright_red;
     border-left: outer ansi_bright_red;
 }
-Toast .toast--title {
-    text-style: bold;
-}
 """
 
 

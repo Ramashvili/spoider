@@ -27,7 +27,7 @@ CARET_STYLE = "reverse"
 
 #: Caps are coloured text, never a block: the colour comes from the terminal
 #: palette like everything else in the app.
-CAP_STYLE = "bold cyan"
+CAP_STYLE = "cyan"
 
 KEY_GLYPHS = {
     "tab": "⇥",

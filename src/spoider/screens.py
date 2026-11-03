@@ -170,12 +170,12 @@ def _group_arrows(caps: list[str]) -> list[str]:
 
 def help_text(app: SpoiderApp) -> Text:
     text = Text()
-    text.append("spoider — keys and options\n", style="bold")
+    text.append("spoider — keys and options\n")
     for heading, rows in HELP:
-        text.append(f"\n{heading}\n", style="bold reverse")
+        text.append(f"\n{heading}\n", style="reverse")
         for actions, explanation in rows:
             keys = actions.keys if isinstance(actions, Literal) else keys_for(app, actions)
-            text.append(f"  {_pad(keys, 16)}", style="bold")
+            text.append(f"  {_pad(keys, 16)}")
             text.append(f"{explanation}\n")
     return text
 
@@ -198,11 +198,11 @@ def settings_text(app: SpoiderApp, row: int = 0) -> Text:
         ("config", clip_tail(str(app.config_path), 20), "⏎ opens it in your editor"),
     ]
     text = Text()
-    text.append("editor settings\n", style="bold")
+    text.append("editor settings\n")
     for index, (label, value, note) in enumerate(rows):
         selected = index == row
         text.append("\n " + ("▸" if selected else " "))
-        text.append(_pad(label, 11), style="bold" if selected else "")
+        text.append(_pad(label, 11))
         text.append(_pad(value, 22))
         text.append(note, style="dim")
     return text

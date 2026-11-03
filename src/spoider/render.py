@@ -122,7 +122,9 @@ def node_style(colour: str | None, selected: bool, lead: bool = False) -> str:
     selection is a reverse video block, which inverts whatever fg/bg the terminal is
     already using.
     """
-    parts: list[str] = ["bold"] if colour is None else [colour]
+    # No bold anywhere: a terminal fakes it by emboldening the user's own face, which
+    # smears the glyphs. Emphasis here is reverse video and ANSI colour, nothing else.
+    parts: list[str] = [] if colour is None else [colour]
     if selected:
         parts.append("reverse")
         if lead:
