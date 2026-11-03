@@ -937,7 +937,7 @@ async def test_prompt_supports_undo_and_redo(tmp_path: Path):
 
 
 def test_config_can_rebind_every_chord(tmp_path: Path):
-    from spoider.app import build_keymap, default_keymap
+    from spoider.keys import build_keymap, default_keymap
 
     defaults = default_keymap()
     assert len(defaults) == len({b.id for b in BINDINGS if b.id})  # every binding has an id
@@ -1022,7 +1022,7 @@ async def test_settings_opens_the_config_in_an_editor(tmp_path: Path, monkeypatc
 def test_the_saved_config_mentions_every_rebindable_chord(tmp_path: Path):
     """One line per action, carrying every chord it answers to: an alias shares
     its action's line instead of getting an entry of its own."""
-    from spoider.app import action_chords
+    from spoider.keys import action_chords
 
     config_path = tmp_path / "config.conf"
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
@@ -3358,8 +3358,8 @@ def test_a_leftover_setting_never_becomes_a_chord(tmp_path: Path):
     """`justify = 12` was a *setting* before the key was renamed to `justify_width`.
     Read back as a chord it bound justify to a key called "12", which nothing can
     press, and then wrote itself into the file again on every save."""
-    from spoider.app import build_keymap
     from spoider.config import load_config
+    from spoider.keys import build_keymap
 
     config = tmp_path / "config.conf"
     config.write_text("justify_width_default = 60\njustify = 12\n")
@@ -3616,8 +3616,8 @@ async def test_a_line_left_empty_of_a_chord_does_nothing(tmp_path: Path):
 def test_a_token_that_is_not_a_key_is_dropped_from_the_line(tmp_path: Path):
     """`copy = alt+6 12` keeps alt+6: the leftover that once broke justify is
     dropped, and the rest of the line still counts."""
-    from spoider.app import action_chords
     from spoider.config import load_config
+    from spoider.keys import action_chords
 
     config_path = tmp_path / "config.conf"
     config_path.write_text("copy = alt+6 12\n")
@@ -3637,8 +3637,8 @@ def test_the_config_file_is_named_for_the_app(tmp_path: Path):
 
 def test_the_config_carries_a_vim_block_to_uncomment(tmp_path: Path):
     """Switching to vim is uncommenting a block, not writing a keymap by hand."""
-    from spoider.app import action_chords
     from spoider.config import VIM_BINDS, parse
+    from spoider.keys import action_chords
 
     path = tmp_path / "spoider.conf"
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=path)
