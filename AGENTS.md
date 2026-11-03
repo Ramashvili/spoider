@@ -223,11 +223,12 @@ ground truth for whether the keys did what the scene meant.
 
 ## The tour video
 
-`media/spoider-tour.mp4` is recorded from a real terminal window, not repainted by hand:
-`media/tour/record.py` runs the program in a kitty window on an empty desktop, pins the
-tmux window to 150x50, captures that pane's pixel box and burns in the chords it sent.
-`media/tour/check_scene.py` plays the same keys through a pty at reduced speed and prints
-the map they build, which is how a mis-anchored scene is caught in twenty seconds.
+The tour is delivered as an uploaded attachment, so no video is committed: the mp4s are
+ignored and live on disk only. `media/tour/record.py` records it from a real terminal
+window, not repainted by hand: it runs the program in a kitty window on an empty desktop,
+pins the tmux window to 150x50, captures that pane's pixel box and burns in the chords it
+sent. `media/tour/check_scene.py` plays the same keys through a pty at reduced speed and
+prints the map they build, which is how a mis-anchored scene is caught in twenty seconds.
 
 The recording is lossless and the published file is the only encode. `wf-recorder -c
 libx264rgb -p crf=0 -r 30 -D` writes the master (about 3.7 MB for 137 s of a 1197x802
