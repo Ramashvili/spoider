@@ -2,6 +2,11 @@
 
   python3 record.py [--workspace 9] [--out media/spoider-tour.mp4] [--no-keys]
 
+This is a personal bench, not part of the program. It is tuned to this machine (Hyprland,
+kitty, tmux, wf-recorder) and its paths assume the author's home directory, so treat it as
+a record of how the tour was made rather than as something to install or support. It stays
+in the repository so the tour can be remade rather than reverse-engineered.
+
 The program runs in a kitty window on an empty desktop, inside a tmux window pinned to
 150x50, and wf-recorder captures that pane's pixel box losslessly. Nothing is repainted, so
 the emoji, the typeface and the colours are the terminal's own.

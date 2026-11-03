@@ -1,5 +1,7 @@
 """One still of the demo map, for the README.
 
+A personal bench like record.py: it screenshots the tour window on this machine.
+
   python3 shot.py [--workspace 9] [--out ../spoider.png]
 
 Same window, same face and same 150x50 grid as the tour, captured with grim instead of

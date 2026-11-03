@@ -1,5 +1,7 @@
 """Is the recording faithful to the screen? Six seconds per setting, measured.
 
+A personal bench like record.py: it measures how far a file is from this screen.
+
   python3 fidelity.py [--font-family ...] [--font-size ...]
 
 For each encoder setting: take a still of the window with grim, record six seconds of the
