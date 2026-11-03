@@ -15,12 +15,24 @@ spacing, moving branches through the cut stack, and justifying a long note in pl
 
 ## Install
 
-spoider needs [uv](https://docs.astral.sh/uv/), which also brings a matching Python. Your
-distribution may package it, and that is the tidier way to install it:
+spoider needs [uv](https://docs.astral.sh/uv/), which also brings a matching Python. Install
+it from your package manager where it is packaged:
 
 ```bash
-sudo pacman -S uv                                  # Arch and derivatives
-curl -LsSf https://astral.sh/uv/install.sh | sh    # anywhere else
+sudo pacman -S uv     # Arch
+sudo dnf install uv   # Fedora 43 and later
+sudo apt install uv   # Debian and Ubuntu, from universe in their next releases
+```
+
+On releases without it, use the standalone installer:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then install spoider itself:
+
+```bash
 uv tool install git+https://github.com/Ramashvili/spoider
 ```
 
