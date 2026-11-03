@@ -15,13 +15,13 @@ Two minutes of it in use: [media/spoider-tour.mp4](media/spoider-tour.mp4), a ma
 ## Install
 
 ```bash
-uv tool install git+https://github.com/OWNER/spoider
+uv tool install git+https://github.com/Ramashvili/spoider
 ```
 
 That puts `spoider` on your PATH. To try it first without keeping anything:
 
 ```bash
-uvx --from git+https://github.com/OWNER/spoider spoider --demo
+uvx --from git+https://github.com/Ramashvili/spoider spoider --demo
 ```
 
 A map is a `.spoider` file. To have the desktop open them for you, run once:
@@ -122,7 +122,7 @@ map and travels with it: spacing, shape, colouring, its marks, its cut stack.
 ## Development
 
 ```bash
-git clone https://github.com/OWNER/spoider && cd spoider
+git clone https://github.com/Ramashvili/spoider && cd spoider
 uv sync && uv run spoider     # run it
 uv run pytest                 # test it
 ```
