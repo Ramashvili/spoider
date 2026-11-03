@@ -76,14 +76,16 @@ def scene() -> list[Step]:
         say(text)
         wait(0.6)
 
-    def root() -> None:
+    def up(levels: int) -> None:
         """Three LEFT presses: a child goes to its parent, the root goes nowhere."""
-        for index in range(3):
+        for index in range(levels):
             key(0.45 if index == 0 else 0.35, LEFT.encode(), "←")
         wait(0.4)
 
     wait(1.6)
 
+    # shapes first: the tree is built in the branch shape, where LEFT always climbs and
+    # RIGHT always goes in, so the anchors below can be counted instead of guessed
     for index in range(3):
         key(0.9 if index else 0.8, CTRL_L, "^L")
         wait(1.2 if index == 2 else 1.1)
@@ -101,22 +103,25 @@ def scene() -> list[Step]:
     cell("each part splits again", ENTER, "⏎")
     wait(0.7)
 
-    root()
-    for index, (pause, after) in enumerate([(0.9, 1.4), (0.9, 1.6), (0.9, 1.6), (0.9, 1.1)]):
+    up(2)  # from the last child of the first branch to the root
+    for pause, after in ((0.9, 1.4), (0.9, 1.6), (0.9, 1.6), (0.9, 1.1)):
         key(pause, CTRL_L, "^L")
         wait(after)
 
+    # second branch, a sibling of the first, with a cell that has children of its own
     key(0.4, RIGHT.encode(), "→")
     cell("what spoider does", ENTER, "⏎")
-    cell("nano chords", TAB, "⇥")
-    cell("terminal colours", ENTER, "⏎")
+    cell("the keys you know", TAB, "⇥")
+    cell("tab makes a child", TAB, "⇥")
+    cell("return makes a sibling", ENTER, "⏎")
+    up(2)  # back up to what spoider does
+    cell("terminal colours", TAB, "⇥")  # in, not across: these are its children
     cell("plain json", ENTER, "⏎")
     cell("one bar of keys", ENTER, "⏎")
     wait(0.8)
 
-    # -- runs: shift grows one, ^A takes every sibling, then the run is deleted and
-    #    brought back in one press each ----------------------------------------------
-    root()
+    # -- runs: shift grows one, then the run is deleted and brought back --------------
+    up(2)  # from the last child to the root
     key(0.4, RIGHT.encode(), "→")
     key(0.4, DOWN.encode(), "↓")
     key(0.4, RIGHT.encode(), "→")
@@ -126,14 +131,15 @@ def scene() -> list[Step]:
     key(0.7, CTRL_D, "^D")
     wait(2.2)
     key(0.8, CTRL_Z, "^Z")
-    wait(2.2)
-    key(0.6, CTRL_A, "^A")
-    wait(1.6)
+    wait(2.0)
+    key(0.5, RIGHT.encode(), "→")  # back into the first child
+    key(0.6, CTRL_A, "^A")  # every sibling at once
+    wait(1.8)
     key(0.5, ESC.encode(), "esc")
     wait(0.9)
 
     # -- marks: the palette cycled on one cell, then two more cells lit ---------------
-    root()
+    up(2)  # ^A leaves the cursor on the last cell of the run
     key(0.4, RIGHT.encode(), "→")
     key(0.4, RIGHT.encode(), "→")
     for _ in range(3):
@@ -150,14 +156,17 @@ def scene() -> list[Step]:
     key(0.4, b"m", "m")
     wait(1.6)
 
-    # -- fold the branch, then open the air and close it tight -----------------------
-    root()
+    # -- fold the cell that has children of its own -----------------------------------
+    up(2)
+    key(0.4, RIGHT.encode(), "→")
+    key(0.4, DOWN.encode(), "↓")
     key(0.4, RIGHT.encode(), "→")
     key(0.6, b"t", "t")
-    wait(1.5)
+    wait(1.6)
     key(0.6, b"t", "t")
     wait(1.0)
 
+    # -- the air between the cells ---------------------------------------------------
     key(0.6, b"=", "=")
     key(0.45, b"=", "=")
     wait(0.8)
@@ -177,9 +186,9 @@ def scene() -> list[Step]:
     key(0.7, b"c", "c")
     wait(1.5)
 
-    # -- one cut: the first branch, then work on it in the stack ---------------------
-    root()
-    key(0.5, RIGHT.encode(), "→")
+    # -- one cut, worked on inside the stack -----------------------------------------
+    up(2)
+    key(0.4, RIGHT.encode(), "→")
     key(0.6, CTRL_K, "^K")
     wait(1.4)
     key(0.7, CTRL_I, "^I")
@@ -200,17 +209,14 @@ def scene() -> list[Step]:
     key(0.35, ENTER.encode(), "⏎")
     wait(2.2)
 
+    # -- out of the panel: the cursor is on what spoider does, so the paste lands there
     key(0.7, CTRL_I, "^I")
     wait(1.3)
     key(0.7, CTRL_U, "^U")
     wait(2.4)
 
-    key(0.4, RIGHT.encode(), "→")
-    cell(
-        "a cell takes as much text as you give it, and the box grows to hold it",
-        ENTER,
-        "⏎",
-    )
+    key(0.4, TAB.encode(), "⇥")
+    say("a cell takes as much text as you give it, and the box grows to hold it")
     wait(1.5)
     key(0.7, CTRL_J, "^J")
     wait(1.2)
@@ -222,6 +228,7 @@ def scene() -> list[Step]:
     key(0.8, CTRL_L, "^L")
     wait(3.0)
 
+    # -- help, then save and hold ----------------------------------------------------
     key(0.8, CTRL_SLASH, "^/")
     wait(3.4)
     key(0.7, ESC.encode(), "esc")
@@ -253,9 +260,10 @@ def workspace_of(name: str) -> None:
     run(["hyprctl", "eval", f'hl.dispatch(hl.dsp.focus({{ workspace = "{name}" }}))'])
 
 
-def send(payload: bytes) -> None:
+def send(payload: bytes | str) -> None:
     """Every byte as hex, so control chords and CSI-u sequences arrive unchanged."""
-    run(["tmux", "send-keys", "-t", SESSION, "-H", *[f"{byte:02x}" for byte in payload]])
+    data = payload.encode() if isinstance(payload, str) else payload
+    run(["tmux", "send-keys", "-t", SESSION, "-H", *[f"{byte:02x}" for byte in data]])
 
 
 def ass(keys: list[dict], width: int, height: int) -> str:
