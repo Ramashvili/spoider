@@ -107,9 +107,7 @@ fold items inside it, or reorder them before pasting them back.
 
 ![the cut stack beside a large map](media/spoider-stack.png)
 
-That map is [examples/animals.spoider](examples/animals.spoider): an animal taxonomy of
-622 cells, eight levels deep, with eight branches waiting on the stack. Open it with
-`spoider examples/animals.spoider` to see a map that does not fit on any screen.
+On the right you can see the LIFO stack, holding branches cut from the map.
 
 ### Maps that look the same everywhere
 
