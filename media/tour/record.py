@@ -443,9 +443,9 @@ def main() -> int:
         subtitle = SCRATCH / "keys.ass"
         subtitle.write_text(ass(keys, width, height))
         burn = subprocess.run(
-            ["ffmpeg", "-y", "-loglevel", "error", "-i", raw.name, "-vf", f"ass={subtitle}",
+            ["ffmpeg", "-y", "-loglevel", "error", "-i", str(raw), "-vf", f"ass={subtitle}",
              "-c:v", "libx264", "-crf", "20", "-preset", "medium", "-pix_fmt", "yuv420p",
-             "-movflags", "+faststart", out.name],
+             "-movflags", "+faststart", str(out)],
             capture_output=True, text=True,
         )
         if burn.returncode != 0:
