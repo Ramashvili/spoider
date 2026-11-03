@@ -2478,7 +2478,8 @@ async def test_a_cut_toasts_in_orange_at_the_top_right(tmp_path: Path):
         await pilot.pause()
 
         toast = app.query(Toast).last()
-        assert "Cut alpha" in str(toast.render())
+        assert "Cut onto the stack" in str(toast.render())
+        assert "alpha" not in str(toast.render()), "a toast says what happened, not what was in the cell"
         assert toast.has_class("-warning"), "a cut is neither a success nor a failure"
         region = toast.region
         assert region.y <= 3, "it hangs from the top"
@@ -2500,7 +2501,8 @@ async def test_a_paste_toasts_in_orange_too(tmp_path: Path):
 
         newest = app.query(Toast).last()
         assert newest.has_class("-warning")
-        assert "Pasted alpha" in str(newest.render())
+        assert "Pasted from the stack" in str(newest.render())
+        assert "alpha" not in str(newest.render())
 
 
 async def test_saving_toasts_green_and_a_failure_toasts_red(tmp_path: Path):

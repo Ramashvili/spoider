@@ -137,21 +137,7 @@ async def test_notifications_are_cleaned_before_they_reach_the_terminal(tmp_path
         assert "name" in rendered
 
 
-async def test_a_notification_keeps_the_words_of_a_multi_line_cell_apart(tmp_path):
-    from textual.widgets._toast import Toast
-
-    from spoider.app import SpoiderApp
-
-    app = SpoiderApp(tmp_path / "map.json", demo=False)
-    async with app.run_test(notifications=True) as pilot:
-        app.notify("Pasted a cell that takes as much text\nas you give it", timeout=8)
-        await pilot.pause()
-        rendered = str(app.query(Toast).last().render())
-        assert "much text as you" in rendered, rendered
-        assert "textas" not in rendered
-
-
-async def test_a_notification_never_holds_more_than_one_line(tmp_path):
+async def test_a_notification_holds_one_line_whatever_it_is_given(tmp_path):
     from textual.widgets._toast import Toast
 
     from spoider.app import SpoiderApp
@@ -162,6 +148,7 @@ async def test_a_notification_never_holds_more_than_one_line(tmp_path):
         await pilot.pause()
         rendered = str(app.query(Toast).last().render())
         assert "one two three four" in rendered
+        assert "onetwo" not in rendered
 
 
 async def test_a_prompt_does_not_write_escapes_from_a_file_name(tmp_path):

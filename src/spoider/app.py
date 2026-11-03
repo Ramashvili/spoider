@@ -1195,8 +1195,10 @@ class SpoiderApp(App[None]):
         self.anchor = None
         self.selected = _standing_after(parent, end)
         self._mark_dirty()
-        what = taken[0].text.strip() or "1 cell" if len(taken) == 1 else f"{len(taken)} cells"
-        self.notify(f"Cut {what}", severity="warning", timeout=2)
+        if len(taken) == 1:
+            self.notify("Cut onto the stack", severity="warning", timeout=2)
+        else:
+            self.notify(f"{len(taken)} cells cut onto the stack", severity="warning", timeout=2)
 
     def action_paste(self) -> None:
         """^U — take the most recent cut off the stack and hang it here.
@@ -1215,7 +1217,7 @@ class SpoiderApp(App[None]):
             self._undo.pop()
             return
         self._mark_dirty()
-        self.notify(f"Pasted {cell.text.strip() or '1 cell'}", severity="warning", timeout=2)
+        self.notify("Pasted from the stack", severity="warning", timeout=2)
 
     def action_toggle_stack(self) -> None:
         """^I — the stack itself, as a panel of cells over the map.
