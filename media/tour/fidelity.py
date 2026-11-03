@@ -27,9 +27,7 @@ COLS, ROWS = 150, 50
 
 #: (name, gpu-screen-recorder extra args, wf-recorder codec args)
 SETTINGS = [
-    ("gsr default", [], None),
-    ("wf libx264rgb crf 0", [], ["-c", "libx264rgb", "-p", "crf=0"]),
-    ("wf ffv1", [], ["-c", "ffv1"]),
+    ("master (libx264rgb crf 0)", [], ["-c", "libx264rgb", "-p", "crf=0"]),
 ]
 
 
@@ -41,17 +39,22 @@ def clients() -> list[dict]:
     return json.loads(run(["hyprctl", "clients", "-j"]).stdout or "[]")
 
 
-def compare(a: Path, b: Path) -> tuple[int, int]:
-    """(worst channel difference, number of pixels that differ)."""
+def compare(a: Path, b: Path) -> tuple[int, int, str]:
+    """(worst channel difference, pixels that differ, distribution of the change)."""
     first, second = Image.open(a).convert("RGB"), Image.open(b).convert("RGB")
     width = min(first.size[0], second.size[0])
     height = min(first.size[1], second.size[1])
     first = first.crop((0, 0, width, height))
     second = second.crop((0, 0, width, height))
     difference = ImageChops.difference(first, second)
-    worst = max(max(pixel) for pixel in difference.getdata())
-    differing = sum(1 for pixel in difference.getdata() if max(pixel) > 0)
-    return worst, differing
+    values = [max(pixel) for pixel in difference.getdata()]
+    total = len(values) or 1
+    worst = max(values)
+    differing = sum(1 for value in values if value)
+    mean = sum(values) / total
+    tails = " ".join(f"over {limit}: {100 * sum(1 for v in values if v > limit) / total:4.1f}%"
+                     for limit in (8, 32, 64, 128))
+    return worst, differing, f"mean {mean:4.1f} | {tails}"
 
 
 def main() -> int:
@@ -116,7 +119,7 @@ def main() -> int:
             run(["grim", "-g", f"{x},{y} {width}x{height}", "-t", "png", str(still)])
             if wf is not None:
                 command = ["wf-recorder", "-g", f"{x},{y} {width}x{height}", "-r", "30",
-                           "-f", str(video.with_suffix(".mkv")), *wf]
+                           "-D", "-f", str(video.with_suffix(".mkv")), *wf]
                 video = video.with_suffix(".mkv")
             else:
                 video = video.with_suffix(".mp4")
@@ -132,12 +135,29 @@ def main() -> int:
                 continue
             run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "2", "-i", str(video),
                  "-vframes", "1", str(frame)])
-            worst, differing = compare(still, frame)
+            worst, differing, _ = compare(still, frame)
             size_kb = video.stat().st_size / 1000
             duration = float(run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                                   "-of", "default=noprint_wrappers=1:nokey=1", str(video)]).stdout.strip() or 1)
             print(f"{name:26} worst difference {worst:3} | {differing:7} pixels differ | "
                   f"{size_kb / duration * 139 / 1000:5.1f} MB for the take")
+
+            if wf is not None:
+                # the published file, made the way record.py makes it
+                published = Path(f"/tmp/fid-{name.split()[0]}-published.mp4")
+                published_frame = Path(f"/tmp/fid-{name.split()[0]}-published.png")
+                encode = run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(video),
+                              "-c:v", "libx264", "-crf", "20", "-preset", "medium",
+                              "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(published)])
+                if encode.returncode == 0:
+                    run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "2", "-i", str(published),
+                         "-vframes", "1", str(published_frame)])
+                    worst, differing, spread = compare(still, published_frame)
+                    published_kb = published.stat().st_size / 1000
+                    print(f"{'published (crf 20)':26} worst difference {worst:3} | "
+                          f"{differing:7} pixels differ | "
+                          f"{published_kb / duration * 139 / 1000:5.1f} MB for the take")
+                    print(f"{'':26} {spread}")
     finally:
         run(["hyprctl", "eval", 'hl.dispatch(hl.dsp.focus({ workspace = "1" }))'])
         process.terminate()
