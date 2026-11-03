@@ -58,7 +58,6 @@ def ctrl(code: int) -> bytes:
 
 CTRL_A = ctrl(97)
 CTRL_D = ctrl(100)
-CTRL_I = ctrl(105)
 CTRL_J = ctrl(106)
 CTRL_K = ctrl(107)
 CTRL_L = ctrl(108)
@@ -214,7 +213,7 @@ def scene() -> list[Step]:
     key(0.4, RIGHT.encode(), "→")
     key(0.6, CTRL_K, "^K")
     wait(1.4)
-    key(0.7, CTRL_I, "^I")
+    key(0.7, b"p", "p")
     wait(1.8)
 
     key(0.6, b"e", "e")
@@ -233,7 +232,7 @@ def scene() -> list[Step]:
     wait(2.2)
 
     # -- out of the panel: the cursor is on what spoider does, so the paste lands there
-    key(0.7, CTRL_I, "^I")
+    key(0.7, b"p", "p")
     wait(1.3)
     key(0.7, CTRL_U, "^U")
     wait(2.4)

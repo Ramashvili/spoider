@@ -163,9 +163,9 @@ chord, which is what keeps a leftover setting from rebinding a key.
 
 - `App.clipboard` already exists (Textual's OSC 52 bridge) — shadowing it raises at
   construction. The cut cell is `cut_cell`.
-- `^M` arrives as `Return` on any terminal, and `^I` as `Tab` where the kitty keyboard
-  protocol is missing. That is why the mark keys are bare `w` and `^W`: both survive a
-  plain terminal, and `^M` is not bound at all.
+- `^M` arrives as `Return` on any terminal, and `^I` as `Tab` wherever the kitty keyboard
+  protocol is missing, which is most terminals. Neither is bound: marks are bare `w` and
+  `^W`, and the stack panel is bare `p`, so all three survive a plain terminal.
 - Installing cannot do anything: `uv tool install` and a wheel run no code at install
   time, so the offer to register `.spoider` with the desktop happens on the first launch
   instead, once, recorded in the config as `desktop_asked`.
@@ -186,7 +186,7 @@ chord, which is what keeps a leftover setting from rebinding a key.
   The renderer inverts that one cell, underlining it in overwrite mode. Never insert a
   cursor glyph into the text: it splits the word it is sitting in.
 - `Shift+Return` and `^J` are only separable from `Return` under the kitty keyboard
-  protocol, like `^I` and `^M`. In a plain terminal both arrive as Enter.
+  protocol. In a plain terminal both arrive as Enter.
 
 ## Navigating the map from a script
 
@@ -210,7 +210,7 @@ a tree is easiest to build:
   cell was an only child.
 - `^U` pastes under the selected cell and **keeps the selection there**, so a `Tab` right
   after a paste adds a child to the cell that received it.
-- `^I` opens the stack panel, which takes every key the map takes; closing it puts the
+- `p` opens the stack panel, which takes every key the map takes; closing it puts the
   map cursor back where it was before it opened.
 - `^L` cycles the shape spider, pyramid, bush, branch, spider. Build in branch, show the
   others, and step back to branch to keep building.
