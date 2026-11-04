@@ -71,6 +71,7 @@ def editor_rows(
     last_edited: str | None,
     *,
     autosave: bool,
+    last_action: str = "-",
 ) -> list[tuple[str, str]]:
     """Where this session is looking, and what it has touched."""
     cursor = f"{address_of(mm, selected)}  id {selected}"
@@ -83,6 +84,7 @@ def editor_rows(
     else:
         text = one_line(node.text) or "(empty)"
         rows.append(("edited", f'{address_of(mm, node.id)}  "{clip_head(text, 22)}"'))
+    rows.append(("last", last_action or "-"))
     rows.append(("autosave", "on" if autosave else "off"))
     return rows
 
@@ -96,8 +98,14 @@ def sections(
     *,
     dirty: bool,
     autosave: bool,
+    last_action: str = "-",
 ) -> list[Section]:
     return [
         (FILE_TITLE, file_rows(mm, path, dirty=dirty)),
-        (EDITOR_TITLE, editor_rows(mm, selected, run, last_edited, autosave=autosave)),
+        (
+            EDITOR_TITLE,
+            editor_rows(
+                mm, selected, run, last_edited, autosave=autosave, last_action=last_action
+            ),
+        ),
     ]

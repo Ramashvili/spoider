@@ -231,6 +231,7 @@ class MindMapView(Widget, can_focus=True):
             spoider.last_edited,
             dirty=spoider.dirty,
             autosave=spoider.autosave,
+            last_action=spoider.last_action,
         )
 
     def _with_stack(self, grid: Grid, panel: Layout, width: int, height: int) -> Grid:

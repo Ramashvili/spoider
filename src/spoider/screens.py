@@ -53,6 +53,10 @@ HELP: tuple[HelpSection, ...] = (
             (("copy",), "copy the cell's text to the clipboard"),
             (("fold",), "fold or unfold the branch"),
             (("toggle_properties",), "the file's properties, drawn over the map"),
+            (
+                ("go_home", "go_end", "top_sibling", "bottom_sibling"),
+                "by the tree, not the picture: main cell, deepest, first and last sibling",
+            ),
         ),
     ),
     (

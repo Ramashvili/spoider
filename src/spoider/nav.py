@@ -132,3 +132,41 @@ def _standing_after(parent: Node, index: int) -> str:
     if parent.children:
         return parent.children[-1].id
     return parent.id
+
+
+def tree_root(mm: MindMap, node_id: str) -> str:
+    """The top of the tree this cell belongs to: the map's root, or a cut's own root."""
+    current = node_id
+    for _ in range(400):
+        parent = mm.parent(current)
+        if parent is None:
+            return current
+        current = parent.id
+    return node_id
+
+
+def to_home(mm: MindMap, node_id: str) -> str:
+    """The main cell of the tree the cursor is in."""
+    return tree_root(mm, node_id)
+
+
+def to_end(mm: MindMap, node_id: str) -> str:
+    """The deepest cell below this one: follow last children while the branch is open.
+
+    Hierarchy only, like the rest of the six keys — a folded branch is where the walk
+    stops, because that is as deep as the map currently shows.
+    """
+    node = mm.find(node_id)
+    for _ in range(400):
+        if node is None or not node.children or node.collapsed:
+            break
+        node = node.children[-1]
+    return node.id if node is not None else node_id
+
+
+def to_extreme_sibling(mm: MindMap, node_id: str, *, last: bool) -> str:
+    """The first or last sibling under the same parent."""
+    parent = mm.parent(node_id)
+    if parent is None or not parent.children:
+        return node_id
+    return (parent.children[-1] if last else parent.children[0]).id

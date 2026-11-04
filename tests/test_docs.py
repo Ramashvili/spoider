@@ -45,6 +45,8 @@ def key_names(token: str) -> list[str]:
         return list(token)
     if len(token) == 2 and token.startswith("^"):
         return [f"ctrl+{token[1].lower()}"]
+    if token == "`":
+        return ["grave_accent"]
     if len(token) == 1 and token.isascii():
         return [token]
     return []

@@ -453,7 +453,7 @@ def paint_box(
         if index:
             body.append("")
         body.append(f" {title}")
-        body.extend(f" {label.ljust(8)} {value}" for label, value in rows)
+        body.extend(f"   {label.ljust(8)} {value}" for label, value in rows)
 
     width = max(cell_len(line) for line in body) + 2
     height = len(body) + 2

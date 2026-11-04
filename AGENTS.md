@@ -62,8 +62,8 @@ to help.
   and the action is used constantly. One chord per job.
 - **The bar never disappears** and always describes what has the keys. No modal
   screens: prompts, questions, settings, help and the stack are drawers or columns.
-  Panels keep one blank line above the bar. The one thing that floats is the `i`
-  properties box in the top-left corner, drawn over cells: it is read-only and costs no
+  Panels keep one blank line above the bar. The one thing that floats is the `` ` ``
+  debug box in the top-left corner, drawn over cells: it is read-only and costs no
   space, where a drawer or a column would take the space it exists to describe.
 - **Same words everywhere.** Bar labels come from the binding table and chords from
   the keymap, so `^K` says "cut" on the map, in the panel and in help.

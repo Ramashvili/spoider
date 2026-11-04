@@ -26,7 +26,7 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+u", "paste", "paste", id="paste"),
     Binding("p", "toggle_stack", "show stack", id="toggle_stack"),
     Binding("ctrl+d", "delete", "del", id="delete"),
-    Binding("i", "toggle_properties", "info", id="toggle_properties"),
+    Binding("grave_accent", "toggle_properties", "debug", show=False, id="toggle_properties"),
     Binding("t", "fold", "fold", id="fold"),
     Binding("ctrl+t", "fold", "fold", show=False, id="fold_alt"),
     Binding("w", "mark", "mark", id="mark"),
@@ -42,6 +42,13 @@ BINDINGS: list[BindingType] = [
     # Arrows and, further down, hjkl are aliases for the same four actions.
     Binding("ctrl+p,up", "prev", "prev", show=False, id="prev"),
     Binding("ctrl+n,down", "next", "next", show=False, id="next"),
+    # the six keys that move by the tree rather than by the picture: they never care
+    # where a cell happens to be drawn
+    Binding("home", "go_home", "main cell", show=False, id="go_home"),
+    Binding("end", "go_end", "deepest", show=False, id="go_end"),
+    Binding("pageup", "top_sibling", "first sibling", show=False, id="top_sibling"),
+    Binding("pagedown", "bottom_sibling", "last sibling", show=False, id="bottom_sibling"),
+    Binding("delete", "delete", "del", show=False, id="delete_key"),
     Binding("ctrl+b,left", "go_left", "left", show=False, id="left"),
     Binding("right", "go_right", "right", show=False, id="right"),
     # vim cursor keys. Hidden from the bar because the ctrl chords already own

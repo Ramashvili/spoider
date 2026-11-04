@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from spoider import nav
 from spoider.layout import RIGHT, Layout, Placed
 from spoider.model import MindMap, Node
+from spoider.nav import to_end, to_extreme_sibling, to_home
 
 
 def _map():
@@ -184,3 +187,49 @@ def test_only_a_parent_child_or_sibling_counts_as_a_relative():
     assert nav.is_direct_relative(mm, one.id, two.id)
     assert not nav.is_direct_relative(mm, child.id, stranger.id), "cousins are not relatives"
     assert not nav.is_direct_relative(mm, one.id, one.id)
+
+
+# -- the six keys that move by the tree ------------------------------------
+
+
+def _tree():
+    """root -> a, b; a -> a1; a1 -> a11, a12."""
+    mm = MindMap(Node("root"))
+    made = SimpleNamespace()
+    made.a = mm.add_child(mm.root.id, "a")
+    made.b = mm.add_child(mm.root.id, "b")
+    made.a1 = mm.add_child(made.a.id, "a1")
+    made.a11 = mm.add_child(made.a1.id, "a11")
+    made.a12 = mm.add_child(made.a1.id, "a12")
+    return mm, made
+
+
+def test_home_goes_to_the_main_cell():
+    mm, t = _tree()
+    assert to_home(mm, t.a11.id) == mm.root.id
+    assert to_home(mm, mm.root.id) == mm.root.id
+
+
+def test_end_goes_to_the_last_deepest_cell():
+    mm, t = _tree()
+    assert to_end(mm, t.a.id) == t.a12.id, "follow the last children down"
+    assert to_end(mm, t.a12.id) == t.a12.id, "a leaf is its own deepest cell"
+
+
+def test_end_stops_at_a_folded_branch():
+    mm, t = _tree()
+    t.a1.collapsed = True
+    assert to_end(mm, t.a.id) == t.a1.id, "the fold is as deep as the map shows"
+
+
+def test_page_up_and_down_walk_the_siblings():
+    mm, t = _tree()
+    assert to_extreme_sibling(mm, t.a11.id, last=False) == t.a11.id
+    assert to_extreme_sibling(mm, t.a11.id, last=True) == t.a12.id
+    assert to_extreme_sibling(mm, t.a.id, last=True) == t.b.id
+    assert to_extreme_sibling(mm, t.b.id, last=False) == t.a.id
+
+
+def test_the_root_has_no_siblings_to_walk_to():
+    mm, _t = _tree()
+    assert to_extreme_sibling(mm, mm.root.id, last=True) == mm.root.id

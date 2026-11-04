@@ -36,8 +36,13 @@ def test_every_shortcut_uses_a_modifier():
         "w",
         "c",
         "p",
-        "i",
         "equals_sign",
+        "grave_accent",
+        "home",
+        "end",
+        "pageup",
+        "pagedown",
+        "delete",
         "minus",
     }
     for binding in SpoiderApp.BINDINGS:
@@ -3964,14 +3969,14 @@ async def test_i_shows_the_file_properties_over_the_map(tmp_path: Path):
         await pilot.pause()
         assert "cursor" not in app.view.render().plain, "off until asked for"
 
-        await pilot.press("i")
+        await pilot.press("grave_accent")
         await pilot.pause()
         assert app.show_properties is True
         drawn = app.view.render().plain
         assert "cursor" in drawn and child.id in drawn
         assert "file" in drawn and drawn.lstrip().startswith("╭"), "the box is in the corner"
 
-        await pilot.press("i")
+        await pilot.press("grave_accent")
         await pilot.pause()
         assert app.show_properties is False
         assert "cursor" not in app.view.render().plain
@@ -3985,6 +3990,104 @@ async def test_the_overlay_names_the_cell_that_was_edited(tmp_path: Path):
         await pilot.press("enter")
         await pilot.pause()
         assert app.last_edited is not None, "a typed cell is the last one edited"
-        await pilot.press("i")
+        await pilot.press("grave_accent")
         await pilot.pause()
         assert "xyz" in app.view.render().plain
+
+
+# -- what we did last ------------------------------------------------------
+
+
+async def test_the_debug_box_names_what_we_did_last(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "d.conf")
+    async with app.run_test(size=(120, 40)) as pilot:
+        assert app.last_action == "-", "nothing has happened yet"
+
+        await pilot.press("p")
+        await pilot.pause()
+        assert app.last_action == "showed the stack"
+        await pilot.press("p")
+        await pilot.pause()
+
+        await pilot.press("t")
+        await pilot.pause()
+        assert app.last_action == "folded a tree"
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app.last_action == "undo"
+
+        await pilot.press("tab")
+        await pilot.press("a", "b")
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.last_action == "edited a cell"
+
+        await pilot.press("grave_accent")
+        await pilot.pause()
+        assert app.last_action == "opened debug"
+        assert "last" in app.view.render().plain
+
+
+async def test_search_says_what_was_searched_for(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "d.conf")
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.press("ctrl+f")
+        for char in "beetle":
+            await pilot.press(char)
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.last_action == 'searched "beetle"'
+
+
+async def test_saving_says_the_files_name(tmp_path: Path):
+    path = tmp_path / "things.spoider"
+    app = SpoiderApp(path, config_path=tmp_path / "d.conf")
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.press("tab")
+        await pilot.press("a")
+        await pilot.press("enter")
+        await pilot.pause()
+        app._write(path)
+        await pilot.pause()
+        assert app.last_action == "saved things.spoider"
+
+
+async def test_the_tree_keys_walk_the_hierarchy(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "k.conf")
+    async with app.run_test(size=(120, 40)) as pilot:
+        first = app.mm.add_child(app.mm.root.id, "first")
+        second = app.mm.add_child(app.mm.root.id, "second")
+        deep = app.mm.add_child(first.id, "deep")
+        leaf = app.mm.add_child(deep.id, "leaf")
+        app.view.refresh_map()
+        app.select(second.id)
+        await pilot.pause()
+
+        await pilot.press("pageup")
+        await pilot.pause()
+        assert app.selected == first.id, "pgup is the first sibling"
+
+        await pilot.press("pagedown")
+        await pilot.pause()
+        assert app.selected == second.id, "pgdn is the last sibling"
+
+        await pilot.press("home")
+        await pilot.pause()
+        assert app.selected == app.mm.root.id, "home is the main cell"
+
+        await pilot.press("end")
+        await pilot.pause()
+        assert app.selected == second.id, "from the root, end follows the last branch"
+
+        app.select(first.id)
+        await pilot.pause()
+        await pilot.press("end")
+        await pilot.pause()
+        assert app.selected == leaf.id, "from a branch, end is its deepest cell"
+
+        await pilot.press("delete")
+        await pilot.pause()
+        assert app.mm.find(leaf.id) is None, "del removes the cell, as ^D does"
+        assert app.mm.find(deep.id) is not None, "its parent stays"
+        assert app.last_action == "deleted a cell"
