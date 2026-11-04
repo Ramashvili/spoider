@@ -183,12 +183,13 @@ def test_stacked_shapes_keep_their_siblings_closer_together():
 
 def test_each_tight_step_is_one_column_shorter_than_the_one_above():
     assert gaps_for(0, "pyramid").x == 2
-    # -1 is the default look, -2 pulls the walls together, -3 drops them, and each
-    # step down takes exactly one column so a connector still has somewhere to be drawn
-    assert gaps_for(-1, "spider").x == 4
-    assert gaps_for(-2, "spider").x == 3
-    assert gaps_for(-3, "spider").x == 2 and not gaps_for(-3, "spider").walls
-    assert gaps_for(-4, "spider").x == 1 and not gaps_for(-4, "spider").walls
+    # -1 is the default look, -2 pulls the walls together, -3 is the bare version of -2
+    # with a column more air, and from there each step down takes one column away
+    assert gaps_for(-1, "spider").x == 4 and gaps_for(-1, "spider").walls
+    assert gaps_for(-2, "spider").x == 3 and gaps_for(-2, "spider").walls
+    assert gaps_for(-3, "spider").x == 3 and not gaps_for(-3, "spider").walls
+    assert gaps_for(-4, "spider").x == 2 and not gaps_for(-4, "spider").walls
+    assert gaps_for(-5, "spider").x == 1 and not gaps_for(-5, "spider").walls
     assert gaps_for(MIN_SPACING, "pyramid").y == 0
     assert gaps_for(-99, "spider").x == 1, "clamped to the floor"
     # anything past the floor clamps to the floor, which is packed tight
