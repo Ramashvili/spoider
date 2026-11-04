@@ -155,6 +155,18 @@ def test_the_branch_whose_parent_sits_beside_ours_wins_over_one_further_along():
     assert nav.towards(mm, layout, a1x.id, +1, 0) == a2x.id
 
 
+def test_a_long_cell_beside_us_is_not_far_away():
+    """Distance is the gap to cross: a wide neighbour must not be pushed back by its width."""
+    mm, nodes = _family()
+    layout = layout_of(
+        placed(nodes["a2"], 0, 0, w=8, depth=2),
+        placed(Node("long"), 20, 0, w=120, depth=2),    # its middle is far, its edge is near
+        placed(Node("short"), 60, 0, w=8, depth=2),     # its middle is nearer
+    )
+    chosen = nav.towards(mm, layout, nodes["a2"].id, +1, 0)
+    assert chosen == next(box.node.id for box in layout.boxes.values() if box.node.text == "long")
+
+
 def test_nothing_in_that_direction_means_no_move():
     mm, nodes = _family()
     layout = _boxes(nodes)

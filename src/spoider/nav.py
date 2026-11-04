@@ -85,11 +85,11 @@ def is_direct_relative(mm: MindMap, here: str, there: str) -> bool:
 def towards(mm: MindMap, layout, here: str, dx: int, dy: int) -> str | None:
     """The cell an arrow should reach when the hierarchy has nothing to offer.
 
-    Closest in the direction pressed, counted as steps on both axes rather than as a
-    straight line, because a reader judges distance on a character grid. Two preferences
-    outrank distance: a cell at our own level, and among those a cell whose parent sits
-    beside our parent. Crossing a gap means reaching the branch next door, not one across
-    the map, and staying on a level keeps the picture in view.
+    Closest in the direction pressed, measured between the boxes' nearest edges rather
+    than between their middles: a cell is as far away as the gap you have to cross, so a
+    long cell next door does not count as distant. Two preferences outrank distance: a cell
+    at our own level, and among those a cell whose parent sits beside our parent. Crossing
+    a gap means reaching the branch next door, not one across the map.
     """
     start = layout.boxes.get(here)
     if start is None:
@@ -110,7 +110,11 @@ def towards(mm: MindMap, layout, here: str, dx: int, dy: int) -> str | None:
         ahead = (box.cx - start.cx) * dx if dx else (box.cy - start.cy) * dy
         if ahead <= 0:
             continue
-        distance = abs(box.cx - start.cx) + abs(box.cy - start.cy)
+        # the gap to cross, not the distance between middles: a wide cell beside us is
+        # close however long it is
+        across_gap = max(0, max(box.x - start.right, start.x - box.right))
+        down_gap = max(0, max(box.y - start.bottom, start.y - box.bottom))
+        distance = across_gap + down_gap
         parent = mm.parent(box.node.id)
         beside = parent is not None and parent.id in neighbours
         same_level = box.depth == start.depth
