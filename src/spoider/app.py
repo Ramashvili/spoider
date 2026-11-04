@@ -935,6 +935,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     ) -> None:
         self._mode = mode
         self._hide_drawers(PromptBar)
+        # the cell's frame steps aside while a prompt has the keys, so the map redraws
+        self.view.refresh()
         self.query_one(PromptBar).ask(
             label,
             value,
@@ -956,6 +958,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._mode = "keys"
         self._sync_footer()
         self.view.focus()
+        self.view.refresh()
         self._refresh_chrome()
 
 

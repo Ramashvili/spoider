@@ -201,10 +201,12 @@ class MindMapView(Widget, can_focus=True):
         self._offset_x, self._offset_y = self.camera(field, height)
         # Drawing the whole map costs ~25 ms on a 500-cell document, and moving the
         # camera does not change a single cell — only a new layout or a new
-        # selection does. While the stack has the keys the map highlights nothing:
-        # the one highlight on screen says where the keys are.
+        # selection does. Reverse means "you are here", so only one thing wears it:
+        # while the stack panel or a prompt has the keys, the cell's frame steps aside
+        # and the band above the bar is the place to look.
         query = self.spoider.search_query
-        chosen = () if self.spoider.stack_open else tuple(self.spoider.selected_ids)
+        elsewhere = self.spoider.stack_open or self.spoider.mode not in ("keys", "edit")
+        chosen = () if elsewhere else tuple(self.spoider.selected_ids)
         lead = self.spoider.selected if len(chosen) > 1 else None
         colours = self.spoider.mm.colours
         key = (id(layout), chosen, query, colours)

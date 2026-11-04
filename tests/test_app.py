@@ -4176,3 +4176,24 @@ async def test_the_caret_in_a_prompt_is_a_hole_in_the_band(tmp_path: Path):
         }
         assert caret not in band, "the caret cell is left plain"
         assert caret + 1 in band, "and the band continues after it"
+
+
+async def test_a_prompt_leaves_no_cell_framed(tmp_path: Path):
+    """Reverse means "you are here": while a prompt has the keys, it is the only band."""
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "p.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.mm.add_child(app.mm.root.id, "target")
+        app.view.refresh_map()
+        await pilot.pause()
+        framed = [ch for (_x, _y), (ch, style) in app.view._grid.cells.items() if "reverse" in style]
+        assert framed, "the cursor's cell is framed while the map has the keys"
+
+        await pilot.press("ctrl+f")
+        await pilot.pause()
+        framed = [ch for (_x, _y), (ch, style) in app.view._grid.cells.items() if "reverse" in style]
+        assert not framed, "the prompt is the reversed thing now"
+
+        await pilot.press("escape")
+        await pilot.pause()
+        framed = [ch for (_x, _y), (ch, style) in app.view._grid.cells.items() if "reverse" in style]
+        assert framed, "and the frame comes back"
