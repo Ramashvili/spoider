@@ -6,6 +6,7 @@ Tested by standing a stub in for the app, so nothing waits for a terminal.
 from pathlib import Path
 
 from spoider import app as module
+from spoider.model import MindMap, Node
 
 
 def _run(monkeypatch, argv: list[str]) -> dict:
@@ -13,11 +14,16 @@ def _run(monkeypatch, argv: list[str]) -> dict:
 
     class Stub:
         def __init__(
-            self, path: Path | None, demo: bool = False, position: str | None = None
+            self,
+            path: Path | None,
+            demo: bool = False,
+            position: str | None = None,
+            cell_id: str | None = None,
         ) -> None:
             seen["path"] = path
             seen["demo"] = demo
             seen["position"] = position
+            seen["cell_id"] = cell_id
 
         def run(self, **kwargs) -> None:
             seen["run"] = kwargs
@@ -82,3 +88,38 @@ def test_an_empty_position_is_refused(monkeypatch, capsys):
     else:
         raise AssertionError("an empty address should be refused")
     assert "needs an address" in capsys.readouterr().err
+
+
+def test_an_empty_id_is_refused(capsys):
+    try:
+        module.main(["--id", ""])
+    except SystemExit as exit_code:
+        assert exit_code.code == 2
+    else:
+        raise AssertionError("an empty id should be refused")
+    assert "--id needs a cell id" in capsys.readouterr().err
+
+
+def test_position_and_id_together_are_refused(tmp_path, capsys):
+    path = tmp_path / "map.spoider"
+    MindMap(Node("root")).save(path)
+    try:
+        module.main(["-p", "0", "--id", "abc", str(path)])
+    except SystemExit as exit_code:
+        assert exit_code.code == 2
+    else:
+        raise AssertionError("two ways to place the cursor should be refused")
+    assert "not both" in capsys.readouterr().err
+
+
+def test_an_id_that_is_not_in_the_map_is_refused(tmp_path, capsys):
+    """A program launching a map wants a code it can test, not a map in the wrong place."""
+    path = tmp_path / "map.spoider"
+    MindMap(Node("root")).save(path)
+    try:
+        module.main(["--id", "nosuchcell", str(path)])
+    except SystemExit as exit_code:
+        assert exit_code.code == 2, "the refusal must be visible to a caller"
+    else:
+        raise AssertionError("an unknown id should be refused")
+    assert "not a cell in this map" in capsys.readouterr().err

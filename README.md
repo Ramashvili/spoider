@@ -56,7 +56,11 @@ spoider ideas.spoider          # open a map, or create one at that path
 spoider --demo                 # open the interactive manual
 spoider -p 7.4 map.spoider     # land the cursor on the fourth child of the seventh
 spoider -p s2.1 map.spoider    # the first child of the second cut, panel open
+spoider --id 9f2c1a8b map.spoider   # land on the cell with that id
 ```
+
+`--id` refuses a cell the map does not hold, and exits with code 2, so a program that
+launches a map can tell. A cut's id opens the stack panel.
 
 ## Keys
 

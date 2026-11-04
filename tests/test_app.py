@@ -4146,3 +4146,38 @@ async def test_the_help_leads_with_the_arrow_not_the_nano_chord(tmp_path: Path):
         moving = " ".join(lines[start : start + 6])
         assert "↑" in moving and "↓" in moving and "←" in moving and "→" in moving
         assert "^P" not in moving and "^B" not in moving, "the nano chords are secondary"
+
+
+# -- --id places the cursor by identity ------------------------------------
+
+
+async def test_id_puts_the_cursor_on_that_cell(tmp_path: Path):
+    path = tmp_path / "map.spoider"
+    app = SpoiderApp(path, config_path=tmp_path / "i.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        child = app.mm.add_child(app.mm.root.id, "there")
+        app.mm.save(path)
+        await pilot.pause()
+
+    second = SpoiderApp(path, config_path=tmp_path / "i.conf", cell_id=child.id)
+    async with second.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        assert second.selected == child.id
+
+
+async def test_an_id_on_the_cut_stack_opens_the_panel(tmp_path: Path):
+    path = tmp_path / "map.spoider"
+    made = SpoiderApp(path, config_path=tmp_path / "i.conf", demo=False)
+    async with made.run_test(size=(100, 30)) as pilot:
+        made.mm.add_child(made.mm.root.id, "branch")
+        # a cut is a branch that no longer sits in the map
+        cut = Node("cut branch", children=[Node("inside")])
+        made.mm.cut_stack.insert(0, cut)
+        made.mm.save(path)
+        await pilot.pause()
+
+    with_cut = SpoiderApp(path, config_path=tmp_path / "i.conf", cell_id=cut.id)
+    async with with_cut.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        assert with_cut.stack_open, "a cell you cannot see is not a place to be"
+        assert with_cut.selected == cut.id

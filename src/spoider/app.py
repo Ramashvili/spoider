@@ -6,6 +6,7 @@ import argparse
 import os
 import shlex
 import subprocess
+import sys
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -183,6 +184,14 @@ def edit_in_editor(path: Path) -> None:
 
 
 
+class UnknownCell(Exception):
+    """`--id` named a cell the map does not hold.
+
+    A program that launches a map wants to know that, so this leaves the process with a
+    non-zero code rather than opening the file at the root.
+    """
+
+
 class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     CSS = APP_CSS
     TITLE = "spoider"
@@ -196,6 +205,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         demo: bool = False,
         config_path: Path | None = None,
         position: str | None = None,
+        cell_id: str | None = None,
     ) -> None:
         super().__init__()
         self.config_path = Path(config_path) if config_path is not None else default_config_path()
@@ -222,6 +232,13 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.selected: str = self.mm.root.id
         #: Where `--position` asked the cursor to start; resolved once the screen exists.
         self.start_position = position
+        #: The cell `--id` named, in the map or on the cut stack. Checked before the
+        #: screen exists, so a wrong id never opens a window.
+        self.start_id = cell_id
+        if cell_id is not None:
+            found, _in_stack = self._find_saved_cursor(cell_id)
+            if found is None:
+                raise UnknownCell(f"{cell_id} is not a cell in this map")
         #: The properties overlay: off by default, a debugging aid rather than furniture.
         self.show_properties = False
         #: The last cell whose text or mark was changed, for the overlay to name.
@@ -328,7 +345,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         """
         found: str | None = None
         in_stack = False
-        if self.start_position is not None:
+        if self.start_id is not None:
+            found, in_stack = self._find_saved_cursor(self.start_id)
+        elif self.start_position is not None:
             address = parse_address(self.start_position)
             if address is not None:
                 found = resolve_address(self.mm, address)
@@ -1159,6 +1178,13 @@ def main(argv: list[str] | None = None) -> None:
         "down, s2 or s2.1 a cell on the cut stack; anything else starts at the root",
     )
     parser.add_argument(
+        "--id",
+        dest="cell_id",
+        default=None,
+        metavar="ID",
+        help="cell to put the cursor on, by id; a cut's id opens the cut stack",
+    )
+    parser.add_argument(
         "--install-desktop",
         action="store_true",
         help="register .spoider files with the desktop, then exit",
@@ -1166,10 +1192,21 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     if args.position is not None and not args.position.strip():
         parser.error("-p/--position needs an address: 0 for the root, 7.4.9 for a path")
+    if args.cell_id is not None and not args.cell_id.strip():
+        parser.error("--id needs a cell id")
+    if args.position is not None and args.cell_id is not None:
+        parser.error("choose --position or --id, not both")
     if args.install_desktop:
         raise SystemExit(install_desktop())
     path = Path(args.path).expanduser() if args.path else None
-    SpoiderApp(path, demo=args.demo, position=args.position).run(mouse=False)
+    try:
+        app = SpoiderApp(path, demo=args.demo, position=args.position, cell_id=args.cell_id)
+    except UnknownCell as exc:
+        # a program that launched this map asked for a cell that is not there; say so
+        # on stderr and leave with a code it can test
+        print(f"spoider: {exc}", file=sys.stderr)
+        raise SystemExit(2) from None
+    app.run(mouse=False)
 
 
 if __name__ == "__main__":
