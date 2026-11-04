@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from spoider.model import MARKS, MAX_MARKS, MindMap, Node, marks_of
@@ -281,3 +282,14 @@ def test_a_mark_can_be_more_than_one_character():
 def test_the_mark_cap_is_a_guard_against_a_runaway_list():
     assert MAX_MARKS == 64
     assert len(marks_of([str(index) for index in range(MAX_MARKS + 20)])) == MAX_MARKS
+
+
+def test_the_cursor_sits_with_the_properties_not_after_the_trees(tmp_path: Path):
+    """A person reading the file meets the map's own values first, then its trees."""
+    mm = MindMap(Node("root"))
+    mm.cursor = mm.root.id
+    path = tmp_path / "order.spoider"
+    mm.save(path)
+    keys = list(json.loads(path.read_text(encoding="utf-8")))
+    assert keys[:3] == ["version", "spacing", "layout"]
+    assert keys.index("cursor") < keys.index("root") < keys.index("cut"), keys

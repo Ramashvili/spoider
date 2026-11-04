@@ -405,9 +405,11 @@ class MindMap:
             "colours": self.colours,
             "marks": list(self.marks),
             **({"justify": self.justify} if self.justify else {}),
+            # the cursor is a property of the map, so it sits with them rather than
+            # trailing both trees at the end of the file
+            "cursor": self.cursor or "",
             "root": self.root.to_dict(),
             "cut": [node.to_dict() for node in self.cut_stack],
-            "cursor": self.cursor or "",
         }
 
     @classmethod
