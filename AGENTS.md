@@ -223,6 +223,10 @@ ground truth for whether the keys did what the scene meant.
 
 ## The tour video
 
+Screenshots and recordings are the last step, never part of a change: the human runs the
+program first, says the change is good, and approves the picture before it is committed. A
+still taken mid-work shows a state nobody asked for.
+
 The tour is delivered as an uploaded attachment, so no video is committed: the mp4s are
 ignored and live on disk only. `media/tour/record.py` records it from a real terminal
 window, not repainted by hand: it runs the program in a kitty window on an empty desktop,

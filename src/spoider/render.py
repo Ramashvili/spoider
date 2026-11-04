@@ -10,7 +10,18 @@ from rich.cells import cell_len
 from rich.text import Text
 
 from .chrome import CARET_STYLE
-from .layout import DOWN, PAD, RIGHT, UP, Layout, Placed, caret_pos, lines_of, selection_span
+from .layout import (
+    DOWN,
+    PAD,
+    RIGHT,
+    UP,
+    Layout,
+    Placed,
+    caret_pos,
+    fold_note,
+    lines_of,
+    selection_span,
+)
 from .model import DEFAULT_COLOURS
 from .text import find_all
 
@@ -223,7 +234,8 @@ def _draw_box(grid: Grid, box: Placed, style: str, inside: str, query: str = "")
     grid.add_edge(right, bottom, L | U, style)
 
     inner = box.w - 2
-    for index, text in enumerate(lines_of(box.node)):
+    lines = lines_of(box.node)
+    for index, text in enumerate(lines):
         row = " " * PAD + text + " " * max(0, inner - PAD - cell_len(text))
         mask = _mask(row, query) or [False] * len(row)
         span = selection_span(box.node, index)
@@ -232,6 +244,16 @@ def _draw_box(grid: Grid, box: Placed, style: str, inside: str, query: str = "")
             for column in range(start, min(start + (span[1] - span[0]), len(mask))):
                 mask[column] = True
         grid.put_text(left + 1, top + 1 + index, row, inside, mask)
+        # the folded count wears the colour of the links, so it reads as a number about
+        # the structure rather than as part of the cell's own text
+        note = fold_note(box.node)
+        if note and index == len(lines) - 1:
+            start = PAD + len(text) - len(note)
+            x = left + 1 + cell_len(row[:start])
+            for offset, char in enumerate(note):
+                marked = mask[start + offset] if start + offset < len(mask) else False
+                grid.put(x, top + 1 + index, char, _marked(LINK_COLOR) if marked else LINK_COLOR)
+                x += cell_len(char)
     at = caret_pos(box.node)
     if at is not None:
         line, column = at

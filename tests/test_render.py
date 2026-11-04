@@ -11,7 +11,7 @@ from rich.cells import cell_len
 
 from spoider.layout import PAD, compute, compute_stack
 from spoider.model import MindMap, Node
-from spoider.render import DEPTH_COLORS, STACK_START, build_grid, render_text
+from spoider.render import DEPTH_COLORS, LINK_COLOR, STACK_START, build_grid, render_text
 
 EVIL = "\x1b[2J\x1b[31mred\x1b]52;c;SGVsbG8=\x07\x9b31m"
 
@@ -99,6 +99,23 @@ def test_a_selected_cell_keeps_its_text_and_mark_in_their_own_colours():
     drawn = render_text(plain, 0, 0, layout.width, layout.height).plain
     quiet = render_text(unselected, 0, 0, layout.width, layout.height).plain
     assert drawn == quiet
+
+
+def test_the_folded_count_wears_the_colour_of_the_links():
+    """The count is about the structure, so it reads in the grey the connectors use."""
+    mm = MindMap(Node("root"))
+    parent = mm.add_child(mm.root.id, "folded")
+    for name in ("a", "b", "c"):
+        mm.add_child(parent.id, name)
+    parent.collapsed = True
+    layout = compute(mm.root, 0)
+    plain = build_grid(layout, "")
+    box = layout.boxes[parent.id]
+    row = box.y + 1
+    note_x = box.x + 1 + PAD + cell_len("folded")
+    assert "".join(plain.cells[(note_x + i, row)][0] for i in range(3)) == " +3"
+    assert plain.cells[(note_x, row)][1] == LINK_COLOR
+    assert plain.cells[(box.x + 1 + PAD, row)][1] != LINK_COLOR, "the text keeps its colour"
 
 
 def test_the_cut_stack_starts_further_down_the_palette():

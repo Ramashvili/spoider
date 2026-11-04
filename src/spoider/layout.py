@@ -92,6 +92,17 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
     )
 
 
+def fold_note(node: Node) -> str:
+    """The children count a folded cell wears, `" +3"`, or nothing when it is open.
+
+    One function so the row that draws it and the renderer that colours it cannot
+    disagree about what it says.
+    """
+    if node.preview is not None or not node.children or not node.collapsed:
+        return ""
+    return f" +{len(node.children)}"
+
+
 def lines_of(node: Node) -> list[str]:
     """What the cell shows, one entry per row.
 
@@ -102,8 +113,7 @@ def lines_of(node: Node) -> list[str]:
         text = clean_text(node.preview)
     else:
         text = clean_text(node.text or "").strip() or "(untitled)"
-        if node.children and node.collapsed:
-            text = f"{text} +{len(node.children)}"
+        text = f"{text}{fold_note(node)}"
     lines = text.split("\n")
     if node.mark:
         lines[0] = f"{clean(node.mark)} {lines[0]}"
