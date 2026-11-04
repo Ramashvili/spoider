@@ -182,8 +182,6 @@ class EditActions:
         self._touched(node.id)
         self._mark_dirty()
     def finish_edit(self, *, commit: bool) -> None:
-        if commit:
-            self._did("edited a cell")
         node_id = self._edit_id
         self._edit_id = None
         node = self._live_node(node_id) if node_id else None

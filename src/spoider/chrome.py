@@ -73,43 +73,6 @@ BAR_GLYPHS = {"equals_sign": "=", "minus": "-", "grave_accent": "`"}
 #: label. Order matters — the last one sits closest to the edge. Rebinding either in
 #: the config moves the label with it: a pinned key that no longer exists is worse
 #: than no hint at all.
-#: What the debug box calls each action, in the words a person would use for it.
-ACTION_WORDS: dict[str, str] = {
-    "prev": "moved up",
-    "next": "moved down",
-    "go_left": "moved left",
-    "go_right": "moved right",
-    "go_home": "went to the main cell",
-    "go_end": "went to the deepest cell",
-    "top_sibling": "went to the first sibling",
-    "bottom_sibling": "went to the last sibling",
-    "edit": "started editing a cell",
-    "justify": "justified a cell",
-    "cut": "cut a cell",
-    "copy": "copied a cell",
-    "paste": "pasted a cell",
-    "delete": "deleted a cell",
-    "undo": "undo",
-    "redo": "redo",
-    "mark": "set a mark",
-    "set_marks": "set the mark palette",
-    "fold": "folded a tree",
-    "layout": "toggled the layout",
-    "looser": "opened the spacing",
-    "tighter": "tightened the spacing",
-    "toggle_stack": "showed the stack",
-    "toggle_properties": "opened debug",
-    "search": "searched",
-    "select_all": "selected all",
-    "write": "saved the file",
-    "open": "read a file",
-    "new": "started a new map",
-    "quit": "quit",
-    "settings": "opened settings",
-    "help": "opened help",
-    "colours": "changed the colouring",
-}
-
 PINNED: tuple[tuple[str, str, str], ...] = (
     ("toggle_properties", "grave_accent", "debug"),
     ("settings", "ctrl+comma", "settings"),

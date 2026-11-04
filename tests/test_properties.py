@@ -167,9 +167,11 @@ def test_the_readme_names_the_key():
     assert "| &#96; |" in README.read_text(encoding="utf-8")
 
 
-def test_a_variation_selector_stays_with_its_glyph():
-    """`⚠️` is two code points; splitting them into two cells unaligns the row."""
+def test_a_marks_row_is_as_wide_as_the_others():
+    """Emoji of different reported widths must not pull the right border about."""
     mm, _alpha, deep = _map()
-    mm.marks = ("⚠️", "✅")
+    mm.marks = ("⚠️", "✅", "🤡", "⭐", "❓", "📌")
     drawn = _screen(sections(mm, None, deep.id, 1, None, dirty=False, autosave=False))
-    assert "⚠️" in drawn
+    body = [line for line in drawn.splitlines() if line.startswith("│")]
+    widths = {cell_len(line) for line in body}
+    assert len(widths) == 1, f"rows differ in width: {sorted(widths)}"

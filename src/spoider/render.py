@@ -476,22 +476,15 @@ def paint_box(
         for x in range(1, top):
             put(x, index, " ")
         column = 1
-        previous: tuple[int, str] | None = None
+        # the same rule the map's own text follows: one column per character, and a
+        # glyph that reports two columns claims the one after it as empty
         for char in line:
-            char_width = cell_len(char)
-            if char_width == 0:
-                # a variation selector or a combining accent belongs to the glyph before
-                # it, not to the cell after
-                if previous is not None:
-                    at, base = previous
-                    put(at, index, base + char)
-                continue
+            if cell_len(char) == 0:
+                continue  # the map's own text skips selectors the same way
+            char_width = max(cell_len(char), 1)
             if column + char_width > top:
                 break
-            previous = (column, char)
             put(column, index, char)
-            # a wide glyph covers two columns of the screen; the second one contributes
-            # nothing, exactly as the map's own grid handles its wide glyphs
             for extra in range(1, char_width):
                 put(column + extra, index, "")
             column += char_width

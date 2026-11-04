@@ -3995,64 +3995,6 @@ async def test_the_overlay_names_the_cell_that_was_edited(tmp_path: Path):
         assert "xyz" in app.view.render().plain
 
 
-# -- what we did last ------------------------------------------------------
-
-
-async def test_the_debug_box_names_what_we_did_last(tmp_path: Path):
-    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "d.conf")
-    async with app.run_test(size=(120, 40)) as pilot:
-        assert app.last_action == "-", "nothing has happened yet"
-
-        await pilot.press("p")
-        await pilot.pause()
-        assert app.last_action == "showed the stack"
-        await pilot.press("p")
-        await pilot.pause()
-
-        await pilot.press("t")
-        await pilot.pause()
-        assert app.last_action == "folded a tree"
-
-        await pilot.press("ctrl+z")
-        await pilot.pause()
-        assert app.last_action == "undo"
-
-        await pilot.press("tab")
-        await pilot.press("a", "b")
-        await pilot.press("enter")
-        await pilot.pause()
-        assert app.last_action == "edited a cell"
-
-        await pilot.press("grave_accent")
-        await pilot.pause()
-        assert app.last_action == "opened debug"
-        assert "last" in app.view.render().plain
-
-
-async def test_search_says_what_was_searched_for(tmp_path: Path):
-    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "d.conf")
-    async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.press("ctrl+f")
-        for char in "beetle":
-            await pilot.press(char)
-        await pilot.press("enter")
-        await pilot.pause()
-        assert app.last_action == 'searched "beetle"'
-
-
-async def test_saving_says_the_files_name(tmp_path: Path):
-    path = tmp_path / "things.spoider"
-    app = SpoiderApp(path, config_path=tmp_path / "d.conf")
-    async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.press("tab")
-        await pilot.press("a")
-        await pilot.press("enter")
-        await pilot.pause()
-        app._write(path)
-        await pilot.pause()
-        assert app.last_action == "saved things.spoider"
-
-
 async def test_the_tree_keys_walk_the_hierarchy(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "k.conf")
     async with app.run_test(size=(120, 40)) as pilot:
@@ -4090,4 +4032,3 @@ async def test_the_tree_keys_walk_the_hierarchy(tmp_path: Path):
         await pilot.pause()
         assert app.mm.find(leaf.id) is None, "del removes the cell, as ^D does"
         assert app.mm.find(deep.id) is not None, "its parent stays"
-        assert app.last_action == "deleted a cell"

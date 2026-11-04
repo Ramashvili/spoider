@@ -20,7 +20,6 @@ from .actions_stack import StackActions
 from .addressing import parse as parse_address
 from .addressing import resolve as resolve_address
 from .chrome import (
-    ACTION_WORDS,
     FooterBar,
     ask_chunks,
     help_chunks,
@@ -208,8 +207,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.show_properties = False
         #: The last cell whose text or mark was changed, for the overlay to name.
         self.last_edited: str | None = None
-        #: What we did last, in the words the bar would use for it. The debug box says it.
-        self.last_action = "-"
         #: The far end of a run of selected siblings; None means one cell.
         self.anchor: str | None = None
         #: Id of the cell selected inside the stack panel; None when it is shut.
@@ -275,10 +272,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._apply_start_position()
         self.query_one(MindMapView).focus()
         self._offer_desktop_once()
-
-    def _did(self, words: str) -> None:
-        """Name what just happened, when the generic word for the action is not what it was."""
-        self.last_action = words
 
     def action_go_home(self) -> None:
         """`home` — the main cell of the tree the cursor is in, hierarchy only."""
@@ -419,9 +412,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         keys: ^D must not delete the node you are editing, and ^X must not quit
         from behind a question.
 
-        Textual asks here before dispatching any bound action, which is also the one
-        place that can name what was just done for the debug box."""
-        self.last_action = ACTION_WORDS.get(action, action.replace("_", " "))
+        """
         if self._mode not in ("keys", "edit"):
             return None  # the drawer owns the keys, and its bar says so
         # The stack panel is the map with one difference, and it consumes the keys
@@ -594,7 +585,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._refresh_matches()
 
     def _search_submitted(self, query: str) -> None:
-        self._did(f'searched "{query}"')
         repeat = bool(self.matches) and query.casefold() == self._last_query.casefold()
         self._last_query = query
         self.search_query = query
@@ -718,7 +708,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     def _write(self, path: Path) -> bool:
         # the file remembers where the cursor was, so opening it returns there
-        self._did(f"saved {path.name}")
         self.mm.cursor = self.selected
         try:
             self.mm.save(path)
