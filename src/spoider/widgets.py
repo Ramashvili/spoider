@@ -12,7 +12,14 @@ from textual.widget import Widget
 from .chrome import DIVIDER
 from .layout import BOX_H, Layout, compute
 from .properties import rows_for
-from .render import DEPTH_COLORS, STACK_START, Grid, build_grid, overlay, render_text
+from .render import (
+    DEPTH_COLORS,
+    LINK_COLOR,
+    STACK_START,
+    Grid,
+    build_grid,
+    render_text,
+)
 from .text import clean, clip_head
 
 if TYPE_CHECKING:
@@ -207,15 +214,12 @@ class MindMapView(Widget, can_focus=True):
         grid = self._grid
         if panel is not None:
             grid = self._with_stack(grid, panel, width, height)
+        floaters = []
         if self.spoider.show_properties:
-            # the grid is cached between renders, so the box goes on a copy: drawn in
-            # place it would stay after the overlay was switched off
-            shown = Grid(width=grid.width, height=grid.height)
-            shown.cells.update(grid.cells)
-            shown.wide |= grid.wide
-            overlay(shown, self._property_rows(), width=width, height=height)
-            grid = shown
-        return render_text(grid, self._offset_x, self._offset_y, width, height)
+            floaters.append((self._property_rows(), LINK_COLOR))
+        return render_text(
+            grid, self._offset_x, self._offset_y, width, height, floaters=floaters
+        )
 
     def _property_rows(self) -> list[tuple[str, str]]:
         spoider = self.spoider

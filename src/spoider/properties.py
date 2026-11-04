@@ -36,7 +36,8 @@ def file_rows(mm: MindMap, path: Path | None) -> list[tuple[str, str]]:
     rows = [("format", f"{1}, spacing {mm.spacing}, {mm.layout}, {mm.colours}")]
     deepest = max((mm.depth(node.id) for node in mm.nodes()), default=1)
     rows.append(("totals", f"{mm.count()} cells, {deepest} deep, {len(mm.cut_stack)} cuts"))
-    rows.append(("marks", f"{len(mm.marks)} in the palette, justify {mm.justify or '-'}"))
+    marks = " ".join(mm.marks) if mm.marks else "-"
+    rows.append(("marks", f"{marks}, justify {mm.justify or '-'}"))
     if path is not None and path.exists():
         rows.insert(0, ("file", str(path)))
         rows.insert(1, ("size", f"{_size(path)}, written {_written(path)}"))

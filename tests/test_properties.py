@@ -7,7 +7,7 @@ from pathlib import Path
 from spoider.layout import compute
 from spoider.model import MindMap, Node
 from spoider.properties import rows_for
-from spoider.render import build_grid, overlay, render_text
+from spoider.render import LINK_COLOR, build_grid, render_text
 
 README = Path("README.md")
 
@@ -54,23 +54,37 @@ def test_nothing_edited_yet_reads_as_a_dash(tmp_path: Path):
     assert rows["edited"] == "-"
 
 
-def test_the_box_is_drawn_in_the_top_left_corner():
+def _screen(rows, *, ox=0, oy=0, width=80, height=20):
     mm, _alpha, _deep = _map()
-    layout = compute(mm.root, 0)
-    grid = build_grid(layout, "")
-    overlay(grid, [("file", "x.spoider"), ("cursor", "1.1")], width=80, height=20)
-    assert grid.cells[(0, 0)][0] == "╭", "the corner is the grid's own origin"
-    drawn = render_text(grid, 0, 0, grid.width, grid.height).plain
+    grid = build_grid(compute(mm.root, 0), "")
+    return render_text(
+        grid, ox, oy, width, height, floaters=[(rows, LINK_COLOR)]
+    ).plain
+
+
+def test_the_box_is_drawn_in_the_top_left_corner():
+    drawn = _screen([("file", "x.spoider"), ("cursor", "1.1")])
     assert drawn.splitlines()[0].startswith("╭")
     assert "x.spoider" in drawn and "cursor" in drawn
 
 
-def test_the_box_is_clipped_rather_than_overflowing():
-    mm, _alpha, _deep = _map()
-    layout = compute(mm.root, 0)
-    grid = build_grid(layout, "")
-    overlay(grid, [("file", "a name long enough to run past a narrow grid")], width=20, height=20)
-    assert all(0 <= x < grid.width and 0 <= y < grid.height for (x, y) in grid.cells)
+def test_the_box_does_not_move_when_the_camera_does():
+    """It is pinned to the screen, not to the map: the camera must not drag it off."""
+    rows = [("file", "/home/somebody/a-map-with-a-long-name.spoider"), ("cursor", "1.1")]
+    near = _screen(rows)
+    far = _screen(rows, ox=40, oy=12)
+    assert far.splitlines()[0].startswith("╭")
+    assert "/home/somebody/a-map-with-a-long-name.spoider" in far, "the path is not clipped"
+    # the map behind the box differs with the camera; the box itself must not
+    top = far.splitlines()[0]
+    corner = top.index("╮") + 1
+    assert near.splitlines()[0][:corner] == top[:corner]
+
+
+def test_the_box_is_clipped_only_by_the_screen():
+    drawn = _screen([("file", "a name long enough to run past a narrow grid")], width=20)
+    assert drawn.splitlines()[0].startswith("╭")
+    assert len(drawn.splitlines()[0]) == 20
 
 
 def test_the_readme_names_the_key():

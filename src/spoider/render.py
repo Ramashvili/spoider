@@ -393,59 +393,37 @@ def _vertical(grid: Grid, y1: int, y2: int, x: int) -> None:
         grid.add_link(x, y + step, U if step > 0 else D)
 
 
-def overlay(
+def render_text(
     grid: Grid,
-    rows: list[tuple[str, str]],
+    ox: int,
+    oy: int,
+    width: int,
+    height: int,
     *,
-    style: str = LINK_COLOR,
-    width: int | None = None,
-    height: int | None = None,
-) -> None:
-    """Draw `(label, value)` rows as a box in the grid's top-left corner.
+    floaters: list[tuple[list[tuple[str, str]], str]] | None = None,
+) -> Text:
+    """The visible window as styled text.
 
-    The one thing in spoider that floats: a properties panel that pushed cells around would
-    cost exactly the space it exists to describe. It is clipped to the grid, so a narrow
-    terminal loses the right of the box rather than the box itself.
+    `floaters` are `(rows, style)` boxes pinned to the top-left of the *screen*, drawn after
+    the camera has cropped the grid: an overlay that lived in grid coordinates would slide
+    around as the map scrolled and lose its right edge with it.
     """
-    if not rows:
-        return
-    body = [f" {label.ljust(7)} {value}" for label, value in rows]
-    # the box is clipped to the view rather than to the map: a three-cell map still has a
-    # whole screen to be described on
-    width = min(width if width is not None else grid.width, max(cell_len(line) for line in body) + 2)
-    height = min(height if height is not None else grid.height, len(body) + 2)
-    if width < 4 or height < 3:
-        return
-
-    def draw(x: int, y: int, ch: str) -> None:
-        grid.put(x, y, ch, style)
-
-    draw(0, 0, "╭")
-    for x in range(1, width - 1):
-        draw(x, 0, "─")
-    draw(width - 1, 0, "╮")
-    for index in range(1, height - 1):
-        draw(0, index, "│")
-        draw(width - 1, index, "│")
-        line = body[index - 1] if index - 1 < len(body) else ""
-        for offset, char in enumerate(line[: width - 2]):
-            draw(1 + offset, index, char)
-    draw(0, height - 1, "╰")
-    for x in range(1, width - 1):
-        draw(x, height - 1, "─")
-    draw(width - 1, height - 1, "╯")
-
-
-def render_text(grid: Grid, ox: int, oy: int, width: int, height: int) -> Text:
-    out = Text()
-    rows = range(oy, oy + height)
-    for index, y in enumerate(rows):
-        run: list[str] = []
-        run_style: str | None = None
+    screen: list[list[tuple[str, str]]] = []
+    for y in range(oy, oy + height):
+        line: list[tuple[str, str]] = []
         for x in range(ox, ox + width):
             if (x, y) in grid.wide:
                 continue
-            ch, style = grid.cells.get((x, y), (" ", ""))
+            line.append(grid.cells.get((x, y), (" ", "")))
+        screen.append(line)
+    for rows, style in floaters or []:
+        paint_box(screen, rows, style)
+
+    out = Text()
+    for index, line in enumerate(screen):
+        run: list[str] = []
+        run_style: str | None = None
+        for ch, style in line:
             if run and style != run_style:
                 out.append("".join(run), run_style or "")
                 run = []
@@ -453,6 +431,42 @@ def render_text(grid: Grid, ox: int, oy: int, width: int, height: int) -> Text:
             run.append(ch)
         if run:
             out.append("".join(run), run_style or "")
-        if index != len(rows) - 1:
+        if index != len(screen) - 1:
             out.append("\n")
     return out
+
+
+def paint_box(
+    screen: list[list[tuple[str, str]]],
+    rows: list[tuple[str, str]],
+    style: str = LINK_COLOR,
+) -> None:
+    """Draw `(label, value)` rows as a box at the top-left of a screen made of cells."""
+    if not rows or not screen:
+        return
+    body = [f" {label.ljust(7)} {value}" for label, value in rows]
+    width = max(cell_len(line) for line in body) + 2
+    height = len(body) + 2
+
+    def put(x: int, y: int, ch: str) -> None:
+        if 0 <= y < len(screen) and 0 <= x < len(screen[y]):
+            screen[y][x] = (ch, style)
+        elif 0 <= y < len(screen) and x == len(screen[y]):
+            pass
+
+    put(0, 0, "╭")
+    for x in range(1, width - 1):
+        put(x, 0, "─")
+    put(width - 1, 0, "╮")
+    for index, line in enumerate(body, start=1):
+        if index >= height - 1:
+            break
+        put(0, index, "│")
+        put(width - 1, index, "│")
+        for offset, char in enumerate(line):
+            put(1 + offset, index, char)
+    put(0, height - 1, "╰")
+    for x in range(1, width - 1):
+        put(x, height - 1, "─")
+    put(width - 1, height - 1, "╯")
+
