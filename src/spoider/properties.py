@@ -19,7 +19,7 @@ from pathlib import Path
 
 from .addressing import address_of
 from .model import MindMap
-from .text import clip_head, one_line
+from .text import clean, clip_head, one_line
 
 Section = tuple[str, list[tuple[str, str]]]
 
@@ -52,9 +52,9 @@ def file_rows(mm: MindMap, path: Path | None, *, dirty: bool) -> list[tuple[str,
     if path is None:
         rows = [("file", "not named yet")]
     elif path.exists():
-        rows = [("file", str(path)), ("size", f"{_size(path)}, written {_written(path)}")]
+        rows = [("file", clean(str(path))), ("size", f"{_size(path)}, written {_written(path)}")]
     else:
-        rows = [("file", f"{path}  (not on disk)")]
+        rows = [("file", f"{clean(str(path))}  (not on disk)")]
     rows.append(("format", str(1)))
     rows.append(("spacing", str(mm.spacing)))
     rows.append(("shape", mm.layout))

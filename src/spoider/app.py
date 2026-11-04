@@ -194,9 +194,11 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
                 self.mm = MindMap.load(self.path, marks=self.config.marks_default)
             except MapFileError as exc:
                 # Starting on an empty map beats a traceback on the terminal; the
-                # reason is reported once the screen exists.
+                # reason is reported once the screen exists. The path is dropped with
+                # it: the file is not a map, and ^S must never quietly replace it.
                 self.mm = MindMap(marks=self.config.marks_default)
                 self.has_file = False
+                self.path = None
                 self.load_error = str(exc)
         else:
             self.mm = MindMap.demo() if demo else MindMap(marks=self.config.marks_default)
@@ -372,7 +374,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     def _title(self) -> str:
         marker = " *" if self.dirty else ""
-        return f"spoider — {self.path.name if self.path else 'untitled'}{marker}"
+        name = clean(self.path.name) if self.path else "untitled"
+        return f"spoider — {name}{marker}"
 
     def _set_terminal_title(self) -> None:
         """Mirror the buffer into the terminal title, where the unsaved marker is
@@ -712,14 +715,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         try:
             self.mm.save(path)
         except OSError as exc:
-            self.notify(f"Could not write {path}: {exc}", severity="error", timeout=4)
+            self.notify(f"Could not write {clean(str(path))}: {exc}", severity="error", timeout=4)
             return False
         self.path = path
         self.has_file = True
         self.dirty = False
         self._set_terminal_title()
         self._refresh_chrome()
-        self.notify(f"Wrote {self.mm.count()} nodes to {path.name}", timeout=2)
+        self.notify(f"Wrote {self.mm.count()} nodes to {clean(path.name)}", timeout=2)
         return True
 
     def _ask_where_to_write(self, *, then_quit: bool = False) -> None:

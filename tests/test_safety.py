@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
+from spoider import properties
+from spoider.app import SpoiderApp
 from spoider.model import MAX_DEPTH, MapFileError, MindMap, Node
 
 
@@ -164,3 +168,59 @@ async def test_a_prompt_does_not_write_escapes_from_a_file_name(tmp_path):
         line = str(app.query_one(PromptBar).render())
         assert "\x1b" not in line and "\x07" not in line
         assert "PWNED" in line
+
+
+# -- the three findings of the audit ---------------------------------------
+
+
+async def test_a_file_that_is_not_a_map_is_never_overwritten(tmp_path: Path):
+    """An unreadable file must lose its path, or ^S would replace it with a map."""
+    path = tmp_path / "notes.txt"
+    path.write_text("my precious notes, not a map\n", encoding="utf-8")
+    app = SpoiderApp(path, config_path=tmp_path / "a.conf")
+    assert app.load_error is not None, "the load failed"
+    assert app.path is None, "the failed path is forgotten, so save cannot reach it"
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+    assert path.read_text(encoding="utf-8") == "my precious notes, not a map\n"
+
+
+async def test_a_broken_map_is_not_clobbered_by_saving(tmp_path: Path):
+    path = tmp_path / "broken.spoider"
+    path.write_text('{"version": 1, "root": ', encoding="utf-8")
+    app = SpoiderApp(path, config_path=tmp_path / "a.conf")
+    assert app.path is None
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+    assert path.read_text(encoding="utf-8") == '{"version": 1, "root": '
+
+
+def test_an_infinite_spacing_is_a_wrong_type_not_a_crash(tmp_path: Path):
+    """1e400 is valid JSON, parses to infinity, and int() refuses it."""
+    path = tmp_path / "inf.spoider"
+    path.write_text(
+        '{"version": 1, "spacing": 1e400, "root": {"id": "r", "text": "x",'
+        ' "collapsed": false, "mark": null, "children": []}}',
+        encoding="utf-8",
+    )
+    mm = MindMap.load(path)
+    assert mm.spacing == 0, "an impossible number falls back to the default"
+
+
+def test_a_file_name_cannot_drive_the_terminal(tmp_path: Path):
+    """A map arrives with its name; the name is a way into the terminal."""
+    evil = tmp_path / "evil\x1b]0;PWNED\x07\x1b[2J.spoider"
+    evil.write_text(
+        '{"version": 1, "root": {"id": "r", "text": "x", "collapsed": false,'
+        ' "mark": null, "children": []}}',
+        encoding="utf-8",
+    )
+    app = SpoiderApp(evil, config_path=tmp_path / "a.conf")
+    app.mm = MindMap.load(evil)
+    rows = dict(dict(properties.sections(
+        app.mm, evil, app.mm.root.id, 1, None, dirty=False, autosave=False
+    ))["file state"])
+    for shown in (rows["file"], app._title()):
+        assert "\x1b" not in shown and "\x07" not in shown, f"escape survived in {shown!r}"

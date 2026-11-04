@@ -403,8 +403,9 @@ class MindMap:
             raise MapFileError("the map has no root node")
         root = Node.from_dict(root_data)
         try:
+            # 1e400 is valid JSON and parses to infinity, which int() refuses
             spacing = int(data.get("spacing") or 0)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             spacing = 0
         layout = data.get("layout")
         cut: list[Node] = []
@@ -446,19 +447,19 @@ class MindMap:
         try:
             raw = path.read_text(encoding="utf-8")
         except OSError as exc:
-            raise MapFileError(f"cannot read {path.name}: {exc.strerror or exc}") from exc
+            raise MapFileError(f"cannot read {clean(path.name)}: {exc.strerror or exc}") from exc
         except UnicodeDecodeError as exc:
-            raise MapFileError(f"{path.name} is not UTF-8 text") from exc
+            raise MapFileError(f"{clean(path.name)} is not UTF-8 text") from exc
         try:
             data = json.loads(raw)
         except RecursionError as exc:
-            raise MapFileError(f"{path.name} is nested far too deeply") from exc
+            raise MapFileError(f"{clean(path.name)} is nested far too deeply") from exc
         except ValueError as exc:
-            raise MapFileError(f"{path.name} is not valid JSON: {exc}") from exc
+            raise MapFileError(f"{clean(path.name)} is not valid JSON: {exc}") from exc
         try:
             return cls.from_dict(data, marks=marks)
         except RecursionError as exc:  # belt and braces: _build is bounded too
-            raise MapFileError(f"{path.name} is nested far too deeply") from exc
+            raise MapFileError(f"{clean(path.name)} is nested far too deeply") from exc
 
     # -- fixtures -------------------------------------------------------
 
