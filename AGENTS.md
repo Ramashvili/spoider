@@ -213,6 +213,11 @@ a tree is easiest to build:
   after a paste adds a child to the cell that received it.
 - `p` opens the stack panel, which takes every key the map takes; closing it puts the
   map cursor back where it was before it opened.
+- The arrows keep the hierarchy's answer when it names a parent, a child or a sibling.
+  Otherwise the canvas decides: the closest cell in the direction pressed, measured
+  between nearest edges (a wide neighbour is near, however long), preferring our own
+  level, then a cell whose parent sits beside our parent. That is what crossing a gap
+  means, and `nav.towards` is the only place it is decided.
 - `^L` cycles the shape spider, pyramid, bush, branch, spider. Build in branch, show the
   others, and step back to branch to keep building.
 - While a cell is being typed into, `Home` puts the caret at column 0, so `Home` then
