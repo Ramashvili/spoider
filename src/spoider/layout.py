@@ -87,6 +87,10 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
         -4: (GAP_X - 3, 1),
         -5: (GAP_X - 4, 0),
     }
+    # A walled cell is three rows tall and a bare one is a single row, so the first bare
+    # step keeps a blank row between levels: three rows of box become two lines of text
+    # rather than one hard on top of the other.
+    tight_y = {-1: 0, -2: 0, -3: 1, -4: 0, -5: 0}
     if layout in ("spider", "branch"):
         x = tight.get(spacing, (max(1, GAP_X + spacing), 0))[0]
     elif spacing >= 0:
@@ -99,7 +103,7 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
         # -1 lets two boxes share a border row: they touch, but each keeps its own
         # text row. With the walls gone a cell is a single row, so the floor needs a
         # row of its own instead of sharing the row that held two borders.
-        y=0 if spacing <= BARE_SPACING else max(-1, GAP_Y + spacing),
+        y=tight_y.get(spacing, 0) if spacing <= BARE_SPACING else max(-1, GAP_Y + spacing),
     )
 
 
