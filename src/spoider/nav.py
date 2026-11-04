@@ -82,33 +82,39 @@ def is_direct_relative(mm: MindMap, here: str, there: str) -> bool:
     return parent_here is not None and parent_there is not None and parent_here.id == parent_there.id
 
 
-def towards(layout, here: str, dx: int, dy: int) -> str | None:
-    """The nearest cell in a screen direction, or None when that way is empty.
+def towards(mm: MindMap, layout, here: str, dx: int, dy: int) -> str | None:
+    """The cell an arrow should reach when the hierarchy has nothing to offer.
 
-    Nearest wins, and the sideways offset is charged three times so a slightly further
-    cell in line is chosen over a closer one well off to the side. Cells overlapping the
-    current one across the other axis break a tie: they are what makes a column of boxes
-    read as a column, and they must not outrank a cell that is simply closer.
+    Closest in the direction pressed, counted as steps on both axes rather than as a
+    straight line, because a reader judges distance on a character grid. Two preferences
+    outrank distance: a cell at our own level, and among those a cell whose parent sits
+    beside our parent. Crossing a gap means reaching the branch next door, not one across
+    the map, and staying on a level keeps the picture in view.
     """
     start = layout.boxes.get(here)
     if start is None:
         return None
+
+    # the parents of the cells that are "next door" to us: our parent's siblings
+    neighbours: set[str] = set()
+    parent_here = mm.parent(here)
+    grandparent = mm.parent(parent_here.id) if parent_here is not None else None
+    if parent_here is not None and grandparent is not None:
+        neighbours = {child.id for child in grandparent.children if child.id != parent_here.id}
+
     best: str | None = None
-    best_key: tuple[float, int] | None = None
+    best_key: tuple[int, int, int] | None = None
     for box in layout.boxes.values():
         if box.node.id == here:
             continue
-        if dx:
-            ahead = (box.cx - start.cx) * dx
-            across = abs(box.cy - start.cy)
-            overlaps = box.y < start.y + start.h and start.y < box.y + box.h
-        else:
-            ahead = (box.cy - start.cy) * dy
-            across = abs(box.cx - start.cx)
-            overlaps = box.x < start.x + start.w and start.x < box.x + box.w
+        ahead = (box.cx - start.cx) * dx if dx else (box.cy - start.cy) * dy
         if ahead <= 0:
             continue
-        key = (ahead + 3 * across, 0 if overlaps else 1)
+        distance = abs(box.cx - start.cx) + abs(box.cy - start.cy)
+        parent = mm.parent(box.node.id)
+        beside = parent is not None and parent.id in neighbours
+        same_level = box.depth == start.depth
+        key = (0 if same_level else 1, 0 if beside else 1, distance)
         if best_key is None or key < best_key:
             best, best_key = box.node.id, key
     return best

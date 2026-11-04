@@ -224,7 +224,7 @@ class MapActions:
         if target != self.selected and nav.is_direct_relative(self.document, self.selected, target):
             self.select(target)
             return
-        reached = nav.towards(self._nav_layout(), self.selected, dx, dy)
+        reached = nav.towards(self.document, self._nav_layout(), self.selected, dx, dy)
         self.select(reached or target)
 
     def action_extend_prev(self) -> None:

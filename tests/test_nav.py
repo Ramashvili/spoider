@@ -82,40 +82,83 @@ def test_unknown_ids_are_inert_everywhere():
     assert nav.side(mm, "nope") == 1
 
 
-def placed(node: Node, x: int, y: int, w: int = 8, h: int = 3) -> Placed:
-    return Placed(node, x, y, w, h, 0, 1, RIGHT)
+def placed(node: Node, x: int, y: int, w: int = 8, h: int = 3, depth: int = 0) -> Placed:
+    return Placed(node, x, y, w, h, depth, 1, RIGHT)
 
 
 def layout_of(*boxes: Placed) -> Layout:
     return Layout({box.node.id: box for box in boxes}, width=80, height=40)
 
 
-def test_towards_takes_the_nearest_cell_in_line():
-    here, near, far = Node("here"), Node("near"), Node("far")
-    layout = layout_of(placed(here, 0, 0), placed(near, 0, 10), placed(far, 0, 20))
-    assert nav.towards(layout, here.id, 0, +1) == near.id
+def _family() -> tuple[MindMap, dict[str, Node]]:
+    """root -> alpha(a1, a2), beta(b1, b2), gamma(g1): three sibling groups."""
+    mm = MindMap(Node("root"))
+    alpha = mm.add_child(mm.root.id, "alpha")
+    beta = mm.add_child(mm.root.id, "beta")
+    gamma = mm.add_child(mm.root.id, "gamma")
+    nodes = {"alpha": alpha, "beta": beta, "gamma": gamma}
+    for parent, names in ((alpha, ("a1", "a2")), (beta, ("b1", "b2")), (gamma, ("g1",))):
+        for name in names:
+            nodes[name] = mm.add_child(parent.id, name)
+    return mm, nodes
 
 
-def test_a_cell_in_line_beats_a_closer_one_off_to_the_side():
-    here, in_line, off_side = Node("here"), Node("in line"), Node("off side")
-    layout = layout_of(
-        placed(here, 0, 0),
-        placed(in_line, 1, 12),      # two rows further, but the same column
-        placed(off_side, 30, 4),     # nearer, but well to the right
+def _boxes(nodes: dict[str, Node]) -> Layout:
+    return layout_of(
+        placed(nodes["alpha"], 0, 0, depth=1),
+        placed(nodes["a1"], 20, 0, depth=2),
+        placed(nodes["a2"], 20, 6, depth=2),
+        placed(nodes["beta"], 60, 0, depth=1),
+        placed(nodes["b1"], 80, 0, depth=2),
+        placed(nodes["b2"], 80, 6, depth=2),
+        placed(nodes["gamma"], 120, 0, depth=1),
+        placed(nodes["g1"], 140, 0, depth=2),
     )
-    assert nav.towards(layout, here.id, 0, +1) == in_line.id
 
 
-def test_nothing_ahead_means_no_move():
-    here, behind = Node("here"), Node("behind")
-    layout = layout_of(placed(here, 0, 10), placed(behind, 0, 0))
-    assert nav.towards(layout, here.id, 0, +1) is None
+def test_the_closest_cell_in_the_direction_wins():
+    mm, nodes = _family()
+    layout = _boxes(nodes)
+    # from a2, right: b1 and b2 are both next door and on our level, and b2 is nearer
+    assert nav.towards(mm, layout, nodes["a2"].id, +1, 0) == nodes["b2"].id
 
 
-def test_the_sideways_offset_is_charged():
-    here, beside, ahead = Node("here"), Node("beside"), Node("ahead")
-    layout = layout_of(placed(here, 0, 0), placed(beside, 0, 8), placed(ahead, 40, 1))
-    assert nav.towards(layout, here.id, 0, +1) == beside.id
+def test_our_own_level_wins_over_a_closer_cell_below_it():
+    mm, nodes = _family()
+    layout = layout_of(
+        placed(nodes["alpha"], 0, 0, depth=1),
+        placed(nodes["a2"], 20, 6, depth=2),
+        placed(nodes["beta"], 60, 0, depth=1),
+        placed(nodes["b1"], 80, 0, depth=2),
+        placed(Node("stray"), 24, 6, depth=3),  # one step away, but a level deeper
+    )
+    assert nav.towards(mm, layout, nodes["a2"].id, +1, 0) == nodes["b1"].id
+
+
+def test_the_branch_whose_parent_sits_beside_ours_wins_over_one_further_along():
+    """Next door is measured on the parents: a cousin's parent is beside ours."""
+    mm = MindMap(Node("root"))
+    alpha = mm.add_child(mm.root.id, "alpha")
+    beta = mm.add_child(mm.root.id, "beta")
+    a1 = mm.add_child(alpha.id, "a1")
+    a2 = mm.add_child(alpha.id, "a2")
+    b1 = mm.add_child(beta.id, "b1")
+    a1x = mm.add_child(a1.id, "a1x")
+    a2x = mm.add_child(a2.id, "a2x")
+    b1x = mm.add_child(b1.id, "b1x")
+
+    layout = layout_of(
+        placed(a1x, 20, 6, depth=3),
+        placed(b1x, 30, 6, depth=3),   # nearer, but its parent is a different branch
+        placed(a2x, 80, 6, depth=3),   # further, but a2 is a1's sibling
+    )
+    assert nav.towards(mm, layout, a1x.id, +1, 0) == a2x.id
+
+
+def test_nothing_in_that_direction_means_no_move():
+    mm, nodes = _family()
+    layout = _boxes(nodes)
+    assert nav.towards(mm, layout, nodes["g1"].id, +1, 0) is None
 
 
 def test_only_a_parent_child_or_sibling_counts_as_a_relative():
@@ -129,14 +172,3 @@ def test_only_a_parent_child_or_sibling_counts_as_a_relative():
     assert nav.is_direct_relative(mm, one.id, two.id)
     assert not nav.is_direct_relative(mm, child.id, stranger.id), "cousins are not relatives"
     assert not nav.is_direct_relative(mm, one.id, one.id)
-
-
-def test_a_closer_cell_wins_even_when_it_is_not_the_one_in_line():
-    """The tie-break is a tie-break: sharing a column must not outrank distance."""
-    here, near_off_axis, far_in_line = Node("here"), Node("near"), Node("far")
-    layout = layout_of(
-        placed(here, 10, 0),
-        placed(near_off_axis, 13, 4),    # four rows down, a little to the right
-        placed(far_in_line, 10, 20),     # the same column, but much further
-    )
-    assert nav.towards(layout, here.id, 0, +1) == near_off_axis.id
