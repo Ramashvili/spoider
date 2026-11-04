@@ -15,7 +15,6 @@ from rich.text import Text
 from textual import events
 from textual.widget import Widget
 
-from .chrome import CARET_STYLE
 from .text import clean, clip_tail
 
 
@@ -201,15 +200,24 @@ class PromptBar(Drawer):
             caret -= len(value) - len(kept) + 1  # the ellipsis stands for the rest
             value = kept
         caret = max(0, min(caret, len(value) - 1))
-        line = Text(value)
+        # The whole line is a band, so the question is visible against the map above it.
+        # The caret is the one cell of that band left plain: a hole you can see, where a
+        # reversed caret on a reversed background would vanish.
+        bar = Text()
+        bar.append(self.label, "reverse")
         if self._fresh:
-            # what the prompt offered is *selected*, the way a text editor shows it,
-            # so typing over it is the obvious thing to do and the caret comes back
-            # once the first key has replaced it
-            line.stylize("reverse", 0, len(value.rstrip(" ")))
-        line.stylize(CARET_STYLE, caret, caret + 1)
-        bar = Text(self.label)
-        bar.append(line)
+            # what the prompt offered is *drawn plain*, the way a selection shows in a
+            # reversed bar: typing over it is the obvious thing, and the caret returns
+            # as a hole once the first key has replaced it
+            offered = value.rstrip(" ")
+            bar.append(offered)
+            bar.append(value[len(offered) :], "reverse")
+        else:
+            bar.append(value[:caret], "reverse")
+            bar.append(value[caret : caret + 1])
+            bar.append(value[caret + 1 :], "reverse")
+        used = cell_len(self.label) + cell_len(value)
+        bar.append(" " * max(0, width - used), "reverse")
         return bar
 
 
@@ -240,7 +248,11 @@ class AskBar(Drawer):
         width = self.size.width
         if width <= 0 or not self.display:
             return Text("")
-        return Text(clip_tail(clean(self.question), width - 1))
+        # a question is a band too: it has to be seen against the map behind it
+        ask = clip_tail(clean(self.question), width - 1)
+        line = Text(ask, "reverse")
+        line.append(" " * max(0, width - cell_len(ask)), "reverse")
+        return line
 
 
 class PanelBar(Drawer):

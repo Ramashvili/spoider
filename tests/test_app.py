@@ -3539,13 +3539,18 @@ async def test_the_offered_width_is_drawn_selected(tmp_path: Path):
         bar = app.query_one(PromptBar)
         art = bar.render()
         value_start = len(bar.label)
-        selected = [
-            span for span in art.spans if str(span.style) == "reverse" and span.start >= value_start
-        ]
-        assert selected, "the value is highlighted"
-        assert selected[0].start == value_start
-        covered = "".join(art.plain[span.start : span.end] for span in selected)
-        assert covered.strip() == bar.value, "all of it"
+        value_end = value_start + len(bar.value)
+        band = {
+            index
+            for span in art.spans
+            if str(span.style) == "reverse"
+            for index in range(span.start, span.end)
+        }
+        assert band, "the prompt is a band, so it reads against the map"
+        assert 0 in band, "the label is part of the band"
+        assert all(index not in band for index in range(value_start, value_end)), (
+            "the offered value is the plain part, like a selection in a reversed bar"
+        )
 
         await pilot.press("3")
         await pilot.pause()
@@ -4149,3 +4154,25 @@ async def test_a_config_that_exists_is_left_byte_for_byte(tmp_path: Path):
     async with app.run_test() as pilot:
         await pilot.pause()
     assert config.read_text(encoding="utf-8") == original
+
+
+async def test_the_caret_in_a_prompt_is_a_hole_in_the_band(tmp_path: Path):
+    """Reverse on reverse is invisible, so the caret is the one plain cell."""
+    from spoider.drawers import PromptBar
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+f")
+        await pilot.press("a", "b")
+        await pilot.pause()
+        bar = app.query_one(PromptBar)
+        art = bar.render()
+        caret = len(bar.label) + bar.cursor
+        band = {
+            index
+            for span in art.spans
+            if str(span.style) == "reverse"
+            for index in range(span.start, span.end)
+        }
+        assert caret not in band, "the caret cell is left plain"
+        assert caret + 1 in band, "and the band continues after it"
