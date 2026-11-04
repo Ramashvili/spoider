@@ -1003,14 +1003,22 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(prog="spoider", description="TUI mind map editor")
+    parser = argparse.ArgumentParser(
+        prog="spoider",
+        description="TUI mind map editor: one map, one bar of keys, your terminal's colours.",
+        epilog="tab makes a child, return a sibling, the arrows walk the canvas, "
+        "and ^/ lists every key once the program is open.",
+    )
     parser.add_argument(
         "path",
         nargs="?",
         help="map file to open; without one, spoider starts a new buffer",
     )
     parser.add_argument(
-        "--demo", action="store_true", help="start with the demo map instead of an empty buffer"
+        "-d",
+        "--demo",
+        action="store_true",
+        help="start with the manual as a map instead of an empty buffer",
     )
     parser.add_argument(
         "-p",

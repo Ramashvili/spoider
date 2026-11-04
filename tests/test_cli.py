@@ -47,6 +47,22 @@ def test_the_position_flag_is_handed_to_the_app(monkeypatch):
     assert _run(monkeypatch, ["-p7.4"])["position"] == "7.4"
 
 
+def test_the_demo_flag_has_a_short_form(monkeypatch):
+    assert _run(monkeypatch, ["-d"])["demo"] is True
+    assert _run(monkeypatch, ["--demo"])["demo"] is True
+
+
+def test_the_help_lists_the_options_and_says_how_to_start(monkeypatch, capsys):
+    try:
+        module.main(["--help"])
+    except SystemExit:
+        pass
+    printed = capsys.readouterr().out
+    for option in ("-d, --demo", "-p ADDRESS", "--install-desktop"):
+        assert option in printed, option
+    assert "tab makes a child" in printed, "and the first thing to know"
+
+
 def test_the_demo_flag_is_what_asks_for_the_demo_map(monkeypatch):
     assert _run(monkeypatch, ["--demo"])["demo"] is True
     assert _run(monkeypatch, [])["demo"] is False, "and it is off unless asked for"
