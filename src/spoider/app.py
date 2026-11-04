@@ -89,8 +89,11 @@ Screen.roomy MindMapView {
     text-wrap: nowrap;
     text-overflow: clip;
 }
+/* A prompt is part of the footer, not part of the map: one blank row keeps the
+   map off it, the way the bar itself keeps a line of air. */
 #ask, #prompt {
     height: 1;
+    margin-top: 1;
 }
 #footer {
     width: 100%;
