@@ -139,8 +139,8 @@ def test_spacing_is_clamped_at_both_ends():
     assert compute(mm.root, 99).width == compute(mm.root, MAX_SPACING).width
 
 
-def test_tightest_spacing_may_share_a_border_but_never_a_text_row():
-    layout = compute(sample().root, MIN_SPACING)
+def test_the_second_tightest_spacing_shares_a_border_but_never_a_text_row():
+    layout = compute(sample().root, MIN_SPACING + 1)
     boxes = list(layout.boxes.values())
     for index, a in enumerate(boxes):
         for b in boxes[index + 1 :]:
@@ -150,13 +150,23 @@ def test_tightest_spacing_may_share_a_border_but_never_a_text_row():
                 assert a.cy != b.cy, f"{a.node.text} and {b.node.text} share a text row"
 
 
-def test_vertical_gap_reaches_into_the_boxes_at_the_floor():
+def test_the_tightest_spacing_has_no_walls_at_all():
+    """At the floor a cell is its text, so there is no box to share or to draw."""
+    layout = compute(sample().root, MIN_SPACING)
+    assert layout.walls is False
+    heights = {box.h for box in layout.boxes.values()}
+    assert heights == {1}, "each cell is one row: its text"
+
+
+def test_the_vertical_gap_bottoms_out_with_a_row_of_its_own():
     from spoider.layout import GAP_Y, gaps_for
 
     assert gaps_for(0).y == GAP_Y
-    assert gaps_for(-1).y == 0  # touching
-    assert gaps_for(-2).y == -1  # sharing one row
-    assert gaps_for(-99).y == -1  # and no further
+    assert gaps_for(-1).y == 0, "touching: no blank row between the levels"
+    # at the floor a cell is one row of text, so it cannot share a row with a
+    # neighbour the way two border rows used to
+    assert gaps_for(MIN_SPACING).y == 0
+    assert gaps_for(-99).y == 0, "and no further"
 
 
 def test_stacked_shapes_keep_their_siblings_closer_together():
@@ -177,7 +187,7 @@ def test_stacked_shapes_step_down_to_a_shared_wall():
     # takes the blank row out from between the levels
     assert gaps_for(MIN_SPACING + 1, "pyramid").x == -1
     assert gaps_for(MIN_SPACING, "pyramid").x == -1
-    assert gaps_for(MIN_SPACING, "pyramid").y == -1
+    assert gaps_for(MIN_SPACING, "pyramid").y == 0
     assert gaps_for(MIN_SPACING + 1, "pyramid").y == 0
     assert gaps_for(-99, "pyramid").x == -1  # clamped, not further
     # a sideways shape keeps its columns: the connector needs the room

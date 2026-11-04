@@ -57,6 +57,8 @@ class Gaps:
 
     x: int = GAP_X
     y: int = GAP_Y
+    #: False at the tightest spacing: a cell is its text, with no walls and no box.
+    walls: bool = True
 
 
 def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
@@ -85,10 +87,12 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
         # which reads as a mistake rather than as either.
         x = -1
     return Gaps(
+        walls=spacing > MIN_SPACING,
         x=x,
         # -1 lets two boxes share a border row: they touch, but each keeps its own
-        # text row. Below that the text rows themselves would collide.
-        y=max(-1, GAP_Y + spacing),
+        # text row. With the walls gone a cell is a single row, so the floor needs a
+        # row of its own instead of sharing the row that held two borders.
+        y=0 if spacing <= MIN_SPACING else max(-1, GAP_Y + spacing),
     )
 
 
@@ -152,17 +156,18 @@ def selection_span(node: Node, line: int) -> tuple[int, int] | None:
     return left, right
 
 
-def box_width(node: Node) -> int:
-    width = max((cell_len(line) for line in lines_of(node)), default=0) + 2 * PAD + 2
+def box_width(node: Node, walls: bool = True) -> int:
+    edge = 2 if walls else 0
+    width = max((cell_len(line) for line in lines_of(node)), default=0) + 2 * PAD + edge
     if node.preview is not None:
         width += 1  # the caret's column, kept even when it hangs over a character:
         # a box that changes width as the caret moves re-centres the whole map
     return width
 
 
-def box_height(node: Node) -> int:
-    """A border, the text, and a border."""
-    return len(lines_of(node)) + 2
+def box_height(node: Node, walls: bool = True) -> int:
+    """A border, the text, and a border; only the text when there are no walls."""
+    return len(lines_of(node)) + (2 if walls else 0)
 
 
 def caret_pos(node: Node) -> tuple[int, int] | None:
@@ -179,12 +184,12 @@ def caret_pos(node: Node) -> tuple[int, int] | None:
     return line, column
 
 
-def subtree_height(node: Node, gap_y: int = GAP_Y) -> int:
+def subtree_height(node: Node, gap_y: int = GAP_Y, walls: bool = True) -> int:
     """How tall a subtree is when its children stack vertically (side layouts)."""
-    own = box_height(node)
+    own = box_height(node, walls)
     if node.collapsed or not node.children:
         return own
-    total = sum(subtree_height(child, gap_y) for child in node.children)
+    total = sum(subtree_height(child, gap_y, walls) for child in node.children)
     total += gap_y * (len(node.children) - 1)
     return max(own, total)
 
@@ -227,6 +232,8 @@ class Layout:
     #: id -> the index of the first-level branch it hangs under (-1 for the root).
     #: The family colouring reads it; nothing else does.
     families: dict[str, int] = field(default_factory=dict)
+    #: False at the tightest spacing, where a cell is its text and nothing else.
+    walls: bool = True
 
     def box(self, node_id: str) -> Placed | None:
         return self.boxes.get(node_id)
@@ -264,8 +271,8 @@ def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout
         flow = DOWN if layout == "pyramid" else UP
         _place_stack(boxes, root, gaps, flow)
     else:
-        root_width = box_width(root)
-        root_height = box_height(root)
+        root_width = box_width(root, gaps.walls)
+        root_height = box_height(root, gaps.walls)
         root_box = Placed(root, -root_width // 2, -(root_height // 2), root_width, root_height, 0, 1, RIGHT)
         boxes[root.id] = root_box
         if root.children and not root.collapsed:
@@ -289,7 +296,7 @@ def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout
 
     width = max(box.right for box in boxes.values()) + 1
     height = max(box.bottom for box in boxes.values()) + 1
-    return Layout(boxes, width, height, families_of(root))
+    return Layout(boxes, width, height, families_of(root), walls=gaps.walls)
 
 
 def compute_stack(entries: Sequence[Node], spacing: int = 0) -> Layout:
@@ -313,7 +320,7 @@ def compute_stack(entries: Sequence[Node], spacing: int = 0) -> Layout:
         width = max(width, layer.width)
         height += layer.height + 1
         families.update(layer.families)  # each entry is a root of its own layer
-    return Layout(boxes, width, max(0, height - 1), families)
+    return Layout(boxes, width, max(0, height - 1), families, walls=gaps_for(spacing).walls)
 
 
 def _place_children(
@@ -327,7 +334,7 @@ def _place_children(
     if not children:
         return
     near_x = parent.x + parent.w + gaps.x if side > 0 else parent.x - gaps.x
-    heights = [subtree_height(child, gaps.y) for child in children]
+    heights = [subtree_height(child, gaps.y, gaps.walls) for child in children]
     total = sum(heights) + gaps.y * (len(heights) - 1)
     top = parent.cy - total // 2
     for child, height in zip(children, heights):
@@ -345,9 +352,9 @@ def _place_subtree(
     gaps: Gaps,
     flow: str,
 ) -> None:
-    width = box_width(node)
+    width = box_width(node, gaps.walls)
     left = x if side > 0 else x - width
-    height = box_height(node)
+    height = box_height(node, gaps.walls)
     box = Placed(node, left, cy - height // 2, width, height, depth, side, flow)
     boxes[node.id] = box
     if node.children and not node.collapsed:
@@ -381,7 +388,7 @@ def _place_stack(boxes: dict[str, Placed], root: Node, gaps: Gaps, flow: str) ->
     level_height: dict[int, int] = {}
     for node in _walk(root):
         depth = depths.get(node.id, 0)
-        level_height[depth] = max(level_height.get(depth, 0), box_height(node))
+        level_height[depth] = max(level_height.get(depth, 0), box_height(node, gaps.walls))
     top_of: dict[int, int] = {}
     running = 0
     for depth in range(max(level_height, default=0) + 1):
@@ -393,8 +400,8 @@ def _place_stack(boxes: dict[str, Placed], root: Node, gaps: Gaps, flow: str) ->
     while pending:
         node = pending.pop()
         centre = centres[node.id]
-        width = box_width(node)
-        height = box_height(node)
+        width = box_width(node, gaps.walls)
+        height = box_height(node, gaps.walls)
         depth = depths[node.id]
         top = top_of.get(depth, 0)
         # Downwards, a level starts at its top; upwards, it ends at its bottom, so
@@ -436,7 +443,7 @@ def _stack_outline(
 
     `offsets` collects each child's column relative to its parent's centre.
     """
-    width = box_width(node)
+    width = box_width(node, gaps.walls)
     half = width // 2
     depths[node.id] = depth
     own = (-half, width - 1 - half)

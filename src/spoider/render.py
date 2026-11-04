@@ -23,7 +23,7 @@ from .layout import (
     selection_span,
 )
 from .model import DEFAULT_COLOURS
-from .text import find_all
+from .text import clean, find_all
 
 R, D, L, U = 1, 2, 4, 8
 
@@ -173,16 +173,17 @@ def build_grid(
         frame = node_style(colour, chosen_here, lead=box.node.id == lead)
         # Selection is a block around the cell, never over its text: inverting the
         # letters fights the terminal's own colours, and an emoji mark comes out as a
-        # block of reversed picture instead of a star.
-        inside = node_style(colour, selected=False)
-        _draw_box(grid, box, frame, inside, query)
+        # block of reversed picture instead of a star. With the walls gone there is no
+        # block left to draw, so the cursor's cell inverts and nothing else does.
+        inside = node_style(colour, chosen_here if not layout.walls else False)
+        _draw_box(grid, box, frame, inside, query, walls=layout.walls)
     for box in layout.boxes.values():
         if box.node.collapsed:
             continue
         for child in box.node.children:
             child_box = layout.boxes.get(child.id)
             if child_box is not None:
-                _draw_link(grid, box, child_box)
+                _draw_link(grid, box, child_box, walls=layout.walls)
     return grid.finalize()
 
 
@@ -207,7 +208,9 @@ def _mask(row: str, query: str) -> list[bool] | None:
     return mask
 
 
-def _draw_box(grid: Grid, box: Placed, style: str, inside: str, query: str = "") -> None:
+def _draw_box(
+    grid: Grid, box: Placed, style: str, inside: str, query: str = "", walls: bool = True
+) -> None:
     """Draw a box as four walls that know which way they continue.
 
     Nothing here picks a glyph: a corner is "right and down", a side is "up and
@@ -219,21 +222,25 @@ def _draw_box(grid: Grid, box: Placed, style: str, inside: str, query: str = "")
     left, right = box.x, box.x + box.w - 1
     top, bottom = box.y, box.y + box.h - 1
 
-    for x in range(left + 1, right):
-        grid.add_edge(x, top, L | R, style)
-    grid.add_edge(left, top, R | D, style)
-    grid.add_edge(right, top, L | D, style)
+    if walls:
+        for x in range(left + 1, right):
+            grid.add_edge(x, top, L | R, style)
+        grid.add_edge(left, top, R | D, style)
+        grid.add_edge(right, top, L | D, style)
 
-    for y in range(top + 1, bottom):
-        grid.add_edge(left, y, U | D, style)
-        grid.add_edge(right, y, U | D, style)
+        for y in range(top + 1, bottom):
+            grid.add_edge(left, y, U | D, style)
+            grid.add_edge(right, y, U | D, style)
 
-    for x in range(left + 1, right):
-        grid.add_edge(x, bottom, L | R, style)
-    grid.add_edge(left, bottom, R | U, style)
-    grid.add_edge(right, bottom, L | U, style)
+        for x in range(left + 1, right):
+            grid.add_edge(x, bottom, L | R, style)
+        grid.add_edge(left, bottom, R | U, style)
+        grid.add_edge(right, bottom, L | U, style)
 
-    inner = box.w - 2
+    inner = box.w - 2 if walls else box.w
+    # the row carries its own padding, so the run starts at the first inner column
+    text_x = left + 1 if walls else left
+    text_y = top + 1 if walls else top
     lines = lines_of(box.node)
     for index, text in enumerate(lines):
         row = " " * PAD + text + " " * max(0, inner - PAD - cell_len(text))
@@ -243,13 +250,27 @@ def _draw_box(grid: Grid, box: Placed, style: str, inside: str, query: str = "")
             start = PAD + span[0]
             for column in range(start, min(start + (span[1] - span[0]), len(mask))):
                 mask[column] = True
-        grid.put_text(left + 1, top + 1 + index, row, inside, mask)
+        # an inverted cell keeps its mark out of the inversion: a picture has no colours
+        # to swap, only colours to ruin
+        mark = clean(box.node.mark) if box.node.mark else ""
+        mark_chars = len(mark) + 1 if mark else 0
+        plain = " ".join(part for part in inside.split() if part not in ("reverse", "underline"))
+        cut = PAD + mark_chars
+        if index == 0 and mark_chars and "reverse" in inside and cut < len(row):
+            grid.put_text(text_x, text_y + index, row[:cut], plain, mask[:cut])
+            # the row is sliced by character and placed by cell: a wide mark is one
+            # character and two columns
+            grid.put_text(
+                text_x + cell_len(row[:cut]), text_y + index, row[cut:], inside, mask[cut:]
+            )
+        else:
+            grid.put_text(text_x, text_y + index, row, inside, mask)
         # the folded count wears the colour of the links, so it reads as a number about
         # the structure rather than as part of the cell's own text
         note = fold_note(box.node)
         if note and index == len(lines) - 1:
             start = PAD + len(text) - len(note)
-            x = left + 1 + cell_len(row[:start])
+            x = text_x + cell_len(row[:start])
             for offset, char in enumerate(note):
                 marked = mask[start + offset] if start + offset < len(mask) else False
                 grid.put(x, top + 1 + index, char, _marked(LINK_COLOR) if marked else LINK_COLOR)
@@ -257,7 +278,7 @@ def _draw_box(grid: Grid, box: Placed, style: str, inside: str, query: str = "")
     at = caret_pos(box.node)
     if at is not None:
         line, column = at
-        _hang_caret(grid, left + 1 + PAD + column, top + 1 + line, inside, box.node.overwrite)
+        _hang_caret(grid, text_x + PAD + column, text_y + line, inside, box.node.overwrite)
 
 
 def _hang_caret(grid: Grid, x: int, y: int, style: str, overwrite: bool = False) -> None:
@@ -274,9 +295,9 @@ def _hang_caret(grid: Grid, x: int, y: int, style: str, overwrite: bool = False)
     grid.put(x, y, ch, f"{under} {mark}".strip())
 
 
-def _draw_link(grid: Grid, parent: Placed, child: Placed) -> None:
+def _draw_link(grid: Grid, parent: Placed, child: Placed, walls: bool = True) -> None:
     if child.flow in (DOWN, UP):
-        _draw_stack_link(grid, parent, child, child.flow)
+        _draw_stack_link(grid, parent, child, child.flow, walls=walls)
         return
     if child.flow == RIGHT:
         start = parent.x + parent.w
@@ -303,11 +324,14 @@ def _draw_link(grid: Grid, parent: Placed, child: Placed) -> None:
     # The line leaves one wall and arrives at the other, and both become a T
     # pointing at it — the same treatment the stacked shapes get. Without this
     # the connector stops a column short of the box and reads as unattached.
-    grid.add_edge(leave_from, parent.cy, leaves, LINK_COLOR)
-    grid.add_edge(arrive_at, child.cy, arrives, LINK_COLOR)
+    if walls:
+        grid.add_edge(leave_from, parent.cy, leaves, LINK_COLOR)
+        grid.add_edge(arrive_at, child.cy, arrives, LINK_COLOR)
 
 
-def _draw_stack_link(grid: Grid, parent: Placed, child: Placed, flow: str) -> None:
+def _draw_stack_link(
+    grid: Grid, parent: Placed, child: Placed, flow: str, walls: bool = True
+) -> None:
     """A link between two levels of a pyramid or a bush: down or up the page."""
     down = flow == DOWN
     step = 1 if down else -1
@@ -322,8 +346,9 @@ def _draw_stack_link(grid: Grid, parent: Placed, child: Placed, flow: str) -> No
         return
     if room == -1:
         # Nothing between the edges: say which way the line goes on each of them.
-        grid.add_edge(parent.cx, parent_edge, D if down else U, LINK_COLOR)
-        grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
+        if walls:
+            grid.add_edge(parent.cx, parent_edge, D if down else U, LINK_COLOR)
+            grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
         return
 
     mid = start + step * min(1, room)
@@ -344,9 +369,10 @@ def _draw_stack_link(grid: Grid, parent: Placed, child: Placed, flow: str) -> No
             _vertical(grid, y1, y2, x1)
 
     # the trunk leaves the parent's edge and arrives at the child's
-    grid.add_edge(parent.cx, parent_edge, D if down else U, LINK_COLOR)
-    if end == mid:
-        grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
+    if walls:
+        grid.add_edge(parent.cx, parent_edge, D if down else U, LINK_COLOR)
+        if end == mid:
+            grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
 
 
 def _horizontal(grid: Grid, x1: int, x2: int, y: int) -> None:

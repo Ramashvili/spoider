@@ -163,32 +163,6 @@ def _stacked(spacing: int, first: str = "one", second: str = "two") -> str:
     return _render(mm, width=90, height=30)
 
 
-def test_stacked_boxes_share_one_rule_joined_by_t_pieces():
-    drawn = _stacked(-2)
-    shared = [line.strip() for line in drawn.splitlines() if "├" in line]
-    assert shared, "two boxes one row apart should share their border row"
-    row = shared[0]
-    # the rule the two boxes share meets the side walls as a T, not as two
-    # rounded corners fighting over the same cells
-    assert "├" in row and "┤" in row
-    assert "╭────" not in row and "╰────" not in row
-    # equal widths, so nothing sticks out sideways
-    assert "┬" not in row and "┴" not in row
-
-
-def test_a_narrower_box_sharing_a_row_leaves_a_stub_junction():
-    drawn = _stacked(-2, first="a much longer name", second="short")
-    assert any("┬" in line or "┴" in line for line in drawn.splitlines())
-
-
-def test_a_shared_row_keeps_both_boxes_closed():
-    drawn = _stacked(-2).splitlines()
-    shared = next(index for index, line in enumerate(drawn) if "├" in line)
-    assert "│" in drawn[shared - 1]  # the box above still has its text row
-    assert "│" in drawn[shared + 1]  # and the box below its own
-    assert drawn[shared - 1].count("│") >= 2
-
-
 def test_spacing_zero_gives_each_box_its_own_rounded_corners():
     # With air between the boxes no border is shared, so all four corners of
     # every box survive intact; the T's are only where a connector meets a wall.
@@ -211,7 +185,7 @@ def test_tight_and_loose_spacing_change_the_drawn_size():
     branch = mm.add_child(mm.root.id, "branch")
     mm.add_child(branch.id, "one")  # siblings on the same side stack vertically
     mm.add_child(branch.id, "two")
-    tight = compute(mm.root, -2)
+    tight = compute(mm.root, -1)
     loose = compute(mm.root, 4)
     assert tight.width < loose.width
     assert tight.height < loose.height
@@ -243,19 +217,6 @@ def test_a_bush_link_points_upwards():
     assert "┬" in drawn and "┴" in drawn
 
 
-def test_boxes_touching_in_a_pyramid_are_joined_not_overwritten():
-    mm = MindMap(Node("root"), spacing=-3)
-    mm.layout = "pyramid"
-    mm.add_child(mm.root.id, "one")
-    mm.add_child(mm.root.id, "two")
-    layout = compute(mm.root, -3, "pyramid")
-    drawn = render_text(build_grid(layout, mm.root.id), 0, 0, layout.width, layout.height).plain
-    # parent and children share one row, and every place they meet is a T
-    shared = [row for row in drawn.splitlines() if "┬" in row or "┴" in row]
-    assert shared, "expected a shared border row"
-    assert "┬" in shared[0] and "┴" in shared[0]
-
-
 def test_a_child_centred_under_its_parent_stays_connected():
     # the centres line up, so there is no horizontal run to draw — the single row
     # between the two edges still has to be a wall, not a hole
@@ -284,10 +245,10 @@ def test_a_connector_leaves_and_arrives_through_t_junctions():
 
 
 def test_a_shared_wall_between_siblings_is_one_column():
-    mm = MindMap(Node("root"), spacing=-2)
+    mm = MindMap(Node("root"), spacing=-1)
     one = mm.add_child(mm.root.id, "one")
     two = mm.add_child(mm.root.id, "two")
-    layout = compute(mm.root, -2, "pyramid")
+    layout = compute(mm.root, -1, "pyramid")
     grid = build_grid(layout, mm.root.id)
     first = layout.boxes[one.id]
     second = layout.boxes[two.id]
@@ -458,3 +419,30 @@ def test_selected_text_is_highlighted_in_the_cell():
     highlighted = "".join(ch for ch, style in cells if "reverse" in style)
     # the trailing space is the caret, which sits at the end of the selection
     assert highlighted == "alpha ", "the selection, and only it, is reversed"
+
+
+def test_the_tightest_spacing_drops_the_walls_and_inverts_only_the_cursor():
+    """At -2 a cell is its text: no box, and the cursor is the one reversed block."""
+    mm = MindMap(Node("root"))
+    alpha = mm.add_child(mm.root.id, "alpha")
+    beta = mm.add_child(mm.root.id, "beta")
+    alpha.mark = "⭐"
+    layout = compute(mm.root, -2)
+    assert layout.walls is False
+
+    drawn = build_grid(layout, alpha.id)
+    text = render_text(drawn, 0, 0, layout.width, layout.height).plain
+    for wall in ("╭", "╮", "│", "─┤"):
+        assert wall not in text, wall
+
+    a, b = layout.boxes[alpha.id], layout.boxes[beta.id]
+    text_x = a.x + PAD + cell_len("⭐") + 1  # past the mark and its space
+    here = drawn.cells[(text_x, a.y)][1]
+    elsewhere = drawn.cells[(b.x + PAD, b.y)][1]
+    assert "reverse" in here, "the cursor is what says where the keys are"
+    assert "reverse" not in elsewhere, "and nothing else inverts"
+
+    # the mark sits inside the inverted cell and keeps its own colours
+    mark = drawn.cells[(a.x + PAD, a.y)][1]
+    assert "reverse" not in mark
+    assert "reverse" in here, "the text beside the mark does invert"
