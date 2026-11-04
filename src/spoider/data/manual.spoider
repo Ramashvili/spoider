@@ -105,11 +105,27 @@
     ]
    },
    {
-    "id": "m800",
+    "id": "m810",
     "text": "the arrows move around",
     "collapsed": false,
     "mark": "",
-    "children": []
+    "children": [
+     {
+      "id": "m811",
+      "text": "every chord can be changed",
+      "collapsed": false,
+      "mark": "",
+      "children": [
+       {
+        "id": "m812",
+        "text": "~/.config/spoider/spoider.conf",
+        "collapsed": false,
+        "mark": "",
+        "children": []
+       }
+      ]
+     }
+    ]
    },
    {
     "id": "m019",
@@ -330,34 +346,27 @@
     ]
    },
    {
-    "id": "m049",
+    "id": "m820",
     "text": "when you forget",
     "collapsed": false,
     "mark": "",
     "children": [
      {
-      "id": "m050",
+      "id": "m821",
       "text": "^/ lists every key",
       "collapsed": false,
       "mark": "",
       "children": []
      },
      {
-      "id": "m051",
-      "text": "^, opens the settings file",
-      "collapsed": false,
-      "mark": "",
-      "children": []
-     },
-     {
-      "id": "m801",
-      "text": "every chord can be changed in the config",
+      "id": "m822",
+      "text": "^, opens the settings",
       "collapsed": false,
       "mark": "",
       "children": [
        {
-        "id": "m802",
-        "text": "~/.config/spoider/spoider.conf",
+        "id": "m823",
+        "text": "autosave can be turned on there",
         "collapsed": false,
         "mark": "",
         "children": []
