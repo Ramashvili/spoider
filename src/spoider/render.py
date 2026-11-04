@@ -476,18 +476,23 @@ def paint_box(
         for x in range(1, top):
             put(x, index, " ")
         column = 1
-        # the same rule the map's own text follows: one column per character, and a
-        # glyph that reports two columns claims the one after it as empty
+        # a base glyph and the selectors after it are one thing on screen, and only the
+        # whole cluster knows its width: `⚠` is one column, `⚠️` is two. The cluster goes
+        # in a single cell and the columns it covers are reserved as empty.
+        clusters: list[str] = []
         for char in line:
-            if cell_len(char) == 0:
-                continue  # the map's own text skips selectors the same way
-            char_width = max(cell_len(char), 1)
-            if column + char_width > top:
+            if cell_len(char) == 0 and clusters:
+                clusters[-1] += char
+            else:
+                clusters.append(char)
+        for cluster in clusters:
+            cluster_width = cell_len(cluster)
+            if column + cluster_width > top:
                 break
-            put(column, index, char)
-            for extra in range(1, char_width):
+            put(column, index, cluster)
+            for extra in range(1, cluster_width):
                 put(column + extra, index, "")
-            column += char_width
+            column += cluster_width
     bottom = min(height - 1, len(screen) - 1)
     put(0, bottom, "╰")
     for x in range(1, top):

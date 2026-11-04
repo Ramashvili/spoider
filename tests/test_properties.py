@@ -167,11 +167,24 @@ def test_the_readme_names_the_key():
     assert "| &#96; |" in README.read_text(encoding="utf-8")
 
 
-def test_a_marks_row_is_as_wide_as_the_others():
-    """Emoji of different reported widths must not pull the right border about."""
+def test_a_marks_row_keeps_its_right_border_in_place():
+    """A glyph that is two columns wide must reserve both of them.
+
+    Strings are the wrong instrument here: the second column of a wide glyph is an empty
+    cell, so it adds width without adding a character. The cells themselves are the truth.
+    """
+    from spoider.render import paint_box
+
     mm, _alpha, deep = _map()
     mm.marks = ("⚠️", "✅", "🤡", "⭐", "❓", "📌")
-    drawn = _screen(sections(mm, None, deep.id, 1, None, dirty=False, autosave=False))
-    body = [line for line in drawn.splitlines() if line.startswith("│")]
-    widths = {cell_len(line) for line in body}
-    assert len(widths) == 1, f"rows differ in width: {sorted(widths)}"
+    rows = sections(mm, None, deep.id, 1, None, dirty=False, autosave=False)
+    screen = [[(" ", "") for _ in range(60)] for _ in range(24)]
+    paint_box(screen, rows, LINK_COLOR)
+    borders = {
+        max(index for index, (ch, _style) in enumerate(line) if ch == "│")
+        for line in screen
+        if line[0][0] == "│"
+    }
+    assert len(borders) == 1, f"the right border wandered: {sorted(borders)}"
+    drawn = "".join(ch for line in screen for ch, _style in line)
+    assert "⚠\ufe0f" in drawn, "the selector stays with its glyph"
