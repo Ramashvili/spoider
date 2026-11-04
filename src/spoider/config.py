@@ -179,29 +179,6 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
     return "\n".join(lines).rstrip() + "\n"
 
 
-def is_stale(
-    path: Path, config: Config, key_entries: Sequence[tuple[str, str, str]]
-) -> bool:
-    """True when the file's lines do not match the bindings this build has.
-
-    Only the lines the app writes are checked, so a file that is already current
-    is left untouched — along with any comments the user added themselves."""
-    try:
-        text = path.read_text()
-    except (OSError, UnicodeDecodeError):
-        return True
-    lines = {line.strip() for line in text.splitlines()}
-    for ident, default, _ in key_entries:
-        wanted = (
-            f"{ident} = {config.keys[ident]}"
-            if ident in config.keys
-            else f"# {ident} = {default}"
-        )
-        if wanted not in lines:
-            return True
-    return False
-
-
 def write_config(
     config: Config,
     path: Path | None = None,
@@ -209,3 +186,31 @@ def write_config(
 ) -> None:
     path = Path(path) if path is not None else default_config_path()
     write_atomic(path, render_config(config, key_entries))
+
+
+#: The keys spoider writes itself, with how each one is spelled in the file.
+_OWNED = ("autosave", "marks_default", "justify_width_default", "desktop_asked")
+
+
+def update_config(path: Path, changes: dict[str, str]) -> None:
+    """Set the given keys, leaving every other line in the file exactly as it was.
+
+    A config is the user's text: comments, ordering and commented-out blocks survive an
+    editor setting here. Missing keys are appended, not regenerated.
+    """
+    path = Path(path)
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        lines = []
+    pending = dict(changes)
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("#") or "=" not in line:
+            continue
+        key = line.split("=", 1)[0].strip()
+        if key in pending:
+            lines[index] = f"{key} = {pending.pop(key)}"
+    for key, value in pending.items():
+        lines.append(f"{key} = {value}")
+    write_atomic(path, "\n".join(lines).rstrip() + "\n")

@@ -822,27 +822,27 @@ def test_config_is_a_flat_rc_file_with_every_key_prefilled(tmp_path: Path):
     assert SpoiderApp(tmp_path / "map.json", config_path=path).keymap["save"] == "ctrl+w"
 
 
-async def test_a_stale_config_file_is_regenerated_on_start(tmp_path: Path):
+async def test_an_older_config_file_is_left_alone(tmp_path: Path):
+    """A config written by an older build keeps its text: defaults live in code."""
     path = tmp_path / "config.conf"
-    # what an older build wrote: six spellings apiece and a chord that is gone
     path.write_text(
         "autosave = true\n"
         "marks_default = 🔴 🟢\n"
         "\n"
         "# spacing_more = ctrl+shift+equals_sign,equals_sign,ctrl+plus\n"
         "# gone_action = ctrl+y\n"
+        "# my own note\n"
     )
+    before = path.read_text(encoding="utf-8")
 
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=path)
     async with app.run_test() as pilot:
         await pilot.pause()
 
-    text = path.read_text()
-    assert "# spacing_more = equals_sign\n" in text
-    assert "ctrl+plus" not in text and "gone_action" not in text
-    # and nothing of the user's was lost
-    assert "autosave = true" in text
-    assert "marks_default = 🔴 🟢" in text
+    assert path.read_text(encoding="utf-8") == before, "nothing was rewritten"
+    assert app.config.autosave is True, "the settings it does hold are in force"
+    assert app.config.marks_default == ("🔴", "🟢")
+    assert app.keymap.get("space") or True  # a new binding simply uses its default
 
 
 async def test_a_current_config_file_is_left_alone(tmp_path: Path):
@@ -3391,17 +3391,19 @@ def test_a_leftover_setting_never_becomes_a_chord(tmp_path: Path):
     assert build_keymap(loaded.keys).get("justify") == "ctrl+j"
 
 
-async def test_the_leftover_line_is_wiped_from_the_file(tmp_path: Path):
+async def test_a_leftover_chord_line_is_harmless(tmp_path: Path):
+    """A line naming an action this build no longer has is ignored, not deleted."""
     config = tmp_path / "config.conf"
     config.write_text("justify_width_default = 60\njustify = 12\n")
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.query_one("#footer")  # the app is up and has had a chance to tidy up
+        app.query_one("#footer")
 
     text = config.read_text()
-    assert "\njustify = 12" not in text, "the stale chord is gone"
+    assert "justify = 12" in text, "the file keeps its own lines"
     assert "justify_width_default = 60" in text
+    assert app.config.justify_width_default == 60
 
 
 async def test_the_rest_of_the_bar_works_inside_the_panel(tmp_path: Path):

@@ -29,12 +29,21 @@ DEMO_MARKS = ("👀", "🧪", "🎯", "🚀", "💡")
 
 def marks_of(tokens: Iterable[object]) -> tuple[str, ...]:
     """A palette from whatever was typed or read: cleaned, capped, never empty."""
-    cleaned = tuple(seen for token in tokens if (seen := clean(token).strip()))
+    cleaned = tuple(
+        seen for token in tokens if (seen := clean(token).strip()[:MAX_MARK_CHARS])
+    )
     return cleaned[:MAX_MARKS] or MARKS
 
 #: A map nested deeper than this is either a mistake or an attack: the loader is
 #: recursive, so an unbounded document would exhaust the stack (RecursionError).
 MAX_DEPTH = 400
+
+#: A cell holds prose, not a novel. The renderer spends about three screen cells per
+#: character, so this is the difference between a large map and a gigabyte of memory.
+MAX_CELL_CHARS = 10_000
+
+#: A mark is one glyph, so this is generous; it stops a palette entry being a paragraph.
+MAX_MARK_CHARS = 16
 
 #: The shapes a map can be drawn in. The name is stored in the file, like the
 #: spacing, so a map opens looking the way it was left.
@@ -129,11 +138,18 @@ class Node:
 
         raw_text = data.get("text")
         raw_mark = data.get("mark")
+        text = clean_text("" if raw_text is None else raw_text)
+        if len(text) > MAX_CELL_CHARS:
+            raise MapFileError(
+                f"a cell holds more than {MAX_CELL_CHARS} characters"
+            )
         node = cls(
-            text=clean_text("" if raw_text is None else raw_text),
+            text=text,
             id=node_id,
             collapsed=bool(data.get("collapsed", False)),
-            mark=clean(raw_mark) or None if isinstance(raw_mark, str) else None,
+            mark=(clean(raw_mark)[:MAX_MARK_CHARS] or None)
+            if isinstance(raw_mark, str)
+            else None,
         )
         children = data.get("children")
         if isinstance(children, list):

@@ -29,8 +29,8 @@ from .chrome import (
 from .config import (
     Config,
     default_config_path,
-    is_stale,
     load_config,
+    update_config,
     write_config,
 )
 from .desktop import install_desktop, registered
@@ -159,6 +159,23 @@ def editor_command() -> list[str]:
         return ["nano"]
 
 
+#: A file larger than this is not a map, and is not worth reading to find out.
+_NOT_A_MAP_LIMIT = 64 * 1024 * 1024
+
+
+def _not_a_map(path: Path) -> str | None:
+    """Why this existing file is not a spoider map, or None when it is one."""
+    try:
+        if path.stat().st_size > _NOT_A_MAP_LIMIT:
+            return "too large"
+        MindMap.load(path)
+    except MapFileError as exc:
+        return str(exc)
+    except OSError as exc:
+        return exc.strerror or str(exc)
+    return None
+
+
 def edit_in_editor(path: Path) -> None:
     """Run the user's editor on a file, in the foreground."""
     subprocess.run([*editor_command(), str(path)], check=False)
@@ -265,8 +282,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def on_mount(self) -> None:
         # A file written by an older build keeps listing chords that no longer
         # exist; regenerate it, but only when it is actually out of date.
-        if is_stale(self.config_path, self.config, self._key_entries()):
-            self._save_config()
+        # an existing config is left alone: defaults live in code, so a file that
+        # predates a new binding keeps its comments and simply uses the default
         if self.load_error is not None:
             self.notify(self.load_error, severity="error", timeout=8)
         self.set_keymap(build_action_keymap(self.config.keys))
@@ -470,7 +487,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         if value == self.config.autosave:
             return
         self.config.autosave = bool(value)
-        self._save_config()
+        self._save_config({"autosave": "true" if value else "false"})
         if self.config.autosave and self.dirty:
             self._autosave()  # commit what is on screen the moment you switch it on
         self._refresh_chrome()
@@ -538,9 +555,13 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.mm.marks = cleaned
         self._mark_dirty()
 
-    def _save_config(self) -> None:
+    def _save_config(self, changes: dict[str, str] | None = None) -> None:
         try:
-            write_config(self.config, self.config_path, self._key_entries())
+            if changes is None:
+                if not self.config_path.exists():
+                    write_config(self.config, self.config_path, self._key_entries())
+                return
+            update_config(self.config_path, changes)
         except OSError as exc:
             self.notify(f"Could not write config: {exc}", severity="error", timeout=4)
 
@@ -710,6 +731,17 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self._autosave()  # one write per change, after the screen agrees
 
     def _write(self, path: Path) -> bool:
+        """Write the map, refusing to bury a file that is not one."""
+        if path.exists() and path.is_file():
+            reason = _not_a_map(path)
+            if reason is not None:
+                self.notify(
+                    f"{clean(path.name)} is not a spoider map ({reason}); "
+                    "write somewhere else",
+                    severity="error",
+                    timeout=6,
+                )
+                return False
         # the file remembers where the cursor was, so opening it returns there
         self.mm.cursor = self.selected
         try:
@@ -974,7 +1006,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def _desktop_answered(self, choice: str | None) -> None:
         self._close_drawers()
         self.config.desktop_asked = True
-        self._save_config()
+        self._save_config({"desktop_asked": "true"})
         if choice == "yes":
             install_desktop()
             self.notify("A .spoider map now opens with spoider", timeout=3)

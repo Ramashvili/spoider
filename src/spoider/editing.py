@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from rich.cells import cell_len
 
+from .model import MAX_CELL_CHARS
+
 #: What counts as part of a word for alt+backspace and alt+d. Anything that is not
 #: a space or punctuation, which is what a person means by "word" in prose.
 _BREAK = set(" \t\n.,;:!?()[]{}<>\"'`/\\|-—…")
@@ -33,6 +35,8 @@ class Buffer:
         #: The column `up`/`down` try to keep, so a run of vertical moves through
         #: short lines does not drift left.
         self.goal: int | None = None
+        #: How much text a cell may hold, from the model's cap.
+        self.limit = MAX_CELL_CHARS
         #: History of (text, caret). A run of typed characters is one step; anything
         #: else starts a new one, which is what makes ^Z feel like an editor's.
         self._undo: list[tuple[str, int]] = []
@@ -120,8 +124,20 @@ class Buffer:
         self._typing = False
         return True
 
+    @property
+    def selection_length(self) -> int:
+        """How many characters a typed chunk would replace."""
+        if self.anchor is None:
+            return 0
+        return abs(self.caret - self.anchor)
+
     def insert(self, chunk: str) -> None:
         chunk = chunk.replace("\r\n", "\n").replace("\r", "\n")
+        room = self.limit - len(self.text) + self.selection_length
+        if room <= 0:
+            return
+        if len(chunk) > room:
+            chunk = chunk[:room]
         single = len(chunk) == 1 and chunk != "\n"
         self._remember(typing=single)
         if self._replace_selection(chunk):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -224,3 +225,89 @@ def test_a_file_name_cannot_drive_the_terminal(tmp_path: Path):
     ))["file state"])
     for shown in (rows["file"], app._title()):
         assert "\x1b" not in shown and "\x07" not in shown, f"escape survived in {shown!r}"
+
+
+def test_a_write_over_another_map_is_allowed(tmp_path: Path):
+    """Replacing a file that is a spoider map needs no ceremony."""
+    from spoider.app import _not_a_map
+
+    other = tmp_path / "other.spoider"
+    MindMap(Node("root")).save(other)
+    assert _not_a_map(other) is None, "a map is a fine target"
+
+
+def test_a_write_over_a_foreign_file_is_refused(tmp_path: Path):
+    """^O with a typed name must not bury a text file."""
+    from spoider.app import _not_a_map
+
+    notes = tmp_path / "README.md"
+    notes.write_text("# my readme\n", encoding="utf-8")
+    assert _not_a_map(notes) is not None
+
+
+def test_an_over_long_cell_is_refused_at_the_door(tmp_path: Path):
+    from spoider.model import MAX_CELL_CHARS
+
+    path = tmp_path / "long.spoider"
+    path.write_text(
+        json.dumps({"version": 1, "root": {"id": "r", "text": "A" * (MAX_CELL_CHARS + 1),
+                    "collapsed": False, "mark": None, "children": []}}),
+        encoding="utf-8",
+    )
+    with pytest.raises(MapFileError):
+        MindMap.load(path)
+
+
+def test_a_cell_holds_exactly_the_cap(tmp_path: Path):
+    from spoider.model import MAX_CELL_CHARS
+
+    path = tmp_path / "at.spoider"
+    path.write_text(
+        json.dumps({"version": 1, "root": {"id": "r", "text": "A" * MAX_CELL_CHARS,
+                    "collapsed": False, "mark": None, "children": []}}),
+        encoding="utf-8",
+    )
+    assert len(MindMap.load(path).root.text) == MAX_CELL_CHARS
+
+
+def test_typing_stops_at_the_cap():
+    from spoider.editing import Buffer
+    from spoider.model import MAX_CELL_CHARS
+
+    buffer = Buffer()
+    buffer.insert("A" * (MAX_CELL_CHARS + 500))
+    assert len(buffer.text) == MAX_CELL_CHARS
+    buffer.insert("B")
+    assert len(buffer.text) == MAX_CELL_CHARS, "a full cell takes no more"
+
+
+def test_a_mark_is_capped():
+    from spoider.model import MAX_MARK_CHARS, marks_of
+
+    marks = marks_of(["⭐" * 40, "ok"])
+    assert all(len(mark) <= MAX_MARK_CHARS for mark in marks)
+
+
+def test_the_config_keeps_its_comments(tmp_path: Path):
+    """An existing config is the user's text: only the lines spoider owns change."""
+    from spoider.config import update_config
+
+    conf = tmp_path / "spoider.conf"
+    conf.write_text(
+        "# my careful note\nautosave = false\n\n# a block I turned off\n# prev = k up\n",
+        encoding="utf-8",
+    )
+    update_config(conf, {"autosave": "true", "desktop_asked": "true"})
+    text = conf.read_text(encoding="utf-8")
+    assert "# my careful note" in text and "# a block I turned off" in text
+    assert "# prev = k up" in text
+    assert "autosave = true" in text
+    assert "desktop_asked = true" in text, "a missing key is appended, not regenerated"
+
+
+def test_an_existing_config_is_not_rewritten_on_start(tmp_path: Path):
+    conf = tmp_path / "spoider.conf"
+    conf.write_text("# hands off\nprev = k up\n", encoding="utf-8")
+    before = conf.read_text(encoding="utf-8")
+    SpoiderApp(tmp_path / "m.spoider", config_path=conf, demo=False)
+    assert conf.read_text(encoding="utf-8") == before
