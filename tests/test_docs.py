@@ -26,6 +26,7 @@ NAMED = {
     "-": "minus",
     "^,": "ctrl+comma",
     "^/": "ctrl+slash",
+    "?": "question_mark",
 }
 ARROWS = "↑↓←→"
 VIM = "hjkl"

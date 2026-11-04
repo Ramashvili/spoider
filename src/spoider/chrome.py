@@ -67,7 +67,20 @@ BAR_ORDER: tuple[str, ...] = (
 )
 
 #: Bare keys need their own caps: `=` and `-` do not spell themselves.
-BAR_GLYPHS = {"equals_sign": "=", "minus": "-", "grave_accent": "`"}
+BAR_GLYPHS = {
+    "equals_sign": "=",
+    "minus": "-",
+    "grave_accent": "`",
+    "question_mark": "?",
+    # named keys keep the spelling a keyboard uses, not the terminal's
+    "home": "Home",
+    "end": "End",
+    "pageup": "PgUp",
+    "pagedown": "PgDn",
+    "delete": "Del",
+    "insert": "Ins",
+    "escape": "esc",
+}
 
 #: Always visible, flush right: binding id, the chord it has by default, and its
 #: label. Order matters — the last one sits closest to the edge. Rebinding either in
@@ -76,7 +89,7 @@ BAR_GLYPHS = {"equals_sign": "=", "minus": "-", "grave_accent": "`"}
 PINNED: tuple[tuple[str, str, str], ...] = (
     ("toggle_properties", "grave_accent", "debug"),
     ("settings", "ctrl+comma", "settings"),
-    ("help", "ctrl+slash", "help"),
+    ("help", "question_mark", "help"),
 )
 
 DIVIDER = "│"

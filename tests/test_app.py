@@ -38,6 +38,7 @@ def test_every_shortcut_uses_a_modifier():
         "p",
         "equals_sign",
         "grave_accent",
+        "question_mark",
         "home",
         "end",
         "pageup",
@@ -53,7 +54,7 @@ def test_every_shortcut_uses_a_modifier():
 def test_footer_lists_the_visible_bindings_plus_the_pinned_cluster():
     line = compose_footer(160, hint_chunks(BINDINGS)).plain
     assert "⇥ child" in line and "^X quit" in line
-    assert "^, settings" in line and "^/ help" in line
+    assert "^, settings" in line and "? help" in line
     assert "^Y" not in line  # redo stays out of the bar
     assert "^A" not in line  # the child alias stays off the bar
     for nav in ("^P", "^N", "^B"):
@@ -77,7 +78,7 @@ def test_footer_caps_are_coloured_text_without_a_block():
 def test_pinned_cluster_survives_any_width():
     for width in (40, 55, 70, 90, 120, 200):
         line = compose_footer(width, hint_chunks(BINDINGS))
-        assert line.plain.rstrip().endswith("^/ help")
+        assert line.plain.rstrip().endswith("? help")
         assert "^, settings" in line.plain
         assert line.cell_len == width  # fills the row exactly, never overflows
 
@@ -86,7 +87,7 @@ def test_hints_are_dropped_before_the_pinned_cluster():
     wide = compose_footer(200, hint_chunks(BINDINGS)).plain
     narrow = compose_footer(60, hint_chunks(BINDINGS)).plain
     assert "^Z undo" in wide and "^Z undo" not in narrow
-    assert "^/ help" in wide and "^/ help" in narrow
+    assert "? help" in wide and "? help" in narrow
     # whole entries only: no half-drawn cap at the edge
     assert "loose" not in narrow.split("│")[0] or "looser" in narrow
 
@@ -615,7 +616,7 @@ def test_help_text_covers_keys(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     body = help_text(app).plain
     # chords come from the keymap, so they read as they are actually bound
-    for expected in ("Making cells", "Moving", "File", "⇥", "⏎", "^D", "^X", "M-↑", "M-↓", "S-←↑↓→", "^/", "^,"):
+    for expected in ("Making cells", "Moving", "File", "⇥", "⏎", "^D", "^X", "M-↑", "M-↓", "S-←↑↓→", "?", "^,"):
         assert expected in body, expected
     # no lectures: the panel is the keys, nothing else
     for absent in ("Mouse", "Saving", "Colours", "Also", "esc closes"):
@@ -4119,3 +4120,29 @@ def test_the_demo_names_the_tree_keys_and_the_debug_box():
     joined = " ".join(texts)
     for word in ("pgup", "pgdn", "home", "end", "del", "`"):
         assert word in joined, f"the demo should mention {word}"
+
+
+async def test_question_mark_opens_help_and_the_slash_still_does(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "q.conf", demo=False)
+    async with app.run_test(size=(100, 40)) as pilot:
+        await pilot.press("question_mark")
+        await pilot.pause()
+        assert app.mode == "help", "? is the key people press"
+        await pilot.press("escape")
+        await pilot.pause()
+
+        await pilot.press("ctrl+slash")
+        await pilot.pause()
+        assert app.mode == "help", "^/ is still there for terminals that cannot send ?"
+
+
+async def test_the_help_leads_with_the_arrow_not_the_nano_chord(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "q.conf", demo=False)
+    async with app.run_test(size=(100, 60)) as pilot:
+        await pilot.press("question_mark")
+        await pilot.pause()
+        lines = app.query_one(PanelBar).render().plain.splitlines()
+        start = next(i for i, line in enumerate(lines) if line.strip() == "Moving")
+        moving = " ".join(lines[start : start + 6])
+        assert "↑" in moving and "↓" in moving and "←" in moving and "→" in moving
+        assert "^P" not in moving and "^B" not in moving, "the nano chords are secondary"

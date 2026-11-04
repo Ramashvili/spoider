@@ -958,7 +958,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
 
     def action_help(self) -> None:
-        """^/ — every key and option, with a line of explanation."""
+        """? — every key and option, with a line of explanation. ^/ does it too."""
         self._mode = "help"
         self._hide_drawers(PanelBar)
         self.query_one(PanelBar).show(help_text(self), self._help_key)
@@ -1137,7 +1137,7 @@ def main(argv: list[str] | None = None) -> None:
         prog="spoider",
         description="TUI mind map editor: one map, one bar of keys, your terminal's colours.",
         epilog="tab makes a child, return a sibling, the arrows walk the canvas, "
-        "and ^/ lists every key once the program is open.",
+        "and ? lists every key once the program is open.",
     )
     parser.add_argument(
         "path",

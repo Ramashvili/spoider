@@ -36,12 +36,15 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+f", "search", "search", id="search"),
     # rendered as the pinned cluster at the right edge, not among the hints
     Binding("ctrl+comma", "settings", "settings", show=False, id="settings"),
-    Binding("ctrl+slash", "help", "help", show=False, id="help"),
+    # `?` is what people press to ask for help; ^/ is the chord for terminals whose
+    # keyboard protocol cannot tell ? from /
+    Binding("question_mark", "help", "help", show=False, id="help"),
+    Binding("ctrl+slash", "help", "help", show=False, id="help_alt"),
     # nano's cursor keys, kept spatial: ^P/^N walk the branch, ^B/^F move away
     # from the root or towards it — whichever way that happens to be drawn.
     # Arrows and, further down, hjkl are aliases for the same four actions.
-    Binding("ctrl+p,up", "prev", "prev", show=False, id="prev"),
-    Binding("ctrl+n,down", "next", "next", show=False, id="next"),
+    Binding("up,ctrl+p", "prev", "prev", show=False, id="prev"),
+    Binding("down,ctrl+n", "next", "next", show=False, id="next"),
     # the six keys that move by the tree rather than by the picture: they never care
     # where a cell happens to be drawn
     Binding("home", "go_home", "main cell", show=False, id="go_home"),
@@ -49,7 +52,7 @@ BINDINGS: list[BindingType] = [
     Binding("pageup", "top_sibling", "first sibling", show=False, id="top_sibling"),
     Binding("pagedown", "bottom_sibling", "last sibling", show=False, id="bottom_sibling"),
     Binding("delete", "delete", "del", show=False, id="delete_key"),
-    Binding("ctrl+b,left", "go_left", "left", show=False, id="left"),
+    Binding("left,ctrl+b", "go_left", "left", show=False, id="left"),
     Binding("right", "go_right", "right", show=False, id="right"),
     # vim cursor keys. Hidden from the bar because the ctrl chords already own
     # those labels; nothing else on any screen binds a bare h/j/k/l.

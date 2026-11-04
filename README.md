@@ -83,7 +83,7 @@ spoider -p s2.1 map.spoider    # the first child of the second cut, panel open
 | `=` / `-` | loosen or tighten the spacing |
 | `^Z` `^Y` | undo, redo |
 | `^S` `^O` `^X` | save, save as, quit |
-| `^,` `^/` | settings, full key list |
+| `^,` `?` | settings, full key list |
 
 ## How it works
 
