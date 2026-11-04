@@ -3824,3 +3824,47 @@ async def test_there_is_no_question_when_it_is_already_registered(tmp_path: Path
         await pilot.pause()
         assert app.mode == "keys"
         assert not app.query_one(AskBar).display
+
+
+# -- where the cursor starts ----------------------------------------------
+
+
+async def test_position_puts_the_cursor_where_it_points(tmp_path: Path):
+    mm = MindMap(Node("root"))
+    branch = mm.add_child(mm.root.id, "branch")
+    target = mm.add_child(branch.id, "target")
+    path = tmp_path / "map.spoider"
+    mm.save(path)
+
+    app = SpoiderApp(path, config_path=tmp_path / "e.conf", position="1.1")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.selected == target.id
+        assert not app.stack_open
+
+
+async def test_position_into_the_stack_opens_the_panel(tmp_path: Path):
+    mm = MindMap(Node("root"))
+    older = Node("older")
+    newer = Node("newer", children=[Node("child")])
+    mm.cut_stack = [older, newer]
+    path = tmp_path / "map.spoider"
+    mm.save(path)
+
+    app = SpoiderApp(path, config_path=tmp_path / "e.conf", position="s1.1")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.stack_open, "a cell you cannot see is not a place the cursor can be"
+        assert app.selected == newer.children[0].id
+
+
+async def test_an_address_past_the_end_leaves_the_cursor_on_the_root(tmp_path: Path):
+    mm = MindMap(Node("root"))
+    mm.add_child(mm.root.id, "only")
+    path = tmp_path / "map.spoider"
+    mm.save(path)
+
+    app = SpoiderApp(path, config_path=tmp_path / "e.conf", position="9.9")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.selected == app.mm.root.id

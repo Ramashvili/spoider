@@ -51,9 +51,11 @@ uvx --from git+https://github.com/Ramashvili/spoider spoider --demo
 ## Run
 
 ```bash
-spoider                # start a new map
-spoider ideas.spoider  # open a map, or create one at that path
-spoider --demo         # open the interactive manual
+spoider                        # start a new map
+spoider ideas.spoider          # open a map, or create one at that path
+spoider --demo                 # open the interactive manual
+spoider -p 7.4 map.spoider     # land the cursor on the fourth child of the seventh
+spoider -p s2.1 map.spoider    # the first child of the second cut, panel open
 ```
 
 ## Keys

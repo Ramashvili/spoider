@@ -17,6 +17,8 @@ from textual.notifications import SeverityLevel
 from .actions_edit import EditActions
 from .actions_map import MapActions
 from .actions_stack import StackActions
+from .addressing import parse as parse_address
+from .addressing import resolve as resolve_address
 from .chrome import FooterBar, ask_chunks, help_chunks, prompt_chunks, settings_chunks
 from .config import (
     Config,
@@ -169,6 +171,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         *,
         demo: bool = False,
         config_path: Path | None = None,
+        position: str | None = None,
     ) -> None:
         super().__init__()
         self.config_path = Path(config_path) if config_path is not None else default_config_path()
@@ -191,6 +194,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         else:
             self.mm = MindMap.demo() if demo else MindMap(marks=self.config.marks_default)
         self.selected: str = self.mm.root.id
+        #: Where `--position` asked the cursor to start; resolved once the screen exists.
+        self.start_position = position
         #: The far end of a run of selected siblings; None means one cell.
         self.anchor: str | None = None
         #: Id of the cell selected inside the stack panel; None when it is shut.
@@ -253,8 +258,28 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self.notify(self.load_error, severity="error", timeout=8)
         self.set_keymap(build_action_keymap(self.config.keys))
         self._set_terminal_title()
+        self._apply_start_position()
         self.query_one(MindMapView).focus()
         self._offer_desktop_once()
+
+    def _apply_start_position(self) -> None:
+        """Put the cursor where `--position` asked, or leave it on the root.
+
+        An address into the cut stack opens the panel first, because a cell you cannot
+        see is not a place the cursor can be.
+        """
+        if not self.start_position:
+            return
+        address = parse_address(self.start_position)
+        found = resolve_address(self.mm, address) if address is not None else None
+        if found is None or address is None:
+            return
+        if not address.stack:
+            self.selected = found
+            self.anchor = None
+            return
+        self.action_toggle_stack()
+        self._stack_select(self._stack_doc(), found)
 
     def on_app_focus(self, event: events.AppFocus) -> None:
         """Come back to the terminal exactly where you left it."""
@@ -988,6 +1013,14 @@ def main(argv: list[str] | None = None) -> None:
         "--demo", action="store_true", help="start with the demo map instead of an empty buffer"
     )
     parser.add_argument(
+        "-p",
+        "--position",
+        default="0",
+        metavar="ADDRESS",
+        help="cell to put the cursor on: 0 is the root, 9 the ninth child, 7.4.9 a path "
+        "down, s2 or s2.1 a cell on the cut stack; anything else starts at the root",
+    )
+    parser.add_argument(
         "--install-desktop",
         action="store_true",
         help="register .spoider files with the desktop, then exit",
@@ -996,7 +1029,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.install_desktop:
         raise SystemExit(install_desktop())
     path = Path(args.path).expanduser() if args.path else None
-    SpoiderApp(path, demo=args.demo).run(mouse=False)
+    SpoiderApp(path, demo=args.demo, position=args.position).run(mouse=False)
 
 
 if __name__ == "__main__":
