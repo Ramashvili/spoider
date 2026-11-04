@@ -164,7 +164,7 @@ def test_the_box_is_clipped_only_by_the_screen():
 
 def test_the_readme_names_the_key():
     """The key table is guarded; this is the one line that must mention the overlay."""
-    assert "| &#96; |" in README.read_text(encoding="utf-8")
+    assert "| `,` |" in README.read_text(encoding="utf-8")
 
 
 def test_a_marks_row_keeps_its_right_border_in_place():

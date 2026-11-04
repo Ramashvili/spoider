@@ -75,7 +75,7 @@ launches a map can tell. A cut's id opens the stack panel.
 | `^D` | delete a branch |
 | `w` / `^W` | cycle a cell's mark, or choose which marks this map uses |
 | `t` | fold or unfold children |
-| &#96; | the file's properties, drawn over the map |
+| `,` | the file's properties, drawn over the map |
 | `Home` | the main cell of this tree |
 | `End` | the deepest cell below this one |
 | `PgUp` | the first sibling under the same parent |

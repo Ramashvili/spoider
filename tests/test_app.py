@@ -40,6 +40,7 @@ def test_every_shortcut_uses_a_modifier():
         "grave_accent",
         "question_mark",
         "greater_than",
+        "comma",
         "home",
         "end",
         "pageup",
@@ -4071,7 +4072,7 @@ def test_help_is_ordered_from_making_cells_to_this_screen():
 def test_the_demo_names_the_tree_keys_and_the_debug_box():
     texts = [node.text for node in MindMap.demo().nodes()]
     joined = " ".join(texts)
-    for word in ("pgup", "pgdn", "home", "end", "del", "`"):
+    for word in ("pgup", "pgdn", "home", "end", "del", ", shows"):
         assert word in joined, f"the demo should mention {word}"
 
 

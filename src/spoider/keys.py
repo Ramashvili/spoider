@@ -26,7 +26,10 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+u", "paste", "paste", id="paste"),
     Binding("p", "toggle_stack", "show stack", id="toggle_stack"),
     Binding("ctrl+d", "delete", "del", id="delete"),
-    Binding("grave_accent", "toggle_properties", "debug", show=False, id="toggle_properties"),
+    Binding("comma", "toggle_properties", "debug", show=False, id="toggle_properties"),
+    Binding(
+        "grave_accent", "toggle_properties", "debug", show=False, id="toggle_properties_alt"
+    ),
     Binding("t", "fold", "fold", id="fold"),
     Binding("ctrl+t", "fold", "fold", show=False, id="fold_alt"),
     Binding("w", "mark", "mark", id="mark"),

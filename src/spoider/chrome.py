@@ -71,6 +71,7 @@ BAR_GLYPHS = {
     "equals_sign": "=",
     "minus": "-",
     "grave_accent": "`",
+    "comma": ",",
     "question_mark": "?",
     # named keys keep the spelling a keyboard uses, not the terminal's
     "home": "Home",
@@ -87,7 +88,7 @@ BAR_GLYPHS = {
 #: the config moves the label with it: a pinned key that no longer exists is worse
 #: than no hint at all.
 PINNED: tuple[tuple[str, str, str], ...] = (
-    ("toggle_properties", "grave_accent", "debug"),
+    ("toggle_properties", "comma", "debug"),
     ("settings", "greater_than", "settings"),
     ("help", "question_mark", "help"),
 )

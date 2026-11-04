@@ -27,6 +27,7 @@ NAMED = {
     "^,": "ctrl+comma",
     "^/": "ctrl+slash",
     ">": "greater_than",
+    ",": "comma",
     "?": "question_mark",
 }
 ARROWS = "↑↓←→"
