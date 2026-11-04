@@ -1071,6 +1071,8 @@ def main(argv: list[str] | None = None) -> None:
         help="register .spoider files with the desktop, then exit",
     )
     args = parser.parse_args(argv)
+    if args.position is not None and not args.position.strip():
+        parser.error("-p/--position needs an address: 0 for the root, 7.4.9 for a path")
     if args.install_desktop:
         raise SystemExit(install_desktop())
     path = Path(args.path).expanduser() if args.path else None

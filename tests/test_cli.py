@@ -71,3 +71,14 @@ def test_the_demo_flag_is_what_asks_for_the_demo_map(monkeypatch):
 def test_a_tilde_in_the_path_is_the_home_directory(monkeypatch):
     seen = _run(monkeypatch, ["~/maps/one.json"])
     assert seen["path"] == Path.home() / "maps" / "one.json"
+
+
+def test_an_empty_position_is_refused(monkeypatch, capsys):
+    """Quoting nothing must not silently throw away the cursor the file remembers."""
+    try:
+        module.main(["-p", ""])
+    except SystemExit as exit_code:
+        assert exit_code.code == 2
+    else:
+        raise AssertionError("an empty address should be refused")
+    assert "needs an address" in capsys.readouterr().err
