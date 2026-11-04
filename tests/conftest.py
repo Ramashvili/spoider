@@ -8,14 +8,15 @@ def isolated_config(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def registered_desktop(tmp_path_factory, monkeypatch):
-    """Pretend `.spoider` is already registered, so the first-run question stays away.
+def no_first_run_question(request, tmp_path_factory, monkeypatch):
+    """Keep the desktop question out of tests that are not about it.
 
-    Every other test would otherwise open a drawer nobody asked it about. The tests of
-    that question point XDG_DATA_HOME at an empty directory themselves.
+    A test that *is* about it marks itself `desktop_question` and gets the real gate.
     """
     data_home = tmp_path_factory.mktemp("data-home")
-    entry = data_home / "applications" / "spoider.desktop"
-    entry.parent.mkdir(parents=True, exist_ok=True)
-    entry.write_text("[Desktop Entry]\nName=spoider\n")
     monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
+    if request.node.get_closest_marker("desktop_question"):
+        return
+    monkeypatch.setattr(
+        "spoider.app.SpoiderApp._maybe_ask_desktop", lambda self: None
+    )

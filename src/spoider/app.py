@@ -34,7 +34,7 @@ from .config import (
     update_config,
     write_config,
 )
-from .desktop import install_desktop, registered
+from .desktop import install_desktop
 from .drawers import AskBar, PanelBar, PromptBar
 from .editing import Buffer
 from .files import SUFFIX, default_path
@@ -297,17 +297,16 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.screen.set_class(event.size.height > self.ROOMY_HEIGHT, "roomy")
 
     def on_mount(self) -> None:
-        # A file written by an older build keeps listing chords that no longer
-        # exist; regenerate it, but only when it is actually out of date.
-        # an existing config is left alone: defaults live in code, so a file that
-        # predates a new binding keeps its comments and simply uses the default
+        # A config is the reader's file: written once when it is missing, then only ever
+        # edited line by line. Deleting it brings the commented template back.
+        self._save_config()
         if self.load_error is not None:
             self.notify(self.load_error, severity="error", timeout=8)
         self.set_keymap(build_action_keymap(self.config.keys))
         self._set_terminal_title()
         self._apply_start_position()
         self.query_one(MindMapView).focus()
-        self._offer_desktop_once()
+        self._maybe_ask_desktop()
 
     def action_go_home(self) -> None:
         """`home` — the main cell of the tree the cursor is in, hierarchy only."""
@@ -1024,14 +1023,19 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.query_one(AskBar).ask("Save modified buffer?", self._save_answered)
         self._sync_footer()
 
-    def _offer_desktop_once(self) -> None:
-        """Ask, on the first run, whether .spoider files should open in spoider.
+    def _maybe_ask_desktop(self) -> None:
+        """Ask whether .spoider files should open in spoider, when the config says not yet.
 
         Installation cannot do it: neither `uv tool install` nor any wheel runs code at
-        install time, so the first launch is the first moment the program can ask.
+        install time, so the first launch is the first moment the program can ask. The
+        answer is the only record, so a config deleted later brings the question back.
         """
-        if self.config.desktop_asked or registered():
+        if self.config.desktop_asked:
             return
+        self._ask_to_register_desktop()
+
+    def _ask_to_register_desktop(self) -> None:
+        """Open the question itself, whatever the config already says."""
         self._ask_words = ("register", "not now")
         self._mode = "ask"
         self._hide_drawers(AskBar)

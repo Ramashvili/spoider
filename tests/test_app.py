@@ -3790,6 +3790,7 @@ def test_install_desktop_does_not_open_the_editor(monkeypatch, tmp_path: Path):
 # -- the first-run question about the desktop ------------------------------
 
 
+@pytest.mark.desktop_question
 async def test_the_first_run_asks_about_opening_maps_from_the_desktop(tmp_path: Path, monkeypatch):
     from spoider.chrome import hint_chunks  # noqa: F401  (keeps the import graph honest)
 
@@ -3801,6 +3802,7 @@ async def test_the_first_run_asks_about_opening_maps_from_the_desktop(tmp_path: 
         assert "spoider from now on" in app.query_one(AskBar).question
 
 
+@pytest.mark.desktop_question
 async def test_answering_no_is_not_asked_again(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "empty-data"))
     config = tmp_path / "c.conf"
@@ -3820,6 +3822,7 @@ async def test_answering_no_is_not_asked_again(tmp_path: Path, monkeypatch):
         assert again.mode == "keys", "a no is an answer, not a delay"
 
 
+@pytest.mark.desktop_question
 async def test_answering_yes_registers_it(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     calls: list[str] = []
@@ -3836,13 +3839,40 @@ async def test_answering_yes_registers_it(tmp_path: Path, monkeypatch):
     assert "desktop_asked = true" in config.read_text()
 
 
-async def test_there_is_no_question_when_it_is_already_registered(tmp_path: Path):
-    """The conftest fixture registers it, so this is the ordinary test case."""
-    app = SpoiderApp(tmp_path / "map.json", demo=False)
+@pytest.mark.desktop_question
+async def test_a_config_that_holds_the_answer_is_not_asked(tmp_path: Path, monkeypatch):
+    """The config is the record: an installed entry does not silence it, the answer does."""
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "empty-data"))
+    config = tmp_path / "c.conf"
+    config.write_text("desktop_asked = true\n", encoding="utf-8")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.mode == "keys"
         assert not app.query_one(AskBar).display
+
+
+@pytest.mark.desktop_question
+async def test_deleting_the_config_brings_the_question_back(tmp_path: Path, monkeypatch):
+    """A person who deletes the file expects the rules to come back with it."""
+    entry = tmp_path / "data" / "applications"
+    entry.mkdir(parents=True)
+    (entry / "spoider.desktop").write_text("[Desktop Entry]\nName=spoider\n")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+
+    config = tmp_path / "c.conf"
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("n")
+        await pilot.pause()
+    assert app.mode == "keys"
+
+    config.unlink()
+    again = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with again.run_test() as pilot:
+        await pilot.pause()
+        assert again.mode == "ask", "the desktop entry is installed, the record is gone"
 
 
 # -- where the cursor starts ----------------------------------------------
@@ -4181,3 +4211,25 @@ async def test_an_id_on_the_cut_stack_opens_the_panel(tmp_path: Path):
         await pilot.pause()
         assert with_cut.stack_open, "a cell you cannot see is not a place to be"
         assert with_cut.selected == cut.id
+
+
+async def test_a_missing_config_is_written_as_the_template(tmp_path: Path):
+    """Deleting the file brings it back, comments and all, rather than staying gone."""
+    config = tmp_path / "config" / "spoider.conf"
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+    text = config.read_text(encoding="utf-8")
+    assert "editor settings" in text, "the commented template"
+    assert "# prev = " in text, "the keys are listed, commented out"
+    assert "autosave = " in text
+
+
+async def test_a_config_that_exists_is_left_byte_for_byte(tmp_path: Path):
+    config = tmp_path / "c.conf"
+    original = "# hands off\nprev = k up\n"
+    config.write_text(original, encoding="utf-8")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+    assert config.read_text(encoding="utf-8") == original

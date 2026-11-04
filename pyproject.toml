@@ -1,6 +1,6 @@
 [project]
 name = "spoider"
-version = "0.3.8"
+version = "0.3.9"
 description = "A TUI mind map editor"
 readme = "README.md"
 license = "MIT"
@@ -30,6 +30,9 @@ packages = ["src/spoider"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "desktop_question: the test is about the first-run desktop question, so it gets the real gate",
+]
 # One test drives one app through its message loop, so the suite waits far more than
 # it computes: serially, 56 s of wall clock on 10 s of CPU. Workers past the core
 # count fill that waiting instead of fighting over it, and the curve is flat from
