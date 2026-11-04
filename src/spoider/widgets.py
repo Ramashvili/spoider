@@ -11,7 +11,7 @@ from textual.widget import Widget
 
 from .chrome import DIVIDER
 from .layout import BOX_H, Layout, compute
-from .properties import rows_for
+from .properties import sections
 from .render import (
     DEPTH_COLORS,
     LINK_COLOR,
@@ -216,14 +216,14 @@ class MindMapView(Widget, can_focus=True):
             grid = self._with_stack(grid, panel, width, height)
         floaters = []
         if self.spoider.show_properties:
-            floaters.append((self._property_rows(), LINK_COLOR))
+            floaters.append((self._property_sections(), LINK_COLOR))
         return render_text(
             grid, self._offset_x, self._offset_y, width, height, floaters=floaters
         )
 
-    def _property_rows(self) -> list[tuple[str, str]]:
+    def _property_sections(self) -> list[tuple[str, list[tuple[str, str]]]]:
         spoider = self.spoider
-        return rows_for(
+        return sections(
             spoider.mm,
             spoider.path,
             spoider.selected,

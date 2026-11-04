@@ -400,7 +400,7 @@ def render_text(
     width: int,
     height: int,
     *,
-    floaters: list[tuple[list[tuple[str, str]], str]] | None = None,
+    floaters: list[tuple[list[tuple[str, list[tuple[str, str]]]], str]] | None = None,
 ) -> Text:
     """The visible window as styled text.
 
@@ -438,35 +438,56 @@ def render_text(
 
 def paint_box(
     screen: list[list[tuple[str, str]]],
-    rows: list[tuple[str, str]],
+    sections: list[tuple[str, list[tuple[str, str]]]],
     style: str = LINK_COLOR,
 ) -> None:
-    """Draw `(label, value)` rows as a box at the top-left of a screen made of cells."""
-    if not rows or not screen:
+    """Draw titled sections of `(label, value)` rows as a box at the top-left of a screen.
+
+    A title sits alone on its line, sections are parted by one empty line, and the box is as
+    wide as its longest line but never wider than the screen it is painted on.
+    """
+    if not sections or not screen:
         return
-    body = [f" {label.ljust(7)} {value}" for label, value in rows]
+    body: list[str] = []
+    for index, (title, rows) in enumerate(sections):
+        if index:
+            body.append("")
+        body.append(f" {title}")
+        body.extend(f" {label.ljust(8)} {value}" for label, value in rows)
+
     width = max(cell_len(line) for line in body) + 2
     height = len(body) + 2
 
     def put(x: int, y: int, ch: str) -> None:
         if 0 <= y < len(screen) and 0 <= x < len(screen[y]):
             screen[y][x] = (ch, style)
-        elif 0 <= y < len(screen) and x == len(screen[y]):
-            pass
 
+    top = min(width - 1, (len(screen[0]) - 1) if screen[0] else 0)
     put(0, 0, "╭")
-    for x in range(1, width - 1):
+    for x in range(1, top):
         put(x, 0, "─")
-    put(width - 1, 0, "╮")
+    put(top, 0, "╮")
     for index, line in enumerate(body, start=1):
-        if index >= height - 1:
+        if index >= len(screen) - 1:
             break
         put(0, index, "│")
-        put(width - 1, index, "│")
-        for offset, char in enumerate(line):
-            put(1 + offset, index, char)
-    put(0, height - 1, "╰")
-    for x in range(1, width - 1):
-        put(x, height - 1, "─")
-    put(width - 1, height - 1, "╯")
-
+        put(top, index, "│")
+        # the box is opaque: cells behind it are covered, not read through
+        for x in range(1, top):
+            put(x, index, " ")
+        column = 1
+        for char in line:
+            char_width = cell_len(char)
+            if column + char_width > top:
+                break
+            put(column, index, char)
+            # a wide glyph covers two columns of the screen; the second one contributes
+            # nothing, exactly as the map's own grid handles its wide glyphs
+            for extra in range(1, char_width):
+                put(column + extra, index, "")
+            column += char_width
+    bottom = min(height - 1, len(screen) - 1)
+    put(0, bottom, "╰")
+    for x in range(1, top):
+        put(x, bottom, "─")
+    put(top, bottom, "╯")
