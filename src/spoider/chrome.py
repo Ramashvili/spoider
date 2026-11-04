@@ -34,7 +34,7 @@ KEY_GLYPHS = {
     "enter": "⏎",
     "space": "␣",
     "escape": "esc",
-    "greater_than": ">",
+    "full_stop": ".",
     "ctrl+slash": "^/",
 }
 
@@ -89,7 +89,7 @@ BAR_GLYPHS = {
 #: than no hint at all.
 PINNED: tuple[tuple[str, str, str], ...] = (
     ("toggle_properties", "comma", "debug"),
-    ("settings", "greater_than", "settings"),
+    ("settings", "full_stop", "settings"),
     ("help", "question_mark", "help"),
 )
 

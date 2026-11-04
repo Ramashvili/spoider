@@ -1059,7 +1059,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._sync_footer()
 
     def _settings_key(self, key: str) -> None:
-        if key in ("escape", "ctrl+c", "greater_than", "ctrl+x"):
+        if key in ("escape", "ctrl+c", "full_stop", "ctrl+x"):
             self._close_drawers()
         elif key in ("up", "k"):
             self._settings_row = max(0, self._settings_row - 1)

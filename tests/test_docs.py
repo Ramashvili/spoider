@@ -26,7 +26,7 @@ NAMED = {
     "-": "minus",
     "^,": "ctrl+comma",
     "^/": "ctrl+slash",
-    ">": "greater_than",
+    ".": "full_stop",
     ",": "comma",
     "?": "question_mark",
 }

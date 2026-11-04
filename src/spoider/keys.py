@@ -38,7 +38,7 @@ BINDINGS: list[BindingType] = [
     # reading a map, and the bar has room for one more
     Binding("ctrl+f", "search", "search", id="search"),
     # rendered as the pinned cluster at the right edge, not among the hints
-    Binding("greater_than", "settings", "settings", show=False, id="settings"),
+    Binding("full_stop", "settings", "settings", show=False, id="settings"),
     # `?` is what people press to ask for help; ^/ is the chord for terminals whose
     # keyboard protocol cannot tell ? from /
     Binding("question_mark", "help", "help", show=False, id="help"),
