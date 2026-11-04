@@ -13,3 +13,8 @@ build/
 *.mp4
 # same: a video belongs in the release or the attachment
 *.gif
+
+# stray maps written by hand while testing: never part of the project
+tighttest
+littletest
+gggg
