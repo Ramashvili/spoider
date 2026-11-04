@@ -52,7 +52,7 @@ class Config:
     autosave: bool = False
     #: What ^J asks for by default: the width last used, or this. Named apart from
     #: the `justify` binding, which may also live in this file as a chord.
-    justify_width_default: int = 66
+    justify_width_default: int = 40
     marks_default: tuple[str, ...] = field(default_factory=lambda: tuple(MARKS))
     #: Whether the first-run question about registering .spoider with the desktop has
     #: been answered. Asking once is the point: a "no" is an answer, not a delay.

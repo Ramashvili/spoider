@@ -3178,7 +3178,7 @@ async def test_justify_rewraps_the_cell_and_the_map_keeps_the_width(tmp_path: Pa
         await pilot.pause()
         prompt = app.query_one(PromptBar)
         assert prompt.display is True
-        assert prompt.value == "66", "the remembered width, or the default"
+        assert prompt.value == "40", "the remembered width, or the default"
 
         prompt.value = "20"
         await pilot.press("enter")
@@ -3194,7 +3194,7 @@ async def test_justify_rewraps_the_cell_and_the_map_keeps_the_width(tmp_path: Pa
         app.mm.save(path)
         assert json.loads(path.read_text())["justify"] == 20
         assert MindMap.load(path).justify == 20
-        assert load_config(config_path).justify_width_default == 66, "the config keeps its default"
+        assert load_config(config_path).justify_width_default == 40, "the config keeps its default"
 
         await pilot.press("ctrl+j")
         await pilot.pause()
