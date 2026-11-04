@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .model import MindMap
+from .model import MindMap, Node
 
 STACK_PREFIX = "s"
 
@@ -62,3 +62,34 @@ def resolve(mm: MindMap, address: Address) -> str | None:
             return None
         node = node.children[step - 1]
     return node.id
+
+
+def _path_in(root: Node, target: str) -> list[int] | None:
+    """The child numbers from `root` down to `target`, or None when it is not below it."""
+    for index, child in enumerate(root.children, start=1):
+        if child.id == target:
+            return [index]
+        below = _path_in(child, target)
+        if below is not None:
+            return [index, *below]
+    return None
+
+
+def address_of(mm: MindMap, node_id: str) -> str:
+    """The address `--position` would use for this cell, `s` prefixed on the cut stack.
+
+    The inverse of `parse`/`resolve`, so the properties overlay can say 7.4.9 where the
+    cursor is, and the same text can be typed back into `-p`.
+    """
+    if node_id == mm.root.id:
+        return "0"
+    below = _path_in(mm.root, node_id)
+    if below is not None:
+        return ".".join(str(step) for step in below)
+    for index, entry in enumerate(reversed(mm.cut_stack), start=1):
+        if entry.id == node_id:
+            return f"s{index}"
+        inside = _path_in(entry, node_id)
+        if inside is not None:
+            return "s" + ".".join(str(step) for step in [index, *inside])
+    return "?"

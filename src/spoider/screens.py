@@ -52,6 +52,7 @@ HELP: tuple[HelpSection, ...] = (
             (("justify",), "reflow the cell's text to a width you type"),
             (("copy",), "copy the cell's text to the clipboard"),
             (("fold",), "fold or unfold the branch"),
+            (("toggle_properties",), "the file's properties, drawn over the map"),
         ),
     ),
     (

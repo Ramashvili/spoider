@@ -71,6 +71,7 @@ spoider -p s2.1 map.spoider    # the first child of the second cut, panel open
 | `^D` | delete a branch |
 | `w` / `^W` | cycle a cell's mark, or choose which marks this map uses |
 | `t` | fold or unfold children |
+| `i` | the file's properties, drawn over the map |
 | `^J` | wrap a cell's text to a chosen column width |
 | `^F` | search cells |
 | `^L` / `c` | cycle the layout shape, switch colour mode |

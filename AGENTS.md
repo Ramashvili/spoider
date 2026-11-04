@@ -27,6 +27,7 @@ it.
 | `render.py` | grid → styled cells (boxes, connectors, the two colourings) → `rich.Text` |
 | `nav.py` | selection movement rules |
 | `addressing.py` | reading `-p/--position`: a path of 1-based children, `s` for the stack |
+| `properties.py` | the `i` overlay: the file's own values, the cursor's address and id |
 | `widgets.py` | `MindMapView`: camera, hit-testing, the stack column, clicks |
 | `drawers.py` | bottom drawers: prompt, question, panel |
 | `screens.py` | the text help and settings show |

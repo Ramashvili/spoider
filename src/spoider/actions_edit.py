@@ -179,6 +179,7 @@ class EditActions:
             return
         self._push_undo()
         node.text = wrapped
+        self._touched(node.id)
         self._mark_dirty()
     def finish_edit(self, *, commit: bool) -> None:
         node_id = self._edit_id
@@ -205,6 +206,7 @@ class EditActions:
 
         if node.text != text:
             node.text = text
+            self._touched(node.id)
             self._mark_dirty()
         else:
             self.view.refresh_map()

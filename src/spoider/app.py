@@ -196,6 +196,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.selected: str = self.mm.root.id
         #: Where `--position` asked the cursor to start; resolved once the screen exists.
         self.start_position = position
+        #: The properties overlay: off by default, a debugging aid rather than furniture.
+        self.show_properties = False
+        #: The last cell whose text or mark was changed, for the overlay to name.
+        self.last_edited: str | None = None
         #: The far end of a run of selected siblings; None means one cell.
         self.anchor: str | None = None
         #: Id of the cell selected inside the stack panel; None when it is shut.
@@ -261,6 +265,17 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._apply_start_position()
         self.query_one(MindMapView).focus()
         self._offer_desktop_once()
+
+    def action_toggle_properties(self) -> None:
+        """`i` — the file's own properties, drawn over the top-left of the map."""
+        self.show_properties = not self.show_properties
+        self.view.refresh()
+        self._sync_footer()
+
+    def _touched(self, node_id: str | None) -> None:
+        """Remember the cell a change happened in, so the overlay can name it."""
+        if node_id:
+            self.last_edited = node_id
 
     def _apply_start_position(self) -> None:
         """Where the cursor starts: the address if one was given, else the map's own

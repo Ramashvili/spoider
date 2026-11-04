@@ -123,6 +123,7 @@ class MapActions:
             node = self.mm.find(node_id)
             if node is not None:
                 node.mark = mark
+        self._touched(ids[0])
         self._mark_dirty()
     def action_fold(self) -> None:
         """t — fold or unfold, following the lead cell's state across the run."""

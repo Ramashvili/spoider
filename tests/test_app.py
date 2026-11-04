@@ -36,6 +36,7 @@ def test_every_shortcut_uses_a_modifier():
         "w",
         "c",
         "p",
+        "i",
         "equals_sign",
         "minus",
     }
@@ -3948,3 +3949,42 @@ def test_the_write_offer_carries_the_suffix_and_puts_the_caret_before_it(tmp_pat
     offered, caret = app._write_offer()
     assert offered == str(tmp_path / "map.json")
     assert caret == len(offered)
+
+
+# -- the properties overlay ------------------------------------------------
+
+
+async def test_i_shows_the_file_properties_over_the_map(tmp_path: Path):
+    path = tmp_path / "map.spoider"
+    app = SpoiderApp(path, config_path=tmp_path / "e.conf")
+    async with app.run_test() as pilot:
+        child = app.mm.add_child(app.mm.root.id, "child")
+        app.view.refresh_map()
+        app.select(child.id)
+        await pilot.pause()
+        assert "cursor" not in app.view.render().plain, "off until asked for"
+
+        await pilot.press("i")
+        await pilot.pause()
+        assert app.show_properties is True
+        drawn = app.view.render().plain
+        assert "cursor" in drawn and child.id in drawn
+        assert "file" in drawn and drawn.lstrip().startswith("╭"), "the box is in the corner"
+
+        await pilot.press("i")
+        await pilot.pause()
+        assert app.show_properties is False
+        assert "cursor" not in app.view.render().plain
+
+
+async def test_the_overlay_names_the_cell_that_was_edited(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "e.conf")
+    async with app.run_test() as pilot:
+        await pilot.press("tab")
+        await pilot.press("x", "y", "z")
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.last_edited is not None, "a typed cell is the last one edited"
+        await pilot.press("i")
+        await pilot.pause()
+        assert "xyz" in app.view.render().plain

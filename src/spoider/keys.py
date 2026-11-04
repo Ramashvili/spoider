@@ -17,7 +17,7 @@ BINDINGS: list[BindingType] = [
     Binding("enter", "add_sibling", "sib", id="add_sibling"),
     Binding("ctrl+j", "justify", "justify", id="justify"),
     Binding("alt+6", "copy", "copy", show=False, id="copy"),
-    # Six of these have earned a bare key: they are reached for constantly and
+    # Seven of these have earned a bare key: they are reached for constantly and
     # collide with nothing, since h/j/k/l are the only bare letters spoken for. The
     # stack is `p` because ^I is Tab on a terminal without the kitty protocol.
     Binding("e", "edit", "edit", id="edit"),
@@ -26,6 +26,7 @@ BINDINGS: list[BindingType] = [
     Binding("ctrl+u", "paste", "paste", id="paste"),
     Binding("p", "toggle_stack", "show stack", id="toggle_stack"),
     Binding("ctrl+d", "delete", "del", id="delete"),
+    Binding("i", "toggle_properties", "info", id="toggle_properties"),
     Binding("t", "fold", "fold", id="fold"),
     Binding("ctrl+t", "fold", "fold", show=False, id="fold_alt"),
     Binding("w", "mark", "mark", id="mark"),

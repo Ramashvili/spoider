@@ -393,6 +393,49 @@ def _vertical(grid: Grid, y1: int, y2: int, x: int) -> None:
         grid.add_link(x, y + step, U if step > 0 else D)
 
 
+def overlay(
+    grid: Grid,
+    rows: list[tuple[str, str]],
+    *,
+    style: str = LINK_COLOR,
+    width: int | None = None,
+    height: int | None = None,
+) -> None:
+    """Draw `(label, value)` rows as a box in the grid's top-left corner.
+
+    The one thing in spoider that floats: a properties panel that pushed cells around would
+    cost exactly the space it exists to describe. It is clipped to the grid, so a narrow
+    terminal loses the right of the box rather than the box itself.
+    """
+    if not rows:
+        return
+    body = [f" {label.ljust(7)} {value}" for label, value in rows]
+    # the box is clipped to the view rather than to the map: a three-cell map still has a
+    # whole screen to be described on
+    width = min(width if width is not None else grid.width, max(cell_len(line) for line in body) + 2)
+    height = min(height if height is not None else grid.height, len(body) + 2)
+    if width < 4 or height < 3:
+        return
+
+    def draw(x: int, y: int, ch: str) -> None:
+        grid.put(x, y, ch, style)
+
+    draw(0, 0, "╭")
+    for x in range(1, width - 1):
+        draw(x, 0, "─")
+    draw(width - 1, 0, "╮")
+    for index in range(1, height - 1):
+        draw(0, index, "│")
+        draw(width - 1, index, "│")
+        line = body[index - 1] if index - 1 < len(body) else ""
+        for offset, char in enumerate(line[: width - 2]):
+            draw(1 + offset, index, char)
+    draw(0, height - 1, "╰")
+    for x in range(1, width - 1):
+        draw(x, height - 1, "─")
+    draw(width - 1, height - 1, "╯")
+
+
 def render_text(grid: Grid, ox: int, oy: int, width: int, height: int) -> Text:
     out = Text()
     rows = range(oy, oy + height)
