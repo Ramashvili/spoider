@@ -12,9 +12,12 @@ def _run(monkeypatch, argv: list[str]) -> dict:
     seen: dict = {}
 
     class Stub:
-        def __init__(self, path: Path | None, demo: bool = False) -> None:
+        def __init__(
+            self, path: Path | None, demo: bool = False, position: str | None = None
+        ) -> None:
             seen["path"] = path
             seen["demo"] = demo
+            seen["position"] = position
 
         def run(self, **kwargs) -> None:
             seen["run"] = kwargs
@@ -35,6 +38,13 @@ def test_no_argument_starts_a_new_buffer(monkeypatch):
     seen = _run(monkeypatch, [])
     assert seen["path"] is None
     assert seen["demo"] is False
+
+
+def test_the_position_flag_is_handed_to_the_app(monkeypatch):
+    assert _run(monkeypatch, [])["position"] == "0", "the root when nothing is asked for"
+    assert _run(monkeypatch, ["-p", "7.4.9"])["position"] == "7.4.9"
+    assert _run(monkeypatch, ["--position", "s2.1"])["position"] == "s2.1"
+    assert _run(monkeypatch, ["-p7.4"])["position"] == "7.4"
 
 
 def test_the_demo_flag_is_what_asks_for_the_demo_map(monkeypatch):
