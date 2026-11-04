@@ -245,10 +245,10 @@ def test_a_connector_leaves_and_arrives_through_t_junctions():
 
 
 def test_a_shared_wall_between_siblings_is_one_column():
-    mm = MindMap(Node("root"), spacing=-1)
+    mm = MindMap(Node("root"), spacing=-2)
     one = mm.add_child(mm.root.id, "one")
     two = mm.add_child(mm.root.id, "two")
-    layout = compute(mm.root, -1, "pyramid")
+    layout = compute(mm.root, -2, "pyramid")
     grid = build_grid(layout, mm.root.id)
     first = layout.boxes[one.id]
     second = layout.boxes[two.id]
@@ -422,12 +422,12 @@ def test_selected_text_is_highlighted_in_the_cell():
 
 
 def test_the_tightest_spacing_drops_the_walls_and_inverts_only_the_cursor():
-    """At -2 a cell is its text: no box, and the cursor is the one reversed block."""
+    """At the bare steps a cell is its text: no box, and the cursor is the one block."""
     mm = MindMap(Node("root"))
     alpha = mm.add_child(mm.root.id, "alpha")
     beta = mm.add_child(mm.root.id, "beta")
     alpha.mark = "⭐"
-    layout = compute(mm.root, -2)
+    layout = compute(mm.root, -3)
     assert layout.walls is False
 
     drawn = build_grid(layout, alpha.id)

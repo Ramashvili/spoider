@@ -39,12 +39,12 @@ BOX_H = 3
 #: The direction a box's children hang in.
 RIGHT, LEFT, DOWN, UP = "right", "left", "down", "up"
 
-# How far the spacing controls may push the gaps. The tight end has three steps:
-# sharing a wall, bare text with room to breathe, and bare text packed close.
-MIN_SPACING = -3
-#: From here down a cell is its text: no walls, one row. -2 leaves room between
-#: cells, -3 packs them.
-BARE_SPACING = -2
+# How far the spacing controls may push the gaps. The tight end has four steps, each
+# a picture of its own: -1 is the default look, -2 puts neighbours' walls together,
+# -3 drops the walls and leaves a column between cells, -4 packs bare cells tight.
+MIN_SPACING = -4
+#: From here down a cell is its text: no walls, one row.
+BARE_SPACING = -3
 MAX_SPACING = 12
 
 
@@ -75,20 +75,19 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
     for a setting that collapses or explodes.
     """
     spacing = max(MIN_SPACING, min(MAX_SPACING, spacing))
+    # The tight end is written out rather than computed: four steps, four pictures.
+    tight = {  # spacing: (sideways shapes, stacked shapes)
+        -1: (GAP_X - 1, 1),
+        -2: (-1, -1),
+        -3: (1, 1),
+        -4: (0, 0),
+    }
     if layout in ("spider", "branch"):
-        # a sideways shape needs a column to run a connector through, and its
-        # neighbours are levels apart rather than side by side
-        x = max(1, GAP_X + spacing)
+        x = tight.get(spacing, (max(1, GAP_X + spacing), 0))[0]
     elif spacing >= 0:
         x = STACK_GAP_X + spacing
-    elif spacing > BARE_SPACING:
-        # The wall-sharing setting: siblings share their wall, so a row of them reads
-        # as one group. A gap of one column in between would be an adjacent pair of
-        # walls, which reads as a mistake rather than as either.
-        x = -1
     else:
-        # Bare text: a column between cells, then none at the floor.
-        x = 1 + (spacing - BARE_SPACING)
+        x = tight.get(spacing, (0, 0))[1]
     return Gaps(
         walls=spacing > BARE_SPACING,
         x=x,
