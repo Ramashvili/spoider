@@ -87,7 +87,7 @@ launches a map can tell. A cut's id opens the stack panel.
 | `=` / `-` | loosen or tighten the spacing |
 | `^Z` `^Y` | undo, redo |
 | `^S` `^O` `^X` | save, save as, quit |
-| `^,` `?` | settings, full key list |
+| `>` `?` | settings, full key list |
 
 ## How it works
 

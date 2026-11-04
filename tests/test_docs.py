@@ -26,6 +26,7 @@ NAMED = {
     "-": "minus",
     "^,": "ctrl+comma",
     "^/": "ctrl+slash",
+    ">": "greater_than",
     "?": "question_mark",
 }
 ARROWS = "↑↓←→"

@@ -46,7 +46,7 @@ class EditActions:
         if not self.editing or self._buffer is None:
             return False
         buffer = self._buffer
-        if key in ("ctrl+slash", "ctrl+comma"):
+        if key in ("ctrl+slash", "greater_than"):
             return False  # help and settings stay reachable mid-typing
 
         if key == "enter":

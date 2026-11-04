@@ -39,6 +39,7 @@ def test_every_shortcut_uses_a_modifier():
         "equals_sign",
         "grave_accent",
         "question_mark",
+        "greater_than",
         "home",
         "end",
         "pageup",
@@ -54,7 +55,7 @@ def test_every_shortcut_uses_a_modifier():
 def test_footer_lists_the_visible_bindings_plus_the_pinned_cluster():
     line = compose_footer(160, hint_chunks(BINDINGS)).plain
     assert "⇥ child" in line and "^X quit" in line
-    assert "^, settings" in line and "? help" in line
+    assert "> settings" in line and "? help" in line
     assert "^Y" not in line  # redo stays out of the bar
     assert "^A" not in line  # the child alias stays off the bar
     for nav in ("^P", "^N", "^B"):
@@ -79,7 +80,7 @@ def test_pinned_cluster_survives_any_width():
     for width in (40, 55, 70, 90, 120, 200):
         line = compose_footer(width, hint_chunks(BINDINGS))
         assert line.plain.rstrip().endswith("? help")
-        assert "^, settings" in line.plain
+        assert "> settings" in line.plain
         assert line.cell_len == width  # fills the row exactly, never overflows
 
 
@@ -616,7 +617,7 @@ def test_help_text_covers_keys(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     body = help_text(app).plain
     # chords come from the keymap, so they read as they are actually bound
-    for expected in ("Making cells", "Moving", "File", "⇥", "⏎", "^D", "^X", "M-↑", "M-↓", "S-←↑↓→", "?", "^,"):
+    for expected in ("Making cells", "Moving", "File", "⇥", "⏎", "^D", "^X", "M-↑", "M-↓", "S-←↑↓→", "?", ">"):
         assert expected in body, expected
     # no lectures: the panel is the keys, nothing else
     for absent in ("Mouse", "Saving", "Colours", "Also", "esc closes"):
@@ -692,7 +693,7 @@ async def test_help_is_reachable_mid_typing(tmp_path: Path):
 async def test_settings_shows_only_the_autosave_toggle(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+comma")
+        await pilot.press("greater_than")
         await pilot.pause()
         assert app.mode == "settings"
 
@@ -710,7 +711,7 @@ async def test_settings_shows_only_the_autosave_toggle(tmp_path: Path):
 async def test_settings_closes_on_ctrl_x(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+comma")
+        await pilot.press("greater_than")
         await pilot.pause()
         assert app.mode == "settings"
 
@@ -725,7 +726,7 @@ async def test_toggling_autosave_persists_to_the_editor_config(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
     async with app.run_test() as pilot:
         assert app.autosave is False
-        await pilot.press("ctrl+comma")
+        await pilot.press("greater_than")
         await pilot.pause()
         await pilot.press("enter")
         await pilot.pause()
@@ -1021,7 +1022,7 @@ async def test_settings_opens_the_config_in_an_editor(tmp_path: Path, monkeypatc
     monkeypatch.setattr(SpoiderApp, "suspend", lambda self: contextlib.nullcontext())
 
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+comma")
+        await pilot.press("greater_than")
         await pilot.pause()
         await pilot.press("down")  # config row
         await pilot.pause()
@@ -1770,7 +1771,7 @@ async def test_nothing_opens_over_the_map(tmp_path: Path):
         for key, mode in (
             ("ctrl+o", "write"),
             ("ctrl+slash", "help"),
-            ("ctrl+comma", "settings"),
+            ("greater_than", "settings"),
         ):
             await pilot.press(key)
             await pilot.pause()
@@ -1795,7 +1796,7 @@ async def test_the_bar_says_what_each_drawer_accepts(tmp_path: Path):
         await pilot.press("escape")
         await pilot.pause()
 
-        await pilot.press("ctrl+comma")  # the settings list
+        await pilot.press("greater_than")  # the settings list
         await pilot.pause()
         line = bar.render().plain
         assert "↑↓ move" in line and "⏎ change" in line and "esc close" in line
@@ -1934,7 +1935,7 @@ async def test_a_drawer_keeps_the_keys_when_focus_wanders(tmp_path: Path):
 
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+comma")
+        await pilot.press("greater_than")
         await pilot.pause()
         panel = app.query_one(PanelBar)
         assert app.focused is panel
@@ -1993,7 +1994,7 @@ async def test_returning_to_the_terminal_lands_where_you_were(tmp_path: Path):
         await pilot.pause()
 
         # a panel
-        await pilot.press("ctrl+comma")
+        await pilot.press("greater_than")
         await pilot.pause()
         away_and_back()
         await pilot.pause()
@@ -2175,7 +2176,7 @@ async def test_help_keeps_the_bar_and_says_how_to_leave(tmp_path: Path):
 async def test_settings_leave_a_line_between_the_rows_and_the_bar(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+comma")
+        await pilot.press("greater_than")
         await pilot.pause()
 
         lines = app.query_one(PanelBar).render().plain.split("\n")
@@ -3599,7 +3600,7 @@ async def test_a_panel_keeps_one_blank_line_above_the_bar(tmp_path: Path):
     line, and two of them would read as a gap in the panel."""
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(100, 40)) as pilot:
-        await pilot.press("ctrl+comma")
+        await pilot.press("greater_than")
         await pilot.pause()
         panel = app.query_one(PanelBar)
         foot = app.query_one("#footer").region
