@@ -2776,7 +2776,9 @@ def test_the_cut_count_is_marked_when_the_panel_is_open():
     assert not [span for span in closed.spans if "on yellow" in str(span.style)]
     # one space between the items, not a run of them
     assert "5 cells total 2 cuts in stack spider layout" in closed.plain
-    assert [str(span.style) for span in closed.spans] == ["reverse"] * 3, "reverse video, never bold"
+    # the counts are plain: reverse is reserved for the place that has the keys
+    assert not [span for span in closed.spans if "reverse" in str(span.style)]
+    assert not [span for span in closed.spans if "bold" in str(span.style)]
 
 
 async def test_alt_arrows_move_an_entry_up_and_down_the_stack(tmp_path: Path):

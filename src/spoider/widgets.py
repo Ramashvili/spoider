@@ -26,10 +26,10 @@ if TYPE_CHECKING:
     from .app import SpoiderApp
 
 
-#: Each count is its own block: reverse video, so the terminal's own colours show
-#: through inverted — light on a dark theme, dark on a light one. A single space
-#: separates them, which is what makes them read as items rather than a sentence.
-STAT_STYLE = "reverse"
+#: The counts are plain text in the terminal's own colours. Reverse belongs to one
+#: thing at a time — the place the keys are — and the top line is not a place, it is
+#: what the map contains. A single space between the numbers keeps them as items.
+STAT_STYLE = ""
 
 #: The stack count turns yellow while the panel is open. One item changing colour
 #: says which one is live; changing all of them says nothing.

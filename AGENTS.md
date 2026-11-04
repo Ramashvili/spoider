@@ -51,8 +51,12 @@ to help.
 ## Rules the code is held to
 
 - **No palette.** Textual's `ansi` theme, ANSI colour names, reverse video for
-  selection and search hits, `\e[7m` blocks in the top bar. No hex, no RGB, no fixed
-  named colour — `orange1` does not parse at all and `orange` is a hard-coded RGB.
+  selection, search hits and the drawer bands. No hex, no RGB, no fixed named colour —
+  `orange1` does not parse at all and `orange` is a hard-coded RGB.
+- **Reverse says "you are here", one place at a time.** The cursor's cell wears it while
+  the map has the keys; a prompt or the stack panel takes it over and the cell's frame
+  steps aside. The top line is plain, except the cut count, which turns yellow while the
+  panel is open.
 - **Document vs editor state.** The map file holds the tree, text, `collapsed`,
   `mark`, `marks`, `spacing`, `layout`, `colours` and `cut_stack`. `spoider.conf` holds
   autosave, `marks_default` and chord overrides. Anything that changes how a map looks belongs to the
