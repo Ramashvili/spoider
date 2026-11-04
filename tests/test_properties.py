@@ -46,6 +46,10 @@ def test_the_file_section_holds_what_is_in_the_file(tmp_path: Path):
     assert rows["file"] == str(path)
     assert "written" in rows["size"]
     assert "cells" in rows["totals"] and "deep" in rows["totals"]
+    assert rows["format"] == "1", "the map file's own version"
+    assert rows["shape"] in ("spider", "pyramid", "bush", "branch")
+    assert rows["colours"] in ("family", "depth")
+    assert rows["spacing"].lstrip("-").isdigit()
     assert rows["justify"] == "-", "no wrap is saved yet"
     assert rows["state"] == "saved"
 
@@ -161,3 +165,11 @@ def test_the_box_is_clipped_only_by_the_screen():
 def test_the_readme_names_the_key():
     """The key table is guarded; this is the one line that must mention the overlay."""
     assert "| &#96; |" in README.read_text(encoding="utf-8")
+
+
+def test_a_variation_selector_stays_with_its_glyph():
+    """`⚠️` is two code points; splitting them into two cells unaligns the row."""
+    mm, _alpha, deep = _map()
+    mm.marks = ("⚠️", "✅")
+    drawn = _screen(sections(mm, None, deep.id, 1, None, dirty=False, autosave=False))
+    assert "⚠️" in drawn

@@ -476,10 +476,19 @@ def paint_box(
         for x in range(1, top):
             put(x, index, " ")
         column = 1
+        previous: tuple[int, str] | None = None
         for char in line:
             char_width = cell_len(char)
+            if char_width == 0:
+                # a variation selector or a combining accent belongs to the glyph before
+                # it, not to the cell after
+                if previous is not None:
+                    at, base = previous
+                    put(at, index, base + char)
+                continue
             if column + char_width > top:
                 break
+            previous = (column, char)
             put(column, index, char)
             # a wide glyph covers two columns of the screen; the second one contributes
             # nothing, exactly as the map's own grid handles its wide glyphs
