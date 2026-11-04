@@ -137,6 +137,11 @@ uv run pytest
 
 See [AGENTS.md](AGENTS.md) for the codebase layout and design notes.
 
+## Inspired by
+
+- [h-m-m](https://github.com/nadrad/h-m-m): a keyboard-first mind map that lives in the terminal.
+- [Minder](https://github.com/phase1geo/Minder): a small, quiet mind-mapping app for the desktop.
+
 ## Licence
 
 MIT, see [LICENSE](LICENSE).
