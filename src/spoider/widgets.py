@@ -35,6 +35,10 @@ STAT_STYLE = ""
 #: says which one is live; changing all of them says nothing.
 STAT_ACTIVE_STYLE = "black on yellow"
 
+#: The air between two counts. They are separate items, not a sentence, and at one
+#: column they read as one long string of numbers.
+GAP = "  "
+
 
 def compose_top_bar(
     width: int,
@@ -66,13 +70,13 @@ def compose_top_bar(
     segments: list[tuple[str, str]] = [(stat, STAT_STYLE)]
     joined = stat
     if extra:
-        candidate = f"{joined} {extra}"
+        candidate = f"{joined}{GAP}{extra}"
         if fits(candidate):
             style = STAT_ACTIVE_STYLE if extra_active else STAT_STYLE
             segments.append((extra, style))
             joined = candidate
     if layout:
-        candidate = f"{joined} {layout} layout"
+        candidate = f"{joined}{GAP}{layout} layout"
         if fits(candidate):
             segments.append((f"{layout} layout", STAT_STYLE))
             joined = candidate
@@ -100,7 +104,7 @@ def compose_top_bar(
         bar.append(" " * (width - cell_len(name) - right_width))
     for index, (text, style) in enumerate(segments):
         if index:
-            bar.append(" ")  # one blank column, not part of either block
+            bar.append(GAP)  # each count is its own item
         bar.append(text, style=style)
     return bar
 

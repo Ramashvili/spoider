@@ -112,11 +112,11 @@ def test_help_documents_every_binding():
 def test_top_bar_layout():
     bar = compose_top_bar(80, "0.1.0", "/tmp/map.json", "7 cells", "bush").plain
     assert bar.startswith("spoider 0.1.0")
-    assert bar.endswith("7 cells bush layout")
+    assert bar.endswith("7 cells  bush layout"), "two columns between the counts"
     assert "/tmp/map.json" in bar
     assert len(bar) == 80
 
-    assert compose_top_bar(70, "0.1.0", "New Buffer", "1 cell", "spider").plain.endswith("1 cell spider layout")
+    assert compose_top_bar(70, "0.1.0", "New Buffer", "1 cell", "spider").plain.endswith("1 cell  spider layout")
     # too narrow for three fields: the location is the one that goes
     narrow = compose_top_bar(24, "0.1.0", "/tmp/map.json", "3 cells").plain
     # and the shape is the first thing to go when even that does not fit
@@ -2776,7 +2776,7 @@ def test_the_cut_count_is_marked_when_the_panel_is_open():
     assert yellow, "the stack count is marked"
     assert not [span for span in closed.spans if "on yellow" in str(span.style)]
     # one space between the items, not a run of them
-    assert "5 cells total 2 cuts in stack spider layout" in closed.plain
+    assert "5 cells total  2 cuts in stack  spider layout" in closed.plain
     # the counts are plain: reverse is reserved for the place that has the keys
     assert not [span for span in closed.spans if "reverse" in str(span.style)]
     assert not [span for span in closed.spans if "bold" in str(span.style)]
