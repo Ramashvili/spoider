@@ -181,18 +181,18 @@ def test_stacked_shapes_keep_their_siblings_closer_together():
     assert gaps_for(0, "bush").x == STACK_GAP_X
 
 
-def test_stacked_shapes_step_down_to_a_shared_wall():
+def test_each_tight_step_is_one_column_shorter_than_the_one_above():
     assert gaps_for(0, "pyramid").x == 2
-    # -1 is the default look, -2 puts neighbours' walls together, -3 drops the walls
-    # and leaves a column between cells, -4 packs bare cells tight
-    assert gaps_for(-1, "pyramid").x == 1 and gaps_for(-1, "pyramid").walls
-    assert gaps_for(-2, "pyramid").x == -1 and gaps_for(-2, "pyramid").walls
-    assert gaps_for(-3, "pyramid").x == 1 and not gaps_for(-3, "pyramid").walls
-    assert gaps_for(-4, "pyramid").x == 0 and not gaps_for(-4, "pyramid").walls
+    # -1 is the default look, -2 pulls the walls together, -3 drops them, and each
+    # step down takes exactly one column so a connector still has somewhere to be drawn
+    assert gaps_for(-1, "spider").x == 4
+    assert gaps_for(-2, "spider").x == 3
+    assert gaps_for(-3, "spider").x == 2 and not gaps_for(-3, "spider").walls
+    assert gaps_for(-4, "spider").x == 1 and not gaps_for(-4, "spider").walls
     assert gaps_for(MIN_SPACING, "pyramid").y == 0
-    assert gaps_for(-99, "pyramid").x == 0  # clamped, not further
+    assert gaps_for(-99, "spider").x == 1, "clamped to the floor"
     # anything past the floor clamps to the floor, which is packed tight
-    assert gaps_for(-99, "spider").x == 0
+    assert gaps_for(-99, "pyramid").x == 0, "clamped, not further"
 
 
 def test_every_tightening_step_looks_different():
@@ -204,12 +204,6 @@ def test_every_tightening_step_looks_different():
         if (layout := compute(mm.root, spacing, "pyramid"))
     }
     assert len(set(seen.values())) == len(seen), f"two settings draw alike: {seen}"
-
-
-def test_siblings_share_a_wall_at_the_wall_sharing_setting():
-    mm, alpha, beta, _a1, _a2 = _shaped()
-    layout = compute(mm.root, -2, "pyramid")
-    assert layout.boxes[alpha.id].right == layout.boxes[beta.id].x
 
 
 def test_cousins_never_share_a_wall():

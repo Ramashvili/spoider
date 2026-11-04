@@ -244,25 +244,6 @@ def test_a_connector_leaves_and_arrives_through_t_junctions():
     assert grid.cells[(child_box.x, child_box.cy)][0] == "┤"
 
 
-def test_a_shared_wall_between_siblings_is_one_column():
-    mm = MindMap(Node("root"), spacing=-2)
-    one = mm.add_child(mm.root.id, "one")
-    two = mm.add_child(mm.root.id, "two")
-    layout = compute(mm.root, -2, "pyramid")
-    grid = build_grid(layout, mm.root.id)
-    first = layout.boxes[one.id]
-    second = layout.boxes[two.id]
-
-    assert first.right == second.x, "siblings should share the column"
-    # one wall between them, and a T where it meets the top and bottom edges
-    assert grid.cells[(second.x, second.cy)][0] == "│"
-    assert grid.cells[(second.x, second.y)][0] == "┬"
-    assert grid.cells[(second.x, second.bottom)][0] == "┴"
-
-
-# -- search highlights ----------------------------------------------------
-
-
 def _matched(layout, query: str) -> list[str]:
     """The runs a search marked, rendered with nothing selected."""
     drawn = render_text(

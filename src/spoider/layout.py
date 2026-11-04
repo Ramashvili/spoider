@@ -40,8 +40,8 @@ BOX_H = 3
 RIGHT, LEFT, DOWN, UP = "right", "left", "down", "up"
 
 # How far the spacing controls may push the gaps. The tight end has four steps, each
-# a picture of its own: -1 is the default look, -2 puts neighbours' walls together,
-# -3 drops the walls and leaves a column between cells, -4 packs bare cells tight.
+# a picture of its own: -1 is the default look, -2 pulls the walls together, -3 drops
+# them and leaves a column between cells, -4 keeps one column and drops the rest.
 MIN_SPACING = -4
 #: From here down a cell is its text: no walls, one row.
 BARE_SPACING = -3
@@ -76,11 +76,13 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
     """
     spacing = max(MIN_SPACING, min(MAX_SPACING, spacing))
     # The tight end is written out rather than computed: four steps, four pictures.
+    # A connector needs a column to be read in, so each step down takes one column and
+    # no more: from the default look to the floor, four, three, two, one.
     tight = {  # spacing: (sideways shapes, stacked shapes)
         -1: (GAP_X - 1, 1),
-        -2: (-1, -1),
-        -3: (1, 1),
-        -4: (0, 0),
+        -2: (GAP_X - 2, 0),
+        -3: (GAP_X - 3, 1),
+        -4: (GAP_X - 4, 0),
     }
     if layout in ("spider", "branch"):
         x = tight.get(spacing, (max(1, GAP_X + spacing), 0))[0]
