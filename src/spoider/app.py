@@ -861,7 +861,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             footer.custom = settings_chunks()
         else:  # help
             footer.mode = "custom"
-            footer.custom = help_chunks()
+            footer.custom = help_chunks(self.query_one(PanelBar).scrollable)
         footer.refresh()
 
     # -- the drawers themselves ------------------------------------------
@@ -961,8 +961,26 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         """^/ — every key and option, with a line of explanation."""
         self._mode = "help"
         self._hide_drawers(PanelBar)
-        self.query_one(PanelBar).show(help_text(self), lambda key: self._close_drawers())
+        self.query_one(PanelBar).show(help_text(self), self._help_key)
         self._sync_footer()
+
+    def _help_key(self, key: str) -> None:
+        """Scroll the help a screen at a time; any other key closes it."""
+        panel = self.query_one(PanelBar)
+        if key in ("pagedown", "ctrl+f"):
+            panel.scroll_by(panel.rows)
+        elif key == "pageup":
+            panel.scroll_by(-panel.rows)
+        elif key in ("down", "j"):
+            panel.scroll_by(1)
+        elif key in ("up", "k"):
+            panel.scroll_by(-1)
+        elif key == "end":
+            panel.jump_to("bottom")
+        elif key == "home":
+            panel.jump_to("top")
+        else:
+            self._close_drawers()
 
     def action_settings(self) -> None:
         """^, — the editor settings."""

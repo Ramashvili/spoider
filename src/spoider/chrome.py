@@ -219,10 +219,16 @@ def ask_chunks(affirm: str = "save", deny: str = "discard") -> list[Text]:
     ]
 
 
-def help_chunks() -> list[Text]:
-    """The bar while help is open. Any key closes it, so there is one thing to
-    say — and the bar stays, like everywhere else."""
-    return [entry("esc", "close", literal=True)]
+def help_chunks(scrollable: bool = False) -> list[Text]:
+    """The bar while help is open: how to close it, and how to read the rest.
+
+    Any key closes it, so the closing word is always there; the scroll keys are named
+    only when the page runs past the screen.
+    """
+    chunks = [entry("esc", "close", literal=True)]
+    if scrollable:
+        chunks.append(entry("pgup/pgdn", "scroll", literal=True))
+    return chunks
 
 
 def stack_chunks(bindings: Iterable, keymap: dict[str, str] | None = None) -> list[Text]:

@@ -43,20 +43,17 @@ HELP: tuple[HelpSection, ...] = (
             (("add_child",), "add a child and type its name"),
             (("add_sibling",), "add a sibling after the selection"),
             (("edit",), "rename the selected cell in place"),
-            (("cut",), "cut the cells into a LIFO stack, to paste back anywhere"),
-            (("paste",), "paste the newest cut; the older ones stay on the stack"),
-            (("toggle_stack",), "open the cut stack: its keys are the map's own"),
             (("delete",), "delete the cell and everything under it"),
+            (("copy",), "copy the cell's text to the clipboard"),
+            (("justify",), "reflow the cell's text to a width you type"),
+        ),
+    ),
+    (
+        "Marks and folds",
+        (
             (("mark",), "cycle the mark, then off"),
             (("set_marks",), "set the marks this map cycles, in order"),
-            (("justify",), "reflow the cell's text to a width you type"),
-            (("copy",), "copy the cell's text to the clipboard"),
             (("fold",), "fold or unfold the branch"),
-            (("toggle_properties",), "the file's properties, drawn over the map"),
-            (
-                ("go_home", "go_end", "top_sibling", "bottom_sibling"),
-                "by the tree, not the picture: main cell, deepest, first and last sibling",
-            ),
         ),
     ),
     (
@@ -77,13 +74,31 @@ HELP: tuple[HelpSection, ...] = (
         ),
     ),
     (
+        "By the tree",
+        (
+            (("go_home",), "the main cell of this tree"),
+            (("go_end",), "the deepest cell below this one"),
+            (("top_sibling",), "the first sibling under the same parent"),
+            (("bottom_sibling",), "the last sibling under the same parent"),
+        ),
+    ),
+    (
+        "The cut stack",
+        (
+            (("cut",), "cut the cells into a LIFO stack, to paste back anywhere"),
+            (("paste",), "paste the newest cut; the older ones stay on the stack"),
+            (("toggle_stack",), "open the cut stack: its keys are the map's own"),
+        ),
+    ),
+    (
         "View",
         (
-            (("search",), "find cells by their words; ↑ in the prompt recalls one"),
+            (("search",), "find cells by their words; up in the prompt recalls one"),
             (("layout",), "cycle the shape: spider, pyramid, bush, branch"),
-            (("colours",), "colour by depth, or by family — one colour per branch"),
-            (("spacing_more",), "more air between cells — saved with the map"),
+            (("colours",), "colour by depth, or by family, one colour per branch"),
+            (("spacing_more",), "more air between cells, saved with the map"),
             (("spacing_less",), "less air, down to cells sharing a border row"),
+            (("toggle_properties",), "the file's properties, drawn over the map"),
         ),
     ),
     (
@@ -122,6 +137,7 @@ HELP: tuple[HelpSection, ...] = (
         ),
     ),
 )
+
 
 def _pad(text: str, width: int) -> str:
     return text + " " * max(1, width - cell_len(text))

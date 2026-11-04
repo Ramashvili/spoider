@@ -4053,3 +4053,69 @@ async def test_an_arrow_into_the_children_picks_the_one_in_its_direction(tmp_pat
         await pilot.pause()
         assert app.selected in {kid.id for kid in below}
         assert app.selected != kids[0].id or len(below) == 1, "not simply the first child"
+
+
+# -- the help page reads to the bottom -------------------------------------
+
+
+async def test_help_scrolls_when_it_runs_past_the_screen(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "h.conf", demo=False)
+    async with app.run_test(size=(100, 20)) as pilot:
+        await pilot.press("ctrl+slash")
+        await pilot.pause()
+        panel = app.query_one(PanelBar)
+        assert panel.scrollable, "this size cannot show the whole page"
+        first = panel.render().plain.splitlines()[0]
+
+        await pilot.press("pagedown")
+        await pilot.pause()
+        assert panel.render().plain.splitlines()[0] != first, "the page moved"
+        assert "scroll" in app.query_one("#footer", FooterBar).render().plain
+
+        await pilot.press("end")
+        await pilot.pause()
+        assert "editor settings" in panel.render().plain, "the last section is reachable"
+
+        await pilot.press("home")
+        await pilot.pause()
+        assert panel.render().plain.splitlines()[0] == first
+
+        await pilot.press("pagedown")
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.mode == "keys", "esc still closes it"
+
+
+async def test_a_help_page_that_fits_names_only_close(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "h.conf", demo=False)
+    async with app.run_test(size=(140, 120)) as pilot:
+        await pilot.press("ctrl+slash")
+        await pilot.pause()
+        panel = app.query_one(PanelBar)
+        assert not panel.scrollable, "a tall screen shows it whole"
+        assert "scroll" not in app.query_one("#footer", FooterBar).render().plain
+
+
+def test_help_is_ordered_from_making_cells_to_this_screen():
+    from spoider.screens import HELP
+
+    order = [title for title, _rows in HELP]
+    assert order == [
+        "Making cells",
+        "Marks and folds",
+        "Moving",
+        "By the tree",
+        "The cut stack",
+        "View",
+        "File",
+        "History",
+        "While typing",
+        "This screen",
+    ]
+
+
+def test_the_demo_names_the_tree_keys_and_the_debug_box():
+    texts = [node.text for node in MindMap.demo().nodes()]
+    joined = " ".join(texts)
+    for word in ("pgup", "pgdn", "home", "end", "del", "`"):
+        assert word in joined, f"the demo should mention {word}"

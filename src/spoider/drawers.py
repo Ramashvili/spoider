@@ -255,16 +255,44 @@ class PanelBar(Drawer):
         super().__init__(**kwargs)
         self._text = Text("")
         self._rows = 0
+        self._offset = 0
         self._key_handler: Callable[[str], None] = lambda key: None
 
     def show(self, text: Text, on_key: Callable[[str], None]) -> None:
         self._text = text
+        self._offset = 0
         self._key_handler = on_key
         rows = max(1, text.plain.count("\n") + 1)
         room = max(3, self.app.size.height - 4)  # the bar, the top line, a little map
         self._rows = min(rows, room)
         self.styles.height = self._rows
         self.open()
+
+    @property
+    def rows(self) -> int:
+        """How many lines the panel is showing."""
+        return self._rows
+
+    @property
+    def scrollable(self) -> bool:
+        """True when the panel holds more than the screen shows."""
+        return self._text.plain.count("\n") + 1 > self._rows
+
+    def scroll_by(self, rows: int) -> None:
+        """Move the window over the text, stopping at both ends.
+
+        Not `scroll`: Textual already has one with a different signature.
+        """
+        total = self._text.plain.count("\n") + 1
+        highest = max(0, total - self._rows)
+        self._offset = max(0, min(self._offset + rows, highest))
+        self.refresh()
+
+    def jump_to(self, where: str) -> None:
+        total = self._text.plain.count("\n") + 1
+        highest = max(0, total - self._rows)
+        self._offset = 0 if where == "top" else highest
+        self.refresh()
 
     def on_key(self, event: events.Key) -> None:
         event.stop()
@@ -279,7 +307,7 @@ class PanelBar(Drawer):
         # allow_blank keeps a trailing empty line: a panel that asks for air
         # above the bar gets it, rather than being silently trimmed
         lines = self._text.split("\n", allow_blank=True)
-        for index, line in enumerate(lines[: self._rows]):
+        for index, line in enumerate(lines[self._offset : self._offset + self._rows]):
             if index:
                 panel.append("\n")
             if cell_len(line.plain) > width:
