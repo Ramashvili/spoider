@@ -179,11 +179,13 @@ def _not_a_map(path: Path) -> str | None:
 
 #: What the first-run question says it will touch, in the order it touches them.
 DESKTOP_NOTES = (
-    "spoider can make .spoider files open in spoider from your file browser.",
-    "That writes two files in your home directory:",
+    "Your system can make .spoider files open in spoider from your file browser.",
+    "This requires creating two files:",
+    "",
     "  ~/.local/share/mime/packages/x-spoider.xml",
     "  ~/.local/share/applications/spoider.desktop",
-    "and runs update-mime-database, update-desktop-database and xdg-mime.",
+    "",
+    "and running update-mime-database, update-desktop-database and xdg-mime.",
 )
 
 
