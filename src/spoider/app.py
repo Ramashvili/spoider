@@ -177,6 +177,37 @@ def _not_a_map(path: Path) -> str | None:
     return None
 
 
+#: What the first-run question says it will touch, in the order it touches them.
+DESKTOP_NOTES = (
+    "spoider can make .spoider files open in spoider from your file browser.",
+    "That writes two files in your home directory:",
+    "  ~/.local/share/mime/packages/x-spoider.xml",
+    "  ~/.local/share/applications/spoider.desktop",
+    "and runs update-mime-database, update-desktop-database and xdg-mime.",
+)
+
+
+def ask_desktop(config: Config, config_path: Path, key_entries: list[tuple[str, str, str]]) -> bool:
+    """Ask, before the screen exists, whether to register .spoider with the desktop.
+
+    Nothing is written to a terminal that is not one: a program launching a map gets no
+    question, and the answer is not recorded, so the question comes back next time.
+    """
+    if config.desktop_asked or not sys.stdin.isatty():
+        return False
+    print("\n".join(DESKTOP_NOTES))
+    try:
+        reply = input("Do it now? [y/N] ")
+    except EOFError:
+        return False
+    if not config_path.exists():
+        write_config(config, config_path, key_entries)
+    if reply.strip().lower() in ("y", "yes"):
+        install_desktop()
+    update_config(config_path, {"desktop_asked": "true"})
+    return True
+
+
 def edit_in_editor(path: Path) -> None:
     """Run the user's editor on a file, in the foreground."""
     subprocess.run([*editor_command(), str(path)], check=False)
@@ -306,7 +337,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._set_terminal_title()
         self._apply_start_position()
         self.query_one(MindMapView).focus()
-        self._maybe_ask_desktop()
 
     def action_go_home(self) -> None:
         """`home` — the main cell of the tree the cursor is in, hierarchy only."""
@@ -1023,35 +1053,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.query_one(AskBar).ask("Save modified buffer?", self._save_answered)
         self._sync_footer()
 
-    def _maybe_ask_desktop(self) -> None:
-        """Ask whether .spoider files should open in spoider, when the config says not yet.
-
-        Installation cannot do it: neither `uv tool install` nor any wheel runs code at
-        install time, so the first launch is the first moment the program can ask. The
-        answer is the only record, so a config deleted later brings the question back.
-        """
-        if self.config.desktop_asked:
-            return
-        self._ask_to_register_desktop()
-
-    def _ask_to_register_desktop(self) -> None:
-        """Open the question itself, whatever the config already says."""
-        self._ask_words = ("register", "not now")
-        self._mode = "ask"
-        self._hide_drawers(AskBar)
-        self.query_one(AskBar).ask(
-            "Open .spoider files with spoider from now on?", self._desktop_answered
-        )
-        self._sync_footer()
-
-    def _desktop_answered(self, choice: str | None) -> None:
-        self._close_drawers()
-        self.config.desktop_asked = True
-        self._save_config({"desktop_asked": "true"})
-        if choice == "yes":
-            install_desktop()
-            self.notify("A .spoider map now opens with spoider", timeout=3)
-
     def _settings_key(self, key: str) -> None:
         if key in ("escape", "ctrl+c", "ctrl+comma", "ctrl+x"):
             self._close_drawers()
@@ -1210,6 +1211,7 @@ def main(argv: list[str] | None = None) -> None:
         # on stderr and leave with a code it can test
         print(f"spoider: {exc}", file=sys.stderr)
         raise SystemExit(2) from None
+    ask_desktop(app.config, app.config_path, app._key_entries())
     app.run(mouse=False)
 
 
