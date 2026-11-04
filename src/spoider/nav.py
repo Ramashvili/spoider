@@ -124,6 +124,36 @@ def towards(mm: MindMap, layout, here: str, dx: int, dy: int) -> str | None:
     return best
 
 
+def child_towards(mm: MindMap, layout, here: str, dx: int, dy: int) -> str | None:
+    """The child the canvas puts nearest in the direction pressed.
+
+    A parent with several children is a row of them; which one you meant is a question
+    about where they sit, not about the order they were made in. Distance is the gap
+    between the boxes, so a wide child beside us is close, and a child level with us wins
+    over one a row away. None when no child lies that way at all.
+    """
+    node = mm.find(here)
+    start = layout.boxes.get(here)
+    if node is None or start is None or not node.children:
+        return None
+    best: str | None = None
+    best_key: tuple[int, int] | None = None
+    for child in node.children:
+        box = layout.boxes.get(child.id)
+        if box is None:
+            continue
+        ahead = (box.cx - start.cx) * dx if dx else (box.cy - start.cy) * dy
+        if ahead <= 0:
+            continue
+        across_gap = max(0, max(box.x - start.right, start.x - box.right))
+        down_gap = max(0, max(box.y - start.bottom, start.y - box.bottom))
+        sideways = abs(box.cy - start.cy) if dx else abs(box.cx - start.cx)
+        key = (across_gap + down_gap, sideways)
+        if best_key is None or key < best_key:
+            best, best_key = child.id, key
+    return best
+
+
 def _standing_after(parent: Node, index: int) -> str:
     """Where the cursor goes when the cells at `index` and above are gone: the cell
     that slid into the gap, else the last one before it, else the parent."""

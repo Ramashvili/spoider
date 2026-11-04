@@ -205,15 +205,28 @@ class MapActions:
                 return nav.to_sibling(self.mm, here, -1 if kind == "prev" else +1)
             if kind == "parent":
                 return nav.to_parent(self.mm, here)
-            return nav.to_child(self.mm, here)
+            return self._child_target(
+                dx, dy, nav.to_child(self.document, here)
+            )
         if self.siblings_are_sideways:
             return nav.to_sibling(self.mm, here, dx)
         if self._at_root:
-            return nav.to_child_on_side(self.mm, here, dx)
+            return self._child_target(
+                dx, dy, nav.to_child_on_side(self.document, here, dx)
+            )
         if nav.side(self.mm, here, self.mm.layout) < 0:
             # a left-hand branch: left goes deeper, right comes back towards the root
-            return nav.to_child(self.mm, here) if dx < 0 else nav.to_parent(self.mm, here)
-        return nav.to_parent(self.mm, here) if dx < 0 else nav.to_child(self.mm, here)
+            if dx < 0:
+                return self._child_target(dx, dy, nav.to_child(self.document, here))
+            return nav.to_parent(self.mm, here)
+        if dx < 0:
+            return nav.to_parent(self.mm, here)
+        return self._child_target(dx, dy, nav.to_child(self.document, here))
+
+    def _child_target(self, dx: int, dy: int, fallback: str) -> str:
+        """Going to a child: the one the canvas puts under the arrow, else the first."""
+        reached = nav.child_towards(self.document, self._nav_layout(), self.selected, dx, dy)
+        return reached or fallback
 
     def _nav_layout(self):
         """The layout the keys are moving in: the panel's if it is open, else the map's."""

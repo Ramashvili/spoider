@@ -4034,3 +4034,22 @@ async def test_the_tree_keys_walk_the_hierarchy(tmp_path: Path):
         await pilot.pause()
         assert app.mm.find(leaf.id) is None, "del removes the cell, as ^D does"
         assert app.mm.find(deep.id) is not None, "its parent stays"
+
+
+async def test_an_arrow_into_the_children_picks_the_one_in_its_direction(tmp_path: Path):
+    """Which child you reach is decided by where the children are drawn."""
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "n.conf", demo=False)
+    async with app.run_test(size=(120, 40)) as pilot:
+        kids = [app.mm.add_child(app.mm.root.id, name) for name in ("a", "b", "c")]
+        app.view.refresh_map()
+        app.select(app.mm.root.id)
+        await pilot.pause()
+
+        boxes = app.view.layout_.boxes
+        below = [kid for kid in kids if boxes[kid.id].cy > boxes[app.mm.root.id].cy]
+        assert below, "the fixture should put at least one child below the root"
+
+        await pilot.press("down")
+        await pilot.pause()
+        assert app.selected in {kid.id for kid in below}
+        assert app.selected != kids[0].id or len(below) == 1, "not simply the first child"

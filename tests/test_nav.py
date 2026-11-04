@@ -5,9 +5,9 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from spoider import nav
-from spoider.layout import RIGHT, Layout, Placed
+from spoider.layout import RIGHT, Layout, Placed, compute
 from spoider.model import MindMap, Node
-from spoider.nav import to_end, to_extreme_sibling, to_home
+from spoider.nav import child_towards, to_end, to_extreme_sibling, to_home
 
 
 def _map():
@@ -233,3 +233,43 @@ def test_page_up_and_down_walk_the_siblings():
 def test_the_root_has_no_siblings_to_walk_to():
     mm, _t = _tree()
     assert to_extreme_sibling(mm, mm.root.id, last=True) == mm.root.id
+
+
+# -- going to a child picks by the canvas ----------------------------------
+
+
+def _fan(shape: str):
+    mm = MindMap(Node("root"))
+    kids = [mm.add_child(mm.root.id, name) for name in ("a", "b", "c")]
+    mm.layout = shape
+    return mm, compute(mm.root, mm.spacing), kids
+
+
+def test_the_child_under_the_arrow_is_the_one_reached():
+    mm, layout, kids = _fan("spider")
+    roots = {kid.text: kid for kid in kids}
+    down = child_towards(mm, layout, mm.root.id, 0, +1)
+    up = child_towards(mm, layout, mm.root.id, 0, -1)
+    right = child_towards(mm, layout, mm.root.id, +1, 0)
+    left = child_towards(mm, layout, mm.root.id, -1, 0)
+    assert down and up and right and left, "each direction finds a child"
+    assert len({down, up, right, left}) >= 2, "the arrows do not all land on one child"
+    # the one below is below, the one above is above, and so on for the sides
+    boxes = layout.boxes
+    assert boxes[down].cy > boxes[mm.root.id].cy
+    assert boxes[up].cy < boxes[mm.root.id].cy
+    assert boxes[right].cx > boxes[mm.root.id].cx
+    assert boxes[left].cx < boxes[mm.root.id].cx
+    assert set(roots) == {"a", "b", "c"}
+
+
+def test_no_child_in_that_direction_means_none():
+    mm = MindMap(Node("root"))
+    mm.add_child(mm.root.id, "only")
+    layout = compute(mm.root, mm.spacing)
+    assert child_towards(mm, layout, mm.root.id, 0, -1) is None, "nothing above the root"
+
+
+def test_a_leaf_has_no_children_to_reach():
+    mm, layout, kids = _fan("spider")
+    assert child_towards(mm, layout, kids[0].id, 0, +1) is None
