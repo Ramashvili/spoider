@@ -458,75 +458,8 @@ class MindMap:
     def demo(cls) -> MindMap:
         """The map `--demo` opens: the manual, as a map.
 
-        One branch per thing the editor does — what it is, who it is for, and then
-        the keys in the order someone learning them would want them. It is the
-        whole of the program's surface: if something can be done, it is on this map
-        somewhere.
+        It ships inside the package, at `data/manual.spoider`, so `--demo` works the same
+        from a wheel as from a checkout, and it is edited like any other map rather than
+        built by hand in code.
         """
-        root = Node("spoider")
-        ideas = {
-            "what a mind map is": [
-                "one thought in the middle",
-                "its parts arranged around it",
-                "and each part splits again",
-            ],
-            "what it is for": [
-                "planning before building",
-                "thinking a thing through",
-                "notes that keep their shape",
-            ],
-            "making cells": [
-                "tab a child, enter a sibling",
-                "e renames it in place\nS-\u23ce starts a new line",
-                "^D deletes the branch for good",
-            ],
-            "marks and folds": [
-                "m cycles a mark, then off",
-                "marks are saved with the map",
-                "t folds a branch away",
-            ],
-            "moving around": [
-                "arrows, or h j k l",
-                "shift picks a run, esc drops it",
-                "alt + an arrow reorders a run",
-            ],
-            "cut and paste": [
-                "^K lifts a branch onto a stack",
-                "^U pastes latest item from stack",
-                "p opens the stack to work in",
-            ],
-            "inside the stack": [
-                "↑↓ walk it, e renames a cut",
-                "^K again puts it back on top",
-                "^Z and ^Y undo and redo",
-            ],
-            "shaping it": [
-                "= and - change the air",
-                "^L cycles four shapes",
-                "^F finds it, ↑ recalls a search",
-                "^J reflows a cell to a width",
-            ],
-            "keeping it": [
-                "^S writes plain json, ^O a copy",
-                "^X asks before it quits",
-                "^, can write after every edit",
-            ],
-            "reading this": [
-                "^/ lists every key and its chord",
-                "the keys are the whole interface",
-                "the bar below never goes away",
-            ],
-        }
-        for title, leaves in ideas.items():
-            root.children.append(Node(title, children=[Node(leaf) for leaf in leaves]))
-        # the demo marks cells itself, in its own vocabulary: a reader sees four
-        # meanings before reading a word about them
-        demo_marks = DEMO_MARKS
-        for branch, leaf, mark in (
-            (3, 1, demo_marks[0]),  # marks are saved with the map
-            (2, 0, demo_marks[1]),  # tab a child, enter a sibling
-            (5, 0, demo_marks[2]),  # ^K lifts a branch onto a stack
-            (7, 3, demo_marks[4]),  # ^J reflows a cell to a width
-        ):
-            root.children[branch].children[leaf].mark = mark
-        return cls(root, marks=demo_marks)
+        return cls.load(Path(__file__).resolve().parent / "data" / "manual.spoider")
