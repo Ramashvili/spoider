@@ -105,48 +105,11 @@
     ]
    },
    {
-    "id": "m013",
-    "text": "moving around",
+    "id": "m800",
+    "text": "the arrows move around",
     "collapsed": false,
     "mark": "",
-    "children": [
-     {
-      "id": "m014",
-      "text": "the arrows follow the canvas",
-      "collapsed": false,
-      "mark": "",
-      "children": [
-       {
-        "id": "m015",
-        "text": "a relative comes first",
-        "collapsed": false,
-        "mark": "",
-        "children": []
-       },
-       {
-        "id": "m016",
-        "text": "otherwise the nearest cell that way",
-        "collapsed": false,
-        "mark": "",
-        "children": []
-       },
-       {
-        "id": "m017",
-        "text": "so an arrow can cross between branches",
-        "collapsed": false,
-        "mark": "",
-        "children": []
-       }
-      ]
-     },
-     {
-      "id": "m018",
-      "text": "hjkl does what the arrows do",
-      "collapsed": false,
-      "mark": "",
-      "children": []
-     }
-    ]
+    "children": []
    },
    {
     "id": "m019",
@@ -385,6 +348,21 @@
       "collapsed": false,
       "mark": "",
       "children": []
+     },
+     {
+      "id": "m801",
+      "text": "every chord can be changed in the config",
+      "collapsed": false,
+      "mark": "",
+      "children": [
+       {
+        "id": "m802",
+        "text": "~/.config/spoider/spoider.conf",
+        "collapsed": false,
+        "mark": "",
+        "children": []
+       }
+      ]
      }
     ]
    }

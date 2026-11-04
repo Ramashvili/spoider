@@ -109,6 +109,10 @@ def test_the_demo_teaches_the_keys_this_build_has():
     assert any("tab" in text for text in texts) and any("^F" in text for text in texts)
     assert any("^S" in text for text in texts), "and where the map goes"
     assert any("p shows the stack" in text for text in texts), "the stack key it has now"
+    # the arrows are intuitive, so the manual does not explain them; it does say that
+    # the chords are the reader's to change
+    assert not any("nearest" in text or "relative" in text for text in texts), "no algorithm"
+    assert any("changed in the config" in text for text in texts)
 
     # short enough to read at a glance (a cell may hold more than one line, so it is
     # the lines that must stay short), and one cell shows a mark rather than only

@@ -129,3 +129,14 @@ def test_only_a_parent_child_or_sibling_counts_as_a_relative():
     assert nav.is_direct_relative(mm, one.id, two.id)
     assert not nav.is_direct_relative(mm, child.id, stranger.id), "cousins are not relatives"
     assert not nav.is_direct_relative(mm, one.id, one.id)
+
+
+def test_a_closer_cell_wins_even_when_it_is_not_the_one_in_line():
+    """The tie-break is a tie-break: sharing a column must not outrank distance."""
+    here, near_off_axis, far_in_line = Node("here"), Node("near"), Node("far")
+    layout = layout_of(
+        placed(here, 10, 0),
+        placed(near_off_axis, 13, 4),    # four rows down, a little to the right
+        placed(far_in_line, 10, 20),     # the same column, but much further
+    )
+    assert nav.towards(layout, here.id, 0, +1) == near_off_axis.id

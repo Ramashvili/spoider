@@ -39,10 +39,12 @@ BOX_H = 3
 #: The direction a box's children hang in.
 RIGHT, LEFT, DOWN, UP = "right", "left", "down", "up"
 
-# How far the spacing controls may push the gaps. Two steps is all the tight end
-# has room for: a third would draw exactly what the second one draws, because
-# boxes already share their walls and their rows.
-MIN_SPACING = -2
+# How far the spacing controls may push the gaps. The tight end has three steps:
+# sharing a wall, bare text with room to breathe, and bare text packed close.
+MIN_SPACING = -3
+#: From here down a cell is its text: no walls, one row. -2 leaves room between
+#: cells, -3 packs them.
+BARE_SPACING = -2
 MAX_SPACING = 12
 
 
@@ -76,23 +78,24 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
     if layout in ("spider", "branch"):
         # a sideways shape needs a column to run a connector through, and its
         # neighbours are levels apart rather than side by side
-        x = max(2, GAP_X + spacing)
+        x = max(1, GAP_X + spacing)
     elif spacing >= 0:
         x = STACK_GAP_X + spacing
-    else:
-        # Both tight settings: siblings share their wall, so a row of them reads
-        # as one group. What the last step tightens is the rows — at -1 the
-        # levels still have a blank row between them, at -2 they touch as well.
-        # A gap of one column in between would be an adjacent pair of walls,
-        # which reads as a mistake rather than as either.
+    elif spacing > BARE_SPACING:
+        # The wall-sharing setting: siblings share their wall, so a row of them reads
+        # as one group. A gap of one column in between would be an adjacent pair of
+        # walls, which reads as a mistake rather than as either.
         x = -1
+    else:
+        # Bare text: a column between cells, then none at the floor.
+        x = 1 + (spacing - BARE_SPACING)
     return Gaps(
-        walls=spacing > MIN_SPACING,
+        walls=spacing > BARE_SPACING,
         x=x,
         # -1 lets two boxes share a border row: they touch, but each keeps its own
         # text row. With the walls gone a cell is a single row, so the floor needs a
         # row of its own instead of sharing the row that held two borders.
-        y=0 if spacing <= MIN_SPACING else max(-1, GAP_Y + spacing),
+        y=0 if spacing <= BARE_SPACING else max(-1, GAP_Y + spacing),
     )
 
 

@@ -86,15 +86,15 @@ def towards(layout, here: str, dx: int, dy: int) -> str | None:
     """The nearest cell in a screen direction, or None when that way is empty.
 
     Nearest wins, and the sideways offset is charged three times so a slightly further
-    cell in line is chosen over a closer one well off to the side. Cells that overlap the
-    current one across the other axis come first, which is what makes a column of boxes
-    read as a column.
+    cell in line is chosen over a closer one well off to the side. Cells overlapping the
+    current one across the other axis break a tie: they are what makes a column of boxes
+    read as a column, and they must not outrank a cell that is simply closer.
     """
     start = layout.boxes.get(here)
     if start is None:
         return None
     best: str | None = None
-    best_key: tuple[int, float] | None = None
+    best_key: tuple[float, int] | None = None
     for box in layout.boxes.values():
         if box.node.id == here:
             continue
@@ -108,7 +108,7 @@ def towards(layout, here: str, dx: int, dy: int) -> str | None:
             overlaps = box.x < start.x + start.w and start.x < box.x + box.w
         if ahead <= 0:
             continue
-        key = (0 if overlaps else 1, ahead + 3 * across)
+        key = (ahead + 3 * across, 0 if overlaps else 1)
         if best_key is None or key < best_key:
             best, best_key = box.node.id, key
     return best

@@ -183,13 +183,13 @@ def test_stacked_shapes_keep_their_siblings_closer_together():
 
 def test_stacked_shapes_step_down_to_a_shared_wall():
     assert gaps_for(0, "pyramid").x == 2
-    # both tight settings share the wall between siblings; the last one also
-    # takes the blank row out from between the levels
-    assert gaps_for(MIN_SPACING + 1, "pyramid").x == -1
-    assert gaps_for(MIN_SPACING, "pyramid").x == -1
+    # the wall-sharing setting puts siblings' walls together; the two below it are
+    # bare text, one with a column between cells and the floor with none
+    assert gaps_for(-1, "pyramid").x == -1
+    assert gaps_for(-2, "pyramid").x == 1
+    assert gaps_for(-3, "pyramid").x == 0
     assert gaps_for(MIN_SPACING, "pyramid").y == 0
-    assert gaps_for(MIN_SPACING + 1, "pyramid").y == 0
-    assert gaps_for(-99, "pyramid").x == -1  # clamped, not further
+    assert gaps_for(-99, "pyramid").x == 0  # clamped, not further
     # a sideways shape keeps its columns: the connector needs the room
     from spoider.layout import GAP_X
 
@@ -207,11 +207,10 @@ def test_every_tightening_step_looks_different():
     assert len(set(seen.values())) == len(seen), f"two settings draw alike: {seen}"
 
 
-def test_siblings_share_a_wall_at_both_tight_settings():
-    for spacing in (MIN_SPACING + 1, MIN_SPACING):
-        mm, alpha, beta, _a1, _a2 = _shaped()
-        layout = compute(mm.root, spacing, "pyramid")
-        assert layout.boxes[alpha.id].right == layout.boxes[beta.id].x
+def test_siblings_share_a_wall_at_the_wall_sharing_setting():
+    mm, alpha, beta, _a1, _a2 = _shaped()
+    layout = compute(mm.root, -1, "pyramid")
+    assert layout.boxes[alpha.id].right == layout.boxes[beta.id].x
 
 
 def test_cousins_never_share_a_wall():
