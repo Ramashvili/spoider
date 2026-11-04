@@ -41,7 +41,7 @@ def test_no_argument_starts_a_new_buffer(monkeypatch):
 
 
 def test_the_position_flag_is_handed_to_the_app(monkeypatch):
-    assert _run(monkeypatch, [])["position"] == "0", "the root when nothing is asked for"
+    assert _run(monkeypatch, [])["position"] is None, "the file's own cursor, when nothing is asked"
     assert _run(monkeypatch, ["-p", "7.4.9"])["position"] == "7.4.9"
     assert _run(monkeypatch, ["--position", "s2.1"])["position"] == "s2.1"
     assert _run(monkeypatch, ["-p7.4"])["position"] == "7.4"

@@ -30,7 +30,7 @@ from .config import (
 from .desktop import install_desktop, registered
 from .drawers import AskBar, PanelBar, PromptBar
 from .editing import Buffer
-from .files import default_path
+from .files import SUFFIX, default_path
 from .keys import (
     BINDINGS,
     action_chords,
@@ -263,23 +263,38 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._offer_desktop_once()
 
     def _apply_start_position(self) -> None:
-        """Put the cursor where `--position` asked, or leave it on the root.
+        """Where the cursor starts: the address if one was given, else the map's own
+        memory of where it was, else the root.
 
-        An address into the cut stack opens the panel first, because a cell you cannot
-        see is not a place the cursor can be.
+        A cell on the cut stack opens the panel first, because a cell you cannot see is
+        not a place the cursor can be.
         """
-        if not self.start_position:
+        found: str | None = None
+        in_stack = False
+        if self.start_position is not None:
+            address = parse_address(self.start_position)
+            if address is not None:
+                found = resolve_address(self.mm, address)
+                in_stack = address.stack
+        elif self.mm.cursor:
+            found, in_stack = self._find_saved_cursor(self.mm.cursor)
+        if not found:
             return
-        address = parse_address(self.start_position)
-        found = resolve_address(self.mm, address) if address is not None else None
-        if found is None or address is None:
+        if in_stack:
+            self.action_toggle_stack()
+            self._stack_select(self._stack_doc(), found)
             return
-        if not address.stack:
-            self.selected = found
-            self.anchor = None
-            return
-        self.action_toggle_stack()
-        self._stack_select(self._stack_doc(), found)
+        self.selected = found
+        self.anchor = None
+
+    def _find_saved_cursor(self, ident: str) -> tuple[str | None, bool]:
+        """The id, and whether it names a cut rather than a cell in the map."""
+        if self.mm.find(ident) is not None:
+            return ident, False
+        for entry in self.mm.cut_stack:
+            if any(node.id == ident for node in entry.walk()):
+                return ident, True
+        return None, False
 
     def on_app_focus(self, event: events.AppFocus) -> None:
         """Come back to the terminal exactly where you left it."""
@@ -652,6 +667,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self._autosave()  # one write per change, after the screen agrees
 
     def _write(self, path: Path) -> bool:
+        # the file remembers where the cursor was, so opening it returns there
+        self.mm.cursor = self.selected
         try:
             self.mm.save(path)
         except OSError as exc:
@@ -667,14 +684,32 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     def _ask_where_to_write(self, *, then_quit: bool = False) -> None:
         self._write_then_quit = then_quit
+        offered, caret = self._write_offer()
         self._show_prompt(
             "write",
             "File name to write: ",
-            self._suggested_name(),
-            preselect=True,
+            offered,
+            cursor=caret,
             submit=self._write_submitted,
             cancel=self._close_drawers,
         )
+
+    def _write_offer(self) -> tuple[str, int]:
+        """What the write prompt offers, and where the caret sits.
+
+        The name comes with the map suffix already on it and the caret just before it, so
+        the first keystroke edits the name and the suffix stays put.
+        """
+        name = self._suggested_name()
+        if not name:
+            return "", 0
+        if name.endswith(SUFFIX):
+            return name, len(name) - len(SUFFIX)
+        # a name with no suffix of its own gets one; an existing file of any other kind
+        # is left exactly as the reader named it
+        if Path(name).suffix:
+            return name, len(name)
+        return f"{name}{SUFFIX}", len(name)
 
     def _suggested_name(self) -> str:
         """What to offer in the write prompt.
@@ -768,6 +803,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         label: str,
         value: str = "",
         *,
+        cursor: int | None = None,
         preselect: bool = False,
         recall: list[str] | None = None,
         change=None,
@@ -779,6 +815,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.query_one(PromptBar).ask(
             label,
             value,
+            cursor=cursor,
             preselect=preselect,
             recall=recall,
             submit=submit,
@@ -1023,7 +1060,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "-p",
         "--position",
-        default="0",
+        default=None,
         metavar="ADDRESS",
         help="cell to put the cursor on: 0 is the root, 9 the ninth child, 7.4.9 a path "
         "down, s2 or s2.1 a cell on the cut stack; anything else starts at the root",

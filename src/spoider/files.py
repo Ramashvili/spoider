@@ -11,6 +11,9 @@ import os
 import tempfile
 from pathlib import Path
 
+#: The suffix a map is offered when it is written: the label that says what
+#: the JSON is, and nothing the app itself reads.
+SUFFIX = ".spoider"
 
 def write_atomic(path: Path, text: str) -> None:
     """Write `text` to `path`, keeping the old contents until the write succeeds."""

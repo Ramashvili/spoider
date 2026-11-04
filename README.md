@@ -114,8 +114,9 @@ On the right you can see the LIFO stack, holding branches cut from the map.
 ### Maps that look the same everywhere
 
 Your layout shape, spacing, colour mode, custom marks, and even unpasted branches
-on the stack are saved inside the `.spoider` file itself. Opening the same file
-on another machine gives you the exact same view.
+on the stack are saved inside the `.spoider` file itself, along with the cell you
+were last on. Opening the same file on another machine gives you the exact same view,
+with the cursor where you left it.
 
 Editor preferences like autosave and custom keybindings live in
 `~/.config/spoider/spoider.conf`, which you can open directly from `^,`.

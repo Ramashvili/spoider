@@ -64,6 +64,7 @@ class PromptBar(Drawer):
         label: str,
         value: str = "",
         *,
+        cursor: int | None = None,
         preselect: bool = False,
         recall: list[str] | None = None,
         submit: Callable[[str], None],
@@ -72,7 +73,8 @@ class PromptBar(Drawer):
     ) -> None:
         self.label = label
         self.value = value
-        self.cursor = len(value)
+        # a caret position when the caller has one, the end of the value otherwise
+        self.cursor = len(value) if cursor is None else max(0, min(cursor, len(value)))
         self.recall = recall
         self._submit = submit
         self._cancel = cancel

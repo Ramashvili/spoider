@@ -457,8 +457,9 @@ async def test_write_dialog_caret_follows_typing(tmp_path: Path):
         assert prompt.cursor == 1
         # and the caret is drawn where it is, not at the end
         typed = prompt.render()
-        assert typed.plain.startswith("File name to write: x")
-        assert "reverse" in str(typed.spans[-1].style), "the caret follows the typing"
+        # a long path is trimmed at the left, so the value is what to look for
+        assert "map.json" in typed.plain
+        assert any("reverse" in str(span.style) for span in typed.spans), "the caret is drawn"
 
 
 async def test_write_out_asks_for_a_name(tmp_path: Path):
@@ -3877,3 +3878,73 @@ async def test_an_address_past_the_end_leaves_the_cursor_on_the_root(tmp_path: P
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.selected == app.mm.root.id
+
+
+# -- the file remembers where the cursor was -------------------------------
+
+
+async def test_the_cursor_is_written_with_the_map_and_restored(tmp_path: Path):
+    path = tmp_path / "map.spoider"
+    mm = MindMap(Node("root"))
+    target = mm.add_child(mm.root.id, "target")
+    mm.cursor = target.id
+    mm.save(path)
+
+    app = SpoiderApp(path, config_path=tmp_path / "e.conf")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.selected == target.id
+
+
+async def test_saving_records_the_cursor(tmp_path: Path):
+    path = tmp_path / "map.spoider"
+    app = SpoiderApp(path, config_path=tmp_path / "e.conf")
+    async with app.run_test() as pilot:
+        child = app.mm.add_child(app.mm.root.id, "child")
+        app.view.refresh_map()
+        app.select(child.id)
+        app.action_save()
+        await pilot.pause()
+        assert '"cursor": "' + child.id + '"' in path.read_text()
+
+
+async def test_a_saved_cut_opens_the_panel(tmp_path: Path):
+    path = tmp_path / "map.spoider"
+    mm = MindMap(Node("root"))
+    cut = Node("cut")
+    mm.cut_stack = [cut]
+    mm.cursor = cut.id
+    mm.save(path)
+
+    app = SpoiderApp(path, config_path=tmp_path / "e.conf")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.stack_open, "a cursor on a cut is a cursor in the panel"
+        assert app.selected == cut.id
+
+
+async def test_an_address_beats_the_files_memory(tmp_path: Path):
+    path = tmp_path / "map.spoider"
+    mm = MindMap(Node("root"))
+    other = mm.add_child(mm.root.id, "other")
+    mm.cursor = other.id
+    mm.save(path)
+
+    app = SpoiderApp(path, config_path=tmp_path / "e.conf", position="0")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.selected == app.mm.root.id, "-p says where to be"
+
+
+def test_the_write_offer_carries_the_suffix_and_puts_the_caret_before_it(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "notes" / "map", config_path=tmp_path / "e.conf")
+    app.path = None
+    offered, caret = app._write_offer()
+    assert offered.endswith(".spoider"), offered
+    assert offered[caret:] == ".spoider", "the suffix is what the caret leaves alone"
+
+    # a file the reader named with another suffix is left exactly as it is
+    app.path = tmp_path / "map.json"
+    offered, caret = app._write_offer()
+    assert offered == str(tmp_path / "map.json")
+    assert caret == len(offered)

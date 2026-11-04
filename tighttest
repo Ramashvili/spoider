@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "spacing": -1,
+  "spacing": -2,
   "layout": "spider",
   "colours": "family",
   "marks": [
@@ -16,93 +16,6 @@
     "collapsed": false,
     "mark": null,
     "children": [
-      {
-        "id": "m002",
-        "text": "a mind map in a terminal",
-        "collapsed": false,
-        "mark": "⭐",
-        "children": [
-          {
-            "id": "m900",
-            "text": "planning, notes, decisions",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          },
-          {
-            "id": "m003",
-            "text": "every colour is your terminal's",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          },
-          {
-            "id": "m004",
-            "text": "the map is a JSON file",
-            "collapsed": false,
-            "mark": null,
-            "children": [
-              {
-                "id": "m005",
-                "text": "read it",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "m006",
-                "text": "diff it",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "m007",
-                "text": "keep it in git",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "id": "m008",
-        "text": "making cells",
-        "collapsed": false,
-        "mark": null,
-        "children": [
-          {
-            "id": "m009",
-            "text": "tab makes a child",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          },
-          {
-            "id": "m010",
-            "text": "return makes a sibling",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          },
-          {
-            "id": "m011",
-            "text": "e renames where it stands",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          },
-          {
-            "id": "m012",
-            "text": "shift+return starts a line",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          }
-        ]
-      },
       {
         "id": "m810",
         "text": "the arrows move around",
@@ -376,5 +289,92 @@
       }
     ]
   },
-  "cut": []
+  "cut": [
+    {
+      "id": "m900",
+      "text": "planning, notes, decisions",
+      "collapsed": false,
+      "mark": null,
+      "children": []
+    },
+    {
+      "id": "m003",
+      "text": "every colour is your terminal's",
+      "collapsed": false,
+      "mark": null,
+      "children": []
+    },
+    {
+      "id": "m004",
+      "text": "the map is a JSON file",
+      "collapsed": false,
+      "mark": null,
+      "children": [
+        {
+          "id": "m005",
+          "text": "read it",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "m006",
+          "text": "diff it",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "m007",
+          "text": "keep it in git",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "m002",
+      "text": "a mind map in a terminal",
+      "collapsed": false,
+      "mark": "⭐",
+      "children": []
+    },
+    {
+      "id": "m008",
+      "text": "making cells",
+      "collapsed": false,
+      "mark": null,
+      "children": [
+        {
+          "id": "m009",
+          "text": "tab makes a child",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "m010",
+          "text": "return makes a sibling",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "m011",
+          "text": "e renames where it stands",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "m012",
+          "text": "shift+return starts a line",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    }
+  ]
 }

@@ -174,6 +174,10 @@ class MindMap:
         #: state, written into the file, so a map carries the scraps you took from
         #: it and closing the editor does not lose a cut.
         self.cut_stack: list[Node] = list(cut_stack or [])
+        #: Where the cursor was when this map was last written: a cell id, which may
+        #: name a cell in the map or one waiting on the cut stack. Document state,
+        #: because opening a file should put you back where you left it.
+        self.cursor: str | None = None
         # Presentation that belongs to the document: a map with 40 cells wants a
         # different amount of air than one with 4, and it should look the same
         # wherever it is opened.
@@ -387,6 +391,7 @@ class MindMap:
             **({"justify": self.justify} if self.justify else {}),
             "root": self.root.to_dict(),
             "cut": [node.to_dict() for node in self.cut_stack],
+            "cursor": self.cursor or "",
         }
 
     @classmethod
@@ -413,7 +418,7 @@ class MindMap:
         justify = data.get("justify")
         if not isinstance(justify, int) or isinstance(justify, bool) or not 1 <= justify <= 4000:
             justify = None
-        return cls(
+        mm = cls(
             root,
             spacing,
             layout if isinstance(layout, str) else DEFAULT_LAYOUT,
@@ -422,6 +427,9 @@ class MindMap:
             justify,
             data.get("marks") if isinstance(data.get("marks"), list) else marks,
         )
+        cursor = data.get("cursor")
+        mm.cursor = clean(cursor) if isinstance(cursor, str) and cursor else None
+        return mm
 
     def save(self, path: Path) -> None:
         write_atomic(path, json.dumps(self.to_dict(), indent=2, ensure_ascii=False) + "\n")
