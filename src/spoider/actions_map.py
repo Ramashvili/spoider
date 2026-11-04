@@ -161,50 +161,72 @@ class MapActions:
     def _at_root(self) -> bool:
         return self.selected == self.mm.root.id
     def action_go_left(self) -> None:
-        """^B / ←. On a left-hand branch the children are drawn to the left, so
-        the directions swap: left goes deeper, right goes back towards the root.
-        From the root itself, left is its left-hand branch. Where the levels are
-        stacked the siblings sit side by side, so left is simply the one before."""
-        if self.siblings_are_sideways:
-            self.select(nav.to_sibling(self.mm, self.selected, -1))
-            return
-        if self._at_root:
-            self._from_root(-1)
-        elif nav.side(self.mm, self.selected, self.mm.layout) < 0:
-            self._into_child()
-        else:
-            self._to_parent()
+        """^B / ← — the cell to the left on the canvas, or the parent on that side.
+
+        The shape's own rules still answer first when they name a parent, a child or a
+        sibling; the canvas decides when they would do nothing, or would climb out to
+        something that is not a relative at all.
+        """
+        self._go(-1, 0)
+
     def action_go_right(self) -> None:
-        """^F / →. Mirrors action_go_left."""
-        if self.siblings_are_sideways:
-            self.select(nav.to_sibling(self.mm, self.selected, +1))
-            return
-        if self._at_root:
-            self._from_root(+1)
-        elif nav.side(self.mm, self.selected, self.mm.layout) < 0:
-            self._to_parent()
-        else:
-            self._into_child()
+        """^F / → — mirrors action_go_left."""
+        self._go(+1, 0)
+
     @property
     def siblings_are_sideways(self) -> bool:
         """True when the levels are stacked, so ← / → walk the row of siblings
         and ↑ / ↓ are left to cross a level."""
         return self.mm.layout in ("pyramid", "bush")
+
     def action_prev(self) -> None:
         """^P / ↑ — whatever is above the selection in this shape."""
-        self._move(UP_MEANING[self.mm.layout])
+        self._go(0, -1)
+
     def action_next(self) -> None:
         """^N / ↓ — whatever is below the selection in this shape."""
-        self._move(DOWN_MEANING[self.mm.layout])
-    def _move(self, kind: str) -> None:
-        if kind == "prev":
-            self.select(nav.to_sibling(self.mm, self.selected, -1))
-        elif kind == "next":
-            self.select(nav.to_sibling(self.mm, self.selected, +1))
-        elif kind == "parent":
-            self._to_parent()
-        else:  # "child"
-            self._into_child()
+        self._go(0, +1)
+
+    def _go(self, dx: int, dy: int) -> None:
+        target = self._hierarchy_target(dx, dy)
+        node = self.node
+        into_a_child = node is not None and any(child.id == target for child in node.children)
+        if into_a_child and self._expand_if_collapsed():
+            return
+        self._travel_to(target, dx, dy)
+
+    def _hierarchy_target(self, dx: int, dy: int) -> str:
+        """What the shape's own rules say, before the canvas gets a say."""
+        here = self.selected
+        if dy:
+            kind = UP_MEANING[self.mm.layout] if dy < 0 else DOWN_MEANING[self.mm.layout]
+            if kind in ("prev", "next"):
+                return nav.to_sibling(self.mm, here, -1 if kind == "prev" else +1)
+            if kind == "parent":
+                return nav.to_parent(self.mm, here)
+            return nav.to_child(self.mm, here)
+        if self.siblings_are_sideways:
+            return nav.to_sibling(self.mm, here, dx)
+        if self._at_root:
+            return nav.to_child_on_side(self.mm, here, dx)
+        if nav.side(self.mm, here, self.mm.layout) < 0:
+            # a left-hand branch: left goes deeper, right comes back towards the root
+            return nav.to_child(self.mm, here) if dx < 0 else nav.to_parent(self.mm, here)
+        return nav.to_parent(self.mm, here) if dx < 0 else nav.to_child(self.mm, here)
+
+    def _nav_layout(self):
+        """The layout the keys are moving in: the panel's if it is open, else the map's."""
+        panel = self.stack_layout()
+        return panel if panel is not None else self.view.layout_
+
+    def _travel_to(self, target: str, dx: int, dy: int) -> None:
+        """Take the hierarchy's answer when it is a relative; otherwise ask the canvas."""
+        if target != self.selected and nav.is_direct_relative(self.document, self.selected, target):
+            self.select(target)
+            return
+        reached = nav.towards(self._nav_layout(), self.selected, dx, dy)
+        self.select(reached or target)
+
     def action_extend_prev(self) -> None:
         """Shift + the arrow that walks back between siblings."""
         self._extend(UP_MEANING[self.mm.layout])

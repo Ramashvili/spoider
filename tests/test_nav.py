@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from spoider import nav
-from spoider.model import MindMap
+from spoider.layout import RIGHT, Layout, Placed
+from spoider.model import MindMap, Node
 
 
 def _map():
@@ -79,3 +80,52 @@ def test_unknown_ids_are_inert_everywhere():
     assert nav.to_sibling(mm, "nope", +1) == "nope"
     assert nav.to_child_on_side(mm, "nope", 1) == "nope"
     assert nav.side(mm, "nope") == 1
+
+
+def placed(node: Node, x: int, y: int, w: int = 8, h: int = 3) -> Placed:
+    return Placed(node, x, y, w, h, 0, 1, RIGHT)
+
+
+def layout_of(*boxes: Placed) -> Layout:
+    return Layout({box.node.id: box for box in boxes}, width=80, height=40)
+
+
+def test_towards_takes_the_nearest_cell_in_line():
+    here, near, far = Node("here"), Node("near"), Node("far")
+    layout = layout_of(placed(here, 0, 0), placed(near, 0, 10), placed(far, 0, 20))
+    assert nav.towards(layout, here.id, 0, +1) == near.id
+
+
+def test_a_cell_in_line_beats_a_closer_one_off_to_the_side():
+    here, in_line, off_side = Node("here"), Node("in line"), Node("off side")
+    layout = layout_of(
+        placed(here, 0, 0),
+        placed(in_line, 1, 12),      # two rows further, but the same column
+        placed(off_side, 30, 4),     # nearer, but well to the right
+    )
+    assert nav.towards(layout, here.id, 0, +1) == in_line.id
+
+
+def test_nothing_ahead_means_no_move():
+    here, behind = Node("here"), Node("behind")
+    layout = layout_of(placed(here, 0, 10), placed(behind, 0, 0))
+    assert nav.towards(layout, here.id, 0, +1) is None
+
+
+def test_the_sideways_offset_is_charged():
+    here, beside, ahead = Node("here"), Node("beside"), Node("ahead")
+    layout = layout_of(placed(here, 0, 0), placed(beside, 0, 8), placed(ahead, 40, 1))
+    assert nav.towards(layout, here.id, 0, +1) == beside.id
+
+
+def test_only_a_parent_child_or_sibling_counts_as_a_relative():
+    mm = MindMap(Node("root"))
+    one = mm.add_child(mm.root.id, "one")
+    two = mm.add_child(mm.root.id, "two")
+    child = mm.add_child(one.id, "child")
+    stranger = mm.add_child(two.id, "stranger")
+    assert nav.is_direct_relative(mm, one.id, child.id)
+    assert nav.is_direct_relative(mm, child.id, one.id)
+    assert nav.is_direct_relative(mm, one.id, two.id)
+    assert not nav.is_direct_relative(mm, child.id, stranger.id), "cousins are not relatives"
+    assert not nav.is_direct_relative(mm, one.id, one.id)

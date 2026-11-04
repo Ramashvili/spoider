@@ -521,8 +521,17 @@ async def test_vim_keys_alias_the_arrows(tmp_path: Path):
         app.view.refresh_map()
         app.select(branch.id)
 
-        await pilot.press("j")  # down/next sibling from a node with no siblings
-        assert app.selected == branch.id  # root has one child, so nothing to move to
+        async def reach(key: str) -> str:
+            app.select(branch.id)
+            await pilot.press(key)
+            await pilot.pause()
+            return app.selected
+
+        # the letters and the arrows must land in the same place, whatever the canvas
+        # decides: the fallback made this a question of geometry, not of aliases
+        for letter, arrow in (("j", "down"), ("k", "up"), ("h", "left"), ("l", "right")):
+            assert await reach(letter) == await reach(arrow), letter
+
         await pilot.press("l")  # right = into the first child
         assert app.selected == one.id
         await pilot.press("j")
