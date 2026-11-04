@@ -177,14 +177,25 @@ def build_grid(
         # block left to draw, so the cursor's cell inverts and nothing else does.
         inside = node_style(colour, chosen_here if not layout.walls else False)
         _draw_box(grid, box, frame, inside, query, walls=layout.walls)
+    # One vertical spine per parent per side, shared by all its children. Drawing a
+    # separate line from the parent down to each child in turn costs n(n+1)/2 cells
+    # for n children — a 4 000-sibling map spent four seconds rebuilding the grid on
+    # every cursor move. The spine covers the same rows, once.
+    spines: dict[tuple[str, int], tuple[int, int]] = {}
     for box in layout.boxes.values():
         if box.node.collapsed:
             continue
         for child in box.node.children:
             child_box = layout.boxes.get(child.id)
             if child_box is not None:
-                _draw_link(grid, box, child_box, walls=layout.walls)
+                _draw_link(grid, box, child_box, walls=layout.walls, spines=spines)
+    _draw_spines(grid, spines)
     return grid.finalize()
+
+
+def _draw_spines(grid: Grid, spines: dict[tuple[str, int], tuple[int, int]]) -> None:
+    for (_parent, column), (top, bottom) in spines.items():
+        _vertical(grid, top, bottom, column)
 
 
 def _marked(style: str) -> str:
@@ -295,7 +306,13 @@ def _hang_caret(grid: Grid, x: int, y: int, style: str, overwrite: bool = False)
     grid.put(x, y, ch, f"{under} {mark}".strip())
 
 
-def _draw_link(grid: Grid, parent: Placed, child: Placed, walls: bool = True) -> None:
+def _draw_link(
+    grid: Grid,
+    parent: Placed,
+    child: Placed,
+    walls: bool = True,
+    spines: dict[tuple[str, int], tuple[int, int]] | None = None,
+) -> None:
     if child.flow in (DOWN, UP):
         _draw_stack_link(grid, parent, child, child.flow, walls=walls)
         return
@@ -318,8 +335,13 @@ def _draw_link(grid: Grid, parent: Placed, child: Placed, walls: bool = True) ->
     for (x1, y1), (x2, y2) in pairwise(points):
         if y1 == y2:
             _horizontal(grid, x1, x2, y1)
-        else:
+        elif spines is None:
             _vertical(grid, y1, y2, x1)
+        else:
+            # the vertical is shared with every sibling: widen this parent's spine
+            key = (parent.node.id, mid)
+            top, bottom = spines.get(key, (parent.cy, parent.cy))
+            spines[key] = (min(top, y1, y2), max(bottom, y1, y2))
 
     # The line leaves one wall and arrives at the other, and both become a T
     # pointing at it — the same treatment the stacked shapes get. Without this

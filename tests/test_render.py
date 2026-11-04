@@ -427,3 +427,42 @@ def test_the_tightest_spacing_drops_the_walls_and_inverts_only_the_cursor():
     mark = drawn.cells[(a.x + PAD, a.y)][1]
     assert "reverse" not in mark
     assert "reverse" in here, "the text beside the mark does invert"
+
+
+def _link_cells(mm: MindMap) -> int:
+    """Cells drawn as connectors, with the walls off so nothing else is link grey."""
+    mm.spacing = -3
+    layout = compute(mm.root, mm.spacing)
+    grid = build_grid(layout, mm.root.id)
+    return sum(1 for _ch, style in grid.cells.values() if style == LINK_COLOR)
+
+
+def test_connectors_grow_with_the_children_not_with_their_square():
+    """One shared spine per parent side: n children cost about n cells, not n²/2."""
+    def fan(count: int) -> int:
+        mm = MindMap(Node("root"))
+        for index in range(count):
+            mm.add_child(mm.root.id, f"c{index}")
+        return _link_cells(mm)
+
+    ten, twenty, forty = fan(10), fan(20), fan(40)
+    assert twenty < ten * 3, f"doubling the children tripled the connectors: {ten} -> {twenty}"
+    assert forty < twenty * 3, f"and again: {twenty} -> {forty}"
+
+
+def test_a_fan_of_children_has_one_vertical_run():
+    """The spine is drawn once; the joins are the only per-child cells."""
+    mm = MindMap(Node("root"))
+    for index in range(6):
+        mm.add_child(mm.root.id, f"c{index}")
+    mm.spacing = -3
+    layout = compute(mm.root, mm.spacing)
+    grid = build_grid(layout, mm.root.id)
+    columns: dict[int, int] = {}
+    for (x, _y), (ch, style) in grid.cells.items():
+        if style == LINK_COLOR and ch in "│├┤┬┴┼":
+            columns[x] = columns.get(x, 0) + 1
+    # a spider splits its children across two sides, so there is one spine each
+    assert len(columns) == 2, f"expected one spine per side, got {sorted(columns)}"
+    shortest = min(columns.values())
+    assert shortest >= 3, f"a spine should span its children, got {shortest} rows"
