@@ -6,7 +6,7 @@ import pytest
 from spoider.app import BINDINGS, SpoiderApp
 from spoider.chrome import FooterBar, compose_footer, hint_chunks
 from spoider.config import load_config
-from spoider.drawers import AskBar, PanelBar, PromptBar
+from spoider.drawers import AskBar, ErrorBar, PanelBar, PromptBar
 from spoider.layout import compute
 from spoider.model import MindMap, Node
 from spoider.screens import HELP, help_text, keys_for, settings_text
@@ -4200,3 +4200,26 @@ async def test_a_prompt_leaves_no_cell_framed(tmp_path: Path):
         await pilot.pause()
         framed = [ch for (_x, _y), (ch, style) in app.view._grid.cells.items() if "reverse" in style]
         assert framed, "and the frame comes back"
+
+
+# -- 3.1: the error line ---------------------------------------------------
+
+
+async def test_an_error_is_one_red_line_that_any_key_acknowledges(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "e.conf", demo=False)
+    seen: list[str] = []
+    async with app.run_test(size=(100, 30)) as pilot:
+        app._show_error("map.spoider is not a spoider map", lambda: seen.append("acked"))
+        await pilot.pause()
+
+        bar = app.query_one(ErrorBar)
+        art = bar.render()
+        assert "not a spoider map" in art.plain
+        assert art.plain.rstrip().endswith("map"), "the line is clipped, never wrapped"
+        assert any("on red" in str(span.style) for span in art.spans), "red, like a warning"
+        assert app.mode == "error"
+        assert "close" in app.query_one("#footer").render().plain
+
+        await pilot.press("x")
+        await pilot.pause()
+        assert seen == ["acked"], "any key is enough to leave"

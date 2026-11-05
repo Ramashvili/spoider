@@ -25,6 +25,10 @@ BINDING_LEGEND = {"ctrl+": "^", "alt+": "M-", "shift+": "S-"}
 #: inline editor alike, so it never widens what it is sitting in.
 CARET_STYLE = "reverse"
 
+#: The one line that says the program cannot go on: red, filled, unmissable. ANSI names
+#: only, like every other colour here.
+ERROR_STYLE = "black on red"
+
 #: Caps are coloured text, never a block: the colour comes from the terminal
 #: palette like everything else in the app.
 CAP_STYLE = "cyan"
@@ -231,6 +235,11 @@ def ask_chunks(affirm: str = "save", deny: str = "discard") -> list[Text]:
         entry("n", deny, literal=True),
         entry("esc", "cancel", literal=True),
     ]
+
+
+def error_chunks() -> list[Text]:
+    """The bar while an error is up: one way out, and nothing else to press."""
+    return [entry("⏎/esc", "close", literal=True)]
 
 
 def help_chunks(scrollable: bool = False) -> list[Text]:

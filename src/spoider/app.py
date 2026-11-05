@@ -23,6 +23,7 @@ from .addressing import resolve as resolve_address
 from .chrome import (
     FooterBar,
     ask_chunks,
+    error_chunks,
     help_chunks,
     prompt_chunks,
     settings_chunks,
@@ -35,7 +36,7 @@ from .config import (
     write_config,
 )
 from .desktop import install_desktop
-from .drawers import AskBar, PanelBar, PromptBar
+from .drawers import AskBar, ErrorBar, PanelBar, PromptBar
 from .editing import Buffer
 from .files import SUFFIX, default_path
 from .keys import (
@@ -94,6 +95,16 @@ Screen.roomy MindMapView {
 #ask, #prompt {
     height: 1;
     margin-top: 1;
+}
+/* The error line: red, and the only thing that takes keys while it is up. */
+#error {
+    width: 100%;
+    height: 1;
+    padding: 0 1;
+    margin-top: 1;
+    display: none;
+    text-wrap: nowrap;
+    text-overflow: clip;
 }
 #footer {
     width: 100%;
@@ -322,6 +333,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         yield PanelBar(id="panel")
         yield AskBar(id="ask")
         yield PromptBar(id="prompt")
+        yield ErrorBar(id="error")
         yield FooterBar(id="footer")
 
     #: Rows a window needs before it can afford air around the map: below this,
@@ -912,6 +924,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         elif mode == "settings":
             footer.mode = "custom"
             footer.custom = settings_chunks()
+        elif mode == "error":
+            footer.mode = "custom"
+            footer.custom = error_chunks()
         else:  # help
             footer.mode = "custom"
             footer.custom = help_chunks(self.query_one(PanelBar).scrollable)
@@ -919,9 +934,17 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     # -- the drawers themselves ------------------------------------------
 
+    def _show_error(self, message: str, on_ack) -> None:
+        """Refuse and explain: one line, red, and nothing to do but acknowledge it."""
+        self._mode = "error"
+        self._hide_drawers(ErrorBar)
+        self.query_one(ErrorBar).show(message, on_ack)
+        self._sync_footer()
+        self._refresh_chrome()
+
     def _hide_drawers(self, *keep: type) -> None:
         """Only one drawer is ever on screen: they share the bottom lines."""
-        for drawer in (PromptBar, AskBar, PanelBar):
+        for drawer in (PromptBar, AskBar, PanelBar, ErrorBar):
             if drawer not in keep:
                 self.query_one(drawer).close()
 

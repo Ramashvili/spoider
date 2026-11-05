@@ -15,6 +15,7 @@ from rich.text import Text
 from textual import events
 from textual.widget import Widget
 
+from .chrome import ERROR_STYLE
 from .text import clean, clip_tail
 
 
@@ -252,6 +253,38 @@ class AskBar(Drawer):
         ask = clip_tail(clean(self.question), width - 1)
         line = Text(ask, "reverse")
         line.append(" " * max(0, width - cell_len(ask)), "reverse")
+        return line
+
+
+class ErrorBar(Drawer):
+    """A red line at the bottom that says what went wrong and how to leave.
+
+    For states where nothing else may be done: a file that could not be read, and
+    whatever the program has to refuse outright. Any of its keys goes.
+    """
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.message = ""
+        self._on_ack: Callable[[], None] = lambda: None
+
+    def show(self, message: str, on_ack: Callable[[], None]) -> None:
+        self.message = message
+        self._on_ack = on_ack
+        self.open()
+
+    def on_key(self, event: events.Key) -> None:
+        event.stop()
+        event.prevent_default()
+        self._on_ack()
+
+    def render(self) -> Text:
+        width = self.size.width
+        if width <= 0 or not self.display:
+            return Text("")
+        shown = clip_tail(clean(self.message), width - 1)
+        line = Text(shown, ERROR_STYLE)
+        line.append(" " * max(0, width - cell_len(shown)), ERROR_STYLE)
         return line
 
 
