@@ -38,13 +38,25 @@ def load_scene():
 
 def main() -> int:
     scale = 0.15
+    until: int | None = None
     argv = sys.argv[1:]
     if "--scale" in argv:
         scale = float(argv[argv.index("--scale") + 1])
+    if "--until" in argv:
+        until = int(argv[argv.index("--until") + 1])
 
     MAP.parent.mkdir(parents=True, exist_ok=True)
     MAP.unlink(missing_ok=True)
     plan = load_scene()
+    if until is not None:
+        # settle first (a drawer or a cell would eat the save), then write and wait
+        plan = [
+            *plan[:until],
+            (0.15, b"\x1b", "esc"),
+            (0.4, b"\x1b[115;5u", "^S"),
+            (2.0, b"", ""),
+        ]
+    print(f"steps to send: {len(plan)}")
     env = dict(os.environ, TERM="xterm-256color", COLUMNS="150", LINES="50")
     pid, fd = pty.fork()
     if pid == 0:
@@ -71,6 +83,10 @@ def main() -> int:
             os.write(fd, payload if isinstance(payload, bytes) else payload.encode())
     print(f"scene sent in {time.monotonic() - started:.1f}s")
 
+    # leave: the app must be gone before the file is read, or a later save of its own
+    # would land on top of the run being inspected
+    os.write(fd, b"\x1b[120;5u")
+    time.sleep(1.0)
     for _ in range(40):
         time.sleep(0.2)
         try:
@@ -78,6 +94,14 @@ def main() -> int:
                 break
         except ChildProcessError:
             break
+    try:
+        os.kill(pid, 15)
+    except ProcessLookupError:
+        pass
+    try:
+        os.waitpid(pid, 0)
+    except ChildProcessError:
+        pass  # the loop above already reaped it
 
     if not MAP.exists():
         print("the scene did not save a map")

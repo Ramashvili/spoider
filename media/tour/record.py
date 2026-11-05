@@ -49,6 +49,8 @@ UP, DOWN, LEFT, RIGHT = "\x1b[A", "\x1b[B", "\x1b[D", "\x1b[C"
 ENTER, TAB = "\r", "\t"
 ESC = "\x1b"
 SHIFT_DOWN = "\x1b[1;2B"
+ALT_UP, ALT_DOWN = "\x1b[1;3A", "\x1b[1;3B"
+HOME_KEY = "\x1b[1~"  # xterm spelling: `\x1b[H` is split as esc + `[H` by some parsers
 
 
 def ctrl(code: int) -> bytes:
@@ -65,11 +67,22 @@ CTRL_S = ctrl(115)
 CTRL_U = ctrl(117)
 CTRL_X = ctrl(120)
 CTRL_Z = ctrl(122)
+CTRL_F = ctrl(102)
 CTRL_SLASH = ctrl(47)
 FAST = 0.017
 
 #: (pause before this chunk, bytes to send, the chord to show over the video)
 Step = tuple[float, bytes, str]
+
+
+#: The long note, taken whole from the README's "Moving branches with the stack" and
+#: stripped of its backticks. One line, so `^J` is what makes it a paragraph.
+LONG = (
+    "Cutting with ^K places a branch onto a stack, and ^U pastes the most recent cut "
+    "under whichever cell you select next. If you are reorganising a large map, press p "
+    "to open the stack side-by-side: you can browse what you cut, edit or fold items "
+    "inside it, or reorder them before pasting them back."
+)
 
 
 def scene() -> list[Step]:
@@ -94,169 +107,143 @@ def scene() -> list[Step]:
         wait(0.6)
 
     def up(levels: int) -> None:
-        """Climb exactly this many levels.
-
-        LEFT goes to the parent, but on the root it goes into the last child, so the
-        number of presses is counted per scene rather than pressed until it stops.
-        """
+        """Climb exactly this many levels; in the branch shape LEFT is always the parent."""
         for index in range(levels):
             key(0.45 if index == 0 else 0.35, LEFT.encode(), "←")
         wait(0.4)
 
+    def root() -> None:
+        """The main cell of the tree, whatever shape the map is drawn in."""
+        key(0.35, HOME_KEY.encode(), "Home")
+        wait(0.35)
+
+    def into(steps: int) -> None:
+        """Deeper from the root, always by the first child: the branch shape's own arrow."""
+        for _ in range(steps):
+            key(0.3, RIGHT.encode(), "→")
+
+    def sibling(steps: int) -> None:
+        for _ in range(steps):
+            key(0.3, DOWN.encode(), "↓")
+
+    def find(text: str) -> None:
+        """Put the cursor on a cell by its words, so a beat never depends on counting."""
+        key(0.5, CTRL_F, "^F")
+        wait(0.35)
+        for ch in text:
+            plan.append((FAST, ch.encode(), ""))
+        key(0.3, ENTER.encode(), "⏎")
+        wait(0.5)
+
     wait(1.0)
 
     # three presses to the branch shape, where LEFT always climbs and RIGHT always goes
-    # in, so the anchors below are counted instead of guessed. The opening used to dwell
-    # on every shape; the tour shows all four of them again later, so it is brisk here
+    # in, so the anchors below are counted instead of guessed
     for index in range(3):
         key(0.45 if index else 0.4, CTRL_L, "^L")
-        wait(0.4 if index < 2 else 0.7)
+        wait(0.4 if index < 2 else 0.8)
 
     key(0.5, b"e", "e")
     wait(0.4)
     key(0.1, CTRL_A, "^A")
     wait(0.25)
-    say("a mind map")
+    say("animals")
     wait(0.9)
 
-    cell("why it works", TAB, "⇥")
-    cell("one thought in the middle", TAB, "⇥")
-    cell("parts arranged around it", ENTER, "⏎")
-    cell("each part splits again", ENTER, "⏎")
-    wait(0.7)
+    # the map the demo holds, grown on camera: three top branches, children under them
+    cell("chordates", TAB, "⇥")
+    cell("mammals", TAB, "⇥")
+    cell("primates", TAB, "⇥")
+    up(1)  # back up to mammals
+    cell("birds", ENTER, "⏎")
+    cell("reptiles", ENTER, "⏎")
+    up(1)  # to chordates, so the next two are its siblings, not its children
+    cell("molluscs", ENTER, "⏎")
+    cell("arthropods", ENTER, "⏎")
+    wait(0.8)
 
-    up(2)  # from the last child of the first branch to the root
-    for pause, after in ((0.9, 1.4), (0.9, 1.6), (0.9, 1.6), (0.9, 1.1)):
+    # -- the four shapes over the same map, ending back in branch --------------------
+    root()
+    for pause, after in ((0.9, 1.3), (0.9, 1.4), (0.9, 1.4), (0.9, 1.0)):
         key(pause, CTRL_L, "^L")
         wait(after)
 
-    # second branch, a sibling of the first, with a cell that has children of its own
-    key(0.4, RIGHT.encode(), "→")
-    cell("what spoider does", ENTER, "⏎")
-    cell("the keys you know", TAB, "⇥")
-    cell("tab makes a child", TAB, "⇥")
-    cell("return makes a sibling", ENTER, "⏎")
-    up(2)  # back up to what spoider does
-    cell("terminal colours", TAB, "⇥")  # in, not across: these are its children
-    cell("plain json", ENTER, "⏎")
-    cell("one bar of keys", ENTER, "⏎")
-    wait(0.8)
-
-    # -- runs: shift grows one, then the run is deleted and brought back --------------
-    up(2)  # from the last child to the root
-    key(0.4, RIGHT.encode(), "→")
-    key(0.4, DOWN.encode(), "↓")
-    key(0.4, RIGHT.encode(), "→")
-    key(0.45, SHIFT_DOWN.encode(), "S-↓")
-    key(0.4, SHIFT_DOWN.encode(), "S-↓")
-    wait(1.8)
-    key(0.7, CTRL_D, "^D")
-    wait(2.2)
-    key(0.8, CTRL_Z, "^Z")
-    wait(2.0)
-    key(0.5, RIGHT.encode(), "→")  # back into the first child
-    key(0.6, CTRL_A, "^A")  # every sibling at once
-    wait(1.8)
-    key(0.5, ESC.encode(), "esc")
-    wait(0.9)
-
-    # -- marks: the palette cycled on one cell, then two more cells lit ---------------
-    up(2)  # ^A leaves the cursor on the last cell of the run
-    key(0.4, RIGHT.encode(), "→")
-    key(0.4, RIGHT.encode(), "→")
+    # -- marks on two cells, and a fold that opens again ------------------------------
+    find("birds")
     for _ in range(3):
         key(0.45, b"w", "w")
         wait(0.55)
-    key(0.12, b"w", "w")
-    key(0.12, b"w", "w")
-    wait(1.1)
-    key(0.45, DOWN.encode(), "↓")
-    key(0.4, b"w", "w")
-    key(0.4, DOWN.encode(), "↓")
-    key(0.4, b"w", "w")
-    key(0.4, b"w", "w")
-    key(0.4, b"w", "w")
-    wait(1.6)
-
-    # -- fold the cell that has children of its own -----------------------------------
-    up(2)
-    key(0.4, RIGHT.encode(), "→")
-    key(0.4, DOWN.encode(), "↓")
-    key(0.4, RIGHT.encode(), "→")
+    wait(1.0)
+    find("reptiles")
+    key(0.45, b"w", "w")
+    wait(1.4)
+    find("chordates")
     key(0.6, b"t", "t")
     wait(1.6)
     key(0.6, b"t", "t")
     wait(1.0)
 
-    # -- the air between the cells ---------------------------------------------------
-    key(0.6, b"=", "=")
-    key(0.45, b"=", "=")
-    wait(0.8)
-    key(0.45, b"=", "=")
-    wait(2.0)
-    # tighten all the way to the floor, which is -2, then step back up one: the tightest
-    # setting is worth seeing once, and a single step of air reads better in a video
-    for index in range(6):
-        key(0.55 if index == 0 else 0.45, b"-", "-")
-    wait(2.2)
-    key(0.7, b"=", "=")
-    wait(2.6)
-
-    # -- the colouring, both ways ----------------------------------------------------
-    key(0.7, b"c", "c")
-    wait(2.0)
-    key(0.7, b"c", "c")
-    wait(1.5)
-
-    # -- one cut, worked on inside the stack -----------------------------------------
-    up(2)
-    key(0.4, RIGHT.encode(), "→")
-    key(0.6, CTRL_K, "^K")
-    wait(1.4)
-    key(0.7, b"p", "p")
+    # -- the air between the cells: -1 down to -4 slowly, then back to -1 quickly ------
+    key(0.55, b"-", "-")
+    wait(1.2)
+    key(0.55, b"-", "-")
+    wait(1.0)
+    key(0.55, b"-", "-")
+    wait(1.0)
+    key(0.65, b"-", "-")
+    wait(3.4)  # -4: four steps tighter than the default is where the gaps are narrowest
+    for _ in range(3):
+        key(0.22, b"=", "=")
     wait(1.8)
 
-    key(0.6, b"e", "e")
-    wait(0.5)
-    key(0.1, CTRL_A, "^A")
-    wait(0.25)
-    say("a branch that waited on the stack")
-    wait(1.3)
-
-    key(0.6, CTRL_J, "^J")
-    wait(1.1)
-    wait(0.15)
-    for ch in "24":
-        plan.append((0.18, ch.encode(), ""))
-    key(0.35, ENTER.encode(), "⏎")
-    wait(2.2)
-
-    # -- out of the panel: the cursor is on what spoider does, so the paste lands there
-    key(0.7, b"p", "p")
-    wait(1.3)
-    key(0.7, CTRL_U, "^U")
+    # -- the colouring, both ways ------------------------------------------------------
+    key(0.7, b"c", "c")
     wait(2.4)
-
-    key(0.4, TAB.encode(), "⇥")
-    say("a cell takes as much text as you give it, and the box grows to hold it")
-    wait(1.5)
-    key(0.7, CTRL_J, "^J")
+    key(0.7, b"c", "c")
     wait(1.2)
+
+    # -- reordering: a branch climbs twice, then settles one lower ---------------------
+    find("birds")
+    key(0.5, ALT_UP.encode(), "M-↑")
+    wait(1.0)
+    key(0.5, ALT_DOWN.encode(), "M-↓")
+    wait(1.0)
+    key(0.5, ALT_UP.encode(), "M-↑")
+    wait(1.6)
+
+    # -- the long note: typed whole, justified to 34, then cut to the stack ------------
+    root()
+    key(0.5, TAB.encode(), "⇥")
+    say(LONG)
+    wait(1.0)
+    key(0.7, CTRL_J, "^J")
+    wait(1.1)
     for ch in "34":
         plan.append((0.18, ch.encode(), ""))
     key(0.35, ENTER.encode(), "⏎")
+    wait(3.4)
+
+    key(0.7, CTRL_K, "^K")
+    wait(1.4)
+    key(0.7, b"p", "p")
+    wait(2.0)
+    key(0.6, b"t", "t")
+    wait(1.4)
+    key(0.6, b"t", "t")
+    wait(1.0)
+    key(0.7, b"p", "p")
+    wait(1.2)
+    find("chordates")
+    key(0.7, CTRL_U, "^U")
     wait(3.2)
 
-    key(0.8, CTRL_L, "^L")
-    wait(3.0)
-
-    # -- help, then save and hold ----------------------------------------------------
-    key(0.8, CTRL_SLASH, "^/")
+    # -- help, then save and hold -------------------------------------------------------
+    key(0.8, b"?", "?")
     wait(3.4)
     key(0.7, ESC.encode(), "esc")
-    wait(1.2)
+    wait(1.0)
     key(0.7, CTRL_S, "^S")
-    wait(2.4)
+    wait(2.0)
     key(0.8, CTRL_X, "^X")
     wait(1.6)
     return plan
@@ -447,7 +434,7 @@ def main() -> int:
 
     for _ in range(30):
         time.sleep(1)
-        if "spoider 0.1.0" in tmux("capture-pane", "-p", "-t", SESSION):
+        if "spoider 0." in tmux("capture-pane", "-p", "-t", SESSION):
             break
     time.sleep(1.5)
 
