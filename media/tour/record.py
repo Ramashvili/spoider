@@ -43,7 +43,10 @@ TAKES = HOME / "Videos" / "spoider"
 MAP = SCRATCH / "tour.spoider"
 SESSION = "tourrec"
 GROUP = "tourrec"
-COLS, ROWS = 150, 50
+#: The pane the tour is filmed in, in cells. A 150x50 pane at this face is taller than
+#: 1080 lines, so the window cannot hold it; 138x46 is the same face at a size the screen
+#: has room for, and the pane fills the window exactly.
+COLS, ROWS = 138, 46
 
 UP, DOWN, LEFT, RIGHT = "\x1b[A", "\x1b[B", "\x1b[D", "\x1b[C"
 ENTER, TAB = "\r", "\t"
@@ -396,6 +399,10 @@ def main() -> int:
             "-o",
             "background_blur=0",
             "-o",
+            f"initial_window_width={COLS}c",
+            "-o",
+            f"initial_window_height={ROWS}c",
+            "-o",
             "tab_bar_style=hidden",
             "-o",
             "tab_bar_min_tabs=2",
@@ -440,6 +447,10 @@ def main() -> int:
     time.sleep(1.5)
 
     pane = tmux("list-panes", "-t", SESSION, "-F", "#{pane_width}x#{pane_height}").strip()
+    if pane != f"{COLS}x{ROWS}":
+        print(f"the pane is {pane}, not {COLS}x{ROWS}: the window would not hold the scene")
+        subprocess.run(["pkill", "-f", f"instance-group {GROUP}"], capture_output=True)
+        return 1
     grid = tmux("display", "-p", "-t", SESSION, "#{client_width}x#{client_height}").strip()
     border = int(run(["hyprctl", "getoption", "general:border_size"]).stdout.split("int:")[1].split()[0])
     client = next(w for w in clients() if w["address"] == window)
@@ -450,7 +461,18 @@ def main() -> int:
     y = client["at"][1] + border
     width = round(COLS * cell_w)
     height = round(ROWS * cell_h)
+    screen = hypr("monitors", "-j")
+    monitor = json.loads(screen or "[]")[0]
+    room_x, room_y = monitor["width"] - x, monitor["height"] - y
     print(f"pane {pane} grid {grid} cell {cell_w:.2f}x{cell_h:.2f} -> capture {width}x{height}+{x}+{y}")
+    print(f"screen {monitor['width']}x{monitor['height']} leaves {room_x}x{room_y}")
+    if width > room_x or height > room_y:
+        # wf-recorder falls back to the whole output when the region does not fit, and a
+        # tour that quietly films the desktop is worse than no tour at all
+        print("the pane does not fit on this screen: film it in a smaller face, or fewer rows")
+        subprocess.run(["pkill", "-f", f"instance-group {GROUP}"], capture_output=True)
+        tmux("kill-session", "-t", SESSION)
+        return 1
 
     rate_args = ["-bm", "cbr", "-q", cbr] if cbr else []
     if lossless:
@@ -529,6 +551,15 @@ def main() -> int:
                  "stream=width,height,nb_frames", "-show_entries", "format=duration,size",
                  "-of", "default=noprint_wrappers=1", str(out)]).stdout
     print(probe.strip())
+    info = dict(
+        line.split("=", 1) for line in probe.strip().splitlines() if "=" in line
+    )
+    filmed = (int(info.get("width", 0)), int(info.get("height", 0)))
+    # yuv420p needs even sides, so one pixel of rounding is the encoder's, not the pane's
+    if any(abs(a - b) > 1 for a, b in zip(filmed, (width, height))):
+        print(f"filmed {filmed[0]}x{filmed[1]}, wanted {width}x{height}: "
+              "the take has something in it other than the pane")
+        return 1
     print(f"written {out}")
     return 0
 

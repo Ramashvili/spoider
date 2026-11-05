@@ -27,13 +27,13 @@ MAP = Path(tempfile.gettempdir()) / "spoider-tour" / "tour.spoider"
 WORKDIR = Path.home() / "Projects/spoider"
 
 
-def load_scene():
+def load_module():
     spec = importlib.util.spec_from_file_location("tour_record", HERE / "record.py")
     if spec is None or spec.loader is None:
         raise ImportError("cannot load record.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.scene()
+    return module
 
 
 def main() -> int:
@@ -47,7 +47,8 @@ def main() -> int:
 
     MAP.parent.mkdir(parents=True, exist_ok=True)
     MAP.unlink(missing_ok=True)
-    plan = load_scene()
+    module = load_module()
+    plan = module.scene()
     if until is not None:
         # settle first (a drawer or a cell would eat the save), then write and wait
         plan = [
@@ -57,12 +58,13 @@ def main() -> int:
             (2.0, b"", ""),
         ]
     print(f"steps to send: {len(plan)}")
-    env = dict(os.environ, TERM="xterm-256color", COLUMNS="150", LINES="50")
+    cols, rows = module.COLS, module.ROWS
+    env = dict(os.environ, TERM="xterm-256color", COLUMNS=str(cols), LINES=str(rows))
     pid, fd = pty.fork()
     if pid == 0:
         os.chdir(WORKDIR)
         os.execvpe("uv", ["uv", "run", "spoider", str(MAP)], env)
-    fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", 50, 150, 0, 0))
+    fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
 
     def drain() -> None:
         """The program blocks on its own output if nobody reads it."""
