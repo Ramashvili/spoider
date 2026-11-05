@@ -873,8 +873,17 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         """
         if self.path is not None:
             return str(self.path)
+        # A new buffer is offered a name with the map's suffix on it, even when the
+        # default place is taken: then the name steps aside (map-2.spoider) rather
+        # than the offer going empty and leaving the reader to type the suffix.
         fallback = default_path()
-        return "" if fallback.exists() else str(fallback)
+        if not fallback.exists():
+            return str(fallback)
+        for index in range(2, 100):
+            candidate = fallback.with_name(f"{fallback.stem}-{index}{fallback.suffix}")
+            if not candidate.exists():
+                return str(candidate)
+        return str(fallback)
 
     def _write_submitted(self, value: str) -> None:
         self._close_drawers()

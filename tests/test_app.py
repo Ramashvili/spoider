@@ -1926,7 +1926,10 @@ async def test_save_never_offers_a_name_that_is_already_taken(tmp_path: Path, mo
     async with app.run_test() as pilot:
         await pilot.press("ctrl+s")
         await pilot.pause()
-        assert app.query_one(PromptBar).value == "", "no offer to write over it"
+        offered = app.query_one(PromptBar).value
+        assert offered.endswith(".spoider"), offered
+        assert offered != str(default), "no offer to write over it"
+        assert not Path(offered).exists(), "and the name it offers is free"
         await pilot.press("escape")
         await pilot.pause()
 
@@ -4462,3 +4465,18 @@ async def test_the_error_line_is_the_last_row_of_the_screen(tmp_path: Path):
         bar = app.query_one(ErrorBar)
         assert bar.region.y == app.screen.size.height - 1, "flush with the bottom"
         assert bar.region.height == 1
+
+
+def test_a_taken_default_still_offers_a_name_with_the_suffix(tmp_path: Path):
+    from spoider.files import default_path
+
+    taken = default_path()
+    taken.parent.mkdir(parents=True, exist_ok=True)
+    MindMap(Node("someone else's map")).save(taken)
+
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "w.conf")
+    app.path = None
+    offered, caret = app._write_offer()
+    assert offered.endswith(".spoider"), offered
+    assert offered != str(taken), "a free name, so a stray enter cannot bury a map"
+    assert offered[caret:] == ".spoider", "the caret still leaves the suffix alone"
