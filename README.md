@@ -8,7 +8,7 @@ It is a Python TUI built on [Textual](https://textual.textualize.io/), and it is
 
 ![a mind map in spoider](media/spoider.png)
 
-https://github.com/user-attachments/assets/a8818b5e-8f63-490f-9e02-c3ee17aec757
+https://github.com/user-attachments/assets/a7252521-8837-4ac1-9f52-0b44ba86c570
 
 Just under two minutes of it working: the four layouts, marks, folds, the spacing tightened
 step by step to where the cells nearly touch, branches reordered with `Alt+↑` and `Alt+↓`,
