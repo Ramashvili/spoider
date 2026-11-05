@@ -5,11 +5,11 @@ A mind map editor for the terminal.
 It is a Python TUI built on [Textual](https://textual.textualize.io/), and it is vibecoded.
 We are aiming for a perfectly functioning, minimalistic editor.
 
-Distinct features of spoider, compared with other mind mapping editors:
+Distinct features of spoider, as compared to other mind mapping editors:
 
 - keyboard-oriented navigation
 - a LIFO stack of parts cut out of the map, saved with the map
-- every aspect of the map is saved, so it renders identically everywhere
+- all aspects of the mind map are saved, so the map renders identically everywhere
 - the colour scheme is inherited from the terminal
 - the positioning of cells is automatic and fixed
 - four mind map layouts
