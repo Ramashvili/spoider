@@ -4291,3 +4291,37 @@ async def test_a_prompt_answers_page_and_word_keys(tmp_path: Path):
         await pilot.press("pageup")
         await pilot.pause()
         assert app.query_one(PromptBar).cursor < len(app.query_one(PromptBar).value)
+
+
+# -- 6: a paste that is cut short says so ----------------------------------
+
+
+async def test_a_paste_into_a_full_cell_announces_what_was_dropped(tmp_path: Path):
+    from spoider.model import MAX_CELL_CHARS
+
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "p.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        seen: list[str] = []
+        app.notify = lambda message, **kwargs: seen.append(str(message))  # type: ignore[method-assign]
+
+        await pilot.press("tab")
+        await pilot.press("a")
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.press("e")  # back into the cell, to fill it
+        await pilot.pause()
+        assert app._buffer is not None
+
+        app._buffer.insert("x" * (MAX_CELL_CHARS - 10))
+        app._text_clip = "y" * 50
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+        assert len(app._buffer.text) == MAX_CELL_CHARS, "the cap holds"
+        assert any("dropped" in text for text in seen), "the reader is told"
+
+        # every attempt says so, not only the first
+        seen.clear()
+        app._text_clip = "z" * 20
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+        assert any("dropped" in text for text in seen), "and again on the next attempt"

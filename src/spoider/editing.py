@@ -37,6 +37,8 @@ class Buffer:
         self.goal: int | None = None
         #: How much text a cell may hold, from the model's cap.
         self.limit = MAX_CELL_CHARS
+        #: True when the last insert dropped text because the cell was full.
+        self.clipped = False
         #: History of (text, caret). A run of typed characters is one step; anything
         #: else starts a new one, which is what makes ^Z feel like an editor's.
         self._undo: list[tuple[str, int]] = []
@@ -135,9 +137,11 @@ class Buffer:
         chunk = chunk.replace("\r\n", "\n").replace("\r", "\n")
         room = self.limit - len(self.text) + self.selection_length
         if room <= 0:
+            self.clipped = bool(chunk)
             return
         if len(chunk) > room:
             chunk = chunk[:room]
+            self.clipped = True
         single = len(chunk) == 1 and chunk != "\n"
         self._remember(typing=single)
         if self._replace_selection(chunk):

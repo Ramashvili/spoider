@@ -10,6 +10,7 @@ from __future__ import annotations
 from textual import events
 
 from .editing import Buffer, reflow
+from .model import MAX_CELL_CHARS
 
 
 class EditActions:
@@ -94,7 +95,7 @@ class EditActions:
         elif self._action_for(key) == "copy":
             self._cut_or_copy(cut=False)
         elif self._action_for(key) == "paste":
-            buffer.insert(self._text_clip)
+            self._insert_and_warn(buffer, self._text_clip)
         elif self._action_for(key) == "justify":
             self.action_justify()
         elif self._action_for(key) == "undo":
@@ -137,7 +138,7 @@ class EditActions:
     def on_paste(self, event: events.Paste) -> None:
         """Text the terminal pasted (ctrl+shift+v) lands at the caret."""
         if self.editing and self._buffer is not None:
-            self._buffer.insert(event.text)
+            self._insert_and_warn(self._buffer, event.text)
             self._sync_preview()
             event.stop()
     def action_justify(self) -> None:
@@ -185,6 +186,17 @@ class EditActions:
         node.text = wrapped
         self._touched(node.id)
         self._mark_dirty()
+    def _insert_and_warn(self, buffer: Buffer, chunk: str) -> None:
+        """Insert, and say so when the cell was full: pasted text is never silently cut."""
+        buffer.clipped = False
+        buffer.insert(chunk)
+        if buffer.clipped:
+            self.notify(
+                f"A cell holds {MAX_CELL_CHARS} characters at most, so the end was dropped",
+                severity="warning",
+                timeout=4,
+            )
+
     def finish_edit(self, *, commit: bool) -> None:
         node_id = self._edit_id
         self._edit_id = None
