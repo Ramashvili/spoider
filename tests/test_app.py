@@ -672,23 +672,23 @@ async def test_help_closes_on_ctrl_c(tmp_path: Path):
         assert app.is_running is True
 
 
-async def test_help_is_reachable_mid_typing(tmp_path: Path):
+async def test_a_cell_keeps_the_keys_that_open_help(tmp_path: Path):
+    """`?` and `^/` are characters and chords of the sentence, not the way out of it."""
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         await pilot.press("tab")
         await pilot.pause()
-        await pilot.press("a", "b")
+        await pilot.press("a", "b", "question_mark", "period")
         await pilot.pause()
+        assert app.mode == "edit", "the cell keeps the keys"
+        assert app.mm.root.children[0].preview == "ab?."
 
-        await pilot.press("ctrl+slash")
+        await pilot.press("escape")  # leaving the cell is the way to the help
+        await pilot.pause()
+        assert app.editing is False
+        await pilot.press("question_mark")
         await pilot.pause()
         assert app.mode == "help"
-
-        await pilot.press("escape")
-        await pilot.pause()
-        assert app.editing is True  # the half-typed name survived
-        assert app.mm.root.children[0].preview == "ab"
-        assert app.mm.root.children[0].caret == 2
 
 
 async def test_settings_shows_only_the_autosave_toggle(tmp_path: Path):
@@ -4469,3 +4469,21 @@ async def test_the_error_line_is_the_last_row_of_the_screen(tmp_path: Path):
         assert bar.region.height == 1
 
 
+
+
+async def test_a_cell_takes_the_keys_that_open_the_drawers(tmp_path: Path):
+    """A sentence ends with a full stop, so `.` and `?` are text inside a cell."""
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "d.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("tab")
+        await pilot.press("a", "period", "b", "question_mark", "c")
+        await pilot.pause()
+        assert app.editing is True, "the cell still has the keys"
+        assert app.mode == "edit"
+        assert app._buffer is not None and app._buffer.text == "a.b?c"
+
+        await pilot.press("escape")
+        await pilot.pause()
+        await pilot.press("full_stop")  # the name a terminal gives the key itself
+        await pilot.pause()
+        assert app.mode == "settings", "with the cell left, the full stop is a key again"

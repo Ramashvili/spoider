@@ -509,8 +509,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         # it implements itself (cut, paste, delete, edit, new cells, marks, folds,
         # undo) before a binding can see them. What is left — save, quit, colours,
         # shape, spacing, help — means the same thing in both places, so it runs.
-        if action in ("help", "settings"):
-            return True  # reachable while typing, without losing the edit
+        # A cell owns every character while it is being typed into: a full stop and a
+        # question mark are how sentences end, so `.` and `?` are text there, not keys.
+        # Leave the cell with esc to reach the help or the settings.
         if self.editing:
             return None
         return True

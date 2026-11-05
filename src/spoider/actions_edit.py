@@ -12,6 +12,36 @@ from textual import events
 from .editing import Buffer, reflow
 from .model import MAX_CELL_CHARS
 
+#: Character keys that can arrive named and empty-handed, and what they type.
+PUNCTUATION = {
+    "period": ".",
+    "full_stop": ".",
+    "comma": ",",
+    "colon": ":",
+    "semicolon": ";",
+    "exclamation_mark": "!",
+    "question_mark": "?",
+    "apostrophe": "'",
+    "quotation_mark": '"',
+    "hyphen": "-",
+    "minus": "-",
+    "plus": "+",
+    "equals_sign": "=",
+    "slash": "/",
+    "backslash": "\\",
+    "paren_left": "(",
+    "paren_right": ")",
+    "bracket_left": "[",
+    "bracket_right": "]",
+    "underscore": "_",
+    "at": "@",
+    "hash": "#",
+    "percent": "%",
+    "ampersand": "&",
+    "asterisk": "*",
+    "space": " ",
+}
+
 
 class EditActions:
     def begin_edit(self, node_id: str, *, fresh: bool = False) -> None:
@@ -47,9 +77,6 @@ class EditActions:
         if not self.editing or self._buffer is None:
             return False
         buffer = self._buffer
-        if key in ("ctrl+slash", "full_stop"):
-            return False  # help and settings stay reachable mid-typing
-
         if key == "enter":
             self.finish_edit(commit=True)
             return True
@@ -104,6 +131,10 @@ class EditActions:
             buffer.redo()
         elif character and character.isprintable():
             buffer.insert(character)
+        elif key in PUNCTUATION:
+            # Some terminals send a character key by name, with no character of its own.
+            # A cell still has to be able to end a sentence.
+            buffer.insert(PUNCTUATION[key])
         self._sync_preview()
         return True
     def action_copy(self) -> None:
