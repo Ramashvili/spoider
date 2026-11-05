@@ -4325,3 +4325,29 @@ async def test_a_paste_into_a_full_cell_announces_what_was_dropped(tmp_path: Pat
         await pilot.press("ctrl+u")
         await pilot.pause()
         assert any("dropped" in text for text in seen), "and again on the next attempt"
+
+
+# -- 4: the camera follows the caret in a tall cell ------------------------
+
+
+async def test_a_tall_cell_keeps_the_caret_line_on_screen(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "c.conf", demo=False)
+    async with app.run_test(size=(90, 16)) as pilot:
+        cell = app.mm.add_child(app.mm.root.id, "\n".join(f"line {i}" for i in range(40)))
+        app.view.refresh_map()
+        app.select(cell.id)
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.pause()
+        for _ in range(38):
+            app._buffer.down()
+        await pilot.pause()
+
+        layout = app.view.layout_
+        box = layout.boxes[cell.id]
+        caret = app.view.caret_row(layout, box)
+        assert caret is not None and caret > 30, "the caret is deep inside the cell"
+        width, height = app.view.size.width, app.view.size.height
+        _, offset_y = app.view.camera(width, height)
+        assert 0 <= caret - offset_y < height, "the line the caret is on is visible"

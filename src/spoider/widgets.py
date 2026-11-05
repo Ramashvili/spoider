@@ -173,12 +173,26 @@ class MindMapView(Widget, can_focus=True):
             self._layout = compute(mm.root, mm.spacing, mm.layout)
         return self._layout
 
+    def caret_row(self, layout, focus) -> int | None:
+        """The layout row the caret sits on inside a cell being typed into.
+
+        A cell can be taller than the screen. Centring on the box would leave the
+        caret below the fold while the reader types, so while editing the camera
+        follows the line instead of the cell.
+        """
+        node = focus.node
+        if node.caret is None or node.preview is None:
+            return None
+        line = node.preview[: node.caret].count("\n")
+        return focus.y + (1 if layout.walls else 0) + line
+
     def camera(self, width: int, height: int) -> tuple[int, int]:
         layout = self.layout_
         focus = layout.box(self.spoider.selected)
         if focus is not None:
             x = focus.cx - width // 2
-            y = focus.cy - height // 2
+            aimed = self.caret_row(layout, focus)
+            y = (aimed if aimed is not None else focus.cy) - height // 2
         else:
             x = layout.width // 2 - width // 2
             y = layout.height // 2 - height // 2
