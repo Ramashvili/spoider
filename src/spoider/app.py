@@ -38,7 +38,7 @@ from .config import (
 from .desktop import install_desktop
 from .drawers import AskBar, ErrorBar, PanelBar, PromptBar
 from .editing import Buffer
-from .files import SUFFIX, default_path
+from .files import SUFFIX
 from .keys import (
     BINDINGS,
     action_chords,
@@ -853,9 +853,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         The name comes with the map suffix already on it and the caret just before it, so
         the first keystroke edits the name and the suffix stays put.
         """
-        name = self._suggested_name()
-        if not name:
-            return "", 0
+        name = str(self.path) if self.path is not None else SUFFIX
         if name.endswith(SUFFIX):
             return name, len(name) - len(SUFFIX)
         # a name with no suffix of its own gets one; an existing file of any other kind
@@ -864,30 +862,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             return name, len(name)
         return f"{name}{SUFFIX}", len(name)
 
-    def _suggested_name(self) -> str:
-        """What to offer in the write prompt.
-
-        The file the buffer belongs to, if it has one. A new buffer is offered
-        the default place only while that is free: offering a path that already
-        holds someone's map would turn "press enter" into "overwrite it".
-        """
-        if self.path is not None:
-            return str(self.path)
-        # A new buffer is offered a name with the map's suffix on it, even when the
-        # default place is taken: then the name steps aside (map-2.spoider) rather
-        # than the offer going empty and leaving the reader to type the suffix.
-        fallback = default_path()
-        if not fallback.exists():
-            return str(fallback)
-        for index in range(2, 100):
-            candidate = fallback.with_name(f"{fallback.stem}-{index}{fallback.suffix}")
-            if not candidate.exists():
-                return str(candidate)
-        return str(fallback)
-
     def _write_submitted(self, value: str) -> None:
         self._close_drawers()
-        if not value.strip():
+        if not value.strip() or Path(value.strip()).name in ("", SUFFIX):
+            self.notify("Name the file, then the suffix follows it", timeout=3)
             return
         target = Path(value).expanduser()
         if target.is_dir():

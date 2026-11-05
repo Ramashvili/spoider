@@ -1886,15 +1886,18 @@ async def test_save_asks_for_a_name_when_the_buffer_has_none(tmp_path: Path, mon
 
         assert app.mode == "write", "there is no file to save over"
         prompt = app.query_one(PromptBar)
-        offered = tmp_path / "data" / "spoider" / "map.spoider"
-        assert prompt.value == str(offered), "the default place is offered, not used"
+        assert prompt.value == ".spoider", "the suffix, with nothing in front of it"
+        assert prompt.cursor == 0, "the caret sits where the name goes"
 
+        await pilot.press("i", "d", "e", "a", "s")
         await pilot.press("enter")
         await pilot.pause()
-        assert app.path == offered
-        assert offered.exists()
+        written = Path("ideas.spoider").resolve()
+        assert app.path is not None and str(app.path).endswith("ideas.spoider")
+        assert app.path.exists()
         assert app.has_file is True
         assert app.dirty is False
+        written.unlink(missing_ok=True)
 
 
 async def test_a_new_buffer_quits_with_autosave_on(tmp_path: Path):
@@ -3738,12 +3741,12 @@ async def test_the_vim_block_works_when_uncommented(tmp_path: Path):
         assert app.editing is True, "i renames"
 
 
-def test_a_map_names_itself(tmp_path: Path):
-    """`.spoider` is what a map is called, so a file in a folder says what it is."""
-    from spoider.app import default_path
-
-    assert default_path().name == "map.spoider"
-    assert default_path().parent.name == "spoider"
+def test_a_new_buffer_is_offered_only_the_suffix(tmp_path: Path):
+    """No place is pre-decided: the prompt holds `.spoider` and the caret, nothing more."""
+    app = SpoiderApp(None, config_path=tmp_path / "c.conf")
+    offered, caret = app._write_offer()
+    assert offered == ".spoider", "the suffix, and no path in front of it"
+    assert caret == 0, "the caret goes before it, where the name belongs"
 
 
 def test_the_packaging_tells_the_desktop_what_a_map_is():
@@ -4467,16 +4470,3 @@ async def test_the_error_line_is_the_last_row_of_the_screen(tmp_path: Path):
         assert bar.region.height == 1
 
 
-def test_a_taken_default_still_offers_a_name_with_the_suffix(tmp_path: Path):
-    from spoider.files import default_path
-
-    taken = default_path()
-    taken.parent.mkdir(parents=True, exist_ok=True)
-    MindMap(Node("someone else's map")).save(taken)
-
-    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "w.conf")
-    app.path = None
-    offered, caret = app._write_offer()
-    assert offered.endswith(".spoider"), offered
-    assert offered != str(taken), "a free name, so a stray enter cannot bury a map"
-    assert offered[caret:] == ".spoider", "the caret still leaves the suffix alone"
