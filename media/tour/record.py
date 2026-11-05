@@ -110,9 +110,13 @@ def scene() -> list[Step]:
         wait(0.6)
 
     def up(levels: int) -> None:
-        """Climb exactly this many levels; in the branch shape LEFT is always the parent."""
-        for index in range(levels):
-            key(0.45 if index == 0 else 0.35, LEFT.encode(), "←")
+        """Climb exactly this many levels; in the branch shape LEFT is always the parent.
+
+        Half a second a press: at 0.3 s the program is still redrawing and an arrow is
+        dropped, which moves every anchor after it by one cell without saying so.
+        """
+        for _ in range(levels):
+            key(0.5, LEFT.encode(), "←")
         wait(0.4)
 
     def root() -> None:
@@ -120,103 +124,84 @@ def scene() -> list[Step]:
         key(0.35, HOME_KEY.encode(), "Home")
         wait(0.35)
 
-    def into(steps: int) -> None:
-        """Deeper from the root, always by the first child: the branch shape's own arrow."""
-        for _ in range(steps):
-            key(0.3, RIGHT.encode(), "→")
-
     def sibling(steps: int) -> None:
         for _ in range(steps):
-            key(0.3, DOWN.encode(), "↓")
-
-    def find(text: str) -> None:
-        """Put the cursor on a cell by its words, so a beat never depends on counting."""
-        key(0.5, CTRL_F, "^F")
-        wait(0.35)
-        for ch in text:
-            plan.append((FAST, ch.encode(), ""))
-        key(0.3, ENTER.encode(), "⏎")
-        wait(0.5)
+            key(0.5, DOWN.encode(), "↓")
 
     wait(0.6)  # the first seconds are brisk: the map is worth more than a held title
 
-    # three presses to the branch shape, where LEFT always climbs and RIGHT always goes
-    # in, so the anchors below are counted instead of guessed
+    # Three presses to the branch shape, measured: LEFT always climbs there and RIGHT
+    # always goes in, so every anchor below is a climb or a sibling, never a guess.
     for index in range(3):
-        key(0.3, CTRL_L, "^L")
-        wait(0.26 if index < 2 else 0.5)
+        key(0.45, CTRL_L, "^L")
+        wait(0.35 if index < 2 else 0.6)
 
-    key(0.4, b"e", "e")
-    wait(0.3)
+    # The root's name, typed the way a name is typed.
+    key(0.45, b"e", "e")
+    wait(0.35)
     key(0.1, CTRL_A, "^A")
-    wait(0.2)
+    wait(0.25)
     say("spoider")
-    wait(0.7)
-
-    # the map `--demo` opens, grown on camera, in the manual's own words
-    cell("a mind map in a terminal", TAB, "⇥")
-    cell("every colour is your terminal's", TAB, "⇥")
-    cell("the map is a JSON file", ENTER, "⏎")
-    up(1)  # back up to the first branch
-    cell("making cells", ENTER, "⏎")
-    cell("tab makes a child", TAB, "⇥")
-    cell("return makes a sibling", ENTER, "⏎")
-    up(1)  # to making cells, so the cut stack is its sibling and not its child
-    cell("the cut stack", ENTER, "⏎")
-    cell("^K cuts a branch onto the stack", TAB, "⇥")
     wait(0.8)
 
-    # -- the four shapes over the same map, ending back in branch --------------------
-    root()
-    for pause, after in ((0.9, 1.3), (0.9, 1.4), (0.9, 1.4), (0.9, 1.0)):
-        key(pause, CTRL_L, "^L")
-        wait(after)
+    # -- four levels deep, in the manual's own words -----------------------------------
+    cell("a mind map in a terminal", TAB, "⇥")
+    cell("the map is a JSON file", TAB, "⇥")
+    cell("read it", TAB, "⇥")
+    cell("diff it", TAB, "⇥")
+    cell("keep it in git", ENTER, "⏎")
+    wait(0.7)
 
-    # -- marks on two cells, and a fold that opens again ------------------------------
-    find("the map is a JSON file")
+    # -- marks on the two cells at the bottom, straight after they are made ------------
     for _ in range(3):
-        key(0.45, b"w", "w")
+        key(0.5, b"w", "w")
         wait(0.55)
-    wait(1.0)
-    find("every colour")
-    key(0.45, b"w", "w")
-    wait(1.4)
-    find("making cells")
+    wait(0.9)
+    key(0.5, UP.encode(), "↑")
+    key(0.5, b"w", "w")
+    wait(1.2)
+
+    # -- fold the branch that has children, then open it again -------------------------
+    for _ in range(2):
+        key(0.5, LEFT.encode(), "←")  # diff it > read it > the map is a JSON file
+    wait(0.4)
     key(0.6, b"t", "t")
     wait(1.6)
     key(0.6, b"t", "t")
-    wait(1.0)
+    wait(0.9)
 
-    # -- the air between the cells: -1 down to -4 slowly, then back to -1 quickly ------
-    key(0.55, b"-", "-")
-    wait(1.2)
-    key(0.55, b"-", "-")
-    wait(1.0)
-    key(0.55, b"-", "-")
-    wait(1.0)
-    key(0.65, b"-", "-")
-    wait(3.4)  # -4: four steps tighter than the default is where the gaps are narrowest
-    for _ in range(3):
-        key(0.22, b"=", "=")
-    wait(1.8)
+    # -- the second branch, and the third ---------------------------------------------
+    key(0.5, LEFT.encode(), "←")  # back to a mind map in a terminal
+    wait(0.4)
+    cell("every colour is your terminal's", TAB, "⇥")  # a child of it, not a new branch
+    key(0.5, LEFT.encode(), "←")
+    wait(0.4)
+    cell("making cells", ENTER, "⏎")
+    wait(0.5)
 
-    # -- the colouring, both ways ------------------------------------------------------
-    key(0.7, b"c", "c")
-    wait(2.4)
-    key(0.7, b"c", "c")
-    wait(1.2)
-
-    # -- reordering: a branch climbs twice, then settles one lower ---------------------
-    find("making cells")
-    key(0.5, ALT_UP.encode(), "M-↑")
+    # -- reordering, where the branch stands ------------------------------------------
+    key(0.55, ALT_UP.encode(), "M-↑")
+    wait(1.1)
+    key(0.55, ALT_DOWN.encode(), "M-↓")
     wait(1.0)
-    key(0.5, ALT_DOWN.encode(), "M-↓")
-    wait(1.0)
-    key(0.5, ALT_UP.encode(), "M-↑")
-    wait(1.6)
+    key(0.55, ALT_UP.encode(), "M-↑")
+    wait(1.5)
 
-    # -- the long note: typed whole, justified to 34, then cut to the stack ------------
-    find("^K cuts a branch")
+    cell("tab makes a child", TAB, "⇥")
+    cell("return makes a sibling", ENTER, "⏎")
+    cell("shift+return starts a line", TAB, "⇥")
+    for _ in range(2):
+        key(0.5, LEFT.encode(), "←")  # shift+return > return makes a sibling > making cells
+    wait(0.4)
+
+    cell("the cut stack", ENTER, "⏎")
+    cell("^K cuts a branch onto the stack", TAB, "⇥")
+    cell("^U pastes the newest cut", TAB, "⇥")
+
+    # -- the long note: typed whole, justified, folded on the stack, pasted back -------
+    for _ in range(2):
+        key(0.5, LEFT.encode(), "←")  # up to the cut stack
+    wait(0.4)
     key(0.5, TAB.encode(), "⇥")
     say(LONG)
     wait(1.0)
@@ -225,7 +210,7 @@ def scene() -> list[Step]:
     for ch in "34":
         plan.append((0.18, ch.encode(), ""))
     key(0.35, ENTER.encode(), "⏎")
-    wait(3.4)
+    wait(3.2)
 
     key(0.7, CTRL_K, "^K")
     wait(1.4)
@@ -239,9 +224,34 @@ def scene() -> list[Step]:
     wait(1.2)
     root()
     key(0.7, CTRL_U, "^U")
-    wait(3.2)
+    wait(3.0)
 
-    # -- help, then save and hold -------------------------------------------------------
+    # -- the four shapes, late, so a dropped press cannot move an anchor ---------------
+    root()
+    for pause, after in ((0.8, 1.3), (0.8, 1.4), (0.8, 1.4), (0.8, 1.2)):
+        key(pause, CTRL_L, "^L")
+        wait(after)
+
+    # -- the air between the cells: -1 down to -4 slowly, then back to -1 quickly ------
+    key(0.55, b"-", "-")
+    wait(1.2)
+    key(0.55, b"-", "-")
+    wait(1.0)
+    key(0.55, b"-", "-")
+    wait(1.0)
+    key(0.65, b"-", "-")
+    wait(3.4)  # -4: four steps tighter than the default, where the gaps are narrowest
+    for _ in range(3):
+        key(0.22, b"=", "=")
+    wait(1.8)
+
+    # -- the colouring, both ways ------------------------------------------------------
+    key(0.7, b"c", "c")
+    wait(2.4)
+    key(0.7, b"c", "c")
+    wait(1.2)
+
+    # -- help, then save and hold ------------------------------------------------------
     key(0.8, b"?", "?")
     wait(3.4)
     key(0.7, ESC.encode(), "esc")
