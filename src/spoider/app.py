@@ -359,6 +359,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._set_terminal_title()
         self._apply_start_position()
         self.query_one(MindMapView).focus()
+        self._sync_footer()
 
     def action_go_home(self) -> None:
         """`home` — the main cell of the tree the cursor is in, hierarchy only."""
@@ -552,6 +553,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def autosave(self) -> bool:
         """Editor preference, not document state — written to the config file."""
         return self.config.autosave
+
+    def set_hide_footer(self, value: bool) -> None:
+        """Editor preference: the bar at the bottom, or the rows it takes."""
+        if value == self.config.hide_footer:
+            return
+        self.config.hide_footer = bool(value)
+        self._save_config({"hide_footer": "true" if value else "false"})
+        self._sync_footer()
 
     def set_autosave(self, value: bool) -> None:
         if value == self.config.autosave:
@@ -935,6 +944,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         else:  # help
             footer.mode = "custom"
             footer.custom = help_chunks(self.query_one(PanelBar).scrollable)
+        # the bar is hidden by preference, and comes back whenever something is
+        # asking for keys: a drawer, the stack panel, a cell being typed into
+        hiding = (
+            self.config.hide_footer
+            and self.mode == "keys"
+            and not self.stack_open
+        )
+        footer.display = not hiding
         footer.refresh()
 
     # -- the drawers themselves ------------------------------------------
@@ -1100,7 +1117,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self._settings_row = max(0, self._settings_row - 1)
             self._draw_settings()
         elif key in ("down", "j"):
-            self._settings_row = min(1, self._settings_row + 1)
+            self._settings_row = min(2, self._settings_row + 1)
             self._draw_settings()
         elif key in ("enter", "space"):
             self._settings_activate()
@@ -1108,6 +1125,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def _settings_activate(self) -> None:
         if self._settings_row == 0:
             self.set_autosave(not self.autosave)
+            self._draw_settings()
+            return
+        if self._settings_row == 1:
+            self.set_hide_footer(not self.config.hide_footer)
             self._draw_settings()
             return
         self.open_config()

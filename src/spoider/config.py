@@ -53,6 +53,8 @@ class Config:
     #: What ^J asks for by default: the width last used, or this. Named apart from
     #: the `justify` binding, which may also live in this file as a chord.
     justify_width_default: int = 40
+    #: Hide the bar along the bottom. Drawers bring it back while they are open.
+    hide_footer: bool = False
     marks_default: tuple[str, ...] = field(default_factory=lambda: tuple(MARKS))
     #: Whether the first-run question about registering .spoider with the desktop has
     #: been answered. Asking once is the point: a "no" is an answer, not a delay.
@@ -128,6 +130,8 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
             config.autosave = value.lower() in TRUE_WORDS
         elif name == "desktop_asked":
             config.desktop_asked = value.lower() in TRUE_WORDS
+        elif name == "hide_footer":
+            config.hide_footer = value.lower() in TRUE_WORDS
         elif name == "marks_default":
             marks = marks_of(value.split())
             if marks:
@@ -160,7 +164,8 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
         "",
         f"autosave = {'true' if config.autosave else 'false'}",
         "marks_default = " + " ".join(config.marks_default),
-        f"justify_width_default = {config.justify_width_default}",
+        f"justify_width_default = {config.justify_width_default}"
+        f"hide_footer = {'true' if config.hide_footer else 'false'}",
         f"desktop_asked = {'true' if config.desktop_asked else 'false'}",
         "",
         "# Chords. An action can have more than one chord: they are separated by a",
@@ -189,7 +194,13 @@ def write_config(
 
 
 #: The keys spoider writes itself, with how each one is spelled in the file.
-_OWNED = ("autosave", "marks_default", "justify_width_default", "desktop_asked")
+_OWNED = (
+    "autosave",
+    "marks_default",
+    "justify_width_default",
+    "desktop_asked",
+    "hide_footer",
+)
 
 
 def update_config(path: Path, changes: dict[str, str]) -> None:

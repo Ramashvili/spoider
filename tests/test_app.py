@@ -1025,9 +1025,10 @@ async def test_settings_opens_the_config_in_an_editor(tmp_path: Path, monkeypatc
     async with app.run_test() as pilot:
         await pilot.press("full_stop")
         await pilot.pause()
+        await pilot.press("down")  # footer row
         await pilot.press("down")  # config row
         await pilot.pause()
-        assert app._settings_row == 1
+        assert app._settings_row == 2
 
         await pilot.press("enter")
         await pilot.pause()
@@ -4351,3 +4352,50 @@ async def test_a_tall_cell_keeps_the_caret_line_on_screen(tmp_path: Path):
         width, height = app.view.size.width, app.view.size.height
         _, offset_y = app.view.camera(width, height)
         assert 0 <= caret - offset_y < height, "the line the caret is on is visible"
+
+
+# -- 1: hiding the bar -----------------------------------------------------
+
+
+async def test_the_bar_can_be_hidden_and_comes_back_for_a_drawer(tmp_path: Path):
+    config = tmp_path / "c.conf"
+    config.write_text("hide_footer = true\n", encoding="utf-8")
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=config, demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        footer = app.query_one("#footer", FooterBar)
+        assert not footer.display, "hidden by preference"
+
+        await pilot.press("ctrl+f")
+        await pilot.pause()
+        assert footer.display, "a prompt needs its keys named"
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert not footer.display, "and it goes again"
+
+        app.mm.cut_stack.append(Node("something cut"))
+        await pilot.press("p")
+        await pilot.pause()
+        assert app.stack_open
+        assert footer.display, "the stack panel has keys of its own"
+
+
+async def test_the_settings_row_toggles_the_bar_and_writes_the_config(tmp_path: Path):
+    config = tmp_path / "c.conf"
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=config, demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        assert app.query_one("#footer", FooterBar).display, "shown by default"
+
+        await pilot.press("full_stop")
+        await pilot.press("down")
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.config.hide_footer is True
+        assert "footer" in app.query_one(PanelBar).render().plain
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert not app.query_one("#footer", FooterBar).display
+        assert "hide_footer = true" in config.read_text(encoding="utf-8")

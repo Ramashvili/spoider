@@ -216,6 +216,7 @@ def _fit_tokens(tokens: tuple[str, ...], width: int) -> str:
 def settings_text(app: SpoiderApp, row: int = 0) -> Text:
     rows = [
         ("autosave", "on" if app.autosave else "off", "after every edit, and exit"),
+        ("footer", "hidden" if app.config.hide_footer else "shown", "the bar of keys at the bottom"),
         ("config", clip_tail(str(app.config_path), 20), "⏎ opens it in your editor"),
     ]
     text = Text()

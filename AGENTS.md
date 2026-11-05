@@ -64,7 +64,9 @@ to help.
 - **Chords are spelled nano's way** everywhere — `^` ctrl, `M-` alt, `S-` shift — never
   `⌥`/`⇧` glyphs. Ctrl chords first; a bare key only where it collides with nothing
   and the action is used constantly. One chord per job.
-- **The bar never disappears** and always describes what has the keys. No modal
+- **The bar describes what has the keys, and comes back for it.** It can be hidden from
+  the settings screen (`hide_footer`); it returns whenever something is asking for keys —
+  a prompt, a question, help, the stack panel, or a cell being typed into. No modal
   screens: prompts, questions, settings, help and the stack are drawers or columns.
   Panels keep one blank line above the bar. The one thing that floats is the `` ` ``
   debug box in the top-left corner, drawn over cells: it is read-only and costs no
