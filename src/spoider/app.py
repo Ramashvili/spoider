@@ -348,9 +348,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         # A config is the reader's file: written once when it is missing, then only ever
         # edited line by line. Deleting it brings the commented template back.
         self._save_config()
-        if self.load_error is not None:
-            self.notify(self.load_error, severity="error", timeout=8)
         self.set_keymap(build_action_keymap(self.config.keys))
+        if self.load_error is not None:
+            # the file is not a map: there is nothing to edit, so there is no canvas,
+            # no title and no cursor — one red line, and the only key leaves
+            self.query_one(TopBar).display = False
+            self.query_one(MindMapView).display = False
+            self._show_error(self.load_error, self._leave_refused_file)
+            return
         self._set_terminal_title()
         self._apply_start_position()
         self.query_one(MindMapView).focus()
@@ -934,6 +939,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     # -- the drawers themselves ------------------------------------------
 
+    def _leave_refused_file(self) -> None:
+        """A file that could not be read is left behind, not opened."""
+        self.exit()
+
     def _show_error(self, message: str, on_ack) -> None:
         """Refuse and explain: one line, red, and nothing to do but acknowledge it."""
         self._mode = "error"
@@ -1244,6 +1253,9 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(2) from None
     ask_desktop(app.config, app.config_path, app._key_entries())
     app.run(mouse=False)
+    if app.load_error is not None:
+        # a program that launched this map gets a code it can test, as with a bad --id
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

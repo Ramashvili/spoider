@@ -16,7 +16,7 @@ from textual import events
 from textual.widget import Widget
 
 from .chrome import ERROR_STYLE
-from .text import clean, clip_tail
+from .text import clean, clip_head, clip_tail
 
 
 class Drawer(Widget, can_focus=True):
@@ -282,7 +282,7 @@ class ErrorBar(Drawer):
         width = self.size.width
         if width <= 0 or not self.display:
             return Text("")
-        shown = clip_tail(clean(self.message), width - 1)
+        shown = clip_head(clean(self.message), width - 1)
         line = Text(shown, ERROR_STYLE)
         line.append(" " * max(0, width - cell_len(shown)), ERROR_STYLE)
         return line

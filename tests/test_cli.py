@@ -27,6 +27,7 @@ def _run(monkeypatch, argv: list[str]) -> dict:
             seen["cell_id"] = cell_id
             # an app whose config already holds the desktop answer, so no question
             self.config = Config(desktop_asked=True)
+            self.load_error = None
             self.config_path = Path("/nonexistent/spoider.conf")
 
         def _key_entries(self) -> list[tuple[str, str, str]]:
@@ -223,3 +224,23 @@ def test_deleting_the_config_brings_the_question_back(monkeypatch, tmp_path: Pat
     config.unlink()
     seen = _launch(monkeypatch, tmp_path, ["y"])
     assert seen["installed"] == 1, "the record was deleted, so the question returns"
+
+
+def test_a_file_that_is_not_a_map_leaves_a_code_behind(monkeypatch, tmp_path: Path):
+    """A launcher gets a failure, not a map that quietly turned into an empty buffer."""
+    bad = tmp_path / "notes.txt"
+    bad.write_text("my notes\n", encoding="utf-8")
+    monkeypatch.setattr(module.sys.stdin, "isatty", lambda: False)
+    app_holder: dict = {}
+
+    def fake_run(self, **kwargs) -> None:
+        app_holder["message"] = self.load_error
+
+    monkeypatch.setattr(module.SpoiderApp, "run", fake_run)
+    try:
+        module.main([str(bad)])
+    except SystemExit as exit_code:
+        assert exit_code.code == 2
+    else:
+        raise AssertionError("an unreadable file should end with a failure code")
+    assert app_holder["message"] is not None, "and it had a reason to give"

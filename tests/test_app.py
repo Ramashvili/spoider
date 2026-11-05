@@ -10,7 +10,7 @@ from spoider.drawers import AskBar, ErrorBar, PanelBar, PromptBar
 from spoider.layout import compute
 from spoider.model import MindMap, Node
 from spoider.screens import HELP, help_text, keys_for, settings_text
-from spoider.widgets import TopBar, compose_top_bar
+from spoider.widgets import MindMapView, TopBar, compose_top_bar
 
 
 def test_every_shortcut_uses_a_modifier():
@@ -1413,12 +1413,19 @@ async def test_a_corrupt_file_starts_empty_and_keeps_the_file_untouched(tmp_path
         assert path.read_text() == "{not json"  # never overwritten on the way in
 
 
-async def test_the_top_bar_says_new_buffer_when_the_file_could_not_be_opened(tmp_path: Path):
+async def test_a_file_that_cannot_be_read_is_refused_outright(tmp_path: Path):
+    """Not an empty buffer with a toast: no buffer at all, one line, and a way out."""
     path = tmp_path / "bad.json"
     path.write_text("{oops")
     app = SpoiderApp(path, demo=False)
-    async with app.run_test():
-        assert "New Buffer" in app.query_one(TopBar).render().plain
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        assert app.load_error is not None
+        assert app.mode == "error", "nothing else may be done"
+        assert not app.query_one(TopBar).display, "no title for a file that is not a map"
+        assert not app.query_one(MindMapView).display, "no canvas either"
+        band = app.query_one(ErrorBar).render().plain
+        assert "bad.json" in band and "not valid JSON" in band
 
 
 async def test_the_path_survives_the_file_disappearing(tmp_path: Path):
