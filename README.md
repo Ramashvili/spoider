@@ -1,19 +1,25 @@
 # spoider
 
-A mind map editor for the terminal. Start with one thought in the middle, branch
-out with `Tab` and `Return`, and walk the tree with the arrow keys. Every colour
-comes straight from your terminal theme.
+A mind map editor for the terminal.
 
 It is a Python TUI built on [Textual](https://textual.textualize.io/), and it is vibecoded.
+We are aiming for a perfectly functioning, minimalistic editor.
+
+Distinct features of spoider, compared with other mind mapping editors:
+
+- keyboard-oriented navigation
+- a LIFO stack of parts cut out of the map, saved with the map
+- every aspect of the map is saved, so it renders identically everywhere
+- the colour scheme is inherited from the terminal
+- the positioning of cells is automatic and fixed
+- four mind map layouts
+- a wide range of cell spacing
 
 ![a mind map in spoider](media/spoider.png)
 
 https://github.com/user-attachments/assets/a7252521-8837-4ac1-9f52-0b44ba86c570
 
-Just under two minutes of it working: the four layouts, marks, folds, the spacing tightened
-step by step to where the cells nearly touch, branches reordered with `Alt+↑` and `Alt+↓`,
-and one long note justified in place, cut to the stack, folded inside the panel, and pasted
-back where it belongs.
+A two-minute tour of spoider.
 
 ## Install
 
@@ -21,9 +27,9 @@ spoider needs [uv](https://docs.astral.sh/uv/), which also brings a matching Pyt
 it from your package manager where it is packaged:
 
 ```bash
-sudo pacman -S uv     # Arch
-sudo dnf install uv   # Fedora 43 and later
-sudo apt install uv   # Debian and Ubuntu, from universe in their next releases
+sudo pacman -S uv     # for Arch
+sudo dnf install uv   # for Fedora 43 and later
+sudo apt install uv   # for Debian and Ubuntu
 ```
 
 On releases without it, use the standalone installer:
@@ -53,11 +59,11 @@ uvx --from git+https://github.com/Ramashvili/spoider spoider --demo
 ## Run
 
 ```bash
-spoider                        # start a new map
+spoider                        # start a new buffer
 spoider ideas.spoider          # open a map, or create one at that path
 spoider --demo                 # open the interactive manual
-spoider -p 7.4 map.spoider     # land the cursor on the fourth child of the seventh
-spoider -p s2.1 map.spoider    # the first child of the second cut, panel open
+spoider -p 7.4.3 map.spoider   # land the cursor on the 3rd child of the 4th child of the 7th
+spoider -p s2.1 map.spoider    # land on the 1st child of the 2nd cut; opens the stack
 spoider --id 9f2c1a8b map.spoider   # land on the cell with that id
 ```
 
