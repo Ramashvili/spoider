@@ -193,7 +193,7 @@ class EditActions:
         if buffer.clipped:
             self.notify(
                 f"A cell holds {MAX_CELL_CHARS} characters at most, so the end was dropped",
-                severity="warning",
+                severity="error",
                 timeout=4,
             )
 

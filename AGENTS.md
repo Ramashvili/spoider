@@ -71,6 +71,9 @@ to help.
   Panels keep one blank line above the bar. The one thing that floats is the `` ` ``
   debug box in the top-left corner, drawn over cells: it is read-only and costs no
   space, where a drawer or a column would take the space it exists to describe.
+- **A notification's colour is its meaning.** Green when something worked, yellow for a
+  neutral note (a cut, a paste), red when something did not: a refusal, a paste cut short,
+  a file that would not write.
 - **Same words everywhere.** Bar labels come from the binding table and chords from
   the keymap, so `^K` says "cut" on the map, in the panel and in help.
 - **No compatibility shims.** Young project: no legacy key aliases, no old config

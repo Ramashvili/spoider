@@ -101,7 +101,6 @@ Screen.roomy MindMapView {
     width: 100%;
     height: 1;
     padding: 0 1;
-    margin-top: 1;
     display: none;
     text-wrap: nowrap;
     text-overflow: clip;
@@ -333,8 +332,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         yield PanelBar(id="panel")
         yield AskBar(id="ask")
         yield PromptBar(id="prompt")
-        yield ErrorBar(id="error")
         yield FooterBar(id="footer")
+        yield ErrorBar(id="error")
 
     #: Rows a window needs before it can afford air around the map: below this,
     #: two rows of map are worth more than the tidier picture.
@@ -944,13 +943,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         else:  # help
             footer.mode = "custom"
             footer.custom = help_chunks(self.query_one(PanelBar).scrollable)
-        # the bar is hidden by preference, and comes back whenever something is
-        # asking for keys: a drawer, the stack panel, a cell being typed into
-        hiding = (
-            self.config.hide_footer
-            and self.mode == "keys"
-            and not self.stack_open
-        )
+        # hidden by preference while the map, the stack panel or a cell has the keys;
+        # it comes back for a drawer, because a drawer's keys are named in the bar
+        hiding = self.config.hide_footer and self._mode in ("keys", "edit")
         footer.display = not hiding
         footer.refresh()
 
