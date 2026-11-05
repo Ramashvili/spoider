@@ -10,8 +10,10 @@ It is a Python TUI built on [Textual](https://textual.textualize.io/), and it is
 
 https://github.com/user-attachments/assets/a8818b5e-8f63-490f-9e02-c3ee17aec757
 
-Two minutes and twenty-three seconds of it working: the four layouts, marks, folds,
-spacing, moving branches through the cut stack, and justifying a long note in place.
+Just under two minutes of it working: the four layouts, marks, folds, the spacing tightened
+step by step to where the cells nearly touch, branches reordered with `Alt+↑` and `Alt+↓`,
+and one long note justified in place, cut to the stack, folded inside the panel, and pasted
+back where it belongs.
 
 ## Install
 

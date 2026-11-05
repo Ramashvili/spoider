@@ -135,31 +135,32 @@ def scene() -> list[Step]:
         key(0.3, ENTER.encode(), "⏎")
         wait(0.5)
 
-    wait(1.0)
+    wait(0.6)  # the first seconds are brisk: the map is worth more than a held title
 
     # three presses to the branch shape, where LEFT always climbs and RIGHT always goes
     # in, so the anchors below are counted instead of guessed
     for index in range(3):
-        key(0.45 if index else 0.4, CTRL_L, "^L")
-        wait(0.4 if index < 2 else 0.8)
+        key(0.3, CTRL_L, "^L")
+        wait(0.26 if index < 2 else 0.5)
 
-    key(0.5, b"e", "e")
-    wait(0.4)
+    key(0.4, b"e", "e")
+    wait(0.3)
     key(0.1, CTRL_A, "^A")
-    wait(0.25)
-    say("animals")
-    wait(0.9)
+    wait(0.2)
+    say("spoider")
+    wait(0.7)
 
-    # the map the demo holds, grown on camera: three top branches, children under them
-    cell("chordates", TAB, "⇥")
-    cell("mammals", TAB, "⇥")
-    cell("primates", TAB, "⇥")
-    up(1)  # back up to mammals
-    cell("birds", ENTER, "⏎")
-    cell("reptiles", ENTER, "⏎")
-    up(1)  # to chordates, so the next two are its siblings, not its children
-    cell("molluscs", ENTER, "⏎")
-    cell("arthropods", ENTER, "⏎")
+    # the map `--demo` opens, grown on camera, in the manual's own words
+    cell("a mind map in a terminal", TAB, "⇥")
+    cell("every colour is your terminal's", TAB, "⇥")
+    cell("the map is a JSON file", ENTER, "⏎")
+    up(1)  # back up to the first branch
+    cell("making cells", ENTER, "⏎")
+    cell("tab makes a child", TAB, "⇥")
+    cell("return makes a sibling", ENTER, "⏎")
+    up(1)  # to making cells, so the cut stack is its sibling and not its child
+    cell("the cut stack", ENTER, "⏎")
+    cell("^K cuts a branch onto the stack", TAB, "⇥")
     wait(0.8)
 
     # -- the four shapes over the same map, ending back in branch --------------------
@@ -169,15 +170,15 @@ def scene() -> list[Step]:
         wait(after)
 
     # -- marks on two cells, and a fold that opens again ------------------------------
-    find("birds")
+    find("the map is a JSON file")
     for _ in range(3):
         key(0.45, b"w", "w")
         wait(0.55)
     wait(1.0)
-    find("reptiles")
+    find("every colour")
     key(0.45, b"w", "w")
     wait(1.4)
-    find("chordates")
+    find("making cells")
     key(0.6, b"t", "t")
     wait(1.6)
     key(0.6, b"t", "t")
@@ -203,7 +204,7 @@ def scene() -> list[Step]:
     wait(1.2)
 
     # -- reordering: a branch climbs twice, then settles one lower ---------------------
-    find("birds")
+    find("making cells")
     key(0.5, ALT_UP.encode(), "M-↑")
     wait(1.0)
     key(0.5, ALT_DOWN.encode(), "M-↓")
@@ -212,7 +213,7 @@ def scene() -> list[Step]:
     wait(1.6)
 
     # -- the long note: typed whole, justified to 34, then cut to the stack ------------
-    root()
+    find("^K cuts a branch")
     key(0.5, TAB.encode(), "⇥")
     say(LONG)
     wait(1.0)
@@ -233,7 +234,7 @@ def scene() -> list[Step]:
     wait(1.0)
     key(0.7, b"p", "p")
     wait(1.2)
-    find("chordates")
+    root()
     key(0.7, CTRL_U, "^U")
     wait(3.2)
 
