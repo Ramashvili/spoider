@@ -258,8 +258,10 @@ def scene() -> list[Step]:
     wait(1.0)
     key(0.7, CTRL_S, "^S")
     wait(2.0)
-    key(0.8, CTRL_X, "^X")
-    wait(1.6)
+    # No quit key: the recorder is stopped while the map is still on screen, because a
+    # window that closes lets the desktop into the last seconds of the take. The harness
+    # kills the program after the recorder has stopped.
+    wait(0.8)
     return plan
 
 
