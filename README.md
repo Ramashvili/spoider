@@ -72,6 +72,11 @@ launches a map can tell. A cut's id opens the stack panel.
 
 ## Keys
 
+Key bindings can be set in `~/.config/spoider/spoider.conf`.
+Vim-like binds are already waiting there; you only need to uncomment them.
+
+### Table of defaults
+
 | Key | Does |
 | --- | --- |
 | `Tab` / `Return` | add a child, add a sibling |
@@ -137,7 +142,7 @@ were last on. Opening the same file on another machine gives you the exact same 
 with the cursor where you left it.
 
 Editor preferences like autosave and custom keybindings live in
-`~/.config/spoider/spoider.conf`, which you can open directly from `.`.
+`~/.config/spoider/spoider.conf`, which you can open from the settings screen with `.`.
 
 ## Development
 
