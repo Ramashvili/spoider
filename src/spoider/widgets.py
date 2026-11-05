@@ -10,7 +10,7 @@ from textual import events
 from textual.widget import Widget
 
 from .chrome import DIVIDER
-from .layout import BOX_H, Layout, compute
+from .layout import BOX_H, PAD, Layout, compute
 from .properties import sections
 from .render import (
     DEPTH_COLORS,
@@ -186,11 +186,26 @@ class MindMapView(Widget, can_focus=True):
         line = node.preview[: node.caret].count("\n")
         return focus.y + (1 if layout.walls else 0) + line
 
+    def caret_column(self, layout, focus) -> int | None:
+        """The layout column the caret sits on inside a cell being typed into.
+
+        The same argument as `caret_row`, sideways: a cell can be wider than the
+        screen, and the caret can be past its right edge.
+        """
+        node = focus.node
+        if node.caret is None or node.preview is None:
+            return None
+        before = node.preview[: node.caret]
+        line = before.rsplit("\n", 1)[-1]
+        left = focus.x + (1 if layout.walls else 0) + PAD
+        return left + cell_len(line)
+
     def camera(self, width: int, height: int) -> tuple[int, int]:
         layout = self.layout_
         focus = layout.box(self.spoider.selected)
         if focus is not None:
-            x = focus.cx - width // 2
+            across = self.caret_column(layout, focus)
+            x = (across if across is not None else focus.cx) - width // 2
             aimed = self.caret_row(layout, focus)
             y = (aimed if aimed is not None else focus.cy) - height // 2
         else:

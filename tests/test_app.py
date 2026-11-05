@@ -4378,7 +4378,15 @@ async def test_the_bar_can_be_hidden_and_comes_back_for_a_drawer(tmp_path: Path)
         await pilot.press("p")
         await pilot.pause()
         assert app.stack_open
-        assert footer.display, "the stack panel has keys of its own"
+        assert not footer.display, "the panel is still the map: no bar"
+
+        await pilot.press("p")
+        await pilot.pause()
+        await pilot.press("tab")
+        await pilot.pause()
+        assert not footer.display, "nor while a cell is being typed into"
+        await pilot.press("escape")
+        await pilot.pause()
 
 
 async def test_the_settings_row_toggles_the_bar_and_writes_the_config(tmp_path: Path):
@@ -4399,3 +4407,58 @@ async def test_the_settings_row_toggles_the_bar_and_writes_the_config(tmp_path: 
         await pilot.pause()
         assert not app.query_one("#footer", FooterBar).display
         assert "hide_footer = true" in config.read_text(encoding="utf-8")
+
+
+async def test_a_wide_cell_keeps_the_caret_column_on_screen(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "w.conf", demo=False)
+    async with app.run_test(size=(70, 20)) as pilot:
+        cell = app.mm.add_child(app.mm.root.id, "word " * 60)
+        app.view.refresh_map()
+        app.select(cell.id)
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.pause()
+        for _ in range(55):
+            app._buffer.word_right()
+        await pilot.pause()
+
+        layout = app.view.layout_
+        box = layout.boxes[cell.id]
+        caret = app.view.caret_column(layout, box)
+        assert caret is not None and caret > 40, "the caret is far into the cell"
+        width, height = app.view.size.width, app.view.size.height
+        offset_x, _ = app.view.camera(width, height)
+        assert 0 <= caret - offset_x < width, "the column the caret is on is visible"
+
+
+async def test_a_dropped_paste_is_reported_as_a_failure(tmp_path: Path):
+    from spoider.model import MAX_CELL_CHARS
+
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "r.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        severities: list[str] = []
+        app.notify = lambda message, **kwargs: severities.append(
+            str(kwargs.get("severity", "information"))
+        )  # type: ignore[method-assign]
+
+        await pilot.press("tab")
+        await pilot.press("a")
+        await pilot.press("enter")
+        await pilot.press("e")
+        await pilot.pause()
+        app._buffer.insert("x" * (MAX_CELL_CHARS - 2))
+        app._text_clip = "y" * 20
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+        assert "error" in severities, "a dropped paste is a failure, so it reads red"
+
+
+async def test_the_error_line_is_the_last_row_of_the_screen(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "e.conf", demo=False)
+    async with app.run_test(size=(100, 24)) as pilot:
+        app._show_error("something is wrong", lambda: None)
+        await pilot.pause()
+        bar = app.query_one(ErrorBar)
+        assert bar.region.y == app.screen.size.height - 1, "flush with the bottom"
+        assert bar.region.height == 1
