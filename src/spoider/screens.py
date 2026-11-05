@@ -38,6 +38,13 @@ class Literal:
 
 HELP: tuple[HelpSection, ...] = (
     (
+        "",
+        (
+            (("help",), "this help"),
+            (("settings",), "editor settings"),
+        ),
+    ),
+    (
         "Making cells",
         (
             (("add_child",), "add a child and type its name"),
@@ -57,29 +64,35 @@ HELP: tuple[HelpSection, ...] = (
         ),
     ),
     (
-        "Moving",
+        "Navigation",
         (
             (("prev",), "previous sibling"),
             (("next",), "next sibling"),
             (("go_left",), "left: out to parent, or deeper on a left branch"),
             (("go_right",), "right: the mirror of the above"),
-            (("move_up",), "move the cell up among its siblings"),
-            (("move_down",), "move it down"),
             (
                 ("extend_prev", "extend_next", "extend_left", "extend_right"),
                 "hold shift and an arrow: select a run of siblings",
             ),
             (("clear_selection",), "back to a single cell, without moving"),
             (("select_all",), "select every sibling of the selected cell"),
-        ),
-    ),
-    (
-        "By the tree",
-        (
             (("go_home",), "the main cell of this tree"),
             (("go_end",), "the deepest cell below this one"),
             (("top_sibling",), "the first sibling under the same parent"),
             (("bottom_sibling",), "the last sibling under the same parent"),
+            (("search",), "find cells by their words; up in the prompt recalls one"),
+        ),
+    ),
+    (
+        "Arrangement",
+        (
+            (("layout",), "cycle the shape: spider, pyramid, bush, branch"),
+            (("colours",), "colour by depth, or by family, one colour per branch"),
+            (("spacing_more",), "more air between cells, saved with the map"),
+            (("spacing_less",), "less air, down to cells sharing a border row"),
+            (("move_up",), "move the cell up among its siblings"),
+            (("move_down",), "move it down"),
+            (("toggle_properties",), "the file's properties, drawn over the map"),
         ),
     ),
     (
@@ -88,17 +101,6 @@ HELP: tuple[HelpSection, ...] = (
             (("cut",), "cut the cells into a LIFO stack, to paste back anywhere"),
             (("paste",), "paste the newest cut; the older ones stay on the stack"),
             (("toggle_stack",), "open the cut stack: its keys are the map's own"),
-        ),
-    ),
-    (
-        "View",
-        (
-            (("search",), "find cells by their words; up in the prompt recalls one"),
-            (("layout",), "cycle the shape: spider, pyramid, bush, branch"),
-            (("colours",), "colour by depth, or by family, one colour per branch"),
-            (("spacing_more",), "more air between cells, saved with the map"),
-            (("spacing_less",), "less air, down to cells sharing a border row"),
-            (("toggle_properties",), "the file's properties, drawn over the map"),
         ),
     ),
     (
@@ -127,13 +129,6 @@ HELP: tuple[HelpSection, ...] = (
             (Literal("M-⌫  M-d"), "delete a word back, or forward"),
             (Literal("S-←↑↓→"), "select text; home and end keep to the line"),
             (Literal("^A"), "select all the text in the cell"),
-        ),
-    ),
-    (
-        "This screen",
-        (
-            (("help",), "this help"),
-            (("settings",), "editor settings"),
         ),
     ),
 )
@@ -193,7 +188,8 @@ def help_text(app: SpoiderApp) -> Text:
     text = Text()
     text.append("spoider — keys and options\n")
     for heading, rows in HELP:
-        text.append(f"\n{heading}\n", style="reverse")
+        if heading:  # an unnamed section leads the screen: help and settings, first
+            text.append(f"\n{heading}\n", style="reverse")
         for actions, explanation in rows:
             keys = actions.keys if isinstance(actions, Literal) else keys_for(app, actions)
             text.append(f"  {_pad(keys, 16)}")

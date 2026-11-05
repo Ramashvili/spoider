@@ -618,7 +618,7 @@ def test_help_text_covers_keys(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     body = help_text(app).plain
     # chords come from the keymap, so they read as they are actually bound
-    for expected in ("Making cells", "Moving", "File", "⇥", "⏎", "^D", "^X", "M-↑", "M-↓", "S-←↑↓→", "?", "."):
+    for expected in ("Making cells", "Navigation", "Arrangement", "File", "⇥", "⏎", "^D", "^X", "M-↑", "M-↓", "S-←↑↓→", "?", "."):
         assert expected in body, expected
     # no lectures: the panel is the keys, nothing else
     for absent in ("Mouse", "Saving", "Colours", "Also", "esc closes"):
@@ -4043,7 +4043,7 @@ async def test_help_scrolls_when_it_runs_past_the_screen(tmp_path: Path):
 
         await pilot.press("end")
         await pilot.pause()
-        assert "editor settings" in panel.render().plain, "the last section is reachable"
+        assert "While typing" in panel.render().plain, "the last section is reachable"
 
         await pilot.press("home")
         await pilot.pause()
@@ -4070,16 +4070,15 @@ def test_help_is_ordered_from_making_cells_to_this_screen():
 
     order = [title for title, _rows in HELP]
     assert order == [
+        "",
         "Making cells",
         "Marks and folds",
-        "Moving",
-        "By the tree",
+        "Navigation",
+        "Arrangement",
         "The cut stack",
-        "View",
         "File",
         "History",
         "While typing",
-        "This screen",
     ]
 
 
@@ -4110,7 +4109,7 @@ async def test_the_help_leads_with_the_arrow_not_the_nano_chord(tmp_path: Path):
         await pilot.press("question_mark")
         await pilot.pause()
         lines = app.query_one(PanelBar).render().plain.splitlines()
-        start = next(i for i, line in enumerate(lines) if line.strip() == "Moving")
+        start = next(i for i, line in enumerate(lines) if line.strip() == "Navigation")
         moving = " ".join(lines[start : start + 6])
         assert "↑" in moving and "↓" in moving and "←" in moving and "→" in moving
         assert "^P" not in moving and "^B" not in moving, "the nano chords are secondary"
