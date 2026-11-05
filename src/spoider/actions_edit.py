@@ -68,6 +68,10 @@ class EditActions:
             "ctrl+e": buffer.end,
             "ctrl+home": buffer.document_home,
             "ctrl+end": buffer.document_end,
+            "pageup": buffer.page_up,
+            "pagedown": buffer.page_down,
+            "ctrl+left": buffer.word_left,
+            "ctrl+right": buffer.word_right,
         }
         if base in moves:
             moves[base](extend=extend)

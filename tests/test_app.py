@@ -4230,3 +4230,64 @@ async def test_an_error_is_one_red_line_that_any_key_acknowledges(tmp_path: Path
         await pilot.press("x")
         await pilot.pause()
         assert seen == ["acked"], "any key is enough to leave"
+
+
+# -- 5: the keys a text field answers while typing -------------------------
+
+
+def test_a_cell_pages_and_jumps_by_words():
+    from spoider.editing import Buffer
+
+    many = Buffer("\n".join(f"line {index}" for index in range(40)))
+    many.caret = 0
+    many.page_down()
+    assert many.text[: many.caret].count("\n") == Buffer.PAGE_LINES, "a page is ten lines"
+    many.page_up()
+    assert many.caret == 0, "and back to the top"
+
+    words = Buffer("one two three")
+    words.caret = 0
+    words.word_right()
+    assert words.caret == 3, "to the end of the word"
+    words.word_right()
+    assert words.caret == 7, "over the space and to the next end"
+    words.word_left()
+    assert words.caret == 4, "and back to the start of the word it lands in"
+
+
+async def test_a_cell_answers_page_and_word_keys_end_to_end(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "k.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("tab")
+        await pilot.press("a", "b", "c")
+        await pilot.press("ctrl+left")
+        await pilot.pause()
+        assert app._buffer is not None and app._buffer.caret == 0, "ctrl+left is a word back"
+        await pilot.press("ctrl+right")
+        await pilot.pause()
+        assert app._buffer.caret == 3
+        await pilot.press("pagedown")
+        await pilot.press("pageup")
+        await pilot.pause()
+        assert app._buffer.caret == 3, "a page down and up on one line returns"
+        await pilot.press("enter")
+        await pilot.pause()
+
+
+async def test_a_prompt_answers_page_and_word_keys(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "k.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("ctrl+f")
+        for char in "alpha beta gamma":
+            await pilot.press("space" if char == " " else char)
+        for _ in range(20):
+            await pilot.press("ctrl+left")
+        await pilot.pause()
+        assert app.query_one(PromptBar).cursor == 0
+        await pilot.press("ctrl+right")
+        await pilot.pause()
+        assert app.query_one(PromptBar).cursor == 5, "one word in"
+        await pilot.press("end")
+        await pilot.press("pageup")
+        await pilot.pause()
+        assert app.query_one(PromptBar).cursor < len(app.query_one(PromptBar).value)

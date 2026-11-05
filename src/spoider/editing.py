@@ -267,6 +267,50 @@ class Buffer:
         self.caret = self.line_bounds()[1]
         self.goal = None
 
+    #: How many lines a page key moves. A cell does not know the screen it is drawn on,
+    #: so this is a fixed, comfortable jump rather than a measured one.
+    PAGE_LINES = 10
+
+    def page_up(self, *, extend: bool = False) -> None:
+        for _ in range(self.PAGE_LINES):
+            before = self.caret
+            self.up(extend=extend)
+            if self.caret == before:
+                break
+
+    def page_down(self, *, extend: bool = False) -> None:
+        for _ in range(self.PAGE_LINES):
+            before = self.caret
+            self.down(extend=extend)
+            if self.caret == before:
+                break
+
+    def _word_start(self, index: int) -> int:
+        at = index
+        while at > 0 and self.text[at - 1].isspace():
+            at -= 1
+        while at > 0 and not self.text[at - 1].isspace():
+            at -= 1
+        return at
+
+    def _word_end(self, index: int) -> int:
+        at = index
+        while at < len(self.text) and self.text[at].isspace():
+            at += 1
+        while at < len(self.text) and not self.text[at].isspace():
+            at += 1
+        return at
+
+    def word_left(self, *, extend: bool = False) -> None:
+        self._begin_move(extend)
+        self.caret = self._word_start(self.caret)
+        self.goal = None
+
+    def word_right(self, *, extend: bool = False) -> None:
+        self._begin_move(extend)
+        self.caret = self._word_end(self.caret)
+        self.goal = None
+
     def document_home(self, *, extend: bool = False) -> None:
         self._begin_move(extend)
         self.caret = 0

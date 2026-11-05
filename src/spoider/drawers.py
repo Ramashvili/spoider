@@ -113,10 +113,18 @@ class PromptBar(Drawer):
             self.cursor = max(0, self.cursor - 1)
         elif key in ("right", "ctrl+f"):
             self.cursor = min(len(self.value), self.cursor + 1)
-        elif key in ("home", "ctrl+a"):
+        elif key in ("home", "ctrl+a", "ctrl+home"):
             self.cursor = 0
-        elif key in ("end", "ctrl+e"):
+        elif key in ("end", "ctrl+e", "ctrl+end"):
             self.cursor = len(self.value)
+        elif key == "pagedown":
+            self.cursor = min(len(self.value), self.cursor + self.page_width())
+        elif key == "pageup":
+            self.cursor = max(0, self.cursor - self.page_width())
+        elif key == "ctrl+left":
+            self.cursor = self.word_start(self.cursor)
+        elif key == "ctrl+right":
+            self.cursor = self.word_end(self.cursor)
         elif key in ("up", "down") and self.recall:
             self._recall(+1 if key == "up" else -1)
         elif event.character and event.character.isprintable():
@@ -185,6 +193,26 @@ class PromptBar(Drawer):
             self._change(self.value)
 
     # -- drawing -------------------------------------------------------
+
+    def page_width(self) -> int:
+        """How far a page key moves: the room the value has on the line."""
+        return max(1, self.size.width - len(self.label) - 2)
+
+    def word_start(self, index: int) -> int:
+        at = index
+        while at > 0 and self.value[at - 1].isspace():
+            at -= 1
+        while at > 0 and not self.value[at - 1].isspace():
+            at -= 1
+        return at
+
+    def word_end(self, index: int) -> int:
+        at = index
+        while at < len(self.value) and self.value[at].isspace():
+            at += 1
+        while at < len(self.value) and not self.value[at].isspace():
+            at += 1
+        return at
 
     def render(self) -> Text:
         width = self.size.width
