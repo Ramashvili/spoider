@@ -129,7 +129,7 @@ were last on. Opening the same file on another machine gives you the exact same 
 with the cursor where you left it.
 
 Editor preferences like autosave and custom keybindings live in
-`~/.config/spoider/spoider.conf`, which you can open directly from `^,`.
+`~/.config/spoider/spoider.conf`, which you can open directly from `.`.
 
 ## Development
 
