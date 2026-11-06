@@ -296,6 +296,7 @@ class MindMapView(Widget, can_focus=True):
         art = build_grid(
             panel,
             tuple(self.spoider.selected_ids),
+            self.spoider.search_query,  # a hit is a hit in either document
             lead=None,
             colours="depth",
             depth_shift=DEPTH_COLORS.index(STACK_START) + 1,

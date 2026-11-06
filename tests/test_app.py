@@ -4724,3 +4724,36 @@ async def test_a_search_looks_on_the_stack_as_well_and_the_walk_crosses(tmp_path
         await pilot.press("alt+b")
         await pilot.pause()
         assert app.stack_open is False, "and walking back leaves the panel again"
+
+
+async def test_a_search_highlights_hits_on_the_stack_too(tmp_path: Path, monkeypatch):
+    """The panel is drawn by a second grid, so it has to be told what was searched for."""
+    from spoider import widgets
+
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "h.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.mm.add_child(app.mm.root.id, "alpha here")
+        cut = app.mm.add_child(app.mm.root.id, "alpha waiting")
+        app.view.refresh_map()
+        app.select(cut.id)
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+        await pilot.press("p")
+        await pilot.pause()
+
+        asked: list[str] = []
+        real = widgets.build_grid
+
+        def spy(layout, chosen, query, **kwargs):
+            asked.append(query)
+            return real(layout, chosen, query, **kwargs)
+
+        monkeypatch.setattr(widgets, "build_grid", spy)
+        app.search_query = "alpha"
+        app._refresh_matches()
+        app.view.refresh()
+        await pilot.pause()
+        app.view.render()  # the panel's grid is built inside this
+
+        assert "alpha" in asked, asked
+        assert all(q == "alpha" for q in asked), asked
