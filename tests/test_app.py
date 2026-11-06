@@ -1129,9 +1129,9 @@ async def test_navigation_moves_through_the_tree(tmp_path: Path):
 
         await pilot.press("right")  # into the first child
         assert app.selected == one.id
-        await pilot.press("ctrl+n")  # next sibling
+        await pilot.press("down")  # next sibling
         assert app.selected == two.id
-        await pilot.press("ctrl+p")  # previous sibling
+        await pilot.press("up")  # previous sibling
         assert app.selected == one.id
         await pilot.press("ctrl+b")  # back out to the parent
         assert app.selected == branch.id
@@ -3638,7 +3638,8 @@ def test_the_config_carries_a_vim_block_to_uncomment(tmp_path: Path):
     assert chords["cut"] == ["d"] and chords["paste"] == ["p"]
     assert chords["delete"] == ["x"] and chords["copy"] == ["y"]
     assert chords["undo"] == ["u"] and chords["redo"] == ["ctrl+r"]
-    assert chords["add_sibling"] == ["o"] and chords["add_child"] == ["O"]
+    assert chords["add_sibling"] == ["o", "enter"]
+    assert chords["add_child"] == ["O", "tab"], "Tab and Return survive the switch"
     assert chords["search"] == ["/"]
 
 
@@ -4588,3 +4589,54 @@ async def test_a_one_row_prompt_keeps_its_words_on_screen(tmp_path: Path):
         await pilot.press("ctrl+f")  # a prompt opened from the map, same box
         await pilot.pause(0.1)
         assert app.query_one("#prompt").styles.padding.bottom == 0
+
+
+async def test_next_match_walks_the_hits_and_wraps(tmp_path: Path):
+    """^N and ^P step through what the last search found, without asking again."""
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "m.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        hits = [app.mm.add_child(app.mm.root.id, f"note {n}") for n in range(3)]
+        app.mm.add_child(app.mm.root.id, "something else")
+        app.view.refresh_map()
+        app.select(app.mm.root.id)
+        await pilot.pause()
+
+        await pilot.press("ctrl+f")
+        await pilot.press("n", "o", "t", "e")
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.selected == hits[0].id, "the first hit"
+
+        await pilot.press("ctrl+n")
+        await pilot.pause()
+        assert app.selected == hits[1].id
+        await pilot.press("ctrl+n")
+        await pilot.pause()
+        assert app.selected == hits[2].id
+        await pilot.press("ctrl+n")
+        await pilot.pause()
+        assert app.selected == hits[0].id, "and it wraps round"
+
+        await pilot.press("ctrl+p")
+        await pilot.pause()
+        assert app.selected == hits[2].id, "back the other way, wrapping too"
+
+
+def test_the_vim_block_names_every_action_and_repeats_no_chord(tmp_path: Path):
+    """The preset is a whole keymap: nothing is left to remember, and nothing collides."""
+    from spoider.config import VIM_BINDS
+
+    app = SpoiderApp(tmp_path / "map.spoider", demo=False, config_path=tmp_path / "v.conf")
+    named = [ident for ident, _line in VIM_BINDS]
+    assert len(named) == len(set(named)), "one line per action"
+    # the same ids the commented template offers: an alias shares its action's line
+    assert set(named) == {ident for ident, _default, _text in app._key_entries()}
+
+    chords: list[str] = []
+    for _action, line in VIM_BINDS:
+        chords.extend(line.split())
+    assert len(chords) == len(set(chords)), "a chord answers to one action only"
+
+    table = dict(VIM_BINDS)
+    assert table["paste"] == "p" and table["toggle_stack"] == "ctrl+b", "`p` is paste"
+    assert table["quit"] == "ctrl+q" and table["fold"] == "z t"

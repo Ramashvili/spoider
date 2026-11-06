@@ -80,6 +80,10 @@ HELP: tuple[HelpSection, ...] = (
             (("top_sibling",), "the first sibling under the same parent"),
             (("bottom_sibling",), "the last sibling under the same parent"),
             (("search",), "find cells by their words; up in the prompt recalls one"),
+            (
+                ("next_match", "previous_match"),
+                "the next or the previous cell the last search found, wrapping",
+            ),
         ),
     ),
     (

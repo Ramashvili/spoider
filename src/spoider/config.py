@@ -30,20 +30,55 @@ TRUE_WORDS = frozenset({"1", "true", "yes", "on"})
 #: vim or a nano convention but what every keyboard has, and dropping them would
 #: take a hand off the home row for nothing.
 VIM_BINDS: tuple[tuple[str, str], ...] = (
+    # movement: vim's letters, and the arrows and hjkl beside them
     ("prev", "k up"),
     ("next", "j down"),
     ("left", "h left"),
     ("right", "l right"),
+    # cells
+    ("add_child", "O tab"),
+    ("add_sibling", "o enter"),
     ("edit", "i"),
+    ("delete", "x"),
     ("copy", "y"),
     ("cut", "d"),
     ("paste", "p"),
-    ("delete", "x"),
     ("undo", "u"),
     ("redo", "ctrl+r"),
-    ("add_sibling", "o"),
-    ("add_child", "O"),
-    ("search", "/"),  # the character itself: "slash" is not a chord the loader takes
+    # search, and walking what it found
+    ("search", "/"),
+    ("next_match", "n"),
+    ("previous_match", "N"),
+    # the tree and the shape of the map: no vim convention, so the default stands
+    ("go_home", "home"),
+    ("go_end", "G end"),
+    ("top_sibling", "pageup"),
+    ("bottom_sibling", "pagedown"),
+    ("fold", "z t"),
+    ("mark", "w"),
+    ("set_marks", "ctrl+w"),
+    ("justify", "ctrl+j"),
+    ("layout", "ctrl+l"),
+    ("colours", "c"),
+    ("spacing_more", "equals_sign"),
+    ("spacing_less", "minus"),
+    ("move_up", "alt+up"),
+    ("move_down", "alt+down"),
+    ("select_all", "ctrl+a"),
+    ("clear_selection", "escape"),
+    ("extend_prev", "shift+up"),
+    ("extend_next", "shift+down"),
+    ("extend_left", "shift+left"),
+    ("extend_right", "shift+right"),
+    # the stack keeps a chord of its own, because vim has no stack and `p` is paste
+    ("toggle_stack", "ctrl+b"),
+    # files and the two drawers: no vim convention either
+    ("save", "ctrl+s"),
+    ("write", "ctrl+o"),
+    ("quit", "ctrl+q"),
+    ("toggle_properties", "comma"),
+    ("settings", "full_stop"),
+    ("help", "question_mark"),
 )
 
 

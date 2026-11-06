@@ -73,7 +73,9 @@ launches a map can tell. A cut's id opens the stack panel.
 ## Keys
 
 Key bindings can be set in `~/.config/spoider/spoider.conf`.
-Vim-like binds are already waiting there; you only need to uncomment them.
+Vim-like binds are already waiting there; you only need to uncomment them. That block is a
+whole keymap rather than a patch: it names every action, so uncommenting it switches all of
+them at once and leaves nothing half-changed.
 
 ### Table of defaults
 
@@ -96,6 +98,7 @@ Vim-like binds are already waiting there; you only need to uncomment them.
 | `Del` | delete the cell, as `^D` does |
 | `^J` | wrap a cell's text to a chosen column width |
 | `^F` | search cells |
+| `^N` / `^P` | the next or previous cell the last search found |
 | `^L` / `c` | cycle the layout shape, switch colour mode |
 | `=` / `-` | loosen or tighten the spacing |
 | `^Z` `^Y` | undo, redo |

@@ -178,7 +178,10 @@ Textual's own `App.set_keymap` expects. Aliases are extra bindings with the same
 action, so they never get a line of their own and cannot drift out of step.
 
 A chord left off the line stops working — the line is the truth, not a patch over the
-defaults. `VIM_BINDS` in `config.py` is written into the file commented out, at the end,
+defaults. `VIM_BINDS` in `config.py` is a *complete* keymap: every id the template offers has a line,
+with a vim chord where vim has one and the default restated where it does not, because a
+partial block would silently drop the chords it omits. A test asserts that, and another
+asserts no chord appears twice in it. It is written into the file commented out, at the end,
 so switching keymaps is uncommenting a block; it keeps the arrow keys on the movement
 lines, because arrows are not a convention anyone chose. A token that is not a key is dropped from the line rather than read as a
 chord, which is what keeps a leftover setting from rebinding a key.

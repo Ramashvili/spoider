@@ -704,8 +704,29 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
                 timeout=2,
             )
             return
-        self._jump_to_match(skip_current=repeat)
+        self._jump_to_match(include_current=not repeat)
         # the count has made its point: back to the cell count shortly
+        self._stop_count_timer()
+        self._count_timer = self.set_timer(self.MATCH_COUNT_SECONDS, self._settle_count)
+
+    def action_next_match(self) -> None:
+        """^N — the next cell the last search found, wrapping at the end."""
+        self._walk_matches(1)
+
+    def action_previous_match(self) -> None:
+        """^P — the cell before this one in the last search, wrapping at the start."""
+        self._walk_matches(-1)
+
+    def _walk_matches(self, direction: int) -> None:
+        if not self.search_query.strip():
+            self.notify("Nothing to find: ^F searches first", timeout=2)
+            return
+        self._refresh_matches()  # the document with the keys may have changed since
+        if not self.matches:
+            self.notify(f"No match for {self.search_query!r}", severity="error", timeout=2)
+            return
+        self._show_matches = True
+        self._jump_to_match(direction=direction)
         self._stop_count_timer()
         self._count_timer = self.set_timer(self.MATCH_COUNT_SECONDS, self._settle_count)
 
@@ -732,22 +753,28 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     def _refresh_matches(self) -> None:
         query = self.search_query.strip()
-        self.matches = [node.id for node in self.mm.nodes() if find_all(label(node), query)]
+        self.matches = [
+            node.id for node in self.document.nodes() if find_all(label(node), query)
+        ]
         self.view.refresh_map()
         self._refresh_chrome()
 
-    def _jump_to_match(self, *, skip_current: bool) -> None:
-        """Select the next match from here, wrapping — nano's forward search."""
-        order = [node.id for node in self.mm.nodes()]
+    def _jump_to_match(self, *, direction: int = 1, include_current: bool = False) -> None:
+        """Select a match from here, wrapping: `direction` 1 forward, -1 back.
+
+        The walk is over whichever document has the keys, so a search inside an open
+        stack panel steps through the cuts rather than the map behind them.
+        """
+        order = [node.id for node in self.document.nodes()]
         if not order or not self.matches:
             return
         try:
-            start = order.index(self.selected)
+            start = order.index(self.focus)
         except ValueError:
             start = 0
-        offset = 1 if skip_current else 0
-        for step in range(offset, len(order) + offset):
-            candidate = order[(start + step) % len(order)]
+        first = 0 if include_current else 1
+        for step in range(first, len(order) + first):
+            candidate = order[(start + step * direction) % len(order)]
             if candidate in self.matches:
                 self._reveal(candidate)
                 return
@@ -755,7 +782,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def _reveal(self, node_id: str) -> None:
         """Open the folds above a match, so that selecting it actually shows it."""
         opened = False
-        for node in self.mm.path(node_id)[:-1]:
+        for node in self.document.path(node_id)[:-1]:
             if node.collapsed:
                 node.collapsed = False
                 opened = True
