@@ -103,7 +103,7 @@ is read, and a line the program cannot read is left out rather than guessed at.
 | `Del` | delete the cell, as `^D` does |
 | `^J` | wrap a cell's text to a chosen column width |
 | `^F` | search cells |
-| `^N` / `^P` | the next or previous cell the last search found |
+| `Alt+F` / `Alt+B` | the next or previous cell the last search found |
 | `^L` / `c` | cycle the layout shape, switch colour mode |
 | `=` / `-` | loosen or tighten the spacing |
 | `^Z` `^Y` | undo, redo |

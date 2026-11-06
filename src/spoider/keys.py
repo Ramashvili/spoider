@@ -37,8 +37,8 @@ BINDINGS: list[BindingType] = [
     # search sits with the other editing keys: it is what you reach for while
     # reading a map, and the bar has room for one more
     Binding("ctrl+f", "search", "search", id="search"),
-    Binding("ctrl+n", "next_match", "next match", show=False, id="next_match"),
-    Binding("ctrl+p", "previous_match", "prev match", show=False, id="previous_match"),
+    Binding("alt+f", "next_match", "next match", show=False, id="next_match"),
+    Binding("alt+b", "previous_match", "prev match", show=False, id="previous_match"),
     # rendered as the pinned cluster at the right edge, not among the hints
     Binding("full_stop", "settings", "config", show=False, id="settings"),
     # `?` is what people press to ask for help; ^/ is the chord for terminals whose
@@ -48,8 +48,8 @@ BINDINGS: list[BindingType] = [
     # nano's cursor keys, kept spatial: ^P/^N walk the branch, ^B/^F move away
     # from the root or towards it — whichever way that happens to be drawn.
     # Arrows and, further down, hjkl are aliases for the same four actions.
-    Binding("up", "prev", "prev", show=False, id="prev"),
-    Binding("down", "next", "next", show=False, id="next"),
+    Binding("up,ctrl+p", "prev", "prev", show=False, id="prev"),
+    Binding("down,ctrl+n", "next", "next", show=False, id="next"),
     # the six keys that move by the tree rather than by the picture: they never care
     # where a cell happens to be drawn
     Binding("home", "go_home", "main cell", show=False, id="go_home"),

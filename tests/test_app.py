@@ -1129,9 +1129,9 @@ async def test_navigation_moves_through_the_tree(tmp_path: Path):
 
         await pilot.press("right")  # into the first child
         assert app.selected == one.id
-        await pilot.press("down")  # next sibling
+        await pilot.press("ctrl+n")  # next sibling, nano's alias
         assert app.selected == two.id
-        await pilot.press("up")  # previous sibling
+        await pilot.press("ctrl+p")  # previous sibling
         assert app.selected == one.id
         await pilot.press("ctrl+b")  # back out to the parent
         assert app.selected == branch.id
@@ -4607,17 +4607,17 @@ async def test_next_match_walks_the_hits_and_wraps(tmp_path: Path):
         await pilot.pause()
         assert app.selected == hits[0].id, "the first hit"
 
-        await pilot.press("ctrl+n")
+        await pilot.press("alt+f")
         await pilot.pause()
         assert app.selected == hits[1].id
-        await pilot.press("ctrl+n")
+        await pilot.press("alt+f")
         await pilot.pause()
         assert app.selected == hits[2].id
-        await pilot.press("ctrl+n")
+        await pilot.press("alt+f")
         await pilot.pause()
         assert app.selected == hits[0].id, "and it wraps round"
 
-        await pilot.press("ctrl+p")
+        await pilot.press("alt+b")
         await pilot.pause()
         assert app.selected == hits[2].id, "back the other way, wrapping too"
 
