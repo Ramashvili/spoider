@@ -177,6 +177,11 @@ first chord of the list, and `build_action_keymap` joins them into the comma for
 Textual's own `App.set_keymap` expects. Aliases are extra bindings with the same
 action, so they never get a line of their own and cannot drift out of step.
 
+A search looks in both documents: `_search_order` puts the map first and then the stack, and
+walking to a hit on the stack opens the panel to show it, which is what "switch between them"
+means here. `matches` is a list of ids in that order, so `alt+f`/`alt+b` cross the boundary
+in both directions.
+
 A chord is written as the character a person presses: the file says `,` and `.` and `?`,
 not `comma` and `full_stop`. Textual's own names stay in `keys.py`, and `PRESSED`/`WANTED`
 there is the single place the two vocabularies meet — a comma cannot even be a Textual

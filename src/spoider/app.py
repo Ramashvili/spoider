@@ -751,11 +751,20 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.view.refresh_map()
         self._refresh_chrome()
 
+    def _search_order(self) -> list[str]:
+        """Every cell a search looks at: the map first, then what waits on the stack."""
+        return [node.id for node in self.mm.nodes()] + [
+            node.id for node in self._stack_doc().nodes() if node.text.strip()
+        ]
+
     def _refresh_matches(self) -> None:
         query = self.search_query.strip()
-        self.matches = [
-            node.id for node in self.document.nodes() if find_all(label(node), query)
-        ]
+        hits = {
+            node.id
+            for node in [*self.mm.nodes(), *self._stack_doc().nodes()]
+            if node.text.strip() and find_all(label(node), query)
+        }
+        self.matches = [node_id for node_id in self._search_order() if node_id in hits]
         self.view.refresh_map()
         self._refresh_chrome()
 
@@ -765,7 +774,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         The walk is over whichever document has the keys, so a search inside an open
         stack panel steps through the cuts rather than the map behind them.
         """
-        order = [node.id for node in self.document.nodes()]
+        order = self._search_order()
         if not order or not self.matches:
             return
         try:
@@ -776,8 +785,19 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         for step in range(first, len(order) + first):
             candidate = order[(start + step * direction) % len(order)]
             if candidate in self.matches:
+                self._show_document_of(candidate)
                 self._reveal(candidate)
                 return
+
+    def _show_document_of(self, node_id: str) -> None:
+        """Bring the document holding a hit into view: the panel for a cut, the map for a cell.
+
+        A search looks in both places, so a walk that crosses them has to cross the
+        panel too, or the hit it just found would be off screen.
+        """
+        on_stack = any(node.id == node_id for node in self._stack_doc().nodes())
+        if on_stack != self.stack_open:
+            self.action_toggle_stack()
 
     def _reveal(self, node_id: str) -> None:
         """Open the folds above a match, so that selecting it actually shows it."""

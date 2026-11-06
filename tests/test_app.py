@@ -4689,3 +4689,38 @@ async def test_the_punctuation_keys_are_written_as_themselves(tmp_path: Path):
         await pilot.press("full_stop")
         await pilot.pause()
         assert opened == ["editor"], "and the full stop ran the settings"
+
+
+async def test_a_search_looks_on_the_stack_as_well_and_the_walk_crosses(tmp_path: Path):
+    """Hits on the stack count, and walking to one opens the panel to show it."""
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "s.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        one = app.mm.add_child(app.mm.root.id, "alpha one")
+        two = app.mm.add_child(app.mm.root.id, "alpha two")
+        waiting = app.mm.add_child(app.mm.root.id, "alpha waiting on the stack")
+        app.view.refresh_map()
+        app.select(waiting.id)
+        await pilot.pause()
+        await pilot.press("ctrl+k")  # cut it: it leaves the map for the stack
+        await pilot.pause()
+        assert not app.stack_open
+
+        app.select(app.mm.root.id)
+        await pilot.press("ctrl+f")
+        await pilot.press("a", "l", "p", "h", "a")
+        await pilot.press("enter")
+        await pilot.pause()
+        assert len(app.matches) == 3, "two in the map, one on the stack"
+
+        seen = {app.focus}
+        for _ in range(2):
+            await pilot.press("alt+f")
+            await pilot.pause()
+            seen.add(app.focus)
+        assert app.stack_open is True, "the third hit is a cut, so the panel opens"
+        assert waiting.id in seen
+        assert {one.id, two.id} <= seen
+
+        await pilot.press("alt+b")
+        await pilot.pause()
+        assert app.stack_open is False, "and walking back leaves the panel again"

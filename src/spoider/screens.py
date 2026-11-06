@@ -79,10 +79,10 @@ HELP: tuple[HelpSection, ...] = (
             (("go_end",), "the deepest cell below this one"),
             (("top_sibling",), "the first sibling under the same parent"),
             (("bottom_sibling",), "the last sibling under the same parent"),
-            (("search",), "find cells by their words; up in the prompt recalls one"),
+            (("search",), "find cells by their words, in the map and on the stack"),
             (
                 ("next_match", "previous_match"),
-                "the next or the previous cell the last search found, wrapping",
+                "the next or previous hit, wrapping; the panel opens for a cut",
             ),
         ),
     ),
