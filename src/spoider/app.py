@@ -200,8 +200,8 @@ def desktop_notes(config_path: Path) -> tuple[str, ...]:
     return (
         "spoider keeps its settings in",
         f"  {config_path}",
-        "which it writes for you when the file is not there yet. `.` opens it in your",
-        "editor, and every line in it says what it does and what it accepts.",
+        "which it writes for you. `.` opens it in your editor, and every line in it says",
+        "what it does and what it accepts.",
         "",
         "Your system can also make .spoider files open in spoider from your file browser.",
         "This requires creating two files:",
