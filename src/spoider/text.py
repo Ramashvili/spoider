@@ -14,8 +14,21 @@ import unicodedata
 from rich.cells import cell_len
 
 #: How wide a tab is: spaces up to the next stop, counted from the start of a line, so a
-#: cell shows the tab stops a text field would. The column is measured in cells.
-TAB_STOP = 4
+#: cell shows the tab stops a text field would. The column is measured in cells. The
+#: editor takes `tab_width` from the config at startup and calls `set_tab_width`.
+DEFAULT_TAB_WIDTH = 4
+_tab_width = DEFAULT_TAB_WIDTH
+
+
+def tab_width() -> int:
+    """The stop a tab is drawn to, in cells."""
+    return _tab_width
+
+
+def set_tab_width(width: int) -> None:
+    """Take the tab stop from the editor's settings. Clamped by the caller and here."""
+    global _tab_width
+    _tab_width = max(1, min(int(width), 16))
 
 #: Cc = control characters (ESC, BEL, newline, …), Cs = lone surrogate halves.
 #: Both are dropped rather than replaced: a cell holds one line of visible text,
@@ -64,13 +77,14 @@ def expand_tabs(text: str) -> str:
     """
     if "\t" not in text:
         return text
+    stop = _tab_width
     lines: list[str] = []
     for line in text.split("\n"):
         column = 0
         out: list[str] = []
         for ch in line:
             if ch == "\t":
-                width = TAB_STOP - column % TAB_STOP
+                width = stop - column % stop
                 out.append(" " * width)
                 column += width
             else:

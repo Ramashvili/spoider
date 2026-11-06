@@ -49,7 +49,7 @@ from .layout import label
 from .model import MapFileError, MindMap, Node, marks_of
 from .nav import to_end, to_extreme_sibling, to_home
 from .screens import help_text, settings_text
-from .text import clean, find_all, one_line
+from .text import clean, find_all, one_line, set_tab_width
 from .widgets import MindMapView, TopBar
 
 # No colours here on purpose: the app runs on Textual's ansi theme, so every
@@ -256,6 +256,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         super().__init__()
         self.config_path = Path(config_path) if config_path is not None else default_config_path()
         self.config: Config = load_config(self.config_path, self._binding_ids())
+        set_tab_width(self.config.tab_width)
         self.theme = "textual-ansi"
         # No file named means a new buffer: spoider never guesses at one. The
         # default location is only *offered* when you first write it out.
@@ -617,6 +618,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             return
 
         self.config = load_config(self.config_path, self._binding_ids())
+        set_tab_width(self.config.tab_width)  # a new tab stop redraws the map
         self.set_keymap(build_action_keymap(self.config.keys))  # new chords take effect straight away
         self._refresh_chrome()
         self.notify("Config reloaded", timeout=2)

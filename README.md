@@ -79,8 +79,7 @@ Vim-like binds are already waiting there; you only need to uncomment them.
 
 | Key | Does |
 | --- | --- |
-| `Tab` | add a child; inside a cell, a tab character |
-| `Return` | add a sibling |
+| `Tab` / `Return` | add a child, add a sibling |
 | `e` | edit the cell's text |
 | `↑↓←→` `hjkl` | walk the tree |
 | `Alt+↑` / `Alt+↓` | reorder siblings |
@@ -109,8 +108,7 @@ Vim-like binds are already waiting there; you only need to uncomment them.
 
 A cell grows to fit as many lines as you type. `Shift+Return` adds a new line,
 `Shift` with the arrow keys selects text, and `^J` wraps long notes into clean
-paragraphs at whatever width you prefer. `Tab` inside a cell types a tab, drawn as spaces
-up to the next stop of four, so a column pasted out of a table lines up in the box.
+paragraphs at whatever width you prefer.
 
 ### Four ways to draw the tree
 

@@ -79,9 +79,9 @@ to help.
 - **No compatibility shims.** Young project: no legacy key aliases, no old config
   readers, no migration paths. Ask before adding one.
 - **A tab is content.** `clean_text` keeps `\t`; `expand_tabs` turns it into spaces to the
-  next stop of four, and `lines_of` expands once so the box is measured and drawn against
-  the same columns. Nothing may measure a cell with a bare `cell_len` on text that can hold
-  a tab. Inside a cell Tab types a tab; on the map it makes a child.
+  next stop of `tab_width` from the config, and `lines_of` expands once so the box is
+  measured and drawn against the same columns. Nothing may measure a cell with a bare
+  `cell_len` on text that can hold a tab.
 - **Untrusted input.** Clean text at ingest *and* at draw (`spoider.text.clean`), cap
   nesting at `MAX_DEPTH`, regenerate duplicate ids, write through
   `spoider.files.write_atomic`. A map that cannot be read is reported, never half

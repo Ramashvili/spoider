@@ -55,6 +55,8 @@ class Config:
     justify_width_default: int = 40
     #: Hide the bar along the bottom. Drawers bring it back while they are open.
     hide_footer: bool = False
+    #: How wide a tab is drawn in a cell: spaces up to the next stop, in cells.
+    tab_width: int = 4
     marks_default: tuple[str, ...] = field(default_factory=lambda: tuple(MARKS))
     #: Whether the first-run question about registering .spoider with the desktop has
     #: been answered. Asking once is the point: a "no" is an answer, not a delay.
@@ -121,7 +123,12 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
         name, value = name.strip(), value.strip()
         if not name:
             continue
-        if name == "justify_width_default":
+        if name == "tab_width":
+            try:
+                config.tab_width = max(1, min(int(value), 16))
+            except ValueError:
+                pass
+        elif name == "justify_width_default":
             try:
                 config.justify_width_default = max(10, min(int(value), 400))
             except ValueError:
@@ -164,7 +171,8 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
         "",
         f"autosave = {'true' if config.autosave else 'false'}",
         "marks_default = " + " ".join(config.marks_default),
-        f"justify_width_default = {config.justify_width_default}"
+        f"justify_width_default = {config.justify_width_default}",
+        f"tab_width = {config.tab_width}",
         f"hide_footer = {'true' if config.hide_footer else 'false'}",
         f"desktop_asked = {'true' if config.desktop_asked else 'false'}",
         "",
@@ -200,6 +208,7 @@ _OWNED = (
     "justify_width_default",
     "desktop_asked",
     "hide_footer",
+    "tab_width",
 )
 
 

@@ -4547,3 +4547,28 @@ def test_a_tab_survives_a_save_and_a_load(tmp_path: Path):
     mm.save(path)
     assert "\\t" in path.read_text()
     assert MindMap.load(path).root.text == "a\tb"
+
+
+def test_the_tab_width_comes_from_the_config(tmp_path: Path):
+    """A tab is drawn to the stop the editor was told to use."""
+    from spoider.text import expand_tabs
+
+    config = tmp_path / "wide.conf"
+    config.write_text("tab_width = 8\n")
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=config, demo=False)
+    assert app.config.tab_width == 8
+    assert expand_tabs("a\tb") == "a       b", "eight columns, so seven after one"
+
+
+async def test_rebinding_tab_does_not_change_tab_in_a_cell(tmp_path: Path):
+    """What Tab types is the cell's business; what Tab does on the map is the config's."""
+    config = tmp_path / "moved.conf"
+    config.write_text("add_child = ctrl+t\n")
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=config, demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("ctrl+t")  # the new child key
+        await pilot.pause()
+        assert app.editing is True
+        await pilot.press("a", "tab", "b")
+        await pilot.pause()
+        assert app._buffer is not None and app._buffer.text == "a\tb"

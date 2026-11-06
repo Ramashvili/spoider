@@ -1,5 +1,15 @@
 import pytest
 
+from spoider.text import DEFAULT_TAB_WIDTH, set_tab_width
+
+
+@pytest.fixture(autouse=True)
+def _default_tab_width():
+    """The tab stop lives in spoider.text, so a test that changes it must not leak."""
+    set_tab_width(DEFAULT_TAB_WIDTH)
+    yield
+    set_tab_width(DEFAULT_TAB_WIDTH)
+
 
 @pytest.fixture(autouse=True)
 def isolated_config(tmp_path, monkeypatch):
