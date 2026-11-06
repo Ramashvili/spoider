@@ -60,8 +60,8 @@ VIM_BINDS: tuple[tuple[str, str], ...] = (
     ("justify", "ctrl+j"),
     ("layout", "ctrl+l"),
     ("colours", "c"),
-    ("spacing_more", "equals_sign"),
-    ("spacing_less", "minus"),
+    ("spacing_more", "="),
+    ("spacing_less", "-"),
     ("move_up", "alt+up"),
     ("move_down", "alt+down"),
     ("select_all", "ctrl+a"),
@@ -76,9 +76,9 @@ VIM_BINDS: tuple[tuple[str, str], ...] = (
     ("save", "ctrl+s"),
     ("write", "ctrl+o"),
     ("quit", "ctrl+q"),
-    ("toggle_properties", "comma"),
-    ("settings", "full_stop"),
-    ("help", "question_mark"),
+    ("toggle_properties", ","),
+    ("settings", "."),
+    ("help", "?"),
 )
 
 

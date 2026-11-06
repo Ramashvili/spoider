@@ -97,6 +97,22 @@ BINDINGS: list[BindingType] = [
 ]
 
 
+#: What a pressed key and a config line have in common, and what Textual needs.
+#:
+#: A person writes the character they press, so the config says `,`. Textual calls that
+#: key "comma" in an event and reads a bare comma in a binding as the separator between
+#: two keys, so the name is what the table and the keymap must carry. This is the only
+#: place the two vocabularies meet: `PRESSED` for what arrives, `WANTED` for what is set.
+PRESSED = {"comma": ",", "full_stop": ".", "question_mark": "?", "equals_sign": "=",
+           "minus": "-", "grave_accent": "`", "ctrl+slash": "ctrl+/"}
+WANTED = {value: name for name, value in PRESSED.items()}
+
+
+def shown(chord: str) -> str:
+    """A chord as a person would write it: `,` rather than `comma`."""
+    return PRESSED.get(chord, chord)
+
+
 def action_chords(overrides: dict[str, str] | None = None) -> dict[str, list[str]]:
     """Every chord each action answers to, in the order the bindings list them.
 
@@ -111,7 +127,7 @@ def action_chords(overrides: dict[str, str] | None = None) -> dict[str, list[str
         if not isinstance(binding, Binding) or not binding.id:
             continue
         action_of[binding.id] = binding.action
-        keys = [part for part in binding.key.split(",") if part]
+        keys = [shown(part) for part in binding.key.split(",") if part]
         chords.setdefault(binding.action, []).extend(keys)
     for ident, value in (overrides or {}).items():
         action = action_of.get(ident)
@@ -121,7 +137,10 @@ def action_chords(overrides: dict[str, str] | None = None) -> dict[str, list[str
     return chords
 def build_action_keymap(overrides: dict[str, str] | None = None) -> dict[str, str]:
     """action -> "a,b", which is the shape Textual's own keymap wants."""
-    return {action: ",".join(chords) for action, chords in action_chords(overrides).items()}
+    return {
+        action: ",".join(WANTED.get(chord, chord) for chord in chords)
+        for action, chords in action_chords(overrides).items()
+    }
 def default_keymap() -> dict[str, str]:
     """id -> the first chord that action was born with; the whole of it in
     `action_chords`, so the two cannot drift apart."""

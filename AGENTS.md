@@ -177,6 +177,13 @@ first chord of the list, and `build_action_keymap` joins them into the comma for
 Textual's own `App.set_keymap` expects. Aliases are extra bindings with the same
 action, so they never get a line of their own and cannot drift out of step.
 
+A chord is written as the character a person presses: the file says `,` and `.` and `?`,
+not `comma` and `full_stop`. Textual's own names stay in `keys.py`, and `PRESSED`/`WANTED`
+there is the single place the two vocabularies meet — a comma cannot even be a Textual
+binding, because its keymap reads a comma as the separator between two keys. A test takes
+every line the template prints, settings block and vim block alike, and asserts it parses
+back unchanged; that is what keeps the file from offering a spelling the parser drops.
+
 A chord left off the line stops working — the line is the truth, not a patch over the
 defaults. `VIM_BINDS` in `config.py` is a *complete* keymap: every id the template offers has a line,
 with a vim chord where vim has one and the default restated where it does not, because a

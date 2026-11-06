@@ -4640,3 +4640,52 @@ def test_the_vim_block_names_every_action_and_repeats_no_chord(tmp_path: Path):
     table = dict(VIM_BINDS)
     assert table["paste"] == "p" and table["toggle_stack"] == "ctrl+b", "`p` is paste"
     assert table["quit"] == "ctrl+q" and table["fold"] == "z t"
+
+
+def test_every_line_the_template_prints_is_one_it_reads_back(tmp_path: Path):
+    """The file must not offer a spelling the parser then drops on the floor.
+
+    The commented defaults used to be printed as `comma`, `full_stop` and friends, which
+    `is_chord` rejects: uncommenting one changed nothing. This is the assertion that
+    catches that class of mistake, for the settings block and for the vim block alike.
+    """
+    from spoider.config import VIM_BINDS, Config, parse, render_config
+
+    app = SpoiderApp(tmp_path / "map.spoider", demo=False, config_path=tmp_path / "t.conf")
+    text = render_config(Config(), app._key_entries())
+
+    head = text[: text.index("# --- vim binds")]  # the settings block, not the preset
+    offered = [line[2:] for line in head.splitlines() if line.startswith("# ") and " = " in line]
+    read = parse("\n".join(offered), app._binding_ids())
+    for ident, default, _text in app._key_entries():
+        assert read.keys.get(ident) == default, f"{ident}: {default!r} came back as {read.keys.get(ident)!r}"
+
+    vim = "\n".join(f"{ident} = {chords}" for ident, chords in VIM_BINDS)
+    read = parse(vim, app._binding_ids())
+    for ident, chords in VIM_BINDS:
+        assert read.keys.get(ident) == chords, f"{ident}: {chords!r} came back as {read.keys.get(ident)!r}"
+
+
+async def test_the_punctuation_keys_are_written_as_themselves(tmp_path: Path):
+    """`,` `.` `?` `=` `-` in the config are the keys a person presses."""
+
+    opened: list[str] = []
+    config = tmp_path / "p.conf"
+    config.write_text("toggle_properties = ,\nsettings = .\nspacing_more = =\n")
+    app = SpoiderApp(None, config_path=config, demo=False)
+    app.open_config = lambda: opened.append("editor")  # type: ignore[method-assign]
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("comma")
+        await pilot.pause()
+        assert app.mode == "keys"
+        assert app.show_properties is True, "the debug box opened"
+
+        await pilot.press("comma")
+        await pilot.pause()
+        await pilot.press("equals_sign")
+        await pilot.pause()
+        assert app.mm.spacing == 1, "= loosened the spacing"
+
+        await pilot.press("full_stop")
+        await pilot.pause()
+        assert opened == ["editor"], "and the full stop ran the settings"

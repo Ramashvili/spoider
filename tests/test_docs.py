@@ -60,8 +60,15 @@ def test_every_chord_in_the_readme_key_table_exists() -> None:
     tokens = re.findall(r"`([^`]+)`", section)
     assert tokens, "the Keys section should have a table"
 
+    from spoider.keys import shown
+
     known = {chord for chords in action_chords().values() for chord in chords}
-    unknown = [(token, name) for token in tokens for name in key_names(token) if name not in known]
+    unknown = [
+        (token, name)
+        for token in tokens
+        for name in (shown(name) for name in key_names(token))
+        if name not in known
+    ]
     assert not unknown, f"the README names keys nothing answers to: {unknown}"
 
 

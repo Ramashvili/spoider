@@ -77,6 +77,11 @@ Vim-like binds are already waiting there; you only need to uncomment them. That 
 whole keymap rather than a patch: it names every action, so uncommenting it switches all of
 them at once and leaves nothing half-changed.
 
+A chord is either the character you press (`,` `.` `?` `=` `-` `/`), or a key by name
+(`tab`, `enter`, `escape`, `space`, `home`, `end`, `pgup`, `pgdn`, `delete`, `f1` and the
+rest), and either of those can take `ctrl+`, `alt+` or `shift+` in front of it. Nothing else
+is read, and a line the program cannot read is left out rather than guessed at.
+
 ### Table of defaults
 
 | Key | Does |

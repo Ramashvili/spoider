@@ -38,8 +38,7 @@ KEY_GLYPHS = {
     "enter": "⏎",
     "space": "␣",
     "escape": "esc",
-    "full_stop": ".",
-    "ctrl+slash": "^/",
+    "ctrl+/": "^/",
 }
 
 #: The bar shows its hints in this order, and that is a ranking: a narrow
@@ -72,11 +71,14 @@ BAR_ORDER: tuple[str, ...] = (
 
 #: Bare keys need their own caps: `=` and `-` do not spell themselves.
 BAR_GLYPHS = {
+    # a punctuation key is drawn as itself, whichever name the table carries it by
     "equals_sign": "=",
     "minus": "-",
     "grave_accent": "`",
     "comma": ",",
     "question_mark": "?",
+    "full_stop": ".",
+    "ctrl+slash": "^/",
     # named keys keep the spelling a keyboard uses, not the terminal's
     "home": "Home",
     "end": "End",
@@ -92,9 +94,9 @@ BAR_GLYPHS = {
 #: the config moves the label with it: a pinned key that no longer exists is worse
 #: than no hint at all.
 PINNED: tuple[tuple[str, str, str], ...] = (
-    ("toggle_properties", "comma", "debug"),
-    ("settings", "full_stop", "config"),
-    ("help", "question_mark", "help"),
+    ("toggle_properties", ",", "debug"),
+    ("settings", ".", "config"),
+    ("help", "?", "help"),
 )
 
 DIVIDER = "│"

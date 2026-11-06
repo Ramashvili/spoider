@@ -10,6 +10,7 @@ from __future__ import annotations
 from . import nav
 from .keys import (
     action_chords,
+    shown,
 )
 from .layout import compute_stack
 from .model import MindMap, Node
@@ -146,8 +147,9 @@ class StackActions:
         The stack panel reads keys through this instead of matching strings, so a
         chord the reader has rebound works there too.
         """
+        pressed = shown(key)  # Textual says "comma"; the keymap says ","
         for action, chords in action_chords(self.config.keys).items():
-            if key in chords:
+            if pressed in chords:
                 return action
         return None
     def handle_stack_key(self, key: str, character: str | None) -> bool:
