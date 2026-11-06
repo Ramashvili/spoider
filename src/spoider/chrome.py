@@ -1,4 +1,4 @@
-"""Footer chrome: key hints on the left, settings and help pinned to the right.
+"""Footer chrome: key hints on the left, the config and help pinned to the right.
 
 The pinned cluster is drawn from the right edge inwards and is never truncated;
 the hints yield their space to it, dropping whole entries from the end so a cap is
@@ -93,7 +93,7 @@ BAR_GLYPHS = {
 #: than no hint at all.
 PINNED: tuple[tuple[str, str, str], ...] = (
     ("toggle_properties", "comma", "debug"),
-    ("settings", "full_stop", "settings"),
+    ("settings", "full_stop", "config"),
     ("help", "question_mark", "help"),
 )
 
@@ -262,14 +262,6 @@ def stack_chunks(bindings: Iterable, keymap: dict[str, str] | None = None) -> li
     paste, because a key that moves around the bar is a key the reader has to find twice.
     """
     return hint_chunks(bindings, keymap=keymap, rename={"toggle_stack": "hide stack"})
-
-
-def settings_chunks() -> list[Text]:
-    return [
-        entry("↑↓", "move", literal=True),
-        entry("⏎", "change", literal=True),
-        entry("esc", "close", literal=True),
-    ]
 
 
 class FooterBar(Widget):

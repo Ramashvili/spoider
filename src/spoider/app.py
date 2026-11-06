@@ -26,7 +26,6 @@ from .chrome import (
     error_chunks,
     help_chunks,
     prompt_chunks,
-    settings_chunks,
 )
 from .config import (
     Config,
@@ -48,7 +47,7 @@ from .keys import (
 from .layout import label
 from .model import MapFileError, MindMap, Node, marks_of
 from .nav import to_end, to_extreme_sibling, to_home
-from .screens import help_text, settings_text
+from .screens import help_text
 from .text import clean, find_all, one_line, set_tab_width
 from .widgets import MindMapView, TopBar
 
@@ -83,7 +82,8 @@ Screen.roomy MindMapView {
    time and each takes only the rows it needs. */
 #panel, #ask, #prompt {
     width: 100%;
-    padding: 0 1;
+    /* the last row of a panel is air: the bar is never hard against its text */
+    padding: 0 1 1 1;
     background: ansi_default;
     color: ansi_default;
     display: none;
@@ -305,8 +305,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._last_query = ""  # the last one submitted, to know a repeat
         self._search_history: list[str] = []
         self._write_then_quit = False
-        self._settings_row = 0
-        #: keys | search | write | marks | ask | settings | help
+        #: keys | search | write | marks | ask | help
         self._mode = "keys"
         #: The words the open yes/no question offers, so the bar can name them.
         self._ask_words: tuple[str, str] = ("save", "discard")
@@ -512,7 +511,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         # shape, spacing, help — means the same thing in both places, so it runs.
         # A cell owns every character while it is being typed into: a full stop and a
         # question mark are how sentences end, so `.` and `?` are text there, not keys.
-        # Leave the cell with esc to reach the help or the settings.
+        # Leave the cell with esc to reach the help.
         if self.editing:
             return None
         return True
@@ -924,9 +923,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         elif mode == "ask":
             footer.mode = "custom"
             footer.custom = ask_chunks(*self._ask_words)
-        elif mode == "settings":
-            footer.mode = "custom"
-            footer.custom = settings_chunks()
         elif mode == "error":
             footer.mode = "custom"
             footer.custom = error_chunks()
@@ -1073,19 +1069,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self._close_drawers()
 
     def action_settings(self) -> None:
-        """^, — the editor settings."""
-        self._settings_row = 0
-        self._open_settings()
+        """`.` — the editor's settings, in your editor: the config file itself."""
+        self.open_config()
 
-    def _open_settings(self) -> None:
-        self._mode = "settings"
-        self._draw_settings()
-
-    def _draw_settings(self) -> None:
-        row = settings_text(self, self._settings_row)
-        row.append("\n")  # one line of air between the rows and the bar
-        self._hide_drawers(PanelBar)
-        self.query_one(PanelBar).show(row, self._settings_key)
+    def _ask_to_save(self) -> None:
+        self._ask_words = ("save", "discard")
+        self._mode = "ask"
+        self._hide_drawers(AskBar)
+        self.query_one(AskBar).ask("Save modified buffer?", self._save_answered)
         self._sync_footer()
 
     def _ask_to_save(self) -> None:

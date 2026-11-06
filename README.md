@@ -100,7 +100,7 @@ Vim-like binds are already waiting there; you only need to uncomment them.
 | `=` / `-` | loosen or tighten the spacing |
 | `^Z` `^Y` | undo, redo |
 | `^S` `^O` `^X` | save, save as, quit |
-| `.` `?` | settings, full key list |
+| `.` `?` | your settings in your editor, the full key list |
 
 ## How it works
 
@@ -142,8 +142,9 @@ on the stack are saved inside the `.spoider` file itself, along with the cell yo
 were last on. Opening the same file on another machine gives you the exact same view,
 with the cursor where you left it.
 
-Editor preferences like autosave and custom keybindings live in
-`~/.config/spoider/spoider.conf`, which you can open from the settings screen with `.`.
+Editor preferences like autosave, the tab width and custom keybindings live in
+`~/.config/spoider/spoider.conf`. `.` opens that file in your editor and reloads it when you
+come back, so changing a setting is changing a line.
 A complete example sits in [`examples/spoider.conf`](examples/spoider.conf): it is the very
 text a fresh install writes, so you can see what a newer release added without touching the
 file you already have.

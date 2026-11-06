@@ -30,7 +30,7 @@ it.
 | `properties.py` | the `i` overlay: the file's own values, the cursor's address and id |
 | `widgets.py` | `MindMapView`: camera, hit-testing, the stack column, clicks |
 | `drawers.py` | bottom drawers: prompt, question, panel |
-| `screens.py` | the text help and settings show |
+| `screens.py` | the text the help shows |
 | `chrome.py` | the shortcut bar: ranking, chunks, pinned cluster |
 | `config.py` | editor preferences in `~/.config/spoider/spoider.conf` |
 | `keys.py` | `BINDINGS` and the keymap built from it |
@@ -65,9 +65,9 @@ to help.
   `⌥`/`⇧` glyphs. Ctrl chords first; a bare key only where it collides with nothing
   and the action is used constantly. One chord per job.
 - **The bar describes what has the keys, and comes back for it.** It can be hidden from
-  the settings screen (`hide_footer`); it returns whenever something is asking for keys —
+  the config file (`hide_footer`); it returns whenever something is asking for keys —
   a prompt, a question, help, the stack panel, or a cell being typed into. No modal
-  screens: prompts, questions, settings, help and the stack are drawers or columns.
+  screens: prompts, questions, help and the stack are drawers or columns.
   Panels keep one blank line above the bar. The one thing that floats is the `` ` ``
   debug box in the top-left corner, drawn over cells: it is read-only and costs no
   space, where a drawer or a column would take the space it exists to describe.

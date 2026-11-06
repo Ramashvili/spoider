@@ -1,4 +1,4 @@
-"""What the help and settings drawers put on screen.
+"""What the help drawer puts on screen.
 
 Plain data and builders only: the drawers themselves live in spoider.drawers, so a
 screen never draws its own footer and there is only ever the one bar.
@@ -14,7 +14,6 @@ from rich.text import Text
 from textual.binding import Binding
 
 from .chrome import key_cap
-from .text import clip_tail
 
 if TYPE_CHECKING:
     from .app import SpoiderApp
@@ -41,7 +40,7 @@ HELP: tuple[HelpSection, ...] = (
         "",
         (
             (("help",), "this help"),
-            (("settings",), "editor settings"),
+            (("settings",), "the editor's settings, opened in your editor"),
         ),
     ),
     (
@@ -207,20 +206,3 @@ def _fit_tokens(tokens: tuple[str, ...], width: int) -> str:
         shown.append(token)
     joined = " ".join(shown)
     return joined + ("…" if len(shown) < len(tokens) else "")
-
-
-def settings_text(app: SpoiderApp, row: int = 0) -> Text:
-    rows = [
-        ("autosave", "on" if app.autosave else "off", "after every edit, and exit"),
-        ("footer", "hidden" if app.config.hide_footer else "shown", "the bar of keys at the bottom"),
-        ("config", clip_tail(str(app.config_path), 20), "⏎ opens it in your editor"),
-    ]
-    text = Text()
-    text.append("editor settings\n")
-    for index, (label, value, note) in enumerate(rows):
-        selected = index == row
-        text.append("\n " + ("▸" if selected else " "))
-        text.append(_pad(label, 11))
-        text.append(_pad(value, 22))
-        text.append(note, style="dim")
-    return text
