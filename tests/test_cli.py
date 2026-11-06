@@ -187,9 +187,6 @@ def test_the_question_says_what_it_will_write(capsys, monkeypatch, tmp_path: Pat
         str(_config(tmp_path)),
         "spoider.desktop",
         "x-spoider.xml",
-        "update-mime-database",
-        "update-desktop-database",
-        "xdg-mime",
     ):
         assert line in out, f"the question should name {line}"
 

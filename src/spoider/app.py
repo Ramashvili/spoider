@@ -198,18 +198,14 @@ def desktop_notes(config_path: Path) -> tuple[str, ...]:
     have opened anything.
     """
     return (
-        "spoider keeps its settings in",
+        "spoider wrote its settings to",
         f"  {config_path}",
-        "which it writes for you. `.` opens it in your editor, and every line in it says",
-        "what it does and what it accepts.",
         "",
-        "Your system can also make .spoider files open in spoider from your file browser.",
-        "This requires creating two files:",
+        "Your system can also open .spoider files in spoider from your file browser.",
+        "That needs two more files:",
         "",
         "  ~/.local/share/mime/packages/x-spoider.xml",
         "  ~/.local/share/applications/spoider.desktop",
-        "",
-        "and running update-mime-database, update-desktop-database and xdg-mime.",
     )
 
 
