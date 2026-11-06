@@ -1189,6 +1189,29 @@ def main(argv: list[str] | None = None) -> None:
         help="cell to put the cursor on, by id; a cut's id opens the cut stack",
     )
     parser.add_argument(
+        "--export",
+        default=None,
+        metavar="SVG",
+        help="write the map as an SVG at this path, then exit",
+    )
+    parser.add_argument(
+        "--palette",
+        default=None,
+        metavar="NAME",
+        help="paper, coloured-paper, coloured-ink or ink; paper without it",
+    )
+    parser.add_argument(
+        "--font",
+        default=None,
+        metavar="NAME",
+        help="a monospace family, by slug or by name; the first one here without it",
+    )
+    parser.add_argument(
+        "--no-stack",
+        action="store_true",
+        help="leave the cut stack out of the picture",
+    )
+    parser.add_argument(
         "--install-desktop",
         action="store_true",
         help="register .spoider files with the desktop, then exit",
@@ -1203,6 +1226,28 @@ def main(argv: list[str] | None = None) -> None:
     if args.install_desktop:
         raise SystemExit(install_desktop())
     path = Path(args.path).expanduser() if args.path else None
+    if args.export:
+        from .svg import ExportError, export_map
+
+        if path is None:
+            parser.error("--export needs a map to read")
+        try:
+            written, sheet = export_map(
+                path,
+                output=Path(args.export).expanduser(),
+                palette_name=args.palette,
+                font_name=args.font,
+                with_stack=not args.no_stack,
+            )
+        except ExportError as exc:
+            print(f"spoider: {exc}", file=sys.stderr)
+            raise SystemExit(2) from None
+        except OSError as exc:
+            where = exc.filename or args.export
+            print(f"spoider: cannot write {where}: {exc.strerror or exc}", file=sys.stderr)
+            raise SystemExit(2) from None
+        print(f"wrote {written} ({sheet.caption})")
+        raise SystemExit(0)
     try:
         app = SpoiderApp(path, demo=args.demo, position=args.position, cell_id=args.cell_id)
     except UnknownCell as exc:

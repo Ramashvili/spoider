@@ -153,6 +153,19 @@ runs the cache rebuilders and sets the default. It writes nothing unless asked, 
 resolves the launcher's `Exec=` to the real binary path because a desktop session does
 not always have `~/.local/bin` on PATH.
 
+## Export
+
+`svg.py` writes the picture the renderer already drew; `palettes.py` owns the four palettes and
+discovered the typefaces. Both are only reachable from `--export` on the command line: there is
+no key, no drawer and no second format, because a smaller surface is easier to keep honest.
+
+`compose` normalises the origin, because a layout may place a left branch at negative
+coordinates and a file has no camera to follow it. Runs carry `textLength`, so a face whose
+advance is not 0.6 em still lands on the cell grid. The face is embedded, because a named one
+is a suggestion a viewer may decline. A face with no outlines is refused: `has_outlines` reads
+the font's table directory rather than searching for the letters `CFF `, which appear in files
+that have no such table.
+
 ## Tests
 
 `uv run pytest` runs twelve at a time (pytest-xdist): one test drives one app through

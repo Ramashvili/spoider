@@ -1,0 +1,127 @@
+"""The map as an SVG: what it holds, what it refuses, and what it names."""
+
+from __future__ import annotations
+
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+import pytest
+
+from spoider.palettes import by_name, fonts, has_outlines
+from spoider.svg import GAP, MARGIN, ExportError, compose, export_map, svg
+
+SVG = {"s": "http://www.w3.org/2000/svg"}
+MANUAL = Path(__file__).parent.parent / "src/spoider/data/manual.spoider"
+
+
+def palette(name: str = "paper"):
+    found = by_name(name)
+    assert found is not None
+    return found
+
+
+def a_font():
+    face = next((font for font in fonts() if font.available), None)
+    assert face is not None, "the tests need one monospace face on this machine"
+    return face
+
+
+@pytest.fixture
+def manual():
+    from spoider.model import MindMap
+
+    return MindMap.load(MANUAL)
+
+
+def sheet_of(document, with_stack: bool = True, palette_name: str = "paper"):
+    return compose(
+        document=document, palette=palette(palette_name), font=a_font(), with_stack=with_stack
+    )
+
+
+def test_every_cell_lands_inside_the_canvas(manual):
+    """A layout may put a left branch at negative coordinates; the picture must not clip it."""
+    for shape in ("spider", "branch", "branch_left", "pyramid", "bush"):
+        manual.layout = shape
+        sheet = sheet_of(manual)
+        xs = [x for x, _y in sheet.grid.cells]
+        ys = [y for _x, y in sheet.grid.cells]
+        assert min(xs) == MARGIN and min(ys) == MARGIN, shape
+        assert max(xs) < sheet.width and max(ys) < sheet.height, shape
+
+
+def test_the_caption_counts_cells_and_cuts(manual):
+    assert sheet_of(manual).caption == f"{manual.count()} cells"
+    cut = next(node for node in manual.nodes() if node is not manual.root)
+    manual.cut_stack.append(cut)
+    with_stack = sheet_of(manual)
+    assert with_stack.caption.endswith("1 cut"), "one cut, not one cuts"
+
+
+def test_the_stack_column_sits_beside_the_map_and_can_be_left_out(manual):
+    cut = next(node for node in manual.nodes() if node is not manual.root)
+    manual.cut_stack.append(cut)
+    alone = sheet_of(manual, with_stack=False)
+    together = sheet_of(manual)
+    assert together.width > alone.width + GAP, "the column takes room to the right"
+    assert "cut" not in alone.caption
+
+
+def test_the_picture_is_the_maps_colour_mode(manual):
+    family = sheet_of(manual)
+    manual.colours = "depth"
+    assert svg(family) != svg(sheet_of(manual))
+
+
+def test_the_svg_is_well_formed_and_keeps_awkward_text(manual):
+    manual.root.text = "cells <with> & signs"
+    tree = ET.fromstring(svg(sheet_of(manual)))
+    written = "".join(text.text or "" for text in tree.findall(".//s:text", SVG))
+    assert "<with>" in written and "& signs" in written
+
+
+def test_every_run_carries_its_cell_span(manual):
+    """A face whose advance is not 0.6 em still lands on the grid."""
+    text = svg(sheet_of(manual))
+    assert 'lengthAdjust="spacing"' in text
+    assert text.count("textLength=") == text.count("<text ")
+
+
+def test_the_face_travels_inside_the_file(manual):
+    text = svg(sheet_of(manual))
+    assert "@font-face" in text and "base64," in text, "a named face can be substituted"
+    assert "Spoider Export," in text
+
+
+def test_a_palette_decides_the_colours(manual):
+    white = svg(sheet_of(manual, palette_name="paper"))
+    black = svg(sheet_of(manual, palette_name="ink"))
+    assert palette("paper").background in white
+    assert palette("ink").background in black
+    assert white != black
+
+
+def test_export_map_writes_the_file_and_says_what_it_holds(tmp_path: Path):
+    target = tmp_path / "picture.svg"
+    written, sheet = export_map(MANUAL, output=target, palette_name="coloured-paper")
+    assert written == target and target.read_text(encoding="utf-8").startswith("<?xml")
+    assert sheet.caption.endswith("cells")
+
+
+def test_a_palette_or_face_that_is_not_there_is_an_error(tmp_path: Path):
+    with pytest.raises(ExportError) as bad_palette:
+        export_map(MANUAL, output=tmp_path / "x.svg", palette_name="purple")
+    assert "no palette called purple" in str(bad_palette.value)
+    with pytest.raises(ExportError) as bad_font:
+        export_map(MANUAL, output=tmp_path / "x.svg", font_name="no-such-face")
+    assert "no typeface called no-such-face" in str(bad_font.value)
+
+
+def test_the_folder_has_to_exist(tmp_path: Path):
+    with pytest.raises(FileNotFoundError):
+        export_map(MANUAL, output=tmp_path / "missing" / "x.svg")
+    assert not (tmp_path / "missing").exists(), "nothing was created to put it in"
+
+
+def test_a_face_without_outlines_is_refused(tmp_path: Path):
+    assert has_outlines(str(MANUAL)) is False, "a map file is not a font"

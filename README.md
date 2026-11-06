@@ -157,6 +157,31 @@ A complete example sits in [`examples/spoider.conf`](examples/spoider.conf): it 
 text a fresh install writes, so you can see what a newer release added without touching the
 file you already have.
 
+### Exporting a map
+
+A map is a terminal picture, and a terminal is not always the thing you want to send someone.
+`--export` writes it as an SVG, from a script or from the command line, and exits:
+
+```bash
+spoider notes.spoider --export notes.svg
+spoider notes.spoider --export notes.svg --palette coloured-paper --font "JetBrainsMono Nerd Font"
+spoider notes.spoider --export notes.svg --no-stack
+```
+
+The picture holds the whole map, from its first cell to its last, never the part of it that
+happened to be on screen, in the colour mode the map itself was saved with. By default the cut
+stack sits beside it, so a reader can see what is waiting, and a caption underneath counts
+what the file holds. `--no-stack` leaves the stack out.
+
+`--palette` takes `paper` (black on white, the default), `coloured-paper`, `coloured-ink` and
+`ink` (white on black): four palettes, complete in themselves, because a file has no terminal
+to inherit colours from. `--font` takes any monospace family this machine has, by slug or by
+name; without it the first one found is used. The face travels inside the file, so the picture
+looks the same on a machine that has installed nothing.
+
+There is one limit worth knowing: a face with no outlines, such as a bitmap font, is refused,
+because a viewer told to draw one draws nothing at all.
+
 ## Development
 
 ```bash
