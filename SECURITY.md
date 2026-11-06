@@ -25,10 +25,11 @@ issue tracker.
 
 ## What spoider already does
 
-- **Text is cleaned twice.** Once when a map is read and again when it is drawn, because a
-  cell can hold the escape sequences that move a cursor, clear a screen or rename a window.
-  The file's own name gets the same treatment, since a directory listing is not a safer
-  source than a file.
+- **Text from a file is cleaned as it is read.** A cell can hold the escape sequences that
+  move a cursor, clear a screen or rename a window, so control characters are stripped
+  before the text becomes part of a map. Names, marks and the properties box are cleaned
+  again where they are drawn, because a directory listing is not a safer source than a
+  file.
 - **A file that could not be read is never written over.** If a map fails to load, spoider
   keeps no path for it, so `^S` and autosave have nowhere to go and the damaged file stays
   as it was for you to repair.
@@ -36,9 +37,10 @@ issue tracker.
   beside its target and is renamed into place, so an interrupted save leaves the old file
   whole. A write also refuses a file that is not a spoider map, which stops a mistyped name
   from becoming a way to bury something.
-- **Sizes are bounded.** Nesting stops at 400 levels, a cell at 10 000 characters and the
-  mark palette at 64 entries, so a file cannot ask for more memory than an editor needs to
-  stay responsive. A load that had to refuse something says so rather than failing quietly.
+- **Sizes are bounded, and the bounds are reported.** A map deeper than 400 levels or a
+  cell longer than 10 000 characters is refused with a message that says which, rather than
+  truncated or half loaded. A paste that would run past the cell limit is cut short and
+  tells you so. A mark palette longer than 64 entries is cut to its first 64.
 - **The configuration belongs to you.** `spoider.conf` is written once, when there is none,
   and after that only the lines spoider owns are rewritten, so your comments and your
   ordering survive an upgrade. A line that names neither a setting nor a chord is dropped
@@ -48,8 +50,9 @@ issue tracker.
   shell: your `$EDITOR` when you ask to edit the configuration, and the desktop cache tools
   when you accept the offer to register `.spoider` files.
 - **Registering the file type is opt-in.** The MIME type and the desktop entry are
-  installed only after you say yes, once, and the entry names the binary that is actually
-  running, so a launcher does not depend on what happens to be on your PATH.
+  installed only after you say yes, once, or when you run `spoider --install-desktop`
+  yourself. The entry names the `spoider` that comes first on your PATH, which is the one a
+  launcher could find without you.
 
 ## What it leaves in your hands
 
