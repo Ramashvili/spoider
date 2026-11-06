@@ -190,16 +190,27 @@ def _not_a_map(path: Path) -> str | None:
     return None
 
 
-#: What the first-run question says it will touch, in the order it touches them.
-DESKTOP_NOTES = (
-    "Your system can make .spoider files open in spoider from your file browser.",
-    "This requires creating two files:",
-    "",
-    "  ~/.local/share/mime/packages/x-spoider.xml",
-    "  ~/.local/share/applications/spoider.desktop",
-    "",
-    "and running update-mime-database, update-desktop-database and xdg-mime.",
-)
+def desktop_notes(config_path: Path) -> tuple[str, ...]:
+    """What the first-run question says it will touch, in the order it touches it.
+
+    The settings file is written whichever way the answer goes, so the question says so:
+    a person who reads this line knows where the editor keeps its preferences before they
+    have opened anything.
+    """
+    return (
+        "spoider keeps its settings in",
+        f"  {config_path}",
+        "which it writes for you when the file is not there yet. `.` opens it in your",
+        "editor, and every line in it says what it does and what it accepts.",
+        "",
+        "Your system can also make .spoider files open in spoider from your file browser.",
+        "This requires creating two files:",
+        "",
+        "  ~/.local/share/mime/packages/x-spoider.xml",
+        "  ~/.local/share/applications/spoider.desktop",
+        "",
+        "and running update-mime-database, update-desktop-database and xdg-mime.",
+    )
 
 
 def ask_desktop(config: Config, config_path: Path, key_entries: list[tuple[str, str, str]]) -> bool:
@@ -210,7 +221,7 @@ def ask_desktop(config: Config, config_path: Path, key_entries: list[tuple[str, 
     """
     if config.desktop_asked or not sys.stdin.isatty():
         return False
-    print("\n".join(DESKTOP_NOTES))
+    print("\n".join(desktop_notes(config_path)))
     try:
         reply = input("Do it now? [y/N] ")
     except EOFError:

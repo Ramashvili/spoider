@@ -184,8 +184,9 @@ def test_the_question_says_what_it_will_write(capsys, monkeypatch, tmp_path: Pat
     _launch(monkeypatch, tmp_path, ["n"])
     out = capsys.readouterr().out
     for line in (
-        "x-spoider.xml",
+        str(_config(tmp_path)),
         "spoider.desktop",
+        "x-spoider.xml",
         "update-mime-database",
         "update-desktop-database",
         "xdg-mime",
