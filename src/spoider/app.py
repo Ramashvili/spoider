@@ -82,13 +82,17 @@ Screen.roomy MindMapView {
    time and each takes only the rows it needs. */
 #panel, #ask, #prompt {
     width: 100%;
-    /* the last row of a panel is air: the bar is never hard against its text */
-    padding: 0 1 1 1;
+    padding: 0 1;
     background: ansi_default;
     color: ansi_default;
     display: none;
     text-wrap: nowrap;
     text-overflow: clip;
+}
+/* A panel's last row is air: the bar is never hard against its text. A prompt cannot
+   afford that row, because a prompt is one row tall. */
+#panel {
+    padding: 0 1 1 1;
 }
 /* A prompt is part of the footer, not part of the map: one blank row keeps the
    map off it, the way the bar itself keeps a line of air. */

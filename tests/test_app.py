@@ -4560,3 +4560,31 @@ async def test_in_the_left_branch_the_arrows_climb_the_other_way(tmp_path: Path)
         await pilot.press("right")  # towards the root, which is on the right now
         await pilot.pause()
         assert app.selected == app.mm.root.id
+
+
+async def test_a_one_row_prompt_keeps_its_words_on_screen(tmp_path: Path):
+    """A prompt is one row tall, so it cannot spend a row on padding.
+
+    The panel's trailing row of air was given to prompts too, and with `height: 1` the
+    prompt's own text was pushed out of the box: open, focused, and drawing nothing. The
+    check reads the drawn screen, because that is the only place the loss was visible.
+    """
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "p.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("tab")
+        await pilot.press("s", "o", "m", "e", " ", "w", "o", "r", "d", "s")
+        await pilot.press("e")
+        await pilot.pause()
+        await pilot.press("ctrl+j")  # justify, asked from inside the cell
+        await pilot.pause(0.1)
+
+        prompt = app.query_one("#prompt")
+        assert prompt.styles.padding.bottom == 0, "a one-row box has no row to spare"
+        assert prompt.display is True
+        assert app.mode == "justify", "and it is the prompt that has the keys"
+
+        await pilot.press("escape")
+        await pilot.pause()
+        await pilot.press("ctrl+f")  # a prompt opened from the map, same box
+        await pilot.pause(0.1)
+        assert app.query_one("#prompt").styles.padding.bottom == 0
