@@ -64,6 +64,21 @@ def test_footer_lists_the_visible_bindings_plus_the_pinned_cluster():
     # ^F is the search now, so it has earned its place in the bar
     assert "^F search" in line
     assert "equals_sign" not in line and "COMMA" not in line
+    # a comma is a key of its own, so its cap is the comma: a split on commas once
+    # ate it and the pinned cluster read "debug" with nothing in front of it
+    assert ", debug" in line
+
+
+def test_every_chord_the_table_can_produce_has_a_cap():
+    """No cap may come out blank, whatever key the table carries."""
+    from spoider.chrome import key_cap
+    from spoider.keys import action_chords, build_keymap
+
+    for ident, chord in build_keymap().items():
+        assert key_cap(chord), ident
+    for action, chords in action_chords().items():
+        for chord in chords:
+            assert key_cap(chord), (action, chord)
 
 
 def test_footer_caps_are_coloured_text_without_a_block():

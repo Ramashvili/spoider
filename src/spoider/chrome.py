@@ -106,8 +106,13 @@ ARROWS = {"up": "↑", "down": "↓", "left": "←", "right": "→"}
 
 
 def key_cap(key: str) -> str:
-    """One key as it appears in the bar: ⇥, ⏎, ^D, M-↑, h …"""
-    key = str(key).split(",")[0]
+    """One chord as it appears in the bar: ⇥, ⏎, ^D, M-↑, h …
+
+    It takes one chord and never a list: the keymap spells a chord the way it is
+    pressed, so a comma in there is the key itself. Splitting it here emptied the cap
+    of the debug box and left the bar reading "debug" with nothing in front of it.
+    `chord_of` is what picks the chord out of a binding.
+    """
     if key in KEY_GLYPHS:
         return KEY_GLYPHS[key]
     if key in BAR_GLYPHS:
@@ -130,6 +135,20 @@ def entry(key: str, label: str, *, literal: bool = False) -> Text:
     return chunk
 
 
+def chord_of(binding, keymap: dict[str, str] | None = None) -> str:
+    """The chord to show for a binding: the keymap's, else the first of its own.
+
+    A keymap value is one chord in the spelling a person presses, so a comma there is
+    the key itself and must not be split. A binding's own key is Textual's spelling,
+    where a comma separates several keys, so that one is split — a comma key is
+    written `comma` there and has no other way to be said.
+    """
+    chosen = (keymap or {}).get(binding.id or "")
+    if chosen:
+        return str(chosen)
+    return str(binding.key).split(",")[0]
+
+
 def hint_chunks(
     bindings: Iterable,
     skip: frozenset[str] = frozenset(),
@@ -147,7 +166,7 @@ def hint_chunks(
     for binding in bindings:
         if not isinstance(binding, Binding) or not binding.show or binding.action in skip:
             continue
-        key = keymap.get(binding.id or "", binding.key) or binding.key
+        key = chord_of(binding, keymap)
         label = (rename or {}).get(binding.action, binding.description)
         shown.append((binding.id or "", entry(key, label)))
 

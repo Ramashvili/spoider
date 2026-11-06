@@ -165,8 +165,13 @@ def keys_for(app: SpoiderApp, actions: tuple[str, ...]) -> str:
                 continue
             if binding.action != action:
                 continue
-            chord = app.keymap.get(binding.id or "", binding.key) or binding.key
-            for key in chord.split(","):
+            chosen = app.keymap.get(binding.id or "")
+            # the keymap holds one chord per id, already in the spelling a person
+            # presses: split it and a comma key disappears. Only a binding's own
+            # key is Textual's, where a comma separates several.
+            for key in [chosen] if chosen else str(binding.key).split(","):
+                if not key:
+                    continue
                 cap = key_cap(key)
                 if cap not in caps:
                     caps.append(cap)
