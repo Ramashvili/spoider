@@ -4500,4 +4500,50 @@ async def test_a_paste_is_cleaned_before_it_reaches_the_cell(tmp_path: Path):
         app.on_paste(events.Paste("tab\there\x1b[2Jand\r\naway ✅"))
         await pilot.pause()
         assert app._buffer is not None
-        assert app._buffer.text == "tabhere[2Jand\naway ✅", app._buffer.text
+        # a tab is content now, so it survives; the escape and the CR do not
+        assert app._buffer.text == "tab\there[2Jand\naway ✅", app._buffer.text
+
+
+# -- tabs ------------------------------------------------------------------
+
+
+def test_a_tab_is_four_columns_to_the_next_stop():
+    from spoider.text import expand_tabs, text_width
+
+    assert expand_tabs("\tx") == "    x"
+    assert expand_tabs("a\tb") == "a   b"
+    assert expand_tabs("abcd\te") == "abcd    e", "a stop is counted from the line, not the word"
+    assert text_width("a\tb") == 5
+
+
+def test_a_tab_widens_the_box_it_sits_in(tmp_path: Path):
+    from spoider.layout import box_width
+    from spoider.model import Node
+
+    assert box_width(Node("a\tb"), walls=False) > box_width(Node("ab"), walls=False)
+
+
+async def test_tab_types_a_tab_while_a_cell_is_being_typed(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "t.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("tab")  # a child, and typing into it
+        await pilot.pause()
+        await pilot.press("a", "tab", "b")
+        await pilot.pause()
+        assert app._buffer is not None and app._buffer.text == "a\tb"
+
+        await pilot.press("escape")
+        await pilot.pause()
+        await pilot.press("tab")  # outside a cell, tab is the map's again
+        await pilot.pause()
+        assert app.editing is True, "a second child"
+
+
+def test_a_tab_survives_a_save_and_a_load(tmp_path: Path):
+    from spoider.model import MindMap, Node
+
+    path = tmp_path / "tab.spoider"
+    mm = MindMap(Node("a\tb"))
+    mm.save(path)
+    assert "\\t" in path.read_text()
+    assert MindMap.load(path).root.text == "a\tb"

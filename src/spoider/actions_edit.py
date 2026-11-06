@@ -81,6 +81,12 @@ class EditActions:
         if key == "enter":
             self.finish_edit(commit=True)
             return True
+        if key == "tab":
+            # A cell is a text field, so Tab types a tab; making a child is what Tab
+            # does on the map, where Return already covers the same ground
+            buffer.insert("\t")
+            self._sync_preview()
+            return True
         if key in ("escape", "ctrl+c"):
             self.finish_edit(commit=False)
             return True

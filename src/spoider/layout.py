@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from rich.cells import cell_len
 
 from .model import DEFAULT_LAYOUT, LAYOUTS, Node
-from .text import clean, clean_text
+from .text import clean, clean_text, expand_tabs, text_width
 
 #: Columns between a box and what hangs off it, and rows between siblings.
 #: Sideways shapes need the columns: that is where the connector runs. Stacked
@@ -122,14 +122,16 @@ def lines_of(node: Node) -> list[str]:
     """What the cell shows, one entry per row.
 
     A cell may hold several lines, so the box grows downwards with them; the mark
-    rides on the first line and the folded-children count on the last.
+    rides on the first line and the folded-children count on the last. A tab in the
+    text is expanded here, once, so the box is drawn and measured against the same
+    columns the reader sees.
     """
     if node.preview is not None:
         text = clean_text(node.preview)
     else:
         text = clean_text(node.text or "").strip() or "(untitled)"
         text = f"{text}{fold_note(node)}"
-    lines = text.split("\n")
+    lines = expand_tabs(text).split("\n")
     if node.mark:
         lines[0] = f"{clean(node.mark)} {lines[0]}"
     return lines
@@ -159,8 +161,8 @@ def selection_span(node: Node, line: int) -> tuple[int, int] | None:
     low, high = max(start, offset), min(end, end_of_line)
     if low >= high:
         return None
-    left = cell_len(text[offset:low])
-    right = cell_len(text[offset:high])
+    left = text_width(text[offset:low])
+    right = text_width(text[offset:high])
     if node.mark and line == 0:
         shift = cell_len(clean(node.mark)) + 1
         left, right = left + shift, right + shift
@@ -189,7 +191,7 @@ def caret_pos(node: Node) -> tuple[int, int] | None:
     caret = max(0, min(node.caret, len(buffer)))
     line = buffer.count("\n", 0, caret)
     start = buffer.rfind("\n", 0, caret) + 1
-    column = cell_len(buffer[start:caret])
+    column = text_width(buffer[start:caret])
     if node.mark and line == 0:
         column += cell_len(clean(node.mark)) + 1
     return line, column

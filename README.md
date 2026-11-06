@@ -3,7 +3,7 @@
 A mind map editor for the terminal.
 
 It is a Python TUI built on [Textual](https://textual.textualize.io/), and it is vibecoded.
-We are aiming for a perfectly functioning, minimalistic editor.
+We are aiming for a perfectly functioning, minimalistic editor. The best of its kind.
 
 Distinct features of spoider, as compared to other mind mapping editors:
 
@@ -11,9 +11,9 @@ Distinct features of spoider, as compared to other mind mapping editors:
 - a LIFO stack of parts cut out of the map, saved with the map
 - all aspects of the mind map are saved, so the map renders identically everywhere
 - the colour scheme is inherited from the terminal
-- the positioning of cells is automatic and fixed
 - four mind map layouts
-- a wide range of cell spacing
+- the positioning of cells is automatic
+- user can choose spacing of cell
 
 ![a mind map in spoider](media/spoider.png)
 
@@ -79,7 +79,8 @@ Vim-like binds are already waiting there; you only need to uncomment them.
 
 | Key | Does |
 | --- | --- |
-| `Tab` / `Return` | add a child, add a sibling |
+| `Tab` | add a child; inside a cell, a tab character |
+| `Return` | add a sibling |
 | `e` | edit the cell's text |
 | `↑↓←→` `hjkl` | walk the tree |
 | `Alt+↑` / `Alt+↓` | reorder siblings |
@@ -108,7 +109,8 @@ Vim-like binds are already waiting there; you only need to uncomment them.
 
 A cell grows to fit as many lines as you type. `Shift+Return` adds a new line,
 `Shift` with the arrow keys selects text, and `^J` wraps long notes into clean
-paragraphs at whatever width you prefer.
+paragraphs at whatever width you prefer. `Tab` inside a cell types a tab, drawn as spaces
+up to the next stop of four, so a column pasted out of a table lines up in the box.
 
 ### Four ways to draw the tree
 

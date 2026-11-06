@@ -13,6 +13,10 @@ import unicodedata
 
 from rich.cells import cell_len
 
+#: How wide a tab is: spaces up to the next stop, counted from the start of a line, so a
+#: cell shows the tab stops a text field would. The column is measured in cells.
+TAB_STOP = 4
+
 #: Cc = control characters (ESC, BEL, newline, …), Cs = lone surrogate halves.
 #: Both are dropped rather than replaced: a cell holds one line of visible text,
 #: and a zero-width replacement would still be a character the terminal acts on.
@@ -34,19 +38,51 @@ def clean(value: object) -> str:
 
 
 def clean_text(value: object) -> str:
-    """`value` with control characters removed, except the line break.
+    """`value` with control characters removed, except the line break and the tab.
 
-    A cell holds more than one line now, so a newline is content. Tabs and the rest
-    are still stripped: a tab in a box would land the following text wherever the
-    terminal's tab stops happen to be, and nothing here needs that.
+    A cell holds more than one line, so a newline is content; it holds a tab too, because
+    a tab is one of the things a person pastes out of a table. Both are kept, and
+    `expand_tabs` decides how wide the tab is drawn. The rest of Cc goes.
     """
     text = value if isinstance(value, str) else str(value)
     text = text.replace("\r\n", "\n").replace("\r", "\n")
-    if not any(unicodedata.category(ch) in _UNSAFE and ch != "\n" for ch in text):
+    keep = ("\n", "\t")
+    if not any(unicodedata.category(ch) in _UNSAFE and ch not in keep for ch in text):
         return text
     return "".join(
-        ch for ch in text if ch == "\n" or unicodedata.category(ch) not in _UNSAFE
+        ch for ch in text if ch in keep or unicodedata.category(ch) not in _UNSAFE
     )
+
+
+def expand_tabs(text: str) -> str:
+    """`text` with each tab replaced by the spaces up to the next tab stop.
+
+    Stops are counted per line from its first cell, in cells, so a tab after one
+    character is three columns wide and a tab at the start of a line is four. A tab is
+    never zero columns: that is what put the text after it out of alignment with the
+    box drawn around it.
+    """
+    if "\t" not in text:
+        return text
+    lines: list[str] = []
+    for line in text.split("\n"):
+        column = 0
+        out: list[str] = []
+        for ch in line:
+            if ch == "\t":
+                width = TAB_STOP - column % TAB_STOP
+                out.append(" " * width)
+                column += width
+            else:
+                out.append(ch)
+                column += cell_len(ch)
+        lines.append("".join(out))
+    return "\n".join(lines)
+
+
+def text_width(text: str) -> int:
+    """How many cells `text` occupies once its tabs are drawn."""
+    return cell_len(expand_tabs(text))
 
 
 def one_line(value: object) -> str:
