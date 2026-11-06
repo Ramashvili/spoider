@@ -10,17 +10,19 @@ from __future__ import annotations
 from . import nav
 from .chrome import key_cap
 from .layout import MAX_SPACING, MIN_SPACING
-from .model import LAYOUTS, MindMap, Node
+from .model import LAYOUTS, MindMap, Node, layout_name
 
 UP_MEANING: dict[str, str] = {
     "spider": "prev",
     "branch": "prev",
+    "branch-left": "prev",
     "pyramid": "parent",
     "bush": "child",
 }
 DOWN_MEANING: dict[str, str] = {
     "spider": "next",
     "branch": "next",
+    "branch-left": "next",
     "pyramid": "child",
     "bush": "parent",
 }
@@ -318,12 +320,12 @@ class MapActions:
         self._mark_dirty()
         self.notify(f"Colours by {self.mm.colours}", timeout=1)
     def action_layout(self) -> None:
-        """^L — cycle the shape of the map: spider, pyramid, bush, branch."""
+        """^L — cycle the shape: spider, branch right, branch left, pyramid, bush."""
         order = LAYOUTS
         self.mm.layout = order[(order.index(self.mm.layout) + 1) % len(order)]
         # like spacing, the shape is document state but not an edit worth undoing
         self._mark_dirty()
-        self.notify(f"Layout: {self.mm.layout}", timeout=1)
+        self.notify(f"Layout: {layout_name(self.mm.layout)}", timeout=1)
     def _reorder(self, delta: int) -> None:
         """alt+↑ / alt+↓ — move the run as one block, keeping its order."""
         ids = self.selected_ids

@@ -91,7 +91,7 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
     # step keeps a blank row between levels: three rows of box become two lines of text
     # rather than one hard on top of the other.
     tight_y = {-1: 0, -2: 0, -3: 1, -4: 0, -5: 0}
-    if layout in ("spider", "branch"):
+    if layout in ("spider", "branch", "branch-left"):
         x = tight.get(spacing, (max(1, GAP_X + spacing), 0))[0]
     elif spacing >= 0:
         x = STACK_GAP_X + spacing
@@ -297,6 +297,10 @@ def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout
                 split = (len(root.children) + 1) // 2
                 _place_children(boxes, root_box, root.children[:split], 1, gaps, RIGHT)
                 _place_children(boxes, root_box, root.children[split:], -1, gaps, LEFT)
+            elif layout == "branch-left":
+                # the mirror of branch: the root sits at the right edge and every
+                # child, at every depth, unfolds to its left
+                _place_children(boxes, root_box, root.children, -1, gaps, LEFT)
             else:  # branch: every child, at every depth, hangs to the right
                 _place_children(boxes, root_box, root.children, 1, gaps, RIGHT)
 

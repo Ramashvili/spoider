@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 
 from .addressing import address_of
-from .model import MindMap
+from .model import MindMap, layout_name
 from .text import clean, clip_head, one_line
 
 Section = tuple[str, list[tuple[str, str]]]
@@ -57,7 +57,7 @@ def file_rows(mm: MindMap, path: Path | None, *, dirty: bool) -> list[tuple[str,
         rows = [("file", f"{clean(str(path))}  (not on disk)")]
     rows.append(("format", str(1)))
     rows.append(("spacing", str(mm.spacing)))
-    rows.append(("shape", mm.layout))
+    rows.append(("shape", layout_name(mm.layout)))
     rows.append(("colours", mm.colours))
     deepest = max((mm.depth(node.id) for node in mm.nodes()), default=1)
     rows.append(("totals", f"{mm.count()} cells, {deepest} deep, {len(mm.cut_stack)} cuts"))

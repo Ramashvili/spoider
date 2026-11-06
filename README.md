@@ -11,9 +11,9 @@ Distinct features of spoider, as compared to other mind mapping editors:
 - a LIFO stack of parts cut out of the map, saved with the map
 - all aspects of the mind map are saved, so the map renders identically everywhere
 - the colour scheme is inherited from the terminal
-- four mind map layouts
+- five mind map layouts
 - the positioning of cells is automatic
-- user can choose spacing of cell
+- you can choose the spacing between cells
 
 ![a mind map in spoider](media/spoider.png)
 
@@ -110,15 +110,16 @@ A cell grows to fit as many lines as you type. `Shift+Return` adds a new line,
 `Shift` with the arrow keys selects text, and `^J` wraps long notes into clean
 paragraphs at whatever width you prefer.
 
-### Four ways to draw the tree
+### Five ways to draw the tree
 
-Press `^L` to cycle through four shapes for the same map. The arrow keys adapt
+Press `^L` to cycle through five shapes for the same map. The arrow keys adapt
 automatically to match the drawing on screen:
 
 - **spider:** root in the centre, branches fanning out left and right.
+- **branch right:** root on the left, unfolding to the right like an outline.
+- **branch left:** the same outline from the other side, root on the right.
 - **pyramid:** root at the top, children stacked below.
 - **bush:** root at the bottom, growing upwards.
-- **branch:** root on the left, unfolding to the right like an outline.
 
 Press `c` to colour either by family (one colour per main branch) or by depth
 (one colour per level).

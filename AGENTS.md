@@ -234,7 +234,8 @@ a tree is easiest to build:
   between nearest edges (a wide neighbour is near, however long), preferring our own
   level, then a cell whose parent sits beside our parent. That is what crossing a gap
   means, and `nav.towards` is the only place it is decided.
-- `^L` cycles the shape spider, pyramid, bush, branch, spider. Build in branch, show the
+- `^L` cycles the shape spider, branch right, branch left, pyramid, bush, spider. Build in
+  branch right (stored as `branch`), show the
   others, and step back to branch to keep building.
 - While a cell is being typed into, `Home` puts the caret at column 0, so `Home` then
   `BackSpace` clears nothing; send forward-delete (`\x1b[3~`) instead.

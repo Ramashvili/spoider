@@ -8,7 +8,7 @@ from spoider.chrome import FooterBar, compose_footer, hint_chunks
 from spoider.config import load_config
 from spoider.drawers import AskBar, ErrorBar, PanelBar, PromptBar
 from spoider.layout import compute
-from spoider.model import MindMap, Node
+from spoider.model import LAYOUTS, MindMap, Node
 from spoider.screens import HELP, help_text, keys_for, settings_text
 from spoider.widgets import MindMapView, TopBar, compose_top_bar
 
@@ -1489,11 +1489,11 @@ async def test_ctrl_l_cycles_the_shapes_and_marks_the_buffer_dirty(tmp_path: Pat
     async with app.run_test() as pilot:
         assert app.mm.layout == "spider"
         seen: list[str] = []
-        for _ in range(4):
+        for _ in range(len(LAYOUTS)):
             await pilot.press("ctrl+l")
             await pilot.pause()
             seen.append(app.mm.layout)
-        assert seen == ["pyramid", "bush", "branch", "spider"]
+        assert seen == ["branch", "branch-left", "pyramid", "bush", "spider"]
         assert app.dirty
 
 
@@ -1501,8 +1501,9 @@ async def test_the_shape_is_written_into_the_map_file(tmp_path: Path):
     path = tmp_path / "map.json"
     app = SpoiderApp(path, demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+l")
-        await pilot.pause()
+        for _ in range(3):  # spider > branch right > branch left > pyramid
+            await pilot.press("ctrl+l")
+            await pilot.pause()
         await pilot.press("ctrl+s")
         await pilot.pause()
     assert json.loads(path.read_text())["layout"] == "pyramid"
@@ -4610,3 +4611,33 @@ async def test_the_camera_aims_at_the_column_the_caret_is_drawn_in(tmp_path: Pat
         _line, drawn = caret_pos(node)
         assert drawn == 5, "a, then a tab of three cells, then b"
         assert view.caret_column(view.layout_, box) == box.x + 2 + drawn
+
+
+def test_the_left_branch_hangs_its_children_to_the_left():
+    """branch left is the mirror of branch right: the root moves to the right edge."""
+    from spoider.layout import compute
+    from spoider.model import MindMap, Node
+
+    mm = MindMap(Node("root"))
+    child = mm.add_child(mm.root.id, "child")
+    grandchild = mm.add_child(child.id, "grandchild")
+    root = mm.root
+
+    boxes = compute(root, 0, "branch-left").boxes
+    assert boxes[root.id].x > boxes[child.id].x > boxes[grandchild.id].x
+    right = compute(root, 0, "branch").boxes
+    assert right[root.id].x < right[child.id].x < right[grandchild.id].x
+
+
+async def test_in_the_left_branch_the_arrows_climb_the_other_way(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "l.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        child = app.mm.add_child(app.mm.root.id, "child")
+        app.mm.add_child(child.id, "grandchild")
+        app.mm.layout = "branch-left"
+        app.view.refresh_map()
+        app.select(child.id)
+        await pilot.pause()
+        await pilot.press("right")  # towards the root, which is on the right now
+        await pilot.pause()
+        assert app.selected == app.mm.root.id

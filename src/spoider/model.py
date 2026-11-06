@@ -47,7 +47,22 @@ MAX_MARK_CHARS = 16
 
 #: The shapes a map can be drawn in. The name is stored in the file, like the
 #: spacing, so a map opens looking the way it was left.
-LAYOUTS = ("spider", "pyramid", "bush", "branch")
+LAYOUTS = ("spider", "branch", "branch-left", "pyramid", "bush")
+#: What each shape is called on screen. `branch` is the right-hand one; the stored name
+#: stays as it was so a map saved before there were two branches still opens on the same
+#: shape, which is what "the file looks the same everywhere" asks for.
+LAYOUT_NAMES = {
+    "spider": "spider",
+    "branch": "branch right",
+    "branch-left": "branch left",
+    "pyramid": "pyramid",
+    "bush": "bush",
+}
+
+
+def layout_name(layout: str) -> str:
+    """The shape's name for a reader, given the name in the file."""
+    return LAYOUT_NAMES.get(layout, layout)
 DEFAULT_LAYOUT = "spider"
 #: `depth`: one colour per level. `family`: one colour per branch under the root.
 COLOURS = ("depth", "family")
