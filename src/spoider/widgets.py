@@ -10,7 +10,7 @@ from textual import events
 from textual.widget import Widget
 
 from .chrome import DIVIDER
-from .layout import BOX_H, PAD, Layout, compute
+from .layout import BOX_H, PAD, Layout, caret_pos, compute
 from .properties import sections
 from .render import (
     DEPTH_COLORS,
@@ -180,25 +180,24 @@ class MindMapView(Widget, can_focus=True):
         caret below the fold while the reader types, so while editing the camera
         follows the line instead of the cell.
         """
-        node = focus.node
-        if node.caret is None or node.preview is None:
+        at = caret_pos(focus.node)
+        if at is None:
             return None
-        line = node.preview[: node.caret].count("\n")
-        return focus.y + (1 if layout.walls else 0) + line
+        return focus.y + (1 if layout.walls else 0) + at[0]
 
     def caret_column(self, layout, focus) -> int | None:
         """The layout column the caret sits on inside a cell being typed into.
 
         The same argument as `caret_row`, sideways: a cell can be wider than the
-        screen, and the caret can be past its right edge.
+        screen, and the caret can be past its right edge. The column comes from
+        `caret_pos`, so a tab counts as the cells it is drawn in and the camera
+        centres on the character the reader sees under the caret.
         """
-        node = focus.node
-        if node.caret is None or node.preview is None:
+        at = caret_pos(focus.node)
+        if at is None:
             return None
-        before = node.preview[: node.caret]
-        line = before.rsplit("\n", 1)[-1]
         left = focus.x + (1 if layout.walls else 0) + PAD
-        return left + cell_len(line)
+        return left + at[1]
 
     def camera(self, width: int, height: int) -> tuple[int, int]:
         layout = self.layout_

@@ -4587,3 +4587,26 @@ def test_the_caret_keeps_its_column_when_a_tab_is_between_the_lines():
     step_up.caret = 8  # the end of the second line, four cells in
     step_up.up()
     assert step_up.caret == 2, "the tab is four cells wide, so the caret stops past it"
+
+
+async def test_the_camera_aims_at_the_column_the_caret_is_drawn_in(tmp_path: Path):
+    """A tab is wide on screen, so the camera has to count the columns it takes."""
+    from spoider.layout import caret_pos
+
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "c.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        cell = app.mm.add_child(app.mm.root.id, "a\tb\ncdefghij")
+        app.view.refresh_map()
+        app.select(cell.id)
+        await pilot.press("e")
+        await pilot.pause()
+        await pilot.press("up")  # the end of the first line, where the tab is
+        await pilot.pause()
+
+        view = app.view
+        box = view.layout_.boxes[cell.id]
+        node = app.mm.find(cell.id)
+        assert node is not None
+        _line, drawn = caret_pos(node)
+        assert drawn == 5, "a, then a tab of three cells, then b"
+        assert view.caret_column(view.layout_, box) == box.x + 2 + drawn
