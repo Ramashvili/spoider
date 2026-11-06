@@ -202,7 +202,7 @@ def desktop_notes(config_path: Path) -> tuple[str, ...]:
         f"  {config_path}",
         "",
         "Your system can also learn to recognise that a .spoider file should always open in spoider.",
-        "That needs two more files:",
+        "That needs two files created:",
         "",
         "  ~/.local/share/mime/packages/x-spoider.xml",
         "  ~/.local/share/applications/spoider.desktop",
