@@ -25,11 +25,11 @@ issue tracker.
 
 ## What spoider already does
 
-- **Text from a file is cleaned as it is read.** A cell can hold the escape sequences that
-  move a cursor, clear a screen or rename a window, so control characters are stripped
-  before the text becomes part of a map. Names, marks and the properties box are cleaned
-  again where they are drawn, because a directory listing is not a safer source than a
-  file.
+- **Text is cleaned as it enters spoider.** A cell can hold the escape sequences that move
+  a cursor, clear a screen or rename a window, so control characters are stripped when a
+  map is read and again when text is pasted into a cell. Line breaks survive, tabs and other
+  controls do not, and names, marks and the properties box are cleaned once more where they
+  are drawn, because a directory listing is not a safer source than a file.
 - **A file that could not be read is never written over.** If a map fails to load, spoider
   keeps no path for it, so `^S` and autosave have nowhere to go and the damaged file stays
   as it was for you to repair.

@@ -11,6 +11,7 @@ from textual import events
 
 from .editing import Buffer, reflow
 from .model import MAX_CELL_CHARS
+from .text import clean_text
 
 #: Character keys that can arrive named and empty-handed, and what they type.
 PUNCTUATION = {
@@ -218,9 +219,14 @@ class EditActions:
         self._touched(node.id)
         self._mark_dirty()
     def _insert_and_warn(self, buffer: Buffer, chunk: str) -> None:
-        """Insert, and say so when the cell was full: pasted text is never silently cut."""
+        """Insert, and say so when the cell was full: pasted text is never silently cut.
+
+        The chunk is cleaned first. A clipboard can carry a tab, a carriage return or an
+        escape sequence, and the loader strips those from a saved map, so text that
+        skipped them would come back different the next time the map was opened.
+        """
         buffer.clipped = False
-        buffer.insert(chunk)
+        buffer.insert(clean_text(chunk))
         if buffer.clipped:
             self.notify(
                 f"A cell holds {MAX_CELL_CHARS} characters at most, so the end was dropped",

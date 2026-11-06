@@ -4487,3 +4487,17 @@ async def test_a_cell_takes_the_keys_that_open_the_drawers(tmp_path: Path):
         await pilot.press("full_stop")  # the name a terminal gives the key itself
         await pilot.pause()
         assert app.mode == "settings", "with the cell left, the full stop is a key again"
+
+
+async def test_a_paste_is_cleaned_before_it_reaches_the_cell(tmp_path: Path):
+    """What a cell keeps must be what the loader would keep: tabs and escapes go, lines stay."""
+    from textual import events
+
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "p.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("tab")
+        await pilot.pause()
+        app.on_paste(events.Paste("tab\there\x1b[2Jand\r\naway ✅"))
+        await pilot.pause()
+        assert app._buffer is not None
+        assert app._buffer.text == "tabhere[2Jand\naway ✅", app._buffer.text
