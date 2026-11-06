@@ -4572,3 +4572,18 @@ async def test_rebinding_tab_does_not_change_tab_in_a_cell(tmp_path: Path):
         await pilot.press("a", "tab", "b")
         await pilot.pause()
         assert app._buffer is not None and app._buffer.text == "a\tb"
+
+
+def test_the_caret_keeps_its_column_when_a_tab_is_between_the_lines():
+    """Going down a line lands on the same drawn column, tab or no tab."""
+    from spoider.editing import Buffer
+
+    step_down = Buffer("a\tb\ncdef")
+    step_down.caret = 2  # just past the tab, so four cells in
+    step_down.down()
+    assert step_down.caret == 4 + 4, "four cells into the second line"
+
+    step_up = Buffer("a\tb\ncdef")
+    step_up.caret = 8  # the end of the second line, four cells in
+    step_up.up()
+    assert step_up.caret == 2, "the tab is four cells wide, so the caret stops past it"

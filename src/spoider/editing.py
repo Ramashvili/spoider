@@ -14,6 +14,7 @@ from __future__ import annotations
 from rich.cells import cell_len
 
 from .model import MAX_CELL_CHARS
+from .text import tab_width, text_width
 
 #: What counts as part of a word for alt+backspace and alt+d. Anything that is not
 #: a space or punctuation, which is what a person means by "word" in prose.
@@ -59,9 +60,10 @@ class Buffer:
         return self.text.count("\n", 0, index)
 
     def column(self, index: int | None = None) -> int:
+        """How far into its line the caret sits, in cells, so a tab counts as its width."""
         index = self.caret if index is None else index
         start, _ = self.line_bounds(index)
-        return cell_len(self.text[start:index])
+        return text_width(self.text[start:index])
 
     def lines(self) -> list[str]:
         return self.text.split("\n")
@@ -253,11 +255,17 @@ class Buffer:
         self.goal = column
 
     def _clamp_to_column(self, start: int, end: int, column: int) -> int:
-        """The index in [start, end] closest to `column` cells in."""
+        """The index in [start, end] closest to `column` cells in.
+
+        A tab is as wide here as it is drawn, expanding to the next stop of `tab_width`
+        from the line's start, so a caret that goes down a line keeps the column it had
+        rather than one counted without the tabs.
+        """
         used = 0
         index = start
+        stop = tab_width()
         while index < end and used < column:
-            used += cell_len(self.text[index])
+            used += stop - used % stop if self.text[index] == "\t" else cell_len(self.text[index])
             index += 1
         return index
 
