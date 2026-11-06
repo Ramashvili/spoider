@@ -23,8 +23,8 @@ from .palettes import (
     embedded,
     font_by_name,
     fonts,
-    has_outlines,
     ink,
+    is_truetype,
 )
 from .render import Grid, build_grid
 from .text import cell_len
@@ -190,7 +190,7 @@ def svg(sheet: Sheet) -> str:
 
     family = sheet.font.families
     face = ""
-    if sheet.font.path is not None and has_outlines(str(sheet.font.path)):
+    if sheet.font.path is not None and is_truetype(str(sheet.font.path)):
         media, payload = embedded(str(sheet.font.path))
         kind = "woff2" if media.endswith("woff2") else "truetype"
         face = (
@@ -268,18 +268,24 @@ def export_map(
         known = ", ".join(item.name for item in PALETTES)
         raise ExportError(f"no palette called {palette_name}; there is {known}")
 
+    # only TrueType travels: a CFF face embeds, loads and then draws nothing at all, and a
+    # bitmap face cannot be scaled, so both would leave a viewer to pick a substitute
+    usable = [face for face in fonts() if face.available and is_truetype(str(face.path))]
     if font_name:
         font = font_by_name(font_name)
         if font is None or not font.available:
             known = ", ".join(item.name for item in fonts())
             raise ExportError(f"no typeface called {font_name}; there is {known}")
+        if font not in usable:
+            known = ", ".join(face.name for face in usable) or "none on this machine"
+            raise ExportError(
+                f"{font.label} is not a TrueType face, so a viewer would draw nothing; "
+                f"there is {known}"
+            )
     else:
-        font = next((face for face in fonts() if face.available), None)
-        if font is None:
-            raise ExportError("this machine has no monospace typeface to draw with")
-
-    if not has_outlines(str(font.path)):
-        raise ExportError(f"{font.label} has no outlines, so a viewer would draw nothing")
+        if not usable:
+            raise ExportError("this machine has no TrueType monospace face to draw with")
+        font = usable[0]
 
     sheet = compose(document=document, palette=palette, font=font, with_stack=with_stack)
     target = output or path.with_suffix(".svg")

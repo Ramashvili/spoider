@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from spoider.palettes import by_name, fonts, has_outlines
+from spoider.palettes import by_name, fonts, is_truetype
 from spoider.svg import GAP, MARGIN, ExportError, compose, export_map, svg
 
 SVG = {"s": "http://www.w3.org/2000/svg"}
@@ -21,7 +21,7 @@ def palette(name: str = "paper"):
 
 
 def a_font():
-    face = next((font for font in fonts() if font.available), None)
+    face = next((font for font in fonts() if font.available and is_truetype(str(font.path))), None)
     assert face is not None, "the tests need one monospace face on this machine"
     return face
 
@@ -123,5 +123,18 @@ def test_the_folder_has_to_exist(tmp_path: Path):
     assert not (tmp_path / "missing").exists(), "nothing was created to put it in"
 
 
-def test_a_face_without_outlines_is_refused(tmp_path: Path):
-    assert has_outlines(str(MANUAL)) is False, "a map file is not a font"
+def test_only_truetype_travels(tmp_path: Path):
+    """A CFF face embeds, loads, and then draws nothing: refused rather than hoped for."""
+    assert is_truetype(str(MANUAL)) is False, "a map file is not a font"
+    offered = [face for face in fonts() if face.available and is_truetype(str(face.path))]
+    assert offered, "this machine has a TrueType monospace to draw with"
+
+    cff = next(
+        (face for face in fonts() if face.available and not is_truetype(str(face.path))), None
+    )
+    if cff is None:
+        pytest.skip("this machine has no CFF face to refuse")
+    with pytest.raises(ExportError) as refused:
+        export_map(MANUAL, output=tmp_path / "x.svg", font_name=cff.label)
+    assert "not a TrueType face" in str(refused.value)
+    assert not (tmp_path / "x.svg").exists(), "and nothing is written"

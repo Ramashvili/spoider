@@ -162,9 +162,14 @@ no key, no drawer and no second format, because a smaller surface is easier to k
 `compose` normalises the origin, because a layout may place a left branch at negative
 coordinates and a file has no camera to follow it. Runs carry `textLength`, so a face whose
 advance is not 0.6 em still lands on the cell grid. The face is embedded, because a named one
-is a suggestion a viewer may decline. A face with no outlines is refused: `has_outlines` reads
-the font's table directory rather than searching for the letters `CFF `, which appear in files
-that have no such table.
+is a suggestion a viewer may decline. Only `glyf` faces are allowed (`is_truetype`): a CFF face delivered through `@font-face`
+renders nothing at all in a browser, which was Spleen, and a bitmap face cannot be scaled. The
+check reads the font's table directory rather than searching the bytes for `CFF `, which appear
+in files that have no such table.
+
+Still unguarded: a TrueType face with no letters (an icon font) draws nothing either. The
+character check the other branch had needs `fc-query --format %{charset}` here, and it is not
+built yet.
 
 ## Tests
 

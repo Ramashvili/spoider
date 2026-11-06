@@ -184,11 +184,6 @@ def font_by_name(name: str) -> Font | None:
     return next((font for font in fonts() if wanted in (font.name, font.label.casefold())), None)
 
 
-#: Table tags that hold outlines, and the ones that say the glyphs are pictures instead.
-OUTLINE_TABLES = {b"glyf", b"CFF ", b"CFF2"}
-BITMAP_TABLES = {b"CBDT", b"EBDT", b"sbix"}
-
-
 def tables(path: str) -> set[bytes]:
     """The four-byte tags in a font file's table directory, which is all of it we need.
 
@@ -212,16 +207,15 @@ def tables(path: str) -> set[bytes]:
     }
 
 
-def has_outlines(path: str) -> bool:
-    """Whether a font file carries outlines, which is the only kind a viewer can scale.
+def is_truetype(path: str) -> bool:
+    """Whether this is a TrueType face, which is the only kind that travels in an SVG.
 
-    A bitmap face (Spleen's sizes, for instance) has no outlines to draw at twelve points, and
-    a viewer told to use one draws nothing at all.
+    A CFF face (Spleen's `.otf` sizes, for instance) carries PostScript outlines: the file is
+    a perfectly good font, and when it arrives through `@font-face` a browser draws nothing at
+    all and the viewer substitutes a face nobody chose. A bitmap face cannot be scaled. Both
+    are refused rather than embedded and hoped for.
     """
-    found = tables(path)
-    if found & BITMAP_TABLES and not found & OUTLINE_TABLES:
-        return False
-    return bool(found & OUTLINE_TABLES)
+    return b"glyf" in tables(path)
 
 
 @lru_cache(maxsize=8)

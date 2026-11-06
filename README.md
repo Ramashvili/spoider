@@ -179,8 +179,10 @@ to inherit colours from. `--font` takes any monospace family this machine has, b
 name; without it the first one found is used. The face travels inside the file, so the picture
 looks the same on a machine that has installed nothing.
 
-There is one limit worth knowing: a face with no outlines, such as a bitmap font, is refused,
-because a viewer told to draw one draws nothing at all.
+Only TrueType faces are allowed, and that is not a preference: a CFF face — Spleen's `.otf`
+sizes are CFF — embeds, loads, and then draws nothing at all, leaving the viewer to substitute
+a face nobody chose. A bitmap face cannot be scaled either. Both are refused by name, with the
+faces this machine can use listed.
 
 ## Development
 
