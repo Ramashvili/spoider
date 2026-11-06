@@ -158,13 +158,6 @@ Toast.-error {
 #: deeper; a bush hangs them above it, so up goes deeper and down goes home.
 
 
-
-
-
-
-
-
-
 def editor_command() -> list[str]:
     raw = os.environ.get("VISUAL") or os.environ.get("EDITOR") or "nano"
     try:
@@ -233,8 +226,6 @@ def ask_desktop(config: Config, config_path: Path, key_entries: list[tuple[str, 
 def edit_in_editor(path: Path) -> None:
     """Run the user's editor on a file, in the foreground."""
     subprocess.run([*editor_command(), str(path)], check=False)
-
-
 
 
 class UnknownCell(Exception):
@@ -910,7 +901,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         return self.mm.find(node_id)
 
 
-
     def _sync_footer(self) -> None:
         """The bar never leaves; it swaps to the keys of whatever has them now."""
         footer = self.query_one("#footer", FooterBar)
@@ -1004,24 +994,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._refresh_chrome()
 
 
-
-
-
     # -- justify ---------------------------------------------------------------
 
 
-
-
     # -- editing actions ------------------------------------------------
-
-
-
-
-
-
-
-
-
 
 
     @property
@@ -1038,16 +1014,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def focus(self) -> str:
         """The cell the keys are on, in whichever document has them."""
         return self.selected
-
-
-
-
-
-
-
-
-
-
 
 
     def action_help(self) -> None:
@@ -1086,67 +1052,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.query_one(AskBar).ask("Save modified buffer?", self._save_answered)
         self._sync_footer()
 
-    def _ask_to_save(self) -> None:
-        self._ask_words = ("save", "discard")
-        self._mode = "ask"
-        self._hide_drawers(AskBar)
-        self.query_one(AskBar).ask("Save modified buffer?", self._save_answered)
-        self._sync_footer()
-
-    def _settings_key(self, key: str) -> None:
-        if key in ("escape", "ctrl+c", "full_stop", "ctrl+x"):
-            self._close_drawers()
-        elif key in ("up", "k"):
-            self._settings_row = max(0, self._settings_row - 1)
-            self._draw_settings()
-        elif key in ("down", "j"):
-            self._settings_row = min(2, self._settings_row + 1)
-            self._draw_settings()
-        elif key in ("enter", "space"):
-            self._settings_activate()
-
-    def _settings_activate(self) -> None:
-        if self._settings_row == 0:
-            self.set_autosave(not self.autosave)
-            self._draw_settings()
-            return
-        if self._settings_row == 1:
-            self.set_hide_footer(not self.config.hide_footer)
-            self._draw_settings()
-            return
-        self.open_config()
-        self._open_settings()  # back to the list you left
-
-
-
-
-
     # -- movement -------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     # -- history and files ----------------------------------------------
@@ -1196,8 +1102,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self.exit()
         elif choice == "yes":
             self._ask_where_to_write(then_quit=True)
-
-
 
 
 def main(argv: list[str] | None = None) -> None:
