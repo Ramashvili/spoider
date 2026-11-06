@@ -54,6 +54,7 @@ class EditActions:
         self._edit_id = node_id
         self._edit_fresh = fresh
         self._buffer = Buffer("" if fresh else (node.text or ""))
+        self._buffer.PAGE_LINES = self.config.page_lines
         self._sync_preview()
         self._sync_footer()
     def _sync_preview(self) -> None:

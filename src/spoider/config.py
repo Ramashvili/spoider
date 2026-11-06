@@ -57,6 +57,9 @@ class Config:
     hide_footer: bool = False
     #: How wide a tab is drawn in a cell: spaces up to the next stop, in cells.
     tab_width: int = 4
+    #: How many lines PgUp and PgDn move inside a cell, when the cell is taller than
+    #: the screen and those keys are the only way through it.
+    page_lines: int = 10
     marks_default: tuple[str, ...] = field(default_factory=lambda: tuple(MARKS))
     #: Whether the first-run question about registering .spoider with the desktop has
     #: been answered. Asking once is the point: a "no" is an answer, not a delay.
@@ -123,7 +126,12 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
         name, value = name.strip(), value.strip()
         if not name:
             continue
-        if name == "tab_width":
+        if name == "page_lines":
+            try:
+                config.page_lines = max(1, min(int(value), 200))
+            except ValueError:
+                pass
+        elif name == "tab_width":
             try:
                 config.tab_width = max(1, min(int(value), 16))
             except ValueError:
@@ -173,6 +181,7 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
         "marks_default = " + " ".join(config.marks_default),
         f"justify_width_default = {config.justify_width_default}",
         f"tab_width = {config.tab_width}",
+        f"page_lines = {config.page_lines}",
         f"hide_footer = {'true' if config.hide_footer else 'false'}",
         f"desktop_asked = {'true' if config.desktop_asked else 'false'}",
         "",
@@ -209,6 +218,7 @@ _OWNED = (
     "desktop_asked",
     "hide_footer",
     "tab_width",
+    "page_lines",
 )
 
 

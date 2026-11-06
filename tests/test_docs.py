@@ -71,3 +71,14 @@ def test_the_readme_key_table_still_covers_the_common_actions() -> None:
     chords = {name for token in re.findall(r"`([^`]+)`", section) for name in key_names(token)}
     for chord in ("tab", "enter", "e", "ctrl+k", "ctrl+u", "p", "ctrl+d", "w", "t", "ctrl+f"):
         assert chord in chords, f"the README key table no longer mentions {chord}"
+
+
+def test_the_example_config_is_the_template(tmp_path: Path):
+    """The example a reader looks at must be what this build writes, key for key."""
+    from spoider.app import SpoiderApp
+    from spoider.config import Config, render_config
+
+    app = SpoiderApp(None, config_path=tmp_path / "c.conf", demo=False)
+    expected = render_config(Config(), app._key_entries())
+    example = Path(__file__).resolve().parent.parent / "examples" / "spoider.conf"
+    assert example.read_text(encoding="utf-8") == expected

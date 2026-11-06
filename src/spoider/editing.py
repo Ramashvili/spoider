@@ -281,7 +281,7 @@ class Buffer:
 
     #: How many lines a page key moves. A cell does not know the screen it is drawn on,
     #: so this is a fixed, comfortable jump rather than a measured one.
-    PAGE_LINES = 10
+    PAGE_LINES = 10  # replaced by `page_lines` from the config when a cell opens
 
     def page_up(self, *, extend: bool = False) -> None:
         for _ in range(self.PAGE_LINES):

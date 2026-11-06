@@ -144,6 +144,9 @@ with the cursor where you left it.
 
 Editor preferences like autosave and custom keybindings live in
 `~/.config/spoider/spoider.conf`, which you can open from the settings screen with `.`.
+A complete example sits in [`examples/spoider.conf`](examples/spoider.conf): it is the very
+text a fresh install writes, so you can see what a newer release added without touching the
+file you already have.
 
 ## Development
 
