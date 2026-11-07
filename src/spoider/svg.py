@@ -263,7 +263,7 @@ def write_svg(sheet: Sheet, path: Path, *, overwrite: bool = False) -> Path:
         # the atomic writer would build the road; an export writes the file and no more
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(path))
     if path.exists() and not overwrite:
-        raise ExportError(f"{path} already exists; ask for it to be replaced")
+        raise ExportError(f"{path} already exists; use --force to allow replace")
     written = Path(path).expanduser()
     write_atomic(written, svg(sheet))
     return written
