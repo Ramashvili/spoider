@@ -164,20 +164,25 @@ def _framed(grid: Grid) -> Grid:
     return out
 
 
-def _runs(sheet: Sheet, row_number: int) -> list[tuple[int, str, Ink]]:
-    """Cells on one row, joined into runs that share an ink and touch each other."""
+def _runs(sheet: Sheet, row_number: int) -> list[tuple[int, str, int, Ink]]:
+    """Cells on one row, joined into runs that share an ink and touch each other.
+
+    Each run comes with the number of *cells* it covers, not the number of characters: an
+    emoji is one character and two cells, and a run measured in characters would come up a
+    cell short for every one of them.
+    """
     row = sorted(
         (x, ch, style) for (x, y), (ch, style) in sheet.grid.cells.items() if y == row_number
     )
-    runs: list[tuple[int, str, Ink, int]] = []
+    runs: list[tuple[int, str, int, Ink, int]] = []
     for x, ch, style in row:
         current = ink(sheet.palette, style)
-        if runs and runs[-1][2] == current and runs[-1][3] == x:
-            start, text, same, _end = runs[-1]
-            runs[-1] = (start, text + ch, same, x + cell_len(ch))
+        if runs and runs[-1][3] == current and runs[-1][4] == x:
+            start, text, cells, same, _end = runs[-1]
+            runs[-1] = (start, text + ch, cells + cell_len(ch), same, x + cell_len(ch))
         else:
-            runs.append((x, ch, current, x + cell_len(ch)))
-    return [(start, text, current) for start, text, current, _end in runs]
+            runs.append((x, ch, cell_len(ch), current, x + cell_len(ch)))
+    return [(start, text, cells, current) for start, text, cells, current, _end in runs]
 
 
 def svg(sheet: Sheet) -> str:
@@ -218,22 +223,23 @@ def svg(sheet: Sheet) -> str:
     ]
 
     for row_number in sorted({y for _x, y in sheet.grid.cells}):
-        for start, text, current in _runs(sheet, row_number):
+        for start, text, cells, current in _runs(sheet, row_number):
             if not text.strip() and not current.reverse:
                 continue
             y = row_number * cell_h
             if current.reverse:
                 parts.append(
                     f'<rect x="{start * cell_w:.2f}" y="{y:.2f}" '
-                    f'width="{max(len(text), 1) * cell_w:.2f}" height="{cell_h:.2f}" '
+                    f'width="{max(cells, 1) * cell_w:.2f}" height="{cell_h:.2f}" '
                     f'fill="{current.background}"/>'
                 )
             foreground, _fill = current.resolved()
             decoration = ' text-decoration="underline"' if current.underline else ""
-            # textLength is the cell span: a face with its own advance still lands on the grid
+            # textLength is the cell span, counted in cells: a face with its own advance still
+            # lands on the grid, and an emoji still takes the two cells it was given
             parts.append(
                 f'<text x="{start * cell_w:.2f}" y="{y + baseline:.2f}" '
-                f'textLength="{len(text) * cell_w:.2f}" lengthAdjust="spacing" '
+                f'textLength="{cells * cell_w:.2f}" lengthAdjust="spacing" '
                 f'fill="{foreground}"{decoration}>{escape(text)}</text>'
             )
 

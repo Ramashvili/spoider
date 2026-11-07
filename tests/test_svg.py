@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -161,3 +162,18 @@ def test_the_canvas_is_the_cells_times_the_faces_own_metrics(manual):
     text = svg(sheet)
     assert f'width="{sheet.width * FONT_SIZE * advance:.2f}"' in text
     assert f'height="{sheet.height * FONT_SIZE * line:.2f}"' in text
+
+
+def test_a_run_is_measured_in_cells_not_characters():
+    """An emoji is one character and two cells: counting characters came up a cell short."""
+    from spoider.model import MindMap
+    from spoider.text import cell_len
+
+    document = MindMap()
+    document.root.text = "x ⭐ y"
+    document.root.mark = "⭐"
+    text = svg(sheet_of(document))
+    runs = re.findall(r'<text x="[0-9.]+"[^>]*textLength="([0-9.]+)"[^>]*>([^<]*)</text>', text)
+    for width, run in runs:
+        assert abs(float(width) / (12.0 * 0.6) - sum(cell_len(ch) for ch in run)) < 1e-6, run
+    assert any("⭐" in run for _width, run in runs), "the star is drawn"
