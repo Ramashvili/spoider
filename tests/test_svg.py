@@ -138,3 +138,26 @@ def test_only_truetype_travels(tmp_path: Path):
         export_map(MANUAL, output=tmp_path / "x.svg", font_name=cff.label)
     assert "not a TrueType face" in str(refused.value)
     assert not (tmp_path / "x.svg").exists(), "and nothing is written"
+
+
+def test_the_picture_takes_the_faces_own_metrics():
+    """A cell is as wide as the glyphs and as tall as the lines, so nothing has to be stretched."""
+    from spoider.palettes import metrics
+
+    assert metrics(str(MANUAL)) == (0.6, 1.4), "an unreadable file falls back, it does not raise"
+    face = a_font()
+    advance, line = metrics(str(face.path))
+    assert 0.4 < advance < 1.2, (face.label, advance)
+    assert 0.9 < line < 2.2, (face.label, line)
+
+
+def test_the_canvas_is_the_cells_times_the_faces_own_metrics(manual):
+    """The one place the metrics are used: page size. If this drifts, the grid drifts."""
+    from spoider.palettes import metrics
+    from spoider.svg import FONT_SIZE
+
+    sheet = sheet_of(manual)
+    advance, line = metrics(str(sheet.font.path))
+    text = svg(sheet)
+    assert f'width="{sheet.width * FONT_SIZE * advance:.2f}"' in text
+    assert f'height="{sheet.height * FONT_SIZE * line:.2f}"' in text

@@ -162,7 +162,12 @@ no key, no drawer and no second format, because a smaller surface is easier to k
 `compose` normalises the origin, because a layout may place a left branch at negative
 coordinates and a file has no camera to follow it. Runs carry `textLength`, so a face whose
 advance is not 0.6 em still lands on the cell grid. The face is embedded, because a named one
-is a suggestion a viewer may decline. Only `glyf` faces are allowed (`is_truetype`): a CFF face delivered through `@font-face`
+is a suggestion a viewer may decline. Cell metrics come from the face: `metrics()` reads the advance from `hmtx` and the line from
+`hhea`, so the grid the boxes are built on and the glyphs inside them agree. 0.6 by 1.4 stands
+in only when the tables cannot be read. `svg` is the only place the numbers are used, which is
+why one test checks the canvas against them and nothing else needs to.
+
+Only `glyf` faces are allowed (`is_truetype`): a CFF face delivered through `@font-face`
 renders nothing at all in a browser, which was Spleen, and a bitmap face cannot be scaled. The
 check reads the font's table directory rather than searching the bytes for `CFF `, which appear
 in files that have no such table.

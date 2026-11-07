@@ -25,13 +25,13 @@ from .palettes import (
     fonts,
     ink,
     is_truetype,
+    metrics,
 )
 from .render import Grid, build_grid
 from .text import cell_len
 
-#: Cell size in multiples of the type size. Monospace advance is 0.6 in almost every face
-#: worth exporting with; the run width is forced onto it below, so a face that differs
-#: still lands on the grid.
+#: Cell size in multiples of the type size, used only when a face will not say. A face that
+#: does say gets its own advance and line height, so the boxes and the text agree.
 CELL_WIDTH = 0.6
 CELL_HEIGHT = 1.4
 
@@ -182,8 +182,11 @@ def _runs(sheet: Sheet, row_number: int) -> list[tuple[int, str, Ink]]:
 
 def svg(sheet: Sheet) -> str:
     """The sheet as an SVG document: text where the text is, rectangles under reverse video."""
-    cell_w = FONT_SIZE * CELL_WIDTH
-    cell_h = FONT_SIZE * CELL_HEIGHT
+    advance, line = (
+        metrics(str(sheet.font.path)) if sheet.font.path is not None else (CELL_WIDTH, CELL_HEIGHT)
+    )
+    cell_w = FONT_SIZE * advance
+    cell_h = FONT_SIZE * line
     width = sheet.width * cell_w
     height = sheet.height * cell_h
     baseline = cell_h * 0.78

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import shutil
+import struct
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -205,6 +206,30 @@ def tables(path: str) -> set[bytes]:
         for at in range(0, len(directory) - 3, 16)
         if directory[at : at + 4].strip()
     }
+
+
+@lru_cache(maxsize=16)
+def metrics(path: str) -> tuple[float, float]:
+    """(advance, line height) of a face, in ems, read from its own tables.
+
+    A cell is as wide as the glyphs the face draws and as tall as its lines, so the grid the
+    boxes are built on and the text inside them cannot disagree. 0.6 and 1.4 stand in only
+    when the tables cannot be read: those are the usual figures for a monospace face.
+    """
+    data = Path(path).read_bytes()
+    count = int.from_bytes(data[4:6], "big")
+    offsets: dict[bytes, int] = {}
+    for index in range(count):
+        at = 12 + index * 16
+        offsets[data[at : at + 4]] = int.from_bytes(data[at + 8 : at + 12], "big")
+    if not {b"head", b"hhea", b"hmtx"} <= offsets.keys():
+        return 0.6, 1.4
+    units = struct.unpack(">H", data[offsets[b"head"] + 18 : offsets[b"head"] + 20])[0]
+    advance = struct.unpack(">H", data[offsets[b"hmtx"] : offsets[b"hmtx"] + 2])[0]
+    ascent, descent = struct.unpack(">hh", data[offsets[b"hhea"] + 4 : offsets[b"hhea"] + 8])
+    if not units or advance <= 0:
+        return 0.6, 1.4
+    return advance / units, (ascent - descent) / units
 
 
 def is_truetype(path: str) -> bool:
