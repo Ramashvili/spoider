@@ -179,6 +179,12 @@ to inherit colours from. `--font` takes any monospace family this machine has, b
 name; without it the first one found is used. The face travels inside the file, so the picture
 looks the same on a machine that has installed nothing.
 
+The export is careful with the filesystem: it never replaces an existing file unless `--force`
+says so, it refuses to write over the map it just read, it writes atomically so an interrupted
+export leaves the old file rather than half a new one, and the folder you name has to exist.
+Only a face with TrueType outlines can be embedded, which also means a fontconfig entry
+pointing somewhere it should not cannot put that file into your picture.
+
 Only TrueType faces are allowed, and that is not a preference: a CFF face — Spleen's `.otf`
 sizes are CFF — embeds, loads, and then draws nothing at all, leaving the viewer to substitute
 a face nobody chose. A bitmap face cannot be scaled either. Both are refused by name, with the

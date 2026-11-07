@@ -1212,6 +1212,11 @@ def main(argv: list[str] | None = None) -> None:
         help="leave the cut stack out of the picture",
     )
     parser.add_argument(
+        "--force",
+        action="store_true",
+        help="write over the file at --export if it is already there",
+    )
+    parser.add_argument(
         "--install-desktop",
         action="store_true",
         help="register .spoider files with the desktop, then exit",
@@ -1238,6 +1243,7 @@ def main(argv: list[str] | None = None) -> None:
                 palette_name=args.palette,
                 font_name=args.font,
                 with_stack=not args.no_stack,
+                overwrite=args.force,
             )
         except ExportError as exc:
             print(f"spoider: {exc}", file=sys.stderr)

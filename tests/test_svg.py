@@ -177,3 +177,41 @@ def test_a_run_is_measured_in_cells_not_characters():
     for width, run in runs:
         assert abs(float(width) / (12.0 * 0.6) - sum(cell_len(ch) for ch in run)) < 1e-6, run
     assert any("⭐" in run for _width, run in runs), "the star is drawn"
+
+
+def test_an_export_never_replaces_a_file_without_being_asked(tmp_path: Path):
+    """A command that writes where it is pointed can write over a person's notes."""
+    target = tmp_path / "picture.svg"
+    target.write_text("something valuable", encoding="utf-8")
+    with pytest.raises(ExportError) as refused:
+        export_map(MANUAL, output=target)
+    assert "already exists" in str(refused.value)
+    assert target.read_text(encoding="utf-8") == "something valuable", "and it is untouched"
+
+    export_map(MANUAL, output=target, overwrite=True)
+    assert target.read_text(encoding="utf-8").startswith("<?xml")
+
+
+def test_an_export_refuses_to_write_over_the_map_itself(tmp_path: Path):
+    source = tmp_path / "notes.spoider"
+    source.write_text(MANUAL.read_text(encoding="utf-8"), encoding="utf-8")
+    with pytest.raises(ExportError) as refused:
+        export_map(source, output=source, overwrite=True)
+    assert "is the map itself" in str(refused.value)
+    assert source.read_text(encoding="utf-8").lstrip().startswith("{"), "the map survives"
+
+
+def test_the_write_is_atomic(tmp_path: Path, monkeypatch):
+    from spoider import files
+    from spoider import svg as module
+
+    called: list[Path] = []
+    real = files.write_atomic
+
+    def spy(path, text):
+        called.append(Path(path))
+        real(path, text)
+
+    monkeypatch.setattr(module, "write_atomic", spy)
+    export_map(MANUAL, output=tmp_path / "atomic.svg")
+    assert called == [tmp_path / "atomic.svg"], "written through the atomic writer"

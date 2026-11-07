@@ -8,10 +8,13 @@ that into text.
 
 from __future__ import annotations
 
+import errno
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from xml.sax.saxutils import escape, quoteattr
 
+from .files import write_atomic
 from .layout import compute, compute_stack
 from .model import MindMap
 from .palettes import (
@@ -248,16 +251,29 @@ def svg(sheet: Sheet) -> str:
     return "\n".join(parts) + "\n"
 
 
-def write_svg(sheet: Sheet, path: Path) -> Path:
-    """Write the sheet where asked. The folder has to exist: this does not build one."""
-    path.write_text(svg(sheet), encoding="utf-8")
-    return path
+def write_svg(sheet: Sheet, path: Path, *, overwrite: bool = False) -> Path:
+    """Write the sheet where asked, and never over something that is already there.
+
+    A command that writes wherever it is pointed can write over a person's notes, their keys,
+    or the map it was reading a moment ago, and the mistake is silent. The folder has to exist
+    and the file has to be new, unless `overwrite` was asked for by name; the write is atomic,
+    so an interrupted export leaves the old file rather than half of a new one.
+    """
+    if not Path(path).expanduser().parent.is_dir():
+        # the atomic writer would build the road; an export writes the file and no more
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(path))
+    if path.exists() and not overwrite:
+        raise ExportError(f"{path} already exists; ask for it to be replaced")
+    written = Path(path).expanduser()
+    write_atomic(written, svg(sheet))
+    return written
 
 
 def export_map(
     path: Path,
     *,
     output: Path | None = None,
+    overwrite: bool = False,
     palette_name: str | None = None,
     font_name: str | None = None,
     with_stack: bool = True,
@@ -298,4 +314,6 @@ def export_map(
 
     sheet = compose(document=document, palette=palette, font=font, with_stack=with_stack)
     target = output or path.with_suffix(".svg")
-    return write_svg(sheet, target), sheet
+    if target.exists() and target.resolve() == Path(path).expanduser().resolve():
+        raise ExportError(f"{target} is the map itself; choose another name")
+    return write_svg(sheet, target, overwrite=overwrite), sheet

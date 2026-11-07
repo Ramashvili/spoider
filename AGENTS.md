@@ -176,6 +176,17 @@ Still unguarded: a TrueType face with no letters (an icon font) draws nothing ei
 character check the other branch had needs `fc-query --format %{charset}` here, and it is not
 built yet.
 
+## Export safety
+
+`write_svg` refuses to replace an existing file without `overwrite`, refuses a target that is
+the map itself, refuses a folder that is not there, and goes through `files.write_atomic`.
+`write_atomic` creates parent folders, so the folder check has to happen first: an export
+writes one file and builds no road to it.
+
+Text is cleaned at ingest and escaped at write, so a map cannot inject XML. The embedded font
+is a file fontconfig named, and it must carry a `glyf` table, so a hostile fontconfig entry
+pointing at something that is not a font cannot be copied into a picture.
+
 ## Tests
 
 `uv run pytest` runs twelve at a time (pytest-xdist): one test drives one app through
