@@ -68,15 +68,43 @@ def test_the_demo_flag_has_a_short_form(monkeypatch):
     assert _run(monkeypatch, ["--demo"])["demo"] is True
 
 
-def test_the_help_lists_the_options_and_says_how_to_start(monkeypatch, capsys):
+def test_the_help_lists_the_options(monkeypatch, capsys):
+    printed = _help(monkeypatch, capsys)
+    for option in ("-d, --demo", "-p ADDRESS", "--install-desktop"):
+        assert option in printed, option
+
+
+def _help(monkeypatch, capsys) -> str:
     try:
         module.main(["--help"])
     except SystemExit:
         pass
-    printed = capsys.readouterr().out
-    for option in ("-d, --demo", "-p ADDRESS", "--install-desktop"):
-        assert option in printed, option
-    assert "tab makes a child" in printed, "and the first thing to know"
+    return capsys.readouterr().out
+
+
+def test_the_help_sorts_the_options_into_sections(monkeypatch, capsys):
+    """Three jobs, three places: start the program, open a map at a cell, export one."""
+    printed = _help(monkeypatch, capsys)
+
+    assert "opening a map at a cell:" in printed
+    assert "exporting a map:" in printed
+    assert printed.index("-d, --demo") < printed.index("opening a map at a cell:")
+    assert printed.index("opening a map at a cell:") < printed.index("exporting a map:")
+    assert printed.count("open the map with the cursor on") == 2, "both say they open a map"
+
+    exporting = printed.index("exporting a map:")
+    for option in ("--export FORMAT", "-o PATH", "--palette NAME", "--font NAME", "--no-stack", "-f, --force"):
+        # searched from the heading: the usage line at the top names them all as well
+        assert printed.index(option, exporting) > exporting, f"{option} belongs under exporting"
+
+
+def test_the_help_ends_with_an_example_of_exporting(monkeypatch, capsys):
+    printed = _help(monkeypatch, capsys)
+    last_three = [line.strip() for line in printed.rstrip().splitlines() if line.strip()][-3:]
+
+    assert last_three[0] == "EXAMPLES"
+    assert last_three[1] == "spoider notes.spoider --export svg -o notes.svg"
+    assert last_three[2].endswith('--font "JetBrainsMono Nerd Font"')
 
 
 def test_the_demo_flag_is_what_asks_for_the_demo_map(monkeypatch):

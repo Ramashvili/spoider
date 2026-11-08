@@ -1256,12 +1256,32 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self._ask_where_to_write(then_quit=True)
 
 
+class _Help(argparse.HelpFormatter):
+    """Wrap the option help as argparse does, and leave an example's line breaks alone."""
+
+    def _fill_text(self, text: str, width: int, indent: str) -> str:
+        filled: list[str] = []
+        for paragraph in text.split("\n\n"):
+            lines = paragraph.splitlines()
+            if any(line.startswith("  ") for line in lines):
+                # an indented line is a command: break it and the reader cannot copy it
+                filled.append("\n".join(indent + line for line in lines))
+            else:
+                filled.append(argparse.HelpFormatter._fill_text(self, paragraph, width, indent))
+        return "\n\n".join(filled)
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="spoider",
         description="TUI mind map editor: one map, one bar of keys, your terminal's colours.",
-        epilog="tab makes a child, return a sibling, the arrows walk the canvas, "
-        "and ? lists every key once the program is open.",
+        epilog=(
+            "EXAMPLES\n"
+            "  spoider notes.spoider --export svg -o notes.svg\n"
+            "  spoider notes.spoider --export svg -o notes.svg --palette ink "
+            '--font "JetBrainsMono Nerd Font"'
+        ),
+        formatter_class=_Help,
     )
     parser.add_argument(
         "path",
@@ -1274,58 +1294,64 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="start with the manual as a map instead of an empty buffer",
     )
-    parser.add_argument(
+
+    opening = parser.add_argument_group("opening a map at a cell")
+    opening.add_argument(
         "-p",
         "--position",
         default=None,
         metavar="ADDRESS",
-        help="cell to put the cursor on: 0 is the root, 9 the ninth child, 7.4.9 a path "
-        "down, s2 or s2.1 a cell on the cut stack; anything else starts at the root",
+        help="open the map with the cursor on this cell: 0 is the root, 9 the ninth child, "
+        "7.4.9 a path down, s2 or s2.1 a cell on the cut stack; anything else starts at the root",
     )
-    parser.add_argument(
+    opening.add_argument(
         "--id",
         dest="cell_id",
         default=None,
         metavar="ID",
-        help="cell to put the cursor on, by id; a cut's id opens the cut stack",
+        help="open the map with the cursor on the cell with this id; a cut's id opens the cut "
+        "stack",
     )
-    parser.add_argument(
+
+    exporting = parser.add_argument_group("exporting a map")
+    exporting.add_argument(
         "--export",
         default=None,
         choices=EXPORT_FORMATS,
         metavar="FORMAT",
         help="write the map in this format, then exit: svg",
     )
-    parser.add_argument(
+    exporting.add_argument(
         "-o",
         "--output",
         default=None,
         metavar="PATH",
         help="where to write it; required with --export",
     )
-    parser.add_argument(
+    exporting.add_argument(
         "--palette",
         default=None,
         metavar="NAME",
         help="paper, coloured-paper, coloured-ink or ink; paper without it",
     )
-    parser.add_argument(
+    exporting.add_argument(
         "--font",
         default=None,
         metavar="NAME",
         help="a monospace family, by slug or by name; the first one here without it",
     )
-    parser.add_argument(
+    exporting.add_argument(
         "--no-stack",
         action="store_true",
         help="leave the cut stack out of the picture",
     )
-    parser.add_argument(
+    exporting.add_argument(
         "-f",
         "--force",
         action="store_true",
         help="write over the file at -o if it is already there",
     )
+
     parser.add_argument(
         "--install-desktop",
         action="store_true",
