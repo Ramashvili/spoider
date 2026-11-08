@@ -1074,15 +1074,28 @@ async def test_a_chord_textual_owns_is_reported(tmp_path: Path):
         assert notes_list[0].severity == "error"
 
 
-async def test_our_own_chords_are_not_called_foreign(tmp_path: Path):
+async def test_a_chord_spoider_owns_is_not_called_foreign(tmp_path: Path):
+    """Only Textual's own keys are reported; `f5` is nobody's but ours."""
     config_path = tmp_path / "config.spoider"
-    # tab is a chord spoider already owns, so taking it is not called foreign
-    config_path.write_text("add_child = f5\ngo_down = tab\n")
+    config_path.write_text("mark = f5\n")
 
     app = SpoiderApp(demo=True, config_path=config_path)
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
         assert [n.message for n in app._notifications] == []
+
+
+async def test_tab_handed_to_another_action_is_reported(tmp_path: Path):
+    """`tab` reaches the map only because the insert binding is priority — the screen
+    binds it for focus, and an ordinary binding never gets a look in."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("go_down = tab\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        notes = [n.message for n in app._notifications]
+        assert any("Textual uses for focus next" in note for note in notes), notes
 
 
 async def test_a_clean_keymap_says_nothing(tmp_path: Path):

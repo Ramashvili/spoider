@@ -524,21 +524,32 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         return True
 
     @staticmethod
-    def _foreign_chords() -> dict[str, str]:
-        """Chords Textual binds for itself, and what it does with them.
+    def _plain_action(action: str) -> str:
+        """Textual's own ids read `app.focus_next`; the interesting half is the verb."""
+        return action.split(".")[-1].replace("_", " ")
 
-        A widget or the app answers these before an app binding of ours, so a config
-        line naming one is a line that will not do what it says. Anything spoider
-        already binds is excluded: `tab` and `escape` belong to the map on purpose.
+    @staticmethod
+    def _foreign_chords(chords: dict[str, list[str]]) -> dict[str, str]:
+        """Chords Textual answers before us, and what it does with them.
+
+        The binding chain runs from the focused widget up through the screen to the
+        app, so a chord the screen binds (`tab` for focus, `ctrl+c`) is taken before
+        an ordinary app binding of ours ever sees it. `Tab` works here only because
+        the cell-insert binding is `priority=True`, which outranks the screen — so a
+        chord counts as ours only while a priority binding actually holds it, and any
+        other line naming it will not do what it says.
         """
-        ours = {chord for listed in action_chords().values() for chord in listed}
+        priority = {
+            b.action for b in BINDINGS if isinstance(b, Binding) and b.priority
+        }
+        held = {chord for action in priority for chord in chords.get(action, [])}
         foreign: dict[str, str] = {}
         for table in (App, Screen):
             for binding in table.BINDINGS:
                 if not isinstance(binding, Binding):
                     continue
                 for key in str(binding.key).split(","):
-                    if key and key not in ours:
+                    if key and key not in held:
                         foreign.setdefault(key, binding.action)
         return foreign
 
@@ -552,7 +563,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         both are reported here, in red, once per reading of the file.
         """
         chords, clashes = resolve(self.config.keys)
-        said: list[str] = [f"Warning: collision in config. {clash}." for clash in clashes]
+        said: list[str] = [f"Warning: collision in config. {text}." for _chord, text in clashes]
         said += [
             f"Warning: {name} is set twice, the first line is ignored."
             for name in self.config.repeated
@@ -560,11 +571,11 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         # A chord Textual answers to itself is one spoider cannot hand to you: the
         # widget or the app takes it first. Only for chords the defaults do not use,
         # so the keys spoider already owns (tab, escape) are not called a problem.
-        foreign = self._foreign_chords()
+        foreign = self._foreign_chords(chords)
         mine = {f"{chord}" for chord in (c for listed in chords.values() for c in listed)}
         for chord in sorted(mine & foreign.keys()):
             said.append(
-                f"Warning: {chord} is one Textual uses for {foreign[chord]}, "
+                f"Warning: {chord} is one Textual uses for {self._plain_action(foreign[chord])}, "
                 "so a line binding it will not do what it says."
             )
         for message in said:

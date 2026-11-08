@@ -99,6 +99,12 @@ BINDINGS: list[BindingType] = [
 #: key "comma" in an event and reads a bare comma in a binding as the separator between
 #: two keys, so the name is what the table and the keymap must carry. This is the only
 #: place the two vocabularies meet: `PRESSED` for what arrives, `WANTED` for what is set.
+#: Given to a binding whose chords were all refused, so Textual releases the keys it
+#: was born with. An empty string will not do: Textual reads `keymap.get(id)` for
+#: truthiness and quietly leaves the binding on its default. No key event can ever be
+#: this string, so the binding exists and is unreachable, which is what unbound means.
+UNBOUND = "<unbound>"
+
 PRESSED = {"comma": ",", "full_stop": ".", "question_mark": "?", "equals_sign": "=",
            "minus": "-", "grave_accent": "`", "ctrl+slash": "ctrl+/"}
 WANTED = {value: name for name, value in PRESSED.items()}
@@ -122,7 +128,7 @@ def action_chords(overrides: dict[str, str] | None = None) -> dict[str, list[str
 
 def resolve(
     overrides: dict[str, str] | None = None,
-) -> tuple[dict[str, list[str]], list[str]]:
+) -> tuple[dict[str, list[str]], list[tuple[str, str]]]:
     """The chords each action answers to, and the ones that had to be refused.
 
     One chord belongs to one action. A file that gives `z` to both `mark` and `fold`
@@ -147,7 +153,7 @@ def resolve(
             chords[action] = listed
 
     owner: dict[str, str] = {}
-    clashes: list[str] = []
+    clashes: list[tuple[str, str]] = []
     # a line in the file is a deliberate act, so its claim comes before a default's;
     # between two lines the earlier one wins, which is what "the second line is
     # refused" means. Defaults follow in binding-table order.
@@ -168,7 +174,7 @@ def resolve(
                 owner[chord] = action
                 kept.append(chord)
             elif held != action:
-                clashes.append(f"{chord} is bound to both {held} and {action}")
+                clashes.append((chord, f"{chord} is bound to both {held} and {action}"))
         chords[action] = kept
     return chords, clashes
 def build_binding_keymap(overrides: dict[str, str] | None = None) -> dict[str, str]:
@@ -184,8 +190,14 @@ def build_binding_keymap(overrides: dict[str, str] | None = None) -> dict[str, s
     for binding in BINDINGS:
         if not isinstance(binding, Binding) or not binding.id:
             continue
-        listed = chords.get(binding.action) or [binding.key]
-        keymap[binding.id] = ",".join(WANTED.get(chord, chord) for chord in listed)
+        listed = chords.get(binding.action)
+        if listed is None:
+            listed = [binding.key]
+        # an action that lost every chord is bound to a string no key can spell, so
+        # Textual lets go of the key it was born with instead of keeping it silently
+        keymap[binding.id] = (
+            ",".join(WANTED.get(chord, chord) for chord in listed) if listed else UNBOUND
+        )
     return keymap
 def default_keymap() -> dict[str, str]:
     """id -> the first chord that action was born with; the whole of it in
