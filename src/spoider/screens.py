@@ -65,8 +65,8 @@ HELP: tuple[HelpSection, ...] = (
     (
         "Navigation",
         (
-            (("prev",), "previous sibling"),
-            (("next",), "next sibling"),
+            (("go_up",), "previous sibling"),
+            (("go_down",), "next sibling"),
             (("go_left",), "left: out to parent, or deeper on a left branch"),
             (("go_right",), "right: the mirror of the above"),
             (

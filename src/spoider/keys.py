@@ -48,8 +48,8 @@ BINDINGS: list[BindingType] = [
     # nano's cursor keys, kept spatial: ^P/^N walk the branch, ^B/^F move away
     # from the root or towards it — whichever way that happens to be drawn.
     # Arrows, and the vim letters further down, are chords of the same bindings.
-    Binding("up,ctrl+p,k", "prev", "prev", show=False, id="prev"),
-    Binding("down,ctrl+n,j", "next", "next", show=False, id="next"),
+    Binding("up,ctrl+p,k", "go_up", "prev", show=False, id="go_up"),
+    Binding("down,ctrl+n,j", "go_down", "next", show=False, id="go_down"),
     # the six keys that move by the tree rather than by the picture: they never care
     # where a cell happens to be drawn
     Binding("home", "go_home", "main cell", show=False, id="go_home"),
@@ -59,8 +59,8 @@ BINDINGS: list[BindingType] = [
     # h/j/k/l are chords here rather than bindings of their own; hidden from the bar
     # because the ctrl chords already own those labels, and nothing else on any
     # screen binds a bare h/j/k/l.
-    Binding("left,ctrl+b,h", "go_left", "left", show=False, id="left"),
-    Binding("right,l", "go_right", "right", show=False, id="right"),
+    Binding("left,ctrl+b,h", "go_left", "left", show=False, id="go_left"),
+    Binding("right,l", "go_right", "right", show=False, id="go_right"),
     # shift walks the same arrows the layout uses for siblings, so the run grows
     # in the direction the cells are drawn
     Binding("shift+up", "extend_prev", "select", show=False, id="extend_prev"),

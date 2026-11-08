@@ -171,7 +171,7 @@ the suite neither reads nor writes the real `~/.config/spoider/spoider.conf`.
 ## Chords: one line per action
 
 The rc file names an action and lists *every* chord that action answers to, space
-separated (`left = ctrl+b left h`). `action_chords` is the one table: the file is
+separated (`go_left = left ctrl+b h`). `action_chords` is the one table: the file is
 rendered from it, `_action_for` matches a pressed key against it, the bars show the
 first chord of the list, and `build_binding_keymap` joins them into the comma form
 Textual's own `App.set_keymap` expects.
@@ -182,6 +182,12 @@ own: Textual splits the list on commas itself, so `"up,ctrl+p,k"` is legal even 
 bare comma would be read as the separator. The separate ids that used to carry the
 aliases (`edit_alt`, `left_vim`, `delete_key`, …) are gone, and a config that still
 names one has that line dropped as unknown.
+
+**Every binding is named after its action.** `go_left` moves the cursor left, `go_up`
+walks to the previous sibling, `go_end` goes to the deepest cell. The two used to
+disagree (`left` was `go_left`, `prev` was `prev`), which made the file read
+`left = left` and left the reader guessing which of the two names a line takes; a test
+now asserts `binding.id == binding.action` for every binding, so they cannot drift.
 
 **The keymap is keyed by binding id**, because that is what `App.set_keymap` and
 `BindingsMap.apply_keymap` look a binding up by (`keymap.get(binding.id)`) and what the

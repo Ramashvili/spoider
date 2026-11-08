@@ -31,10 +31,10 @@ TRUE_WORDS = frozenset({"1", "true", "yes", "on"})
 #: take a hand off the home row for nothing.
 VIM_BINDS: tuple[tuple[str, str], ...] = (
     # movement: vim's letters, and the arrows and hjkl beside them
-    ("prev", "k up"),
-    ("next", "j down"),
-    ("left", "h left"),
-    ("right", "l right"),
+    ("go_up", "k up"),
+    ("go_down", "j down"),
+    ("go_left", "h left"),
+    ("go_right", "l right"),
     # cells
     ("add_child", "O tab"),
     ("add_sibling", "o enter"),

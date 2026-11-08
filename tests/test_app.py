@@ -951,17 +951,21 @@ def test_config_can_rebind_every_chord(tmp_path: Path):
     assert merged["edit"] == defaults["edit"]
 
 
-async def test_a_rebound_chord_reaches_the_keyboard_even_when_the_id_differs_from_its_action(
-    tmp_path: Path,
-):
-    """`left` is not the name of its action, and that used to be enough to lose it.
+def test_every_binding_is_named_after_its_action():
+    """The file names a binding, and the code answers to an action: one vocabulary.
 
-    The keymap handed to Textual is looked up by binding id, so an action-keyed map
-    agreed with it only where an id happened to equal its action name. `left = q`
-    changed the bar and left the keyboard alone, which is the worst of both.
+    They used to differ (`left` was `go_left`, `prev` was `prev`), and the keymap,
+    which Textual looks up by id, quietly ignored every line where they did. `go_up`
+    rather than `prev` for the same reason: the name says which way the cursor goes.
     """
+    for binding in BINDINGS:
+        assert binding.id == binding.action, (binding.id, binding.action)
+
+
+async def test_a_rebound_direction_reaches_the_keyboard(tmp_path: Path):
+    """`go_left = q` moves the cursor, and the arrow it replaced is dead."""
     config_path = tmp_path / "config.spoider"
-    config_path.write_text("left = q\n")
+    config_path.write_text("go_left = q\n")
 
     app = SpoiderApp(demo=True, config_path=config_path)
     async with app.run_test() as pilot:
@@ -1610,7 +1614,7 @@ def test_up_and_down_mean_what_is_drawn():
     assert (UP_MEANING["bush"], DOWN_MEANING["bush"]) == ("child", "parent")
     # sideways shapes keep the siblings on the up/down arrows
     for name in ("spider", "branch"):
-        assert (UP_MEANING[name], DOWN_MEANING[name]) == ("prev", "next")
+        assert (UP_MEANING[name], DOWN_MEANING[name]) == ("go_up", "go_down")
 
 
 # -- searching ------------------------------------------------------------
@@ -3702,8 +3706,8 @@ def test_the_config_carries_a_vim_block_to_uncomment(tmp_path: Path):
     # uncommenting the block is the whole switch
     switched = parse(text + "\n" + "\n".join(line[2:] for line in block))
     chords = action_chords(switched.keys)
-    assert chords["prev"] == ["k", "up"], "and the arrows stay, they are not a convention"
-    assert chords["next"] == ["j", "down"]
+    assert chords["go_up"] == ["k", "up"], "and the arrows stay, they are not a convention"
+    assert chords["go_down"] == ["j", "down"]
     assert chords["go_left"] == ["h", "left"]
     assert chords["go_right"] == ["l", "right"]
     assert chords["edit"] == ["i"]
@@ -4162,7 +4166,7 @@ async def test_a_missing_config_is_written_as_the_template(tmp_path: Path):
         await pilot.pause()
     text = config.read_text(encoding="utf-8")
     assert "editor settings" in text, "the commented template"
-    assert "# prev = " in text, "the keys are listed, commented out"
+    assert "# go_up = " in text, "the keys are listed, commented out"
     assert "autosave = " in text
 
 

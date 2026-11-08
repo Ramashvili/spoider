@@ -13,16 +13,16 @@ from .layout import MAX_SPACING, MIN_SPACING
 from .model import LAYOUTS, MindMap, Node, layout_name
 
 UP_MEANING: dict[str, str] = {
-    "spider": "prev",
-    "branch": "prev",
-    "branch-left": "prev",
+    "spider": "go_up",
+    "branch": "go_up",
+    "branch-left": "go_up",
     "pyramid": "parent",
     "bush": "child",
 }
 DOWN_MEANING: dict[str, str] = {
-    "spider": "next",
-    "branch": "next",
-    "branch-left": "next",
+    "spider": "go_down",
+    "branch": "go_down",
+    "branch-left": "go_down",
     "pyramid": "child",
     "bush": "parent",
 }
@@ -182,11 +182,11 @@ class MapActions:
         and ↑ / ↓ are left to cross a level."""
         return self.mm.layout in ("pyramid", "bush")
 
-    def action_prev(self) -> None:
+    def action_go_up(self) -> None:
         """^P / ↑ — whatever is above the selection in this shape."""
         self._go(0, -1)
 
-    def action_next(self) -> None:
+    def action_go_down(self) -> None:
         """^N / ↓ — whatever is below the selection in this shape."""
         self._go(0, +1)
 
@@ -203,8 +203,8 @@ class MapActions:
         here = self.selected
         if dy:
             kind = UP_MEANING[self.mm.layout] if dy < 0 else DOWN_MEANING[self.mm.layout]
-            if kind in ("prev", "next"):
-                return nav.to_sibling(self.mm, here, -1 if kind == "prev" else +1)
+            if kind in ("go_up", "go_down"):
+                return nav.to_sibling(self.mm, here, -1 if kind == "go_up" else +1)
             if kind == "parent":
                 return nav.to_parent(self.mm, here)
             return self._child_target(
@@ -249,19 +249,19 @@ class MapActions:
     def action_extend_next(self) -> None:
         self._extend(DOWN_MEANING[self.mm.layout])
     def action_extend_left(self) -> None:
-        self._extend("prev" if self.siblings_are_sideways else None)
+        self._extend("go_up" if self.siblings_are_sideways else None)
     def action_extend_right(self) -> None:
-        self._extend("next" if self.siblings_are_sideways else None)
+        self._extend("go_down" if self.siblings_are_sideways else None)
     def _extend(self, kind: str | None) -> None:
         """Grow or shrink the run by one sibling. Arrows that do not walk between
         siblings in this shape do nothing rather than jump somewhere else."""
-        if kind not in ("prev", "next"):
+        if kind not in ("go_up", "go_down"):
             return
         parent = self.document.parent(self.selected)
         if parent is None:
             return
         order = [child.id for child in parent.children]
-        target = order.index(self.selected) + (-1 if kind == "prev" else +1)
+        target = order.index(self.selected) + (-1 if kind == "go_up" else +1)
         if not 0 <= target < len(order):
             return
         if self.anchor is None:
