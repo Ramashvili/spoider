@@ -202,15 +202,3 @@ def help_text(app: SpoiderApp) -> Text:
             text.append(f"  {_pad(keys, 16)}")
             text.append(f"{explanation}\n")
     return text
-
-
-def _fit_tokens(tokens: tuple[str, ...], width: int) -> str:
-    """Keep whole tokens while they fit, then an ellipsis — never half an emoji."""
-    shown: list[str] = []
-    for token in tokens:
-        candidate = " ".join([*shown, token])
-        if cell_len(candidate) > width - 1:
-            break
-        shown.append(token)
-    joined = " ".join(shown)
-    return joined + ("…" if len(shown) < len(tokens) else "")

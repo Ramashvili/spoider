@@ -1077,9 +1077,9 @@ def test_an_unbound_action_keeps_its_place_in_the_bar():
     assert "z mark" in entries, "the action that won the key still has its cap"
 
 
-async def test_help_lists_the_fallback_chords_too(tmp_path: Path):
-    """A fallback is bound as surely as the rest, so the screen that lists every key
-    lists it — the bar stays quiet, because a net is not a choice."""
+async def test_help_lists_every_chord_an_action_answers_to(tmp_path: Path):
+    """The second chord is as real as the first, so the screen that answers "what can I
+    press" names both, with the one the file leads with still leading."""
     from spoider.screens import help_text
 
     app = SpoiderApp(demo=True, config_path=tmp_path / "c.conf")
@@ -1087,7 +1087,7 @@ async def test_help_lists_the_fallback_chords_too(tmp_path: Path):
         await pilot.pause()
         text = help_text(app).plain
 
-        for row, fallback in (
+        for row, second in (
             ("write straight back", "F2"),
             ("quit; asks", "F10"),
             ("undo the last edit", "F3"),
@@ -1096,7 +1096,7 @@ async def test_help_lists_the_fallback_chords_too(tmp_path: Path):
             ("write out", "F12"),
         ):
             line = next(line for line in text.splitlines() if row in line)
-            assert fallback in line, (row, fallback)
+            assert second in line, (row, second)
 
 
 def test_the_function_keys_are_ordinary_chords():
