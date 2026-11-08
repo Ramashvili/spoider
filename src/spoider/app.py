@@ -14,6 +14,7 @@ from textual import events
 from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding
 from textual.notifications import SeverityLevel
+from textual.screen import Screen
 
 from .actions_edit import EditActions
 from .actions_map import MapActions
@@ -43,7 +44,7 @@ from .keys import (
     action_chords,
     build_binding_keymap,
     build_keymap,
-    shown,
+    resolve,
 )
 from .layout import label
 from .model import MapFileError, MindMap, Node, marks_of
@@ -522,26 +523,55 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             return None
         return True
 
-    def _report_clashes(self) -> None:
-        """Say when two actions answer to one chord.
+    @staticmethod
+    def _foreign_chords() -> dict[str, str]:
+        """Chords Textual binds for itself, and what it does with them.
 
-        Textual notices a clash and hands it to `handle_bindings_clash`, whose body
-        does nothing; and the set it passes holds only the binding that was already
-        there, never the one taking the key. So the check is made here instead, where
-        both names are known, and it names both.
+        A widget or the app answers these before an app binding of ours, so a config
+        line naming one is a line that will not do what it says. Anything spoider
+        already binds is excluded: `tab` and `escape` belong to the map on purpose.
         """
-        owners: dict[str, set[str]] = {}
-        for action, chords in action_chords(self.config.keys).items():
-            for chord in chords:
-                owners.setdefault(chord, set()).add(action)
-        for chord, actions in sorted(owners.items()):
-            if len(actions) < 2:
+        ours = {chord for listed in action_chords().values() for chord in listed}
+        foreign: dict[str, str] = {}
+        for table in (App, Screen):
+            for binding in table.BINDINGS:
+                if not isinstance(binding, Binding):
+                    continue
+                for key in str(binding.key).split(","):
+                    if key and key not in ours:
+                        foreign.setdefault(key, binding.action)
+        return foreign
+
+    def _report_clashes(self) -> None:
+        """Say what the config asked for and could not have.
+
+        Two things can go wrong in the file and neither is visible in it: one chord
+        given to two actions, and one name given two lines. `resolve` refuses the
+        second claim (a key that runs one of two actions at random is worse than a key
+        that does nothing) and `parse` lets the last line stand, as any rc file does;
+        both are reported here, in red, once per reading of the file.
+        """
+        chords, clashes = resolve(self.config.keys)
+        said: list[str] = [f"Warning: collision in config. {clash}." for clash in clashes]
+        said += [
+            f"Warning: {name} is set twice, the first line is ignored."
+            for name in self.config.repeated
+        ]
+        # A chord Textual answers to itself is one spoider cannot hand to you: the
+        # widget or the app takes it first. Only for chords the defaults do not use,
+        # so the keys spoider already owns (tab, escape) are not called a problem.
+        foreign = self._foreign_chords()
+        mine = {f"{chord}" for chord in (c for listed in chords.values() for c in listed)}
+        for chord in sorted(mine & foreign.keys()):
+            said.append(
+                f"Warning: {chord} is one Textual uses for {foreign[chord]}, "
+                "so a line binding it will not do what it says."
+            )
+        for message in said:
+            if message in self._reported_clashes:
                 continue
-            said = f"{shown(chord)} is bound to both {' and '.join(sorted(actions))}"
-            if said in self._reported_clashes:
-                continue
-            self._reported_clashes.add(said)
-            self.notify(said, severity="error", timeout=8)
+            self._reported_clashes.add(message)
+            self.notify(message, severity="error", timeout=8)
 
     @property
     def mode(self) -> str:
@@ -623,6 +653,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             if not isinstance(binding, Binding) or not binding.id or binding.action in seen:
                 continue
             seen.add(binding.action)
+            if not chords[binding.action]:
+                continue  # refused by a collision, so it has no chord to offer
             entries.append(
                 (
                     binding.id,
@@ -643,12 +675,22 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self.notify(f"Could not start an editor: {exc}", severity="error", timeout=4)
             return
 
+        self._reload_config()
+        self.notify("Config reloaded", timeout=2)
+
+    def _reload_config(self) -> None:
+        """Read the file again and put it into force.
+
+        The mistakes it contains are worth saying again: a reader who has just edited
+        the file by hand is exactly the one who needs to hear that two actions share a
+        chord, so the memory of what was already reported is cleared with each read.
+        """
         self.config = load_config(self.config_path, self._binding_ids())
         set_tab_width(self.config.tab_width)  # a new tab stop redraws the map
-        self.set_keymap(build_binding_keymap(self.config.keys))  # new chords take effect straight away
+        self.set_keymap(build_binding_keymap(self.config.keys))  # new chords at once
+        self._reported_clashes.clear()
         self._report_clashes()
         self._refresh_chrome()
-        self.notify("Config reloaded", timeout=2)
 
     @property
     def marks(self) -> tuple[str, ...]:

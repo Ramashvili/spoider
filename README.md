@@ -157,6 +157,10 @@ A complete example sits in [`examples/spoider.conf`](examples/spoider.conf): it 
 text a fresh install writes, so you can see what a newer release added without touching the
 file you already have.
 
+If a line gives a key to two actions, or names the same action twice, spoider says so in red
+when it reads the file: the first claim on a key stands, the later one is refused, and a
+repeated line keeps the last value.
+
 ## Development
 
 ```bash

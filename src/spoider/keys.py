@@ -117,6 +117,21 @@ def action_chords(overrides: dict[str, str] | None = None) -> dict[str, list[str
     what "the file says what the keys are" means. Defaults come from the binding
     table, split where a single binding already carries several keys ("ctrl+p,up").
     """
+    return resolve(overrides)[0]
+
+
+def resolve(
+    overrides: dict[str, str] | None = None,
+) -> tuple[dict[str, list[str]], list[str]]:
+    """The chords each action answers to, and the ones that had to be refused.
+
+    One chord belongs to one action. A file that gives `z` to both `mark` and `fold`
+    is a mistake the format cannot express — the key would run whichever action the
+    binding table happens to reach first — so the first claim stands, the later one
+    is dropped from that action's list, and the pair is named. Refusing it is the
+    point: a key that does one of two things silently is worse than one that does
+    nothing and says so.
+    """
     chords: dict[str, list[str]] = {}
     action_of: dict[str, str] = {}
     for binding in BINDINGS:
@@ -130,7 +145,32 @@ def action_chords(overrides: dict[str, str] | None = None) -> dict[str, list[str
         listed = [part for part in (value or "").split() if part]
         if action is not None and listed:
             chords[action] = listed
-    return chords
+
+    owner: dict[str, str] = {}
+    clashes: list[str] = []
+    # a line in the file is a deliberate act, so its claim comes before a default's;
+    # between two lines the earlier one wins, which is what "the second line is
+    # refused" means. Defaults follow in binding-table order.
+    order: list[str] = []
+    for ident in overrides or {}:
+        action = action_of.get(ident)
+        if action in chords and action not in order:
+            order.append(action)  # type: ignore[arg-type]
+    for action in chords:
+        if action not in order:
+            order.append(action)
+    for action in order:
+        listed = chords[action]
+        kept: list[str] = []
+        for chord in listed:
+            held = owner.get(chord)
+            if held is None:
+                owner[chord] = action
+                kept.append(chord)
+            elif held != action:
+                clashes.append(f"{chord} is bound to both {held} and {action}")
+        chords[action] = kept
+    return chords, clashes
 def build_binding_keymap(overrides: dict[str, str] | None = None) -> dict[str, str]:
     """binding id -> "a,b", which is the shape `App.set_keymap` wants.
 
@@ -161,5 +201,8 @@ def build_keymap(overrides: dict[str, str] | None = None) -> dict[str, str]:
     for binding in BINDINGS:
         if not isinstance(binding, Binding) or not binding.id:
             continue
-        keymap.setdefault(binding.id, chords.get(binding.action, [binding.key])[0])
+        listed = chords.get(binding.action, [binding.key])
+        # a refused chord leaves its action with nothing to press: "" says unbound,
+        # where a missing id would fall back to the default and lie about it
+        keymap.setdefault(binding.id, listed[0] if listed else "")
     return keymap

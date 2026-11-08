@@ -143,9 +143,11 @@ def chord_of(binding, keymap: dict[str, str] | None = None) -> str:
     where a comma separates several keys, so that one is split — a comma key is
     written `comma` there and has no other way to be said.
     """
-    chosen = (keymap or {}).get(binding.id or "")
-    if chosen:
-        return str(chosen)
+    ident = binding.id or ""
+    if keymap is not None and ident in keymap:
+        # "" is an action whose chords were refused: it has no cap because it has no
+        # key, and the caller drops the entry rather than printing a default it lost
+        return str(keymap[ident])
     return str(binding.key).split(",")[0]
 
 
@@ -167,6 +169,8 @@ def hint_chunks(
         if not isinstance(binding, Binding) or not binding.show or binding.action in skip:
             continue
         key = chord_of(binding, keymap)
+        if not key:
+            continue  # unbound: a refused chord leaves the action with no key
         label = (rename or {}).get(binding.action, binding.description)
         shown.append((binding.id or "", entry(key, label)))
 
@@ -182,7 +186,12 @@ def hint_chunks(
 
 def pinned_chunks(keymap: dict[str, str] | None = None) -> list[Text]:
     keymap = keymap or {}
-    return [entry(keymap.get(ident, default), label) for ident, default, label in PINNED]
+    chunks: list[Text] = []
+    for ident, default, label in PINNED:
+        key = keymap.get(ident, default)
+        if key:
+            chunks.append(entry(key, label))
+    return chunks
 
 
 def pinned_bar(keymap: dict[str, str] | None = None) -> Text:

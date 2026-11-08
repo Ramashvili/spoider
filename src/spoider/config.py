@@ -102,6 +102,9 @@ class Config:
     # binding id -> chord(s). Only what was actually changed; the defaults live in
     # the app, and the file shows them commented out.
     keys: dict[str, str] = field(default_factory=dict)
+    #: Lines that said the same thing twice. The last one stands, as in any rc file,
+    #: and each of these is said out loud rather than silently swallowed.
+    repeated: tuple[str, ...] = ()
 
 
 def config_dir() -> Path:
@@ -153,6 +156,8 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
     that is neither a setting nor one of them is a leftover, not a chord, and must
     not be read back and written out again."""
     config = Config()
+    seen: set[str] = set()
+    repeated: list[str] = []
     for raw in text.splitlines():
         line = _without_comment(raw)
         if not line or "=" not in line:
@@ -161,6 +166,11 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
         name, value = name.strip(), value.strip()
         if not name:
             continue
+        if name in seen:
+            # the last line stands, as it would in a shell rc; say so, because the
+            # first line dying quietly is the kind of thing a reader never finds
+            repeated.append(name)
+        seen.add(name)
         if name == "page_lines":
             try:
                 config.page_lines = max(1, min(int(value), 200))
@@ -192,6 +202,7 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
             chords = [token for token in value.split() if is_chord(token)]
             if chords:
                 config.keys[name] = " ".join(chords)
+    config.repeated = tuple(repeated)
     return config
 
 

@@ -986,9 +986,11 @@ async def test_a_rebound_direction_reaches_the_keyboard(tmp_path: Path):
 
 
 async def test_two_actions_on_one_chord_are_named_in_red(tmp_path: Path):
-    """Textual computes the clash and throws it away, and it only ever sees one side.
+    """The second claim on a key is refused, and both actions are named.
 
-    The check is ours, so it names both actions — and says it once, not on every key.
+    A key that runs one of two actions, decided by the order of the binding table, is
+    worse than a key that runs the one the file named first — so the later line loses
+    its chord and the reader is told which two actions were fighting over it.
     """
     config_path = tmp_path / "config.spoider"
     config_path.write_text("mark = z\nfold = z\n")
@@ -997,12 +999,90 @@ async def test_two_actions_on_one_chord_are_named_in_red(tmp_path: Path):
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
         notes = list(app._notifications)
-        assert [n.message for n in notes] == ["z is bound to both fold and mark"]
+        assert [n.message for n in notes] == [
+            "Warning: collision in config. z is bound to both mark and fold."
+        ]
         assert notes[0].severity == "error"
+
+        # the first line owns the key; the second lost it and kept its own defaults
+        assert app.keymap["mark"] == "z"
+        await pilot.press("z")
+        await pilot.pause()
+        assert app.document.find(app.focus).mark is not None, "mark, the first line, ran"
 
         await pilot.press("z", "z")
         await pilot.pause()
-        assert len(list(app._notifications)) == 1, "a clash is said once, not per keypress"
+        assert len(list(app._notifications)) == 1, "said once, not on every keypress"
+
+
+async def test_a_name_given_two_lines_keeps_the_last_and_says_so(tmp_path: Path):
+    """`mark = z` then `mark = u`: the last line stands, as in any rc file, and the
+    first is reported rather than dying quietly."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("mark = z\nmark = u\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        assert [n.message for n in app._notifications] == [
+            "Warning: mark is set twice, the first line is ignored."
+        ]
+        assert app.keymap["mark"] == "u"
+
+        await pilot.press("z")
+        await pilot.pause()
+        assert app.document.find(app.focus).mark is None, "the ignored line is dead"
+
+        await pilot.press("u")
+        await pilot.pause()
+        assert app.document.find(app.focus).mark is not None, "the last line is the one"
+
+
+async def test_the_warning_comes_back_every_time_the_file_is_read(tmp_path: Path):
+    """A notice silenced after the first reading would hide a mistake the reader just
+    made with the settings screen, so the memory is cleared on every reload."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("mark = z\nfold = z\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        first = len(list(app._notifications))
+        assert first == 1
+
+        app._reload_config()
+        await pilot.pause()
+        assert len(list(app._notifications)) == 2, "the file was read again, so it is said again"
+
+
+async def test_a_chord_textual_owns_is_reported(tmp_path: Path):
+    """`ctrl+q` is Textual's own quit, so a line binding it would not do what it says.
+
+    Only for keys spoider does not already use: `tab` and `escape` belong to the map,
+    and saying so every launch would be noise.
+    """
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("mark = ctrl+q\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        notes_list = list(app._notifications)
+        notes = [n.message for n in notes_list]
+        assert len(notes) == 1, notes
+        assert "ctrl+q" in notes[0] and "Textual" in notes[0]
+        assert notes_list[0].severity == "error"
+
+
+async def test_our_own_chords_are_not_called_foreign(tmp_path: Path):
+    config_path = tmp_path / "config.spoider"
+    # tab is a chord spoider already owns, so taking it is not called foreign
+    config_path.write_text("add_child = f5\ngo_down = tab\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        assert [n.message for n in app._notifications] == []
 
 
 async def test_a_clean_keymap_says_nothing(tmp_path: Path):

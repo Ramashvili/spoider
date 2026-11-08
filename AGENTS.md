@@ -195,12 +195,22 @@ file names. An action-keyed map agrees with that only where an id happens to equ
 action name, so passing one left `left`, `right` and every alias line changing the bar
 and nothing else — the bug that made a rebind look applied and do nothing.
 
-**Two actions on one chord** is a config mistake the file cannot show. Textual computes
-it and passes the clashing binding to `App.handle_bindings_clash`, whose body does
-nothing and whose set holds only the binding already there — one side of the story. So
-`SpoiderApp._report_clashes` walks `action_chords` at load and after a reload, names
-both actions in red, once per pair. Which of the two wins otherwise is an accident of
-the binding table's order; the file's own line order does not decide it.
+**Two actions on one chord is refused, not resolved.** `keys.resolve` gives every chord
+one owner: a claim from a line in the file comes before a default (the file is the
+deliberate act), and between two lines the earlier one wins — "the second line is
+refused". The losing action keeps its other chords and loses that one, and
+`SpoiderApp._report_clashes` says which two actions were fighting, in red, on every
+reading of the file. Textual's own `handle_bindings_clash` is no use here: its body does
+nothing and its set holds only the binding that was already there, one side of the story.
+
+**A name given two lines** keeps the last, as any rc file does; `parse` records the
+name in `Config.repeated` and the same report names it, because the first line dying
+quietly is the kind of thing a reader never finds.
+
+**A chord Textual binds for itself** (`ctrl+q` for its quit, `tab` for focus) cannot be
+handed to an action of ours: the widget or the app answers first. `_foreign_chords`
+compares against Textual's own tables, minus the chords spoider already owns, and the
+report names those too — a line that will not do what it says.
 
 A search looks in both documents: `_search_order` puts the map first and then the stack, and
 walking to a hit on the stack opens the panel to show it, which is what "switch between them"
