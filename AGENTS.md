@@ -173,9 +173,28 @@ the suite neither reads nor writes the real `~/.config/spoider/spoider.conf`.
 The rc file names an action and lists *every* chord that action answers to, space
 separated (`left = ctrl+b left h`). `action_chords` is the one table: the file is
 rendered from it, `_action_for` matches a pressed key against it, the bars show the
-first chord of the list, and `build_action_keymap` joins them into the comma form
-Textual's own `App.set_keymap` expects. Aliases are extra bindings with the same
-action, so they never get a line of their own and cannot drift out of step.
+first chord of the list, and `build_binding_keymap` joins them into the comma form
+Textual's own `App.set_keymap` expects.
+
+**One binding per action, carrying every chord.** An alias is a second chord on that
+binding's key string (`Binding("e,ctrl+e", "edit", id="edit")`), never a binding of its
+own: Textual splits the list on commas itself, so `"up,ctrl+p,k"` is legal even though a
+bare comma would be read as the separator. The separate ids that used to carry the
+aliases (`edit_alt`, `left_vim`, `delete_key`, …) are gone, and a config that still
+names one has that line dropped as unknown.
+
+**The keymap is keyed by binding id**, because that is what `App.set_keymap` and
+`BindingsMap.apply_keymap` look a binding up by (`keymap.get(binding.id)`) and what the
+file names. An action-keyed map agrees with that only where an id happens to equal its
+action name, so passing one left `left`, `right` and every alias line changing the bar
+and nothing else — the bug that made a rebind look applied and do nothing.
+
+**Two actions on one chord** is a config mistake the file cannot show. Textual computes
+it and passes the clashing binding to `App.handle_bindings_clash`, whose body does
+nothing and whose set holds only the binding already there — one side of the story. So
+`SpoiderApp._report_clashes` walks `action_chords` at load and after a reload, names
+both actions in red, once per pair. Which of the two wins otherwise is an accident of
+the binding table's order; the file's own line order does not decide it.
 
 A search looks in both documents: `_search_order` puts the map first and then the stack, and
 walking to a hit on the stack opens the panel to show it, which is what "switch between them"

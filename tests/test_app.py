@@ -951,6 +951,63 @@ def test_config_can_rebind_every_chord(tmp_path: Path):
     assert merged["edit"] == defaults["edit"]
 
 
+async def test_a_rebound_chord_reaches_the_keyboard_even_when_the_id_differs_from_its_action(
+    tmp_path: Path,
+):
+    """`left` is not the name of its action, and that used to be enough to lose it.
+
+    The keymap handed to Textual is looked up by binding id, so an action-keyed map
+    agreed with it only where an id happened to equal its action name. `left = q`
+    changed the bar and left the keyboard alone, which is the worst of both.
+    """
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("left = q\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("down")  # into a branch, where "left" means the parent
+        await pilot.pause()
+        start = app.focus
+
+        await pilot.press("q")
+        await pilot.pause()
+        assert app.focus != start, "the chord the file names moves the cursor"
+
+        # the line is the truth: the chords left off it stop working
+        here = app.focus
+        await pilot.press("left")
+        await pilot.pause()
+        assert app.focus == here, "the arrow is off the line, so it is dead"
+
+
+async def test_two_actions_on_one_chord_are_named_in_red(tmp_path: Path):
+    """Textual computes the clash and throws it away, and it only ever sees one side.
+
+    The check is ours, so it names both actions — and says it once, not on every key.
+    """
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("mark = z\nfold = z\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        notes = list(app._notifications)
+        assert [n.message for n in notes] == ["z is bound to both fold and mark"]
+        assert notes[0].severity == "error"
+
+        await pilot.press("z", "z")
+        await pilot.pause()
+        assert len(list(app._notifications)) == 1, "a clash is said once, not per keypress"
+
+
+async def test_a_clean_keymap_says_nothing(tmp_path: Path):
+    app = SpoiderApp(demo=True, config_path=tmp_path / "config.spoider")
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        assert [n.message for n in app._notifications] == []
+
+
 async def test_a_rebound_chord_takes_effect(tmp_path: Path):
     config_path = tmp_path / "config.conf"
     config_path.write_text("save = ctrl+g\ndelete = ctrl+k\n")

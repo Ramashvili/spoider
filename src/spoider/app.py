@@ -41,8 +41,9 @@ from .files import SUFFIX
 from .keys import (
     BINDINGS,
     action_chords,
-    build_action_keymap,
+    build_binding_keymap,
     build_keymap,
+    shown,
 )
 from .layout import label
 from .model import MapFileError, MindMap, Node, marks_of
@@ -290,6 +291,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
                 raise UnknownCell(f"{cell_id} is not a cell in this map")
         #: The properties overlay: off by default, a debugging aid rather than furniture.
         self.show_properties = False
+        #: Clashes already reported, so a shared chord is said once and not on every key.
+        self._reported_clashes: set[str] = set()
         #: The last cell whose text or mark was changed, for the overlay to name.
         self.last_edited: str | None = None
         #: The far end of a run of selected siblings; None means one cell.
@@ -349,7 +352,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         # A config is the reader's file: written once when it is missing, then only ever
         # edited line by line. Deleting it brings the commented template back.
         self._save_config()
-        self.set_keymap(build_action_keymap(self.config.keys))
+        self.set_keymap(build_binding_keymap(self.config.keys))
+        self._report_clashes()
         if self.load_error is not None:
             # the file is not a map: there is nothing to edit, so there is no canvas,
             # no title and no cursor — one red line, and the only key leaves
@@ -518,6 +522,27 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             return None
         return True
 
+    def _report_clashes(self) -> None:
+        """Say when two actions answer to one chord.
+
+        Textual notices a clash and hands it to `handle_bindings_clash`, whose body
+        does nothing; and the set it passes holds only the binding that was already
+        there, never the one taking the key. So the check is made here instead, where
+        both names are known, and it names both.
+        """
+        owners: dict[str, set[str]] = {}
+        for action, chords in action_chords(self.config.keys).items():
+            for chord in chords:
+                owners.setdefault(chord, set()).add(action)
+        for chord, actions in sorted(owners.items()):
+            if len(actions) < 2:
+                continue
+            said = f"{shown(chord)} is bound to both {' and '.join(sorted(actions))}"
+            if said in self._reported_clashes:
+                continue
+            self._reported_clashes.add(said)
+            self.notify(said, severity="error", timeout=8)
+
     @property
     def mode(self) -> str:
         """Who has the keys: the map, a cell being typed into, or a drawer."""
@@ -620,7 +645,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
         self.config = load_config(self.config_path, self._binding_ids())
         set_tab_width(self.config.tab_width)  # a new tab stop redraws the map
-        self.set_keymap(build_action_keymap(self.config.keys))  # new chords take effect straight away
+        self.set_keymap(build_binding_keymap(self.config.keys))  # new chords take effect straight away
+        self._report_clashes()
         self._refresh_chrome()
         self.notify("Config reloaded", timeout=2)
 
