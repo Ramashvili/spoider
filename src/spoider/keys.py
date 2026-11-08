@@ -42,9 +42,10 @@ BINDINGS: list[BindingType] = [
     Binding("alt+b", "previous_match", "prev match", show=False, id="previous_match"),
     # rendered as the pinned cluster at the right edge, not among the hints
     Binding("full_stop", "settings", "config", show=False, id="settings"),
-    # `?` is what people press to ask for help; ^/ is the chord for terminals whose
-    # keyboard protocol cannot tell ? from /
-    Binding("question_mark,ctrl+slash", "help", "help", show=False, id="help"),
+    # `?` is what people press to ask for help. There was a ^/ beside it for terminals
+    # whose keyboard protocol cannot tell ? from /, but that is most of them and the
+    # chord never arrived: a key that is listed and does nothing is worse than no key.
+    Binding("question_mark", "help", "help", show=False, id="help"),
     # nano's cursor keys, kept spatial: ^P/^N walk the branch, ^B/^F move away
     # from the root or towards it — whichever way that happens to be drawn.
     # Arrows, and the vim letters further down, are chords of the same bindings.

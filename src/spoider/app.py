@@ -1155,7 +1155,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
 
     def action_help(self) -> None:
-        """? — every key and option, with a line of explanation. ^/ does it too."""
+        """? — every key and option, with a line of explanation."""
         self._mode = "help"
         self._hide_drawers(PanelBar)
         self.query_one(PanelBar).show(help_text(self), self._help_key)

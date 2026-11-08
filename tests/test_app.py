@@ -654,7 +654,7 @@ def test_help_follows_a_rebound_chord(tmp_path: Path):
 async def test_help_opens_with_ctrl_slash_and_closes(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
         assert app.mode == "help"
 
@@ -667,7 +667,7 @@ async def test_help_closes_on_any_key(tmp_path: Path):
     for key in ("x", "space", "f5", "tab"):
         app = SpoiderApp(tmp_path / "map.json", demo=False)
         async with app.run_test() as pilot:
-            await pilot.press("ctrl+slash")
+            await pilot.press("question_mark")
             await pilot.pause()
             assert app.mode == "help"
 
@@ -679,7 +679,7 @@ async def test_help_closes_on_any_key(tmp_path: Path):
 async def test_help_closes_on_ctrl_c(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
         await pilot.press("ctrl+c")
         await pilot.pause()
@@ -688,7 +688,7 @@ async def test_help_closes_on_ctrl_c(tmp_path: Path):
 
 
 async def test_a_cell_keeps_the_keys_that_open_help(tmp_path: Path):
-    """`?` and `^/` are characters and chords of the sentence, not the way out of it."""
+    """`?` and `.` are characters of the sentence, not the way out of it."""
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         await pilot.press("tab")
@@ -2034,7 +2034,7 @@ async def test_nothing_opens_over_the_map(tmp_path: Path):
     async with app.run_test() as pilot:
         for key, mode in (
             ("ctrl+o", "write"),
-            ("ctrl+slash", "help"),
+            ("question_mark", "help"),
         ):
             await pilot.press(key)
             await pilot.pause()
@@ -2059,7 +2059,7 @@ async def test_the_bar_says_what_each_drawer_accepts(tmp_path: Path):
         await pilot.press("escape")
         await pilot.pause()
 
-        await pilot.press("ctrl+slash")  # help: any key closes, nothing to say
+        await pilot.press("question_mark")  # help: any key closes, nothing to say
         await pilot.pause()
         line = bar.render().plain
         assert "move" not in line and "cancel" not in line
@@ -2419,7 +2419,7 @@ async def test_paste_keeps_the_mark_it_was_cut_with(tmp_path: Path):
 async def test_help_keeps_the_bar_and_says_how_to_leave(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
 
         assert app.mode == "help"
@@ -2609,7 +2609,7 @@ async def test_the_bar_leaves_selection_to_help(tmp_path: Path):
         assert "select" not in bar, "the shift keys are left to be discovered"
         assert "⇧" not in bar and "⌥" not in bar
 
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
         assert "select a run of siblings" in app.query_one(PanelBar).render().plain
 
@@ -2617,7 +2617,7 @@ async def test_the_bar_leaves_selection_to_help(tmp_path: Path):
 async def test_help_lists_the_selection_keys(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
 
         body = app.query_one(PanelBar).render().plain
@@ -4257,7 +4257,7 @@ async def test_an_arrow_into_the_children_picks_the_one_in_its_direction(tmp_pat
 async def test_help_scrolls_when_it_runs_past_the_screen(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "h.conf", demo=False)
     async with app.run_test(size=(100, 20)) as pilot:
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
         panel = app.query_one(PanelBar)
         assert panel.scrollable, "this size cannot show the whole page"
@@ -4285,7 +4285,7 @@ async def test_help_scrolls_when_it_runs_past_the_screen(tmp_path: Path):
 async def test_a_help_page_that_fits_names_only_close(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "h.conf", demo=False)
     async with app.run_test(size=(140, 120)) as pilot:
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
         panel = app.query_one(PanelBar)
         assert not panel.scrollable, "a tall screen shows it whole"
@@ -4316,7 +4316,7 @@ def test_the_demo_names_the_tree_keys_and_the_debug_box():
         assert word in joined, f"the demo should mention {word}"
 
 
-async def test_question_mark_opens_help_and_the_slash_still_does(tmp_path: Path):
+async def test_help_opens_on_the_question_mark_and_not_on_the_slash(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "q.conf", demo=False)
     async with app.run_test(size=(100, 40)) as pilot:
         await pilot.press("question_mark")
@@ -4327,7 +4327,7 @@ async def test_question_mark_opens_help_and_the_slash_still_does(tmp_path: Path)
 
         await pilot.press("ctrl+slash")
         await pilot.pause()
-        assert app.mode == "help", "^/ is still there for terminals that cannot send ?"
+        assert app.mode != "help", "^/ was listed but never arrived, so it is gone"
 
 
 async def test_the_help_leads_with_the_arrow_not_the_nano_chord(tmp_path: Path):
