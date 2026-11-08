@@ -2215,7 +2215,6 @@ async def test_a_drawer_keeps_the_keys_when_focus_wanders(tmp_path: Path):
         assert panel.display is True
 
 
-
 async def test_returning_to_the_terminal_lands_where_you_were(tmp_path: Path):
     """Losing the window and getting it back must leave the keys where they were.
 
@@ -4046,15 +4045,70 @@ def test_a_tool_that_fails_is_not_reported_as_having_run():
     assert _run_tool(["definitely-not-a-tool"]) is False
 
 
-def test_install_desktop_survives_a_tool_that_is_not_installed(tmp_path: Path, monkeypatch):
-    from spoider.desktop import _run_tool, install_desktop
+def test_a_tool_that_is_missing_still_writes_the_files_but_reports_failure(
+    tmp_path: Path, monkeypatch, capsys
+):
+    """The files are the type; the default is what makes a double-click work.
+
+    With no xdg-mime there is no default, so the command says so and exits 1 rather than
+    reporting a success it did not have.
+    """
+    from spoider.desktop import install_desktop
 
     monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: False)
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
 
-    assert install_desktop() == 0, "the files are still written"
+    assert install_desktop() == 1
     assert (tmp_path / "share" / "mime" / "packages" / "x-spoider.xml").exists()
-    assert _run_tool(["definitely-not-a-tool-on-this-machine"]) is False
+    assert "xdg-mime default spoider.desktop" in capsys.readouterr().out
+
+
+def test_an_unwritable_destination_is_a_sentence_not_a_traceback(
+    tmp_path: Path, monkeypatch, capsys
+):
+    from spoider.desktop import install_desktop
+
+    blocker = tmp_path / "blocker"
+    blocker.write_text("a file where a directory belongs")
+    monkeypatch.setenv("XDG_DATA_HOME", str(blocker))
+
+    assert install_desktop() == 1
+    out = capsys.readouterr().out
+    assert "cannot write to" in out and str(blocker) in out
+
+
+def test_a_relative_data_home_is_ignored(tmp_path: Path, monkeypatch):
+    """A relative XDG_DATA_HOME would scatter mime/ into the working directory."""
+    from spoider.desktop import install_desktop
+
+    monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: True)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("XDG_DATA_HOME", "relative")
+    monkeypatch.chdir(tmp_path)
+
+    assert install_desktop() == 0
+    assert (tmp_path / "home" / ".local" / "share" / "applications" / "spoider.desktop").exists()
+    assert not (tmp_path / "relative").exists(), "nothing written into the current directory"
+
+
+def test_a_template_without_an_exec_line_installs_nothing(tmp_path: Path, monkeypatch, capsys):
+    """The substitution is a literal match; a packaged entry that no longer carries the
+    line is a packaging mistake, and silently writing `Exec=spoider` would hide it."""
+    from spoider.desktop import install_desktop
+
+    package = tmp_path / "pkg"
+    data = package / "data"
+    data.mkdir(parents=True)
+    (data / "x-spoider.xml").write_text("<mime-info/>")
+    (data / "spoider.desktop").write_text("[Desktop Entry]\nName=spoider\n")
+
+    monkeypatch.setattr("spoider.desktop.resources.files", lambda name: package)
+    monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: True)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+
+    assert install_desktop() == 1
+    assert "no 'Exec=spoider ' line" in capsys.readouterr().out
+    assert not (tmp_path / "share" / "applications" / "spoider.desktop").exists()
 
 
 def test_install_desktop_does_not_open_the_editor(monkeypatch, tmp_path: Path):
@@ -4709,8 +4763,6 @@ async def test_the_error_line_is_the_last_row_of_the_screen(tmp_path: Path):
         bar = app.query_one(ErrorBar)
         assert bar.region.y == app.screen.size.height - 1, "flush with the bottom"
         assert bar.region.height == 1
-
-
 
 
 async def test_a_cell_takes_the_keys_that_open_the_drawers(tmp_path: Path, monkeypatch):

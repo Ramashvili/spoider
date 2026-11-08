@@ -3,6 +3,9 @@
 Two files copied where the system looks for them, then the tools that rebuild its caches.
 The launcher is written with the program's real path, because a desktop session does not
 always have ~/.local/bin on PATH.
+
+Every failure here is a sentence and an exit code, never a traceback: the command runs on
+a first launch, in front of someone who did not ask for a debugging session.
 """
 
 from __future__ import annotations
@@ -12,6 +15,12 @@ import shutil
 import subprocess
 from importlib import resources
 from pathlib import Path
+
+from .files import write_atomic
+
+#: The line in the packaged entry that names the command; the launcher's path is
+#: substituted into it, and a template without it is a packaging mistake worth saying.
+EXEC_MARKER = "Exec=spoider "
 
 
 def _run_tool(argv: list[str]) -> bool:
@@ -39,42 +48,76 @@ def _quoted(command: str) -> str:
     return f'"{escaped}"'
 
 
+def data_home() -> Path:
+    """Where the desktop's own files go.
+
+    `XDG_DATA_HOME` has to be absolute; a relative one would scatter `mime/` and
+    `applications/` into whatever directory spoider was started from, so it is ignored
+    — which is what the specification says to do with it.
+    """
+    given = os.environ.get("XDG_DATA_HOME")
+    if given:
+        path = Path(given).expanduser()
+        if path.is_absolute():
+            return path
+    return Path.home() / ".local" / "share"
+
+
 def install_desktop() -> int:
     """Register `.spoider` with the desktop: the MIME type, the entry, the default.
 
-    Two files copied where the system looks for them, then the tools that rebuild
-    its caches. Nothing is written anywhere the user did not ask for, and running it
-    twice is harmless.
+    Two files written where the system looks for them, then the tools that rebuild its
+    caches. Nothing is written anywhere the user did not ask for, running it twice is
+    harmless, and the return code says whether the association was actually made: 0 when
+    a `.spoider` file would now open in spoider, 1 when it would not.
     """
-    data_home = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
-    mime_dir = data_home / "mime" / "packages"
-    apps_dir = data_home / "applications"
-    mime_dir.mkdir(parents=True, exist_ok=True)
-    apps_dir.mkdir(parents=True, exist_ok=True)
+    home = data_home()
+    mime_dir = home / "mime" / "packages"
+    apps_dir = home / "applications"
 
     source = resources.files("spoider").joinpath("data")
-    (mime_dir / "x-spoider.xml").write_bytes(source.joinpath("x-spoider.xml").read_bytes())
-    entry = source.joinpath("spoider.desktop").read_text(encoding="utf-8")
-    # the launcher is told where the program is, not just its name: a desktop
-    # session does not always have ~/.local/bin on PATH
-    command = shutil.which("spoider") or "spoider"
-    (apps_dir / "spoider.desktop").write_text(
-        entry.replace("Exec=spoider ", f"Exec={_quoted(command)} "), encoding="utf-8"
-    )
+    try:
+        mime_xml = source.joinpath("x-spoider.xml").read_text(encoding="utf-8")
+        template = source.joinpath("spoider.desktop").read_text(encoding="utf-8")
+    except OSError as exc:
+        print(f"spoider: cannot read the files it ships: {exc}")
+        return 1
 
-    _run_tool(["update-mime-database", str(data_home / "mime")])
+    if EXEC_MARKER not in template:
+        print(f"spoider: the packaged entry has no {EXEC_MARKER!r} line to fill in; nothing registered.")
+        return 1
+
+    command = shutil.which("spoider")
+    if command is None:
+        # the entry is still written, but it names a command the desktop may not find
+        print("spoider: warning: spoider is not on your PATH, so the entry may not start it.")
+
+    entry = template.replace(EXEC_MARKER, f"Exec={_quoted(command or 'spoider')} ")
+
+    try:
+        write_atomic(mime_dir / "x-spoider.xml", mime_xml)
+        write_atomic(apps_dir / "spoider.desktop", entry)
+    except OSError as exc:
+        # an unwritable home, a read-only mount, a full disk: say which, and stop
+        print(f"spoider: cannot write to {home}: {exc}")
+        return 1
+
+    _run_tool(["update-mime-database", str(home / "mime")])
     _run_tool(["update-desktop-database", str(apps_dir)])
     if _run_tool(["xdg-mime", "default", "spoider.desktop", "application/x-spoider"]):
         print("Success! Mind maps with the .spoider extension now open with spoider.")
-    else:
-        print("The type is installed; set the default with xdg-mime when it is available.")
-    return 0
+        return 0
+    print(
+        "The type is installed, but xdg-mime could not make it the default. Run\n"
+        "  xdg-mime default spoider.desktop application/x-spoider\n"
+        "when it is available."
+    )
+    return 1
 
 
 def entry_path() -> Path:
     """Where the desktop entry lives when it is installed."""
-    data_home = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
-    return data_home / "applications" / "spoider.desktop"
+    return data_home() / "applications" / "spoider.desktop"
 
 
 def registered() -> bool:
