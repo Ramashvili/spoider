@@ -87,6 +87,30 @@ to help.
   `spoider.files.write_atomic`. A map that cannot be read is reported, never half
   loaded.
 - **Don't invent scope.** Build what was asked for; propose the rest and wait.
+- **Nothing is left behind.** A mechanism that is removed or renamed takes its name with
+  it in the same change: the function, its import, the test that pinned it, the sentence
+  in the docs that promised it, and the glyph table entry that only it used. This project
+  changes its mind quickly, so the debris is real — `_fit_tokens` outlived the settings
+  screen by weeks, and `FALLBACKS` outlived its own meaning by an afternoon. Sweep for
+  the identifier across `src`, `tests` and the docs before committing, and for a module
+  function run this, which finds anything referenced only where it is defined:
+
+  ```bash
+  uv run python - <<'PY'
+  import ast, pathlib, re
+  src = pathlib.Path("src/spoider")
+  texts = {p: p.read_text() for p in src.glob("*.py")}
+  every = "\n".join(texts.values()) + "\n" + "\n".join(
+      p.read_text() for p in pathlib.Path("tests").glob("*.py"))
+  for path, text in texts.items():
+      for node in ast.parse(text).body:
+          if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+              if len(re.findall(rf"\b{node.name}\b", every)) <= 1:
+                  print(f"{path.name}:{node.lineno} {node.name}")
+  PY
+  ```
+
+  Two leftovers from a batch are a smell that the batch was not finished, not bad luck.
 
 ## The map and the stack panel are one document
 
