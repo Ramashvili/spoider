@@ -41,11 +41,11 @@ BINDINGS: list[BindingType] = [
     Binding("alt+f", "next_match", "next match", show=False, id="next_match"),
     Binding("alt+b", "previous_match", "prev match", show=False, id="previous_match"),
     # rendered as the pinned cluster at the right edge, not among the hints
-    Binding("full_stop", "settings", "config", show=False, id="settings"),
+    Binding("full_stop,f9", "settings", "config", show=False, id="settings"),
     # `?` is what people press to ask for help. There was a ^/ beside it for terminals
     # whose keyboard protocol cannot tell ? from /, but that is most of them and the
     # chord never arrived: a key that is listed and does nothing is worse than no key.
-    Binding("question_mark", "help", "help", show=False, id="help"),
+    Binding("question_mark,f1", "help", "help", show=False, id="help"),
     # nano's cursor keys, kept spatial: ^P/^N walk the branch, ^B/^F move away
     # from the root or towards it — whichever way that happens to be drawn.
     # Arrows, and the vim letters further down, are chords of the same bindings.
@@ -80,10 +80,10 @@ BINDINGS: list[BindingType] = [
 
     # file first, history last: on a narrow terminal the bar clips its tail,
     # and ^X matters more than ^Z
-    Binding("ctrl+s", "save", "save", id="save"),
-    Binding("ctrl+o", "write", "write", id="write"),
-    Binding("ctrl+x", "quit", "quit", id="quit"),
-    Binding("ctrl+z", "undo", "undo", id="undo"),
+    Binding("ctrl+s,f2", "save", "save", id="save"),
+    Binding("ctrl+o,f12", "write", "write", id="write"),
+    Binding("ctrl+x,f10", "quit", "quit", id="quit"),
+    Binding("ctrl+z,f3", "undo", "undo", id="undo"),
     Binding("ctrl+y", "redo", "redo", show=False, id="redo"),
     # Last on purpose: the bar drops its tail on a narrow terminal, and a shape
     # toggle matters less than saving or quitting. Help still lists it.
@@ -100,19 +100,6 @@ BINDINGS: list[BindingType] = [
 #: key "comma" in an event and reads a bare comma in a binding as the separator between
 #: two keys, so the name is what the table and the keymap must carry. This is the only
 #: place the two vocabularies meet: `PRESSED` for what arrives, `WANTED` for what is set.
-#: Chords that stay bound whatever the file says: the actions nobody can afford to
-#: lose by accident. Rebind `save` and forget `ctrl+s`, and `f2` is still there. They
-#: are a net, not a choice, so the bar and the template do not offer them, and a line
-#: that names one of their chords simply shares it.
-FALLBACKS: dict[str, tuple[str, ...]] = {
-    "help": ("f1",),
-    "save": ("f2",),
-    "undo": ("f3",),
-    "settings": ("f9",),
-    "quit": ("f10",),
-    "write": ("f12",),
-}
-
 #: Given to a binding whose chords were all refused, so Textual releases the keys it
 #: was born with. An empty string will not do: Textual reads `keymap.get(id)` for
 #: truthiness and quietly leaves the binding on its default. No key event can ever be
@@ -211,7 +198,6 @@ def build_binding_keymap(overrides: dict[str, str] | None = None) -> dict[str, s
         listed = chords.get(binding.action)
         if listed is None:
             listed = [binding.key]
-        listed = [*listed, *(c for c in FALLBACKS.get(binding.action, ()) if c not in listed)]
         # an action that lost every chord is bound to a string no key can spell, so
         # Textual lets go of the key it was born with instead of keeping it silently
         keymap[binding.id] = (

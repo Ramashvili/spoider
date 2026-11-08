@@ -11,10 +11,9 @@ from typing import TYPE_CHECKING
 
 from rich.cells import cell_len
 from rich.text import Text
-from textual.binding import Binding
 
 from .chrome import key_cap
-from .keys import FALLBACKS
+from .keys import action_chords
 
 if TYPE_CHECKING:
     from .app import SpoiderApp
@@ -158,29 +157,21 @@ ARROW_CHARS = "←↑↓→"
 
 
 def keys_for(app: SpoiderApp, actions: tuple[str, ...]) -> str:
-    """Every chord bound to these actions, in binding order, as caps."""
+    """Every chord these actions answer to, in the order the binding lists them.
+
+    All of them, because a second chord is as real as the first: `save` reads `^S  F2`,
+    and `go_left` reads `←  ^B  h` with the arrow still leading. A binding whose chords
+    were all refused says `none` rather than showing a key it no longer has.
+    """
+    chords = action_chords(app.config.keys)
     caps: list[str] = []
     for action in actions:
-        for binding in app.BINDINGS:
-            if not isinstance(binding, Binding):
-                continue
-            if binding.action != action:
-                continue
-            chosen = app.keymap.get(binding.id or "")
-            # the keymap holds one chord per id, already in the spelling a person
-            # presses: split it and a comma key disappears. Only a binding's own
-            # key is Textual's, where a comma separates several.
-            for key in [chosen] if chosen else str(binding.key).split(","):
-                if not key:
-                    continue
-                cap = key_cap(key)
-                if cap not in caps:
-                    caps.append(cap)
-        # a fallback chord is bound as surely as the rest, so the help lists it too:
-        # the bar stays quiet because a net is not a choice, but this screen is where
-        # every key can be looked up
-        for fallback in FALLBACKS.get(action, ()):
-            cap = key_cap(fallback)
+        listed = chords.get(action) or []
+        if not listed:
+            caps.append("none")
+            continue
+        for chord in listed:
+            cap = key_cap(chord)
             if cap not in caps:
                 caps.append(cap)
     return "  ".join(_group_arrows(caps))

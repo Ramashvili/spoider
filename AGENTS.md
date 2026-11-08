@@ -215,12 +215,12 @@ acts on. Each reading of the file removes the previous ones (`_notifications`, t
 `_refresh_notifications`) and says again only what is still wrong, so a fixed mistake
 takes its toast with it and a repeated one is not stacked twice.
 
-**Six actions carry a fallback chord** (`FALLBACKS`: help F1, save F2, undo F3, settings
-F9, quit F10, write F12). They are added to the dispatch keymap only, so neither the bar
-nor the template offers them: a net is not a choice, and the point is that a line which
-rebinds `save` cannot lock the reader out of saving. `build_binding_keymap` appends them
-and `screens.keys_for` lists them in help, because help is where every key can be looked
-up; `action_chords` stays the user-facing list.
+**Six actions carry a function key as a second chord** — help F1, save F2, undo F3,
+settings F9, quit F10, write F12 — declared on the binding itself (`"ctrl+s,f2"`). They
+are ordinary chords: the template lists them, the bar shows the first only, and a line
+that names the action replaces the whole list, so `help = t` takes `F1` with it. There is
+no net that survives a rebind; the point of the function keys is only that these six are
+reachable without a chord at all.
 
 **An unbound action keeps its place in the bar**, dimmed and without a cap (`unbound()`),
 rather than vanishing: a key that was taken away is worth seeing.

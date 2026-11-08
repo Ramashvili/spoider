@@ -47,6 +47,7 @@ def test_every_shortcut_uses_a_modifier():
         "pagedown",
         "delete",
         "minus",
+        *[f"f{n}" for n in range(1, 25)],
     }
     for binding in SpoiderApp.BINDINGS:
         for key in str(binding.key).split(","):
@@ -1098,23 +1099,25 @@ async def test_help_lists_the_fallback_chords_too(tmp_path: Path):
             assert fallback in line, (row, fallback)
 
 
-def test_the_important_actions_keep_a_fallback_chord():
-    """Rebind `save` and forget the old chord: `f2` is still there.
+def test_the_function_keys_are_ordinary_chords():
+    """`F2` is a second chord of `save`, not a net: a line replaces it like the rest.
 
-    These six are the actions nobody can afford to lose to a typo in a config line, so
-    they carry a chord the file cannot take away. They stay out of the bar and the
-    template: a net is not a choice.
+    Six actions carry one — help F1, save F2, undo F3, settings F9, quit F10, write F12
+    — so they are reachable without a chord, and a rebind takes them away as it takes
+    any other chord away.
     """
-    from spoider.keys import FALLBACKS, build_binding_keymap
+    from spoider.keys import build_binding_keymap
 
-    assert set(FALLBACKS) == {"help", "save", "undo", "settings", "quit", "write"}
-    km = build_binding_keymap({"save": "ctrl+w", "quit": "ctrl+q"})
-    assert km["save"] == "ctrl+w,f2"
-    assert km["quit"] == "ctrl+q,f10"
-    assert "f2" not in build_binding_keymap({})["mark"], "only the six carry one"
+    defaults = build_binding_keymap({})
+    assert defaults["save"] == "ctrl+s,f2"
+    assert defaults["help"] == "question_mark,f1"
+    assert defaults["quit"] == "ctrl+x,f10"
+
+    chosen = build_binding_keymap({"help": "t"})
+    assert chosen["help"] == "t", "the line is the whole truth, F1 included"
 
 
-async def test_a_fallback_chord_still_works_after_a_rebind(tmp_path: Path):
+async def test_a_rebind_takes_the_function_key_with_it(tmp_path: Path):
     config_path = tmp_path / "config.spoider"
     config_path.write_text("save = ctrl+w\n")
 
@@ -1125,10 +1128,13 @@ async def test_a_fallback_chord_still_works_after_a_rebind(tmp_path: Path):
         await pilot.press("a", "enter")
         await pilot.pause()
 
-        await pilot.press("f2")  # the net, though the file never named it
+        await pilot.press("f2")  # off the line, so dead
         await pilot.pause()
-        assert path.exists(), "f2 saved, as it does for anyone"
-        assert app.dirty is False
+        assert not path.exists(), "F2 is not bound any more"
+
+        await pilot.press("ctrl+w")
+        await pilot.pause()
+        assert path.exists(), "the chord the line names does the work"
 
 
 async def test_a_name_given_two_lines_keeps_the_last_and_says_so(tmp_path: Path):
@@ -4339,7 +4345,10 @@ async def test_the_help_leads_with_the_arrow_not_the_nano_chord(tmp_path: Path):
         start = next(i for i, line in enumerate(lines) if line.strip() == "Navigation")
         moving = " ".join(lines[start : start + 6])
         assert "↑" in moving and "↓" in moving and "←" in moving and "→" in moving
-        assert "^P" not in moving and "^B" not in moving, "the nano chords are secondary"
+        # every chord is listed now, so the nano ones follow the arrow instead of
+        # being hidden — the arrow is what a hand reaches for first
+        assert moving.index("↑") < moving.index("^P"), "the arrow leads"
+        assert moving.index("←") < moving.index("^B")
 
 
 # -- --id places the cursor by identity ------------------------------------
