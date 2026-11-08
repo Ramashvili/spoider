@@ -1,6 +1,6 @@
 [project]
 name = "spoider"
-version = "0.4.7"
+version = "0.4.8"
 description = "A TUI mind map editor"
 readme = "README.md"
 license = "MIT"
