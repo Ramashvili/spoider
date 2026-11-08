@@ -15,12 +15,30 @@ from pathlib import Path
 
 
 def _run_tool(argv: list[str]) -> bool:
-    """Run a system tool that may not be installed; say whether it ran."""
+    """Run a system tool that may be missing or may fail; say whether it worked.
+
+    The exit code is the answer, not the fact that something was spawned:
+    `update-mime-database` given XML it rejects exits non-zero, and calling that a
+    success is how a desktop quietly stops knowing about .spoider.
+    """
     try:
-        subprocess.run(argv, check=False, capture_output=True)
+        done = subprocess.run(argv, check=False, capture_output=True)
     except OSError:
         return False
-    return True
+    return done.returncode == 0
+
+
+def _quoted(command: str) -> str:
+    """A path the way the desktop entry's `Exec` key wants it.
+
+    `Exec` is parsed like a shell command line, so a path containing a space becomes
+    two arguments unless it is quoted — and a launcher whose command is two arguments
+    does nothing at all when the file is double-clicked.
+    """
+    escaped = command.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
 def install_desktop() -> int:
     """Register `.spoider` with the desktop: the MIME type, the entry, the default.
 
@@ -41,7 +59,7 @@ def install_desktop() -> int:
     # session does not always have ~/.local/bin on PATH
     command = shutil.which("spoider") or "spoider"
     (apps_dir / "spoider.desktop").write_text(
-        entry.replace("Exec=spoider ", f"Exec={command} "), encoding="utf-8"
+        entry.replace("Exec=spoider ", f"Exec={_quoted(command)} "), encoding="utf-8"
     )
 
     _run_tool(["update-mime-database", str(data_home / "mime")])

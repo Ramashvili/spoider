@@ -177,6 +177,17 @@ runs the cache rebuilders and sets the default. It writes nothing unless asked, 
 resolves the launcher's `Exec=` to the real binary path because a desktop session does
 not always have `~/.local/bin` on PATH.
 
+## Types
+
+`pyright src/spoider` is clean and is part of the gate. `pyright tests` is **not**: about
+ninety errors, almost all of them the checker asking "what if it is None?" about an
+accessor a test already knows is not (`MindMap.find`, `Layout.get`, `_buffer`) or about
+`.plain` on Textual's `RichCast`. They cost nothing at runtime and the whole file set
+would have to be swept at once to clear them, so the choice is to keep the gate on
+`src/` and say so here rather than leave it looking forgotten. One thing did get fixed
+from that list: `BINDINGS` is `list[Binding]`, not Textual's union with the tuple form,
+so `binding.id` and `binding.action` are strings everywhere in our code.
+
 ## Tests
 
 `uv run pytest` runs twelve at a time (pytest-xdist): one test drives one app through

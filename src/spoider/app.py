@@ -9,10 +9,11 @@ import subprocess
 import sys
 from collections.abc import Iterable
 from pathlib import Path
+from typing import ClassVar, cast
 
 from textual import events
 from textual.app import App, ComposeResult, SuspendNotSupported
-from textual.binding import Binding
+from textual.binding import Binding, BindingType
 from textual.notifications import SeverityLevel
 from textual.screen import Screen
 
@@ -250,7 +251,10 @@ WARNING = "Warning: "
 class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     CSS = APP_CSS
     TITLE = "spoider"
-    BINDINGS = BINDINGS
+    # Textual declares its table as `list[BindingType]`, the union with the tuple form
+    # it also accepts. Ours only ever holds Binding, and the cast is the one place the
+    # two shapes have to meet.
+    BINDINGS: ClassVar[list[BindingType]] = cast("list[BindingType]", BINDINGS)
     ENABLE_COMMAND_PALETTE = False
 
     def __init__(
@@ -543,14 +547,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         other line naming it will not do what it says.
         """
         priority = {
-            b.action for b in BINDINGS if isinstance(b, Binding) and b.priority
+            b.action for b in BINDINGS if b.priority
         }
         held = {chord for action in priority for chord in chords.get(action, [])}
         foreign: dict[str, str] = {}
         for table in (App, Screen):
             for binding in table.BINDINGS:
                 if not isinstance(binding, Binding):
-                    continue
+                    continue  # Textual's own table may hold the tuple form
                 for key in str(binding.key).split(","):
                     if key and key not in held:
                         foreign.setdefault(key, binding.action)
@@ -656,7 +660,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     @staticmethod
     def _binding_ids() -> set[str]:
         """Every id the config file may name: the chords this build can bind."""
-        return {binding.id for binding in BINDINGS if isinstance(binding, Binding) and binding.id}
+        return {binding.id for binding in BINDINGS if binding.id}
 
     def _key_entries(self) -> list[tuple[str, str, str]]:
         """(id, every chord that action answers to, what it does), one line each.
@@ -670,7 +674,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         entries: list[tuple[str, str, str]] = []
         seen: set[str] = set()
         for binding in BINDINGS:
-            if not isinstance(binding, Binding) or not binding.id or binding.action in seen:
+            if not binding.id or binding.action in seen:
                 continue
             seen.add(binding.action)
             if not chords[binding.action]:

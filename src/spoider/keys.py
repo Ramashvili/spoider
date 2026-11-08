@@ -6,9 +6,9 @@ screen all read the same source.
 
 from __future__ import annotations
 
-from textual.binding import Binding, BindingType
+from textual.binding import Binding
 
-BINDINGS: list[BindingType] = [
+BINDINGS: list[Binding] = [
     # tab/enter are the primary keys here; the ctrl chords stay as aliases.
     # tab needs priority to beat Textual's focus-next binding.
     Binding("tab", "add_child", "child", priority=True, id="add_child"),
@@ -142,7 +142,7 @@ def resolve(
     chords: dict[str, list[str]] = {}
     action_of: dict[str, str] = {}
     for binding in BINDINGS:
-        if not isinstance(binding, Binding) or not binding.id:
+        if not binding.id:
             continue
         action_of[binding.id] = binding.action
         keys = [shown(part) for part in binding.key.split(",") if part]
@@ -193,7 +193,7 @@ def build_binding_keymap(overrides: dict[str, str] | None = None) -> dict[str, s
     chords = action_chords(overrides)
     keymap: dict[str, str] = {}
     for binding in BINDINGS:
-        if not isinstance(binding, Binding) or not binding.id:
+        if not binding.id:
             continue
         listed = chords.get(binding.action)
         if listed is None:
@@ -216,7 +216,7 @@ def build_keymap(overrides: dict[str, str] | None = None) -> dict[str, str]:
     chords = action_chords(overrides)
     keymap: dict[str, str] = {}
     for binding in BINDINGS:
-        if not isinstance(binding, Binding) or not binding.id:
+        if not binding.id:
             continue
         listed = chords.get(binding.action, [binding.key])
         # a refused chord leaves its action with nothing to press: "" says unbound,

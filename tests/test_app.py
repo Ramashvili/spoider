@@ -4020,6 +4020,32 @@ def test_install_desktop_writes_the_files_where_the_system_looks(tmp_path: Path,
     assert calls[-1][-2:] == ["spoider.desktop", "application/x-spoider"]
 
 
+def test_install_desktop_quotes_a_path_with_a_space(tmp_path: Path, monkeypatch):
+    """`Exec` is parsed like a command line, so an unquoted path with a space is two
+    arguments and the launcher does nothing at all."""
+    from spoider.desktop import install_desktop
+
+    monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: True)
+    monkeypatch.setattr(
+        "spoider.desktop.shutil.which", lambda name: "/home/Vili Smith/.local/bin/spoider"
+    )
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+
+    assert install_desktop() == 0
+
+    entry = (tmp_path / "share" / "applications" / "spoider.desktop").read_text()
+    assert 'Exec="/home/Vili Smith/.local/bin/spoider" %f' in entry
+
+
+def test_a_tool_that_fails_is_not_reported_as_having_run():
+    """The exit code is the answer, not the fact that a process started."""
+    from spoider.desktop import _run_tool
+
+    assert _run_tool(["true"]) is True
+    assert _run_tool(["false"]) is False, "a failing tool must not read as success"
+    assert _run_tool(["definitely-not-a-tool"]) is False
+
+
 def test_install_desktop_survives_a_tool_that_is_not_installed(tmp_path: Path, monkeypatch):
     from spoider.desktop import _run_tool, install_desktop
 

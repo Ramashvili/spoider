@@ -11,10 +11,12 @@ from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, cast
 
 from rich.text import Text
+from textual.binding import Binding
 from textual.widget import Widget
 
 if TYPE_CHECKING:
     from .app import SpoiderApp
+from .keys import BINDINGS
 
 #: nano's shorthand: ctrl is ^, meta (alt) is M-, and shift gets the S- that
 #: nano never needed, in the same shape. Letters and dashes, not glyphs nobody
@@ -157,7 +159,7 @@ def chord_of(binding, keymap: dict[str, str] | None = None) -> str:
 
 
 def hint_chunks(
-    bindings: Iterable,
+    bindings: Iterable[Binding],
     skip: frozenset[str] = frozenset(),
     keymap: dict[str, str] | None = None,
     *,
@@ -166,12 +168,11 @@ def hint_chunks(
 ) -> list[Text]:
     """`skip` drops whole actions from the bar — autosave hides ^S, for instance.
     `keymap` holds the chords in force after the config has had its say."""
-    from textual.binding import Binding
 
     keymap = keymap or {}
     shown: list[tuple[str, Text]] = []
     for binding in bindings:
-        if not isinstance(binding, Binding) or not binding.show or binding.action in skip:
+        if not binding.show or binding.action in skip:
             continue
         key = chord_of(binding, keymap)
         label = (rename or {}).get(binding.action, binding.description)
@@ -324,7 +325,7 @@ class FooterBar(Widget):
             hints = edit_chunks()
         elif self.mode == "stack":
             spoider = cast("SpoiderApp", self.app)
-            hints = stack_chunks(spoider.BINDINGS, spoider.keymap)
+            hints = stack_chunks(BINDINGS, spoider.keymap)
         elif self.mode == "search":
             hints = search_chunks()
         elif self.mode == "custom":
@@ -332,7 +333,7 @@ class FooterBar(Widget):
         else:
             # autosave makes ^S redundant, so it leaves the bar with it on
             skip = frozenset({"save"}) if getattr(self.app, "autosave", False) else frozenset()
-            hints = hint_chunks(spoider.BINDINGS, skip, spoider.keymap)
+            hints = hint_chunks(BINDINGS, skip, spoider.keymap)
         # the pinned cluster is two keys the user may have rebound: it reads the
         # same keymap the hints do, in every mode
         return compose_footer(width, hints, pinned_bar(spoider.keymap))
