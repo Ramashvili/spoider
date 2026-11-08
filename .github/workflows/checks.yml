@@ -7,11 +7,22 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # both ends of the promise: requires-python says >=3.11, so 3.11 is the oldest a person
+    # might have installed and 3.14 is what the runner offers today. They differ in ways that
+    # bite (argparse lays an invocation out differently from 3.13 on), so both are checked.
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.14"]
+    name: check (${{ matrix.python-version }})
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
       # pinned: setup-uv publishes no floating v10 tag, so both are pinned to the
       # version they were tested with and dependabot moves them
       - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv python install ${{ matrix.python-version }}
       - run: uv sync --dev
       - run: uv run ruff check src tests
       - run: uv run pyright src/spoider

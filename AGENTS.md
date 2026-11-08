@@ -6,6 +6,14 @@ time once.
 
 Python 3.11, one runtime dependency (Textual), `src/` layout, tests in `tests/`.
 
+`requires-python` says `>=3.11`, and the checks run on both ends of that: 3.11 because it is
+the oldest a person might have installed, 3.14 because it is what the runner offers today.
+There is no pin, here or in CI, so `uv run` on this machine uses the interpreter it was
+installed with, and the matrix is what keeps the two honest. The versions do differ where
+it matters: argparse lays an invocation out differently from 3.13 on, and a test that
+reads a rendering passes on one and fails on the other. Write assertions against the
+property, and run the version you are not on when the assertion touches output.
+
 ## Commands
 
 ```bash
