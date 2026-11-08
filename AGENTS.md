@@ -218,8 +218,9 @@ takes its toast with it and a repeated one is not stacked twice.
 **Six actions carry a fallback chord** (`FALLBACKS`: help F1, save F2, undo F3, settings
 F9, quit F10, write F12). They are added to the dispatch keymap only, so neither the bar
 nor the template offers them: a net is not a choice, and the point is that a line which
-rebinds `save` cannot lock the reader out of saving. `build_binding_keymap` appends them;
-`action_chords` stays the user-facing list.
+rebinds `save` cannot lock the reader out of saving. `build_binding_keymap` appends them
+and `screens.keys_for` lists them in help, because help is where every key can be looked
+up; `action_chords` stays the user-facing list.
 
 **An unbound action keeps its place in the bar**, dimmed and without a cap (`unbound()`),
 rather than vanishing: a key that was taken away is worth seeing.

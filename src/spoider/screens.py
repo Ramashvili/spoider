@@ -14,6 +14,7 @@ from rich.text import Text
 from textual.binding import Binding
 
 from .chrome import key_cap
+from .keys import FALLBACKS
 
 if TYPE_CHECKING:
     from .app import SpoiderApp
@@ -175,6 +176,13 @@ def keys_for(app: SpoiderApp, actions: tuple[str, ...]) -> str:
                 cap = key_cap(key)
                 if cap not in caps:
                     caps.append(cap)
+        # a fallback chord is bound as surely as the rest, so the help lists it too:
+        # the bar stays quiet because a net is not a choice, but this screen is where
+        # every key can be looked up
+        for fallback in FALLBACKS.get(action, ()):
+            cap = key_cap(fallback)
+            if cap not in caps:
+                caps.append(cap)
     return "  ".join(_group_arrows(caps))
 
 

@@ -1076,6 +1076,28 @@ def test_an_unbound_action_keeps_its_place_in_the_bar():
     assert "z mark" in entries, "the action that won the key still has its cap"
 
 
+async def test_help_lists_the_fallback_chords_too(tmp_path: Path):
+    """A fallback is bound as surely as the rest, so the screen that lists every key
+    lists it — the bar stays quiet, because a net is not a choice."""
+    from spoider.screens import help_text
+
+    app = SpoiderApp(demo=True, config_path=tmp_path / "c.conf")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        text = help_text(app).plain
+
+        for row, fallback in (
+            ("write straight back", "F2"),
+            ("quit; asks", "F10"),
+            ("undo the last edit", "F3"),
+            ("this help", "F1"),
+            ("the editor's settings", "F9"),
+            ("write out", "F12"),
+        ):
+            line = next(line for line in text.splitlines() if row in line)
+            assert fallback in line, (row, fallback)
+
+
 def test_the_important_actions_keep_a_fallback_chord():
     """Rebind `save` and forget the old chord: `f2` is still there.
 
