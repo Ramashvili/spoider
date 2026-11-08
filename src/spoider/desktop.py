@@ -65,7 +65,7 @@ def install_desktop() -> int:
     _run_tool(["update-mime-database", str(data_home / "mime")])
     _run_tool(["update-desktop-database", str(apps_dir)])
     if _run_tool(["xdg-mime", "default", "spoider.desktop", "application/x-spoider"]):
-        print("A .spoider map now opens with spoider.")
+        print("Success! Mind maps with the .spoider extension now open with spoider.")
     else:
         print("The type is installed; set the default with xdg-mime when it is available.")
     return 0
