@@ -72,8 +72,13 @@ to help.
   debug box in the top-left corner, drawn over cells: it is read-only and costs no
   space, where a drawer or a column would take the space it exists to describe.
 - **A notification's colour is its meaning.** Green when something worked, yellow for a
-  neutral note (a cut, a paste), red when something did not: a refusal, a paste cut short,
-  a file that would not write.
+  neutral note (a cut, a paste, an empty stack), red when something did not: a refusal, a
+  paste cut short, a file that would not write.
+- **A notification's length is one of three.** `QUICK` (2 s) acknowledges a key, `NOTE`
+  (6 s) reports what it did, `FAILURE` (10 s) is something that has to be read; the config
+  complaints have no length at all and wait for the file to be fixed. The constants live
+  in `chrome.py` and a test refuses a bare number at a call site, because a duration
+  written where it is used is a duration nobody can retune.
 - **Same words everywhere.** Bar labels come from the binding table and chords from
   the keymap, so `^K` says "cut" on the map, in the panel and in help.
 - **No compatibility shims.** Young project: no legacy key aliases, no old config

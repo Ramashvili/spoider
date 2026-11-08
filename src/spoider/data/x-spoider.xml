@@ -4,6 +4,6 @@
     <comment>spoider mind map</comment>
     <comment xml:lang="en">spoider mind map</comment>
     <glob pattern="*.spoider"/>
-    <icon name="accessories-text-editor"/>
+    <icon name="x-office-drawing"/>
   </mime-type>
 </mime-info>

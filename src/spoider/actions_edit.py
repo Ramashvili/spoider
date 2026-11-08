@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from textual import events
 
+from .chrome import FAILURE, QUICK
 from .editing import Buffer, reflow
 from .model import MAX_CELL_CHARS
 from .text import clean_text
@@ -155,7 +156,7 @@ class EditActions:
             return
         self._text_clip = node.text
         self.copy_to_clipboard(node.text)
-        self.notify("Copied the cell's text", timeout=1)
+        self.notify("Copied the cell's text", timeout=QUICK)
     def _cut_or_copy(self, *, cut: bool) -> None:
         """^K cuts the selection out of a cell, M-6 copies it.
 
@@ -238,7 +239,7 @@ class EditActions:
             self.notify(
                 f"A cell holds {MAX_CELL_CHARS} characters at most, so the end was dropped",
                 severity="error",
-                timeout=4,
+                timeout=FAILURE,
             )
 
     def finish_edit(self, *, commit: bool) -> None:

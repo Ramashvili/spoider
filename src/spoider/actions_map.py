@@ -8,7 +8,7 @@ bound directly; the bindings live in app.py.
 from __future__ import annotations
 
 from . import nav
-from .chrome import key_cap
+from .chrome import NOTE, QUICK, key_cap
 from .layout import MAX_SPACING, MIN_SPACING
 from .model import LAYOUTS, MindMap, Node, layout_name
 
@@ -72,7 +72,7 @@ class MapActions:
         """^D — delete everything selected, as one undoable step."""
         ids = self.selected_ids
         if self.mm.root.id in ids:
-            self.notify("The root node cannot be deleted", severity="error", timeout=2)
+            self.notify("The root node cannot be deleted", severity="error", timeout=NOTE)
             return
         self._push_undo()
         if len(ids) == 1:
@@ -318,14 +318,14 @@ class MapActions:
         """
         self.mm.colours = "family" if self.mm.colours == "depth" else "depth"
         self._mark_dirty()
-        self.notify(f"Colours by {self.mm.colours}", timeout=1)
+        self.notify(f"Colours by {self.mm.colours}", timeout=QUICK)
     def action_layout(self) -> None:
         """^L — cycle the shape: spider, branch right, branch left, pyramid, bush."""
         order = LAYOUTS
         self.mm.layout = order[(order.index(self.mm.layout) + 1) % len(order)]
         # like spacing, the shape is document state but not an edit worth undoing
         self._mark_dirty()
-        self.notify(f"Layout: {layout_name(self.mm.layout)}", timeout=1)
+        self.notify(f"Layout: {layout_name(self.mm.layout)}", timeout=QUICK)
     def _reorder(self, delta: int) -> None:
         """alt+↑ / alt+↓ — move the run as one block, keeping its order."""
         ids = self.selected_ids

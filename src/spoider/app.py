@@ -23,6 +23,9 @@ from .actions_stack import StackActions
 from .addressing import parse as parse_address
 from .addressing import resolve as resolve_address
 from .chrome import (
+    FAILURE,
+    NOTE,
+    QUICK,
     FooterBar,
     ask_chunks,
     error_chunks,
@@ -696,11 +699,11 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             with self.suspend():
                 edit_in_editor(self.config_path)
         except (SuspendNotSupported, OSError) as exc:
-            self.notify(f"Could not start an editor: {exc}", severity="error", timeout=4)
+            self.notify(f"Could not start an editor: {exc}", severity="error", timeout=FAILURE)
             return
 
         self._reload_config()
-        self.notify("Config reloaded", timeout=2)
+        self.notify("Config reloaded", timeout=NOTE)
 
     def _reload_config(self) -> None:
         """Read the file again and put it into force.
@@ -736,7 +739,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
                 return
             update_config(self.config_path, changes)
         except OSError as exc:
-            self.notify(f"Could not write config: {exc}", severity="error", timeout=4)
+            self.notify(f"Could not write config: {exc}", severity="error", timeout=FAILURE)
 
     #: How long the match count stays up after a search is taken, in seconds.
     MATCH_COUNT_SECONDS = 2.0
@@ -792,7 +795,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self.notify(
                 f"No match for {query!r}" if query else "Nothing to find",
                 severity="error",
-                timeout=2,
+                timeout=NOTE,
             )
             return
         self._jump_to_match(include_current=not repeat)
@@ -810,11 +813,11 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     def _walk_matches(self, direction: int) -> None:
         if not self.search_query.strip():
-            self.notify("Nothing to find: ^F searches first", timeout=2)
+            self.notify("Nothing to find: ^F searches first", timeout=NOTE)
             return
         self._refresh_matches()  # the document with the keys may have changed since
         if not self.matches:
-            self.notify(f"No match for {self.search_query!r}", severity="error", timeout=2)
+            self.notify(f"No match for {self.search_query!r}", severity="error", timeout=NOTE)
             return
         self._show_matches = True
         self._jump_to_match(direction=direction)
@@ -932,7 +935,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         try:
             self.mm.save(self.path)
         except OSError as exc:
-            self.notify(f"Could not write {self.path}: {exc}", severity="error", timeout=4)
+            self.notify(f"Could not write {self.path}: {exc}", severity="error", timeout=FAILURE)
             return False
         self.dirty = False
         self.has_file = True
@@ -959,7 +962,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
                     f"{clean(path.name)} is not a spoider map ({reason}); "
                     "write somewhere else",
                     severity="error",
-                    timeout=6,
+                    timeout=FAILURE,
                 )
                 return False
         # the file remembers where the cursor was, so opening it returns there
@@ -967,14 +970,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         try:
             self.mm.save(path)
         except OSError as exc:
-            self.notify(f"Could not write {clean(str(path))}: {exc}", severity="error", timeout=4)
+            self.notify(f"Could not write {clean(str(path))}: {exc}", severity="error", timeout=FAILURE)
             return False
         self.path = path
         self.has_file = True
         self.dirty = False
         self._set_terminal_title()
         self._refresh_chrome()
-        self.notify(f"Wrote {self.mm.count()} nodes to {clean(path.name)}", timeout=2)
+        self.notify(f"Wrote {self.mm.count()} nodes to {clean(path.name)}", timeout=NOTE)
         return True
 
     def _ask_where_to_write(self, *, then_quit: bool = False) -> None:
@@ -1007,11 +1010,11 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def _write_submitted(self, value: str) -> None:
         self._close_drawers()
         if not value.strip() or Path(value.strip()).name in ("", SUFFIX):
-            self.notify("Name the file, then the suffix follows it", timeout=3)
+            self.notify("Name the file, then the suffix follows it", timeout=NOTE)
             return
         target = Path(value).expanduser()
         if target.is_dir():
-            self.notify(f"{target} is a directory", severity="error", timeout=4)
+            self.notify(f"{target} is a directory", severity="error", timeout=FAILURE)
             return
         if self._write(target) and self._write_then_quit:
             self.exit()
@@ -1020,7 +1023,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         try:
             self.mm = MindMap.from_dict(snapshot, marks=self.mm.marks)
         except MapFileError as exc:  # only reachable if a snapshot were corrupt
-            self.notify(f"Cannot restore that state: {exc}", severity="error", timeout=4)
+            self.notify(f"Cannot restore that state: {exc}", severity="error", timeout=FAILURE)
             return
         if self.mm.find(self.selected) is None:
             self.selected = self.mm.root.id
@@ -1130,6 +1133,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         for drawer in (PromptBar, AskBar, PanelBar):
             self.query_one(drawer).close()
         self._mode = "keys"
+        # the map comes back with the keys, unless there is no map to show at all
+        self.view.display = self.load_error is None
         self._sync_footer()
         self.view.focus()
         self.view.refresh()
@@ -1162,6 +1167,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         """? — every key and option, with a line of explanation."""
         self._mode = "help"
         self._hide_drawers(PanelBar)
+        # the help is a page, not an overlay: a map half-visible behind a wall of text
+        # competes with what is being read, and nothing about it can be acted on while
+        # any key closes the page
+        self.view.display = False
         self.query_one(PanelBar).show(help_text(self), self._help_key)
         self._sync_footer()
 
@@ -1201,14 +1210,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     def action_undo(self) -> None:
         if not self._undo:
-            self.notify("Nothing to undo", severity="error", timeout=1)
+            self.notify("Nothing to undo", severity="error", timeout=QUICK)
             return
         self._redo.append(self.mm.to_dict())
         self._restore(self._undo.pop())
 
     def action_redo(self) -> None:
         if not self._redo:
-            self.notify("Nothing to redo", severity="error", timeout=1)
+            self.notify("Nothing to redo", severity="error", timeout=QUICK)
             return
         self._undo.append(self.mm.to_dict())
         self._restore(self._redo.pop())

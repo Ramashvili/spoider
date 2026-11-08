@@ -1099,6 +1099,73 @@ async def test_help_lists_every_chord_an_action_answers_to(tmp_path: Path):
             assert second in line, (row, second)
 
 
+def test_a_toast_lasts_one_of_three_lengths():
+    """2, 6 or 10 seconds, or forever for a broken config — and never a bare number.
+
+    A duration written at the call site is a duration nobody can retune: the three
+    names are the whole scale, so changing the cadence of the program is three lines.
+    """
+    import ast
+    import pathlib as pathlib_
+
+    from spoider.chrome import FAILURE, NOTE, QUICK
+
+    assert (QUICK, NOTE, FAILURE) == (2.0, 6.0, 10.0)
+
+    offenders: list[str] = []
+    for path in pathlib_.Path("src/spoider").glob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "notify"
+            ):
+                continue
+            given = {kw.arg: kw.value for kw in node.keywords}.get("timeout")
+            named = isinstance(given, ast.Name) and given.id in {
+                "QUICK",
+                "NOTE",
+                "FAILURE",
+                "timeout",  # the override passing the caller's value through
+            }
+            forever = (
+                isinstance(given, ast.Call) and getattr(given.func, "id", "") == "float"
+            )
+            if not (named or forever):
+                offenders.append(f"{path.name}:{node.lineno}")
+    assert offenders == [], offenders
+
+
+async def test_an_empty_stack_says_so_as_a_note(tmp_path: Path):
+    """`p` with nothing cut yet is a note, not a failure: same colour as "Nothing to paste"."""
+    from textual.widgets._toast import Toast
+
+    app = SpoiderApp(demo=True, config_path=tmp_path / "c.conf")
+    async with app.run_test(notifications=True) as pilot:
+        app.mm.cut_stack.clear()
+        await pilot.press("p")
+        await pilot.pause()
+        await pilot.pause()
+
+        newest = app.query(Toast).last()
+        assert "Stack empty, nothing to see" in str(newest.render())
+        assert newest.has_class("-warning"), "yellow"
+        assert app.stack_open is False, "the panel stays shut"
+
+
+def test_the_map_icon_is_a_drawing_not_a_text_note():
+    """The MIME type and the launcher name the same icon: a diagram, not a page."""
+    from importlib import resources
+
+    data = resources.files("spoider").joinpath("data")
+    xml = data.joinpath("x-spoider.xml").read_text(encoding="utf-8")
+    entry = data.joinpath("spoider.desktop").read_text(encoding="utf-8")
+
+    assert '<icon name="x-office-drawing"/>' in xml
+    assert "accessories-text-editor" not in xml
+    assert "Icon=x-office-drawing" in entry
+
+
 def test_the_function_keys_are_ordinary_chords():
     """`F2` is a second chord of `save`, not a net: a line replaces it like the rest.
 
@@ -2033,24 +2100,38 @@ async def test_the_match_count_lets_go_after_a_moment(tmp_path: Path, monkeypatc
 # -- the drawers: dialogs at the bottom, one bar --------------------------
 
 
-async def test_nothing_opens_over_the_map(tmp_path: Path):
+async def test_nothing_opens_over_the_map_as_a_screen(tmp_path: Path):
     from spoider.widgets import MindMapView
 
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        for key, mode in (
-            ("ctrl+o", "write"),
-            ("question_mark", "help"),
-        ):
-            await pilot.press(key)
-            await pilot.pause()
-            assert app.mode == mode
-            assert len(app.screen_stack) == 1, "a drawer, not a screen on top"
-            assert app.query_one(FooterBar).display is True, "one bar, still there"
-            assert app.query_one(MindMapView).size.height > 0, "the map is still on screen"
-            await pilot.press("escape")
-            await pilot.pause()
-            assert app.mode == "keys"
+        await pilot.press("ctrl+o")
+        await pilot.pause()
+        assert app.mode == "write"
+        assert len(app.screen_stack) == 1, "a drawer, not a screen on top"
+        assert app.query_one(FooterBar).display is True, "one bar, still there"
+        assert app.query_one(MindMapView).display is True, "a prompt leaves the map alone"
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.mode == "keys"
+
+
+async def test_help_hides_the_map_until_it_closes(tmp_path: Path):
+    """The help is a page, not an overlay: nothing behind it can be read or acted on."""
+    from spoider.widgets import MindMapView
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 40)) as pilot:
+        await pilot.press("question_mark")
+        await pilot.pause()
+        assert app.mode == "help"
+        assert app.query_one(MindMapView).display is False, "a blank page above the help"
+        assert app.query_one(FooterBar).display is True, "the bar still says how to leave"
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.mode == "keys"
+        assert app.query_one(MindMapView).display is True, "the map comes back with the keys"
 
 
 async def test_the_bar_says_what_each_drawer_accepts(tmp_path: Path):

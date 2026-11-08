@@ -5,5 +5,6 @@ GenericName=Mind map editor
 Comment=A mind map in the terminal
 Exec=spoider %f
 Terminal=true
+Icon=x-office-drawing
 Categories=Office;TextEditor;Utility;
 MimeType=application/x-spoider;

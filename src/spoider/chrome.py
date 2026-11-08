@@ -101,6 +101,14 @@ PINNED: tuple[tuple[str, str, str], ...] = (
     ("help", "?", "help"),
 )
 
+#: How long a toast stays, in seconds — three lengths and no more. `QUICK` is an
+#: acknowledgement of a key you just pressed, `NOTE` is the outcome of what you did,
+#: `FAILURE` is something that did not work and has to be read. Config complaints are
+#: the one thing with no lifetime: they wait until the file is fixed.
+QUICK = 2.0
+NOTE = 6.0
+FAILURE = 10.0
+
 DIVIDER = "│"
 
 

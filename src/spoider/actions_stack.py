@@ -8,6 +8,7 @@ bound directly; the bindings live in app.py.
 from __future__ import annotations
 
 from . import nav
+from .chrome import NOTE
 from .keys import (
     action_chords,
     shown,
@@ -32,7 +33,7 @@ class StackActions:
         """
         ids = self.selected_ids
         if self.mm.root.id in ids:
-            self.notify("The root node cannot be cut", severity="error", timeout=2)
+            self.notify("The root node cannot be cut", severity="error", timeout=NOTE)
             return
         parent = self.mm.parent(ids[0])
         if parent is None:
@@ -53,9 +54,9 @@ class StackActions:
         self.selected = _standing_after(parent, end)
         self._mark_dirty()
         if len(taken) == 1:
-            self.notify("Cut onto the stack", severity="warning", timeout=2)
+            self.notify("Cut onto the stack", severity="warning", timeout=NOTE)
         else:
-            self.notify(f"{len(taken)} cells cut onto the stack", severity="warning", timeout=2)
+            self.notify(f"{len(taken)} cells cut onto the stack", severity="warning", timeout=NOTE)
     def action_paste(self) -> None:
         """^U — take the most recent cut off the stack and hang it here.
 
@@ -65,7 +66,7 @@ class StackActions:
         selection stays on the target as its children arrive.
         """
         if not self.mm.cut_stack:
-            self.notify("Nothing to paste", severity="warning", timeout=2)
+            self.notify("Nothing to paste", severity="warning", timeout=NOTE)
             return
         self._push_undo()  # the snapshot holds the stack, so undo puts it back
         cell = self.mm.pop_cut()
@@ -73,7 +74,7 @@ class StackActions:
             self._undo.pop()
             return
         self._mark_dirty()
-        self.notify("Pasted from the stack", severity="warning", timeout=2)
+        self.notify("Pasted from the stack", severity="warning", timeout=NOTE)
     def action_toggle_stack(self) -> None:
         """`p` — the stack itself, as a panel of cells over the map.
 
@@ -95,7 +96,8 @@ class StackActions:
             return
         entries = self._stack_entries()
         if not entries:
-            self.notify("Nothing cut yet", severity="error", timeout=2)
+            # nothing has been cut yet: a note, like "Nothing to paste", not a failure
+            self.notify("Stack empty, nothing to see", severity="warning", timeout=NOTE)
             return
         self._map_cursor = (self.selected, self.anchor)  # where the map left off
         self._stack_open = True
@@ -271,7 +273,7 @@ class StackActions:
         was, rather than reporting a failure for a key that cannot work here.
         """
         if not self.mm.cut_stack:
-            self.notify("Nothing to paste", severity="warning", timeout=2)
+            self.notify("Nothing to paste", severity="warning", timeout=NOTE)
             return
         top = self.mm.cut_stack[-1]
         target = self.selected
