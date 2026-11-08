@@ -215,6 +215,15 @@ acts on. Each reading of the file removes the previous ones (`_notifications`, t
 `_refresh_notifications`) and says again only what is still wrong, so a fixed mistake
 takes its toast with it and a repeated one is not stacked twice.
 
+**Six actions carry a fallback chord** (`FALLBACKS`: help F1, save F2, undo F3, settings
+F9, quit F10, write F12). They are added to the dispatch keymap only, so neither the bar
+nor the template offers them: a net is not a choice, and the point is that a line which
+rebinds `save` cannot lock the reader out of saving. `build_binding_keymap` appends them;
+`action_chords` stays the user-facing list.
+
+**An unbound action keeps its place in the bar**, dimmed and without a cap (`unbound()`),
+rather than vanishing: a key that was taken away is worth seeing.
+
 **A chord Textual binds for itself** (`ctrl+q` for its quit, `tab` for focus) cannot be
 handed to an action of ours: the widget or the app answers first. `_foreign_chords`
 compares against Textual's own tables, minus the chords spoider already owns, and the

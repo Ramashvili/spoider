@@ -1057,6 +1057,58 @@ async def test_a_default_gives_way_to_a_line_without_a_word(tmp_path: Path):
         assert len(app.mm.cut_stack) == before + 1, "the comma cuts"
 
 
+def test_an_unbound_action_keeps_its_place_in_the_bar():
+    """No key, but not gone: the name stays, dimmed and capless, so the loss is visible."""
+    from spoider.chrome import hint_chunks
+    from spoider.keys import build_keymap
+
+    # the bar reads the display map, where an unbound action is "" and the dispatch map
+    # carries no key at all
+    keymap = build_keymap({"mark": "z", "fold": "z"})
+    chunks = hint_chunks(BINDINGS, frozenset(), keymap)
+    entries = {chunk.plain.strip(): chunk for chunk in chunks}
+
+    assert "fold" in entries, "still listed"
+    assert entries["fold"].plain == " fold "
+    style = str(entries["fold"].spans[0].style) if entries["fold"].spans else "dim"
+    assert "dim" in style, "greyed out"
+
+    assert "z mark" in entries, "the action that won the key still has its cap"
+
+
+def test_the_important_actions_keep_a_fallback_chord():
+    """Rebind `save` and forget the old chord: `f2` is still there.
+
+    These six are the actions nobody can afford to lose to a typo in a config line, so
+    they carry a chord the file cannot take away. They stay out of the bar and the
+    template: a net is not a choice.
+    """
+    from spoider.keys import FALLBACKS, build_binding_keymap
+
+    assert set(FALLBACKS) == {"help", "save", "undo", "settings", "quit", "write"}
+    km = build_binding_keymap({"save": "ctrl+w", "quit": "ctrl+q"})
+    assert km["save"] == "ctrl+w,f2"
+    assert km["quit"] == "ctrl+q,f10"
+    assert "f2" not in build_binding_keymap({})["mark"], "only the six carry one"
+
+
+async def test_a_fallback_chord_still_works_after_a_rebind(tmp_path: Path):
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("save = ctrl+w\n")
+
+    path = tmp_path / "map.spoider"
+    app = SpoiderApp(path, demo=False, config_path=config_path)
+    async with app.run_test() as pilot:
+        await pilot.press("tab")
+        await pilot.press("a", "enter")
+        await pilot.pause()
+
+        await pilot.press("f2")  # the net, though the file never named it
+        await pilot.pause()
+        assert path.exists(), "f2 saved, as it does for anyone"
+        assert app.dirty is False
+
+
 async def test_a_name_given_two_lines_keeps_the_last_and_says_so(tmp_path: Path):
     """`mark = z` then `mark = u`: the last line stands, as in any rc file, and the
     first is reported rather than dying quietly."""
@@ -2710,7 +2762,7 @@ async def test_saving_toasts_green_and_a_failure_toasts_red(tmp_path: Path):
         await pilot.pause()  # the toast is mounted a beat after the notification
 
         newest = app.query(Toast).last()
-        assert newest.has_class("-error"), "red"
+        assert newest.has_class("-warning"), "yellow: nothing is broken, there is just nothing there"
         assert "Nothing to paste" in str(newest.render())
 
 

@@ -126,6 +126,11 @@ def key_cap(key: str) -> str:
     return ARROWS.get(key, key.upper())
 
 
+def unbound(label: str) -> Text:
+    """A bar entry for an action with no key: its name alone, dimmed."""
+    return Text(f" {label} ", style="dim")
+
+
 def entry(key: str, label: str, *, literal: bool = False) -> Text:
     """`literal` prints the string as given — for caps like "esc/^C" that are not
     single keys and cannot be derived from a binding."""
@@ -169,9 +174,12 @@ def hint_chunks(
         if not isinstance(binding, Binding) or not binding.show or binding.action in skip:
             continue
         key = chord_of(binding, keymap)
-        if not key:
-            continue  # unbound: a refused chord leaves the action with no key
         label = (rename or {}).get(binding.action, binding.description)
+        if not key:
+            # an action whose chords were refused keeps its place, greyed and without a
+            # cap, so the reader sees what went missing instead of it vanishing
+            shown.append((binding.id or "", unbound(label)))
+            continue
         shown.append((binding.id or "", entry(key, label)))
 
     def rank(pair: tuple[str, Text]) -> int:
@@ -189,8 +197,7 @@ def pinned_chunks(keymap: dict[str, str] | None = None) -> list[Text]:
     chunks: list[Text] = []
     for ident, default, label in PINNED:
         key = keymap.get(ident, default)
-        if key:
-            chunks.append(entry(key, label))
+        chunks.append(entry(key, label) if key else unbound(label))
     return chunks
 
 

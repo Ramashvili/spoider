@@ -99,6 +99,19 @@ BINDINGS: list[BindingType] = [
 #: key "comma" in an event and reads a bare comma in a binding as the separator between
 #: two keys, so the name is what the table and the keymap must carry. This is the only
 #: place the two vocabularies meet: `PRESSED` for what arrives, `WANTED` for what is set.
+#: Chords that stay bound whatever the file says: the actions nobody can afford to
+#: lose by accident. Rebind `save` and forget `ctrl+s`, and `f2` is still there. They
+#: are a net, not a choice, so the bar and the template do not offer them, and a line
+#: that names one of their chords simply shares it.
+FALLBACKS: dict[str, tuple[str, ...]] = {
+    "help": ("f1",),
+    "save": ("f2",),
+    "undo": ("f3",),
+    "settings": ("f9",),
+    "quit": ("f10",),
+    "write": ("f12",),
+}
+
 #: Given to a binding whose chords were all refused, so Textual releases the keys it
 #: was born with. An empty string will not do: Textual reads `keymap.get(id)` for
 #: truthiness and quietly leaves the binding on its default. No key event can ever be
@@ -197,6 +210,7 @@ def build_binding_keymap(overrides: dict[str, str] | None = None) -> dict[str, s
         listed = chords.get(binding.action)
         if listed is None:
             listed = [binding.key]
+        listed = [*listed, *(c for c in FALLBACKS.get(binding.action, ()) if c not in listed)]
         # an action that lost every chord is bound to a string no key can spell, so
         # Textual lets go of the key it was born with instead of keeping it silently
         keymap[binding.id] = (

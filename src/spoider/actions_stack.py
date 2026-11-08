@@ -65,7 +65,7 @@ class StackActions:
         selection stays on the target as its children arrive.
         """
         if not self.mm.cut_stack:
-            self.notify("Nothing to paste", severity="error", timeout=2)
+            self.notify("Nothing to paste", severity="warning", timeout=2)
             return
         self._push_undo()  # the snapshot holds the stack, so undo puts it back
         cell = self.mm.pop_cut()
@@ -271,7 +271,7 @@ class StackActions:
         was, rather than reporting a failure for a key that cannot work here.
         """
         if not self.mm.cut_stack:
-            self.notify("Nothing to paste", severity="error", timeout=2)
+            self.notify("Nothing to paste", severity="warning", timeout=2)
             return
         top = self.mm.cut_stack[-1]
         target = self.selected

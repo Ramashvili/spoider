@@ -157,6 +157,11 @@ A complete example sits in [`examples/spoider.conf`](examples/spoider.conf): it 
 text a fresh install writes, so you can see what a newer release added without touching the
 file you already have.
 
+Six actions keep a chord whatever the file says — `F1` help, `F2` save, `F3` undo, `F9`
+settings, `F10` quit and `F12` write — so a rebind cannot lock you out of saving or leaving.
+An action whose chords are all taken away keeps its place in the bar, greyed and without a
+key, so you can see what went missing.
+
 If a line gives a key to two actions, or names the same action twice, spoider says so in red
 when it reads the file: the first claim on a key stands, the later one is refused, and a
 repeated line keeps the last value. The warning does not fade — it waits until the line is
