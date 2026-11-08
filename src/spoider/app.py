@@ -242,6 +242,11 @@ class UnknownCell(Exception):
     """
 
 
+#: Every config complaint starts with this, which is how the next reading finds and
+#: clears the last one.
+WARNING = "Warning: "
+
+
 class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     CSS = APP_CSS
     TITLE = "spoider"
@@ -292,8 +297,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
                 raise UnknownCell(f"{cell_id} is not a cell in this map")
         #: The properties overlay: off by default, a debugging aid rather than furniture.
         self.show_properties = False
-        #: Clashes already reported, so a shared chord is said once and not on every key.
-        self._reported_clashes: set[str] = set()
         #: The last cell whose text or mark was changed, for the overlay to name.
         self.last_edited: str | None = None
         #: The far end of a run of selected siblings; None means one cell.
@@ -563,9 +566,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         both are reported here, in red, once per reading of the file.
         """
         chords, clashes = resolve(self.config.keys)
-        said: list[str] = [f"Warning: collision in config. {text}." for _chord, text in clashes]
+        said: list[str] = [f"{WARNING}collision in config. {text}." for _chord, text in clashes]
         said += [
-            f"Warning: {name} is set twice, the first line is ignored."
+            f"{WARNING}{name} is set twice, the first line is ignored."
             for name in self.config.repeated
         ]
         # A chord Textual answers to itself is one spoider cannot hand to you: the
@@ -575,14 +578,20 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         mine = {f"{chord}" for chord in (c for listed in chords.values() for c in listed)}
         for chord in sorted(mine & foreign.keys()):
             said.append(
-                f"Warning: {chord} is one Textual uses for {self._plain_action(foreign[chord])}, "
+                f"{WARNING}{chord} is one Textual uses for {self._plain_action(foreign[chord])}, "
                 "so a line binding it will not do what it says."
             )
+        # the file has just been read, so a mistake that is no longer there must go
+        # with it: the old report is dropped and, if nothing replaced it, the rack is
+        # refreshed so the toast disappears with it
+        for note in list(self._notifications):
+            if note.message.startswith(WARNING):
+                del self._notifications[note]
         for message in said:
-            if message in self._reported_clashes:
-                continue
-            self._reported_clashes.add(message)
-            self.notify(message, severity="error", timeout=8)
+            # no timeout: a config that fights itself is the reader's to fix, and a
+            # warning that fades after eight seconds is a warning nobody acts on
+            self.notify(message, severity="error", timeout=float("inf"))
+        self._refresh_notifications()
 
     @property
     def mode(self) -> str:
@@ -699,7 +708,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.config = load_config(self.config_path, self._binding_ids())
         set_tab_width(self.config.tab_width)  # a new tab stop redraws the map
         self.set_keymap(build_binding_keymap(self.config.keys))  # new chords at once
-        self._reported_clashes.clear()
         self._report_clashes()
         self._refresh_chrome()
 

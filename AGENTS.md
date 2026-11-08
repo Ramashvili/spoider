@@ -207,6 +207,12 @@ nothing and its set holds only the binding that was already there, one side of t
 name in `Config.repeated` and the same report names it, because the first line dying
 quietly is the kind of thing a reader never finds.
 
+**The report does not fade.** Those toasts are `timeout=float("inf")`: a config that
+fights itself is the reader's to fix, and a warning that expires is a warning nobody
+acts on. Each reading of the file removes the previous ones (`_notifications`, then
+`_refresh_notifications`) and says again only what is still wrong, so a fixed mistake
+takes its toast with it and a repeated one is not stacked twice.
+
 **A chord Textual binds for itself** (`ctrl+q` for its quit, `tab` for focus) cannot be
 handed to an action of ours: the widget or the app answers first. `_foreign_chords`
 compares against Textual's own tables, minus the chords spoider already owns, and the

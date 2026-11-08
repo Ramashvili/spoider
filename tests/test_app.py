@@ -951,6 +951,21 @@ def test_config_can_rebind_every_chord(tmp_path: Path):
     assert merged["edit"] == defaults["edit"]
 
 
+def test_a_line_replaces_the_defaults_and_a_missing_line_keeps_them():
+    """The file is the truth for an action it names, and only a fallback otherwise.
+
+    `go_up = k` means `k` and nothing else: the arrows and ^P go with the line, because
+    a key you did not choose still firing is how a config stops being readable.
+    """
+    from spoider.keys import build_binding_keymap
+
+    defaults = build_binding_keymap({})
+    changed = build_binding_keymap({"go_up": "k", "help": "f1"})
+    assert changed["go_up"] == "k", "the line is the whole truth for that action"
+    assert changed["help"] == "f1"
+    assert changed["mark"] == defaults["mark"], "an action with no line keeps its default"
+
+
 def test_every_binding_is_named_after_its_action():
     """The file names a binding, and the code answers to an action: one vocabulary.
 
@@ -1038,21 +1053,31 @@ async def test_a_name_given_two_lines_keeps_the_last_and_says_so(tmp_path: Path)
         assert app.document.find(app.focus).mark is not None, "the last line is the one"
 
 
-async def test_the_warning_comes_back_every_time_the_file_is_read(tmp_path: Path):
-    """A notice silenced after the first reading would hide a mistake the reader just
-    made with the settings screen, so the memory is cleared on every reload."""
+async def test_a_warning_stays_until_the_file_is_fixed(tmp_path: Path):
+    """It does not fade, and it does not pile up.
+
+    A config that fights itself is the reader's to fix, so the complaint hangs there —
+    no timeout, no second copy — and the next reading of the file clears it and says
+    again whatever is wrong with the new one.
+    """
     config_path = tmp_path / "config.spoider"
     config_path.write_text("mark = z\nfold = z\n")
 
     app = SpoiderApp(demo=True, config_path=config_path)
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
-        first = len(list(app._notifications))
-        assert first == 1
+        notes = list(app._notifications)
+        assert len(notes) == 1
+        assert notes[0].timeout == float("inf"), "no timeout: it waits for the fix"
 
+        app._reload_config()  # same broken file
+        await pilot.pause()
+        assert len(list(app._notifications)) == 1, "said again, not added to"
+
+        config_path.write_text("mark = z\n")  # fixed
         app._reload_config()
         await pilot.pause()
-        assert len(list(app._notifications)) == 2, "the file was read again, so it is said again"
+        assert [n.message for n in app._notifications] == [], "the fix takes the warning with it"
 
 
 async def test_a_chord_textual_owns_is_reported(tmp_path: Path):

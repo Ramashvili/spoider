@@ -159,7 +159,9 @@ file you already have.
 
 If a line gives a key to two actions, or names the same action twice, spoider says so in red
 when it reads the file: the first claim on a key stands, the later one is refused, and a
-repeated line keeps the last value.
+repeated line keeps the last value. The warning does not fade — it waits until the line is
+fixed, and a key Textual answers itself (`tab`, `ctrl+q`) is named too, since a line binding
+one of those will not do what it says.
 
 ## Development
 
