@@ -174,8 +174,15 @@ def test_a_run_is_measured_in_cells_not_characters():
     document.root.mark = "⭐"
     text = svg(sheet_of(document))
     runs = re.findall(r'<text x="[0-9.]+"[^>]*textLength="([0-9.]+)"[^>]*>([^<]*)</text>', text)
-    for width, run in runs:
-        assert abs(float(width) / (12.0 * 0.6) - sum(cell_len(ch) for ch in run)) < 1e-6, run
+    # The face decides how wide a cell is: Adwaita Mono says 0.6 em, DejaVu Sans Mono 0.60205.
+    # So the runs are measured against each other, not against a number: a face is free to
+    # advance as it likes, and only counting characters would make the runs disagree.
+    per_cell = {
+        round(float(width) / sum(cell_len(ch) for ch in run), 6)
+        for width, run in runs
+        if sum(cell_len(ch) for ch in run)
+    }
+    assert len(per_cell) == 1, f"the runs disagree about the width of a cell: {sorted(per_cell)}"
     assert any("⭐" in run for _width, run in runs), "the star is drawn"
 
 
