@@ -93,7 +93,10 @@ def test_the_help_sorts_the_options_into_sections(monkeypatch, capsys):
     assert printed.count("open the map with the cursor on") == 2, "both say they open a map"
 
     exporting = printed.index("exporting a map:")
-    for option in ("--export FORMAT", "-o PATH", "--palette NAME", "--font NAME", "--no-stack", "-f, --force"):
+    # the long name, because the short one is written differently by 3.11 ("-o PATH, --output
+    # PATH") and by 3.14 ("-o, --output PATH"), and both are the same flag
+    for option in ("--export FORMAT", "--output PATH", "--palette NAME", "--font NAME",
+                   "--no-stack", "--force"):
         # searched from the heading: the usage line at the top names them all as well
         assert printed.index(option, exporting) > exporting, f"{option} belongs under exporting"
 

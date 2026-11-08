@@ -177,12 +177,16 @@ def test_a_run_is_measured_in_cells_not_characters():
     # The face decides how wide a cell is: Adwaita Mono says 0.6 em, DejaVu Sans Mono 0.60205.
     # So the runs are measured against each other, not against a number: a face is free to
     # advance as it likes, and only counting characters would make the runs disagree.
-    per_cell = {
-        round(float(width) / sum(cell_len(ch) for ch in run), 6)
+    per_cell = [
+        float(width) / sum(cell_len(ch) for ch in run)
         for width, run in runs
         if sum(cell_len(ch) for ch in run)
-    }
-    assert len(per_cell) == 1, f"the runs disagree about the width of a cell: {sorted(per_cell)}"
+    ]
+    # a textLength carries two decimals, so a six-cell run rounds harder than a thirteen-cell
+    # one: 43.35 / 6 is 7.2250 where 93.92 / 13 is 7.2246, both from the same 7.2246. A
+    # thousandth apart is the arithmetic; counting characters would be a fifth apart.
+    spread = (max(per_cell) - min(per_cell)) / max(per_cell)
+    assert spread < 1e-3, f"the runs disagree about the width of a cell: {sorted(per_cell)}"
     assert any("⭐" in run for _width, run in runs), "the star is drawn"
 
 
