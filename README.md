@@ -172,12 +172,13 @@ one of those will not do what it says.
 ### Exporting a map
 
 A map is a terminal picture, and a terminal is not always the thing you want to send someone.
-`--export` writes it as an SVG, from a script or from the command line, and exits:
+`--export` names the format to write, `-o` names the file, and spoider exits without opening a
+screen. SVG is the format there is:
 
 ```bash
-spoider notes.spoider --export notes.svg
-spoider notes.spoider --export notes.svg --palette coloured-paper --font "JetBrainsMono Nerd Font"
-spoider notes.spoider --export notes.svg --no-stack
+spoider notes.spoider --export svg -o notes.svg
+spoider notes.spoider --export svg -o notes.svg --palette coloured-paper --font "JetBrainsMono Nerd Font"
+spoider notes.spoider --export svg -o notes.svg --no-stack
 ```
 
 The picture holds the whole map, from its first cell to its last, never the part of it that
@@ -191,8 +192,8 @@ to inherit colours from. `--font` takes any monospace family this machine has, b
 name; without it the first one found is used. The face travels inside the file, so the picture
 looks the same on a machine that has installed nothing.
 
-The export is careful with the filesystem: it never replaces an existing file unless `--force`
-says so, it refuses to write over the map it just read, it writes atomically so an interrupted
+The export is careful with the filesystem: it never replaces an existing file unless `-f` says
+so, it refuses to write over the map it just read, it writes atomically so an interrupted
 export leaves the old file rather than half a new one, and the folder you name has to exist.
 Only a face with TrueType outlines can be embedded, which also means a fontconfig entry
 pointing somewhere it should not cannot put that file into your picture.

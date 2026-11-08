@@ -54,6 +54,7 @@ from .layout import label
 from .model import MapFileError, MindMap, Node, marks_of
 from .nav import to_end, to_extreme_sibling, to_home
 from .screens import help_text
+from .svg import EXPORT_FORMATS
 from .text import clean, find_all, one_line, set_tab_width
 from .widgets import MindMapView, TopBar
 
@@ -1291,8 +1292,16 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--export",
         default=None,
-        metavar="SVG",
-        help="write the map as an SVG at this path, then exit",
+        choices=EXPORT_FORMATS,
+        metavar="FORMAT",
+        help="write the map in this format, then exit: svg",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        default=None,
+        metavar="PATH",
+        help="where to write it; required with --export",
     )
     parser.add_argument(
         "--palette",
@@ -1312,9 +1321,10 @@ def main(argv: list[str] | None = None) -> None:
         help="leave the cut stack out of the picture",
     )
     parser.add_argument(
+        "-f",
         "--force",
         action="store_true",
-        help="write over the file at --export if it is already there",
+        help="write over the file at -o if it is already there",
     )
     parser.add_argument(
         "--install-desktop",
@@ -1328,6 +1338,10 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("--id needs a cell id")
     if args.position is not None and args.cell_id is not None:
         parser.error("choose --position or --id, not both")
+    if args.output is not None and not args.export:
+        parser.error("-o names where a map is written; use it with --export svg")
+    if args.export and args.output is None:
+        parser.error("--export needs -o/--output to name the file")
     if args.install_desktop:
         raise SystemExit(install_desktop())
     path = Path(args.path).expanduser() if args.path else None
@@ -1336,10 +1350,11 @@ def main(argv: list[str] | None = None) -> None:
 
         if path is None:
             parser.error("--export needs a map to read")
+        assert args.output is not None, "--export is refused without -o above"
         try:
             written, sheet = export_map(
                 path,
-                output=Path(args.export).expanduser(),
+                output=Path(args.output).expanduser(),
                 palette_name=args.palette,
                 font_name=args.font,
                 with_stack=not args.no_stack,
@@ -1349,7 +1364,7 @@ def main(argv: list[str] | None = None) -> None:
             print(f"spoider: {exc}", file=sys.stderr)
             raise SystemExit(2) from None
         except OSError as exc:
-            where = exc.filename or args.export
+            where = exc.filename or args.output
             print(f"spoider: cannot write {where}: {exc.strerror or exc}", file=sys.stderr)
             raise SystemExit(2) from None
         print(f"wrote {written} ({sheet.caption})")

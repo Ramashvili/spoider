@@ -187,6 +187,9 @@ not always have `~/.local/bin` on PATH.
 `svg.py` writes the picture the renderer already drew; `palettes.py` owns the four palettes and
 discovered the typefaces. Both are only reachable from `--export` on the command line: there is
 no key, no drawer and no second format, because a smaller surface is easier to keep honest.
+`--export` names the format and `-o` the file. The formats are `svg.EXPORT_FORMATS`, which the
+parser reads for its choices, so a writer and the flag that reaches it cannot drift apart; a
+second format is one name in that tuple and one branch in `main`.
 
 `compose` normalises the origin, because a layout may place a left branch at negative
 coordinates and a file has no camera to follow it. Runs carry `textLength`, so a face whose

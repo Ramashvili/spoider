@@ -252,7 +252,7 @@ def test_export_writes_an_svg_and_says_what_it_holds(tmp_path: Path, capsys):
     source = Path(__file__).parent.parent / "src/spoider/data/manual.spoider"
     target = tmp_path / "picture.svg"
     with pytest.raises(SystemExit) as done:
-        main([str(source), "--export", str(target), "--palette", "ink"])
+        main([str(source), "--export", "svg", "-o", str(target), "--palette", "ink"])
     assert done.value.code == 0
     assert target.read_text(encoding="utf-8").startswith("<?xml")
     assert str(target) in capsys.readouterr().out
@@ -263,14 +263,59 @@ def test_export_refuses_names_it_does_not_have(tmp_path: Path, capsys):
 
     source = Path(__file__).parent.parent / "src/spoider/data/manual.spoider"
     with pytest.raises(SystemExit) as done:
-        main([str(source), "--export", str(tmp_path / "x.svg"), "--palette", "purple"])
+        main([str(source), "--export", "svg", "-o", str(tmp_path / "x.svg"), "--palette", "purple"])
     assert done.value.code == 2
     assert "no palette called purple" in capsys.readouterr().err
 
 
-def test_export_needs_a_map():
+def test_export_needs_a_map(tmp_path: Path):
     from spoider.app import main
 
     with pytest.raises(SystemExit) as done:
-        main(["--export", "/tmp/x.svg"])
+        main(["--export", "svg", "-o", str(tmp_path / "x.svg")])
     assert done.value.code == 2
+
+
+def test_the_format_and_the_file_are_two_flags(tmp_path: Path, capsys):
+    """`--export` chooses what to write and `-o` where: a second format is a name, not a parser."""
+    from spoider.app import main
+
+    source = Path(__file__).parent.parent / "src/spoider/data/manual.spoider"
+
+    with pytest.raises(SystemExit) as without_file:
+        main([str(source), "--export", "svg"])
+    assert without_file.value.code == 2
+    assert "--export needs -o/--output to name the file" in capsys.readouterr().err
+
+    with pytest.raises(SystemExit) as without_format:
+        main([str(source), "-o", str(tmp_path / "x.svg")])
+    assert without_format.value.code == 2
+    assert "-o names where a map is written" in capsys.readouterr().err
+
+    with pytest.raises(SystemExit) as unknown:
+        main([str(source), "--export", "pdf", "-o", str(tmp_path / "x.svg")])
+    assert unknown.value.code == 2
+    assert "invalid choice: 'pdf'" in capsys.readouterr().err, "and it says what it takes"
+
+
+def test_the_formats_on_the_command_line_are_the_ones_the_writer_lists():
+    """The parser's choices are `svg.EXPORT_FORMATS`, so a new writer cannot be half-added."""
+    from spoider import svg
+
+    assert svg.EXPORT_FORMATS == ("svg",), "add a format by adding it here"
+
+
+def test_force_has_both_spellings(tmp_path: Path, capsys):
+    from spoider.app import main
+
+    source = Path(__file__).parent.parent / "src/spoider/data/manual.spoider"
+    target = tmp_path / "x.svg"
+    target.write_text("something valuable", encoding="utf-8")
+    with pytest.raises(SystemExit) as refused:
+        main([str(source), "--export", "svg", "-o", str(target)])
+    assert refused.value.code == 2
+    capsys.readouterr()
+    for flag in ("-f", "--force"):
+        with pytest.raises(SystemExit) as done:
+            main([str(source), "--export", "svg", "-o", str(target), flag])
+        assert done.value.code == 0, flag
