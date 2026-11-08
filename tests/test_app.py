@@ -47,6 +47,7 @@ def test_every_shortcut_uses_a_modifier():
         "pagedown",
         "delete",
         "minus",
+        *[f"f{n}" for n in range(1, 25)],
     }
     for binding in SpoiderApp.BINDINGS:
         for key in str(binding.key).split(","):
@@ -654,7 +655,7 @@ def test_help_follows_a_rebound_chord(tmp_path: Path):
 async def test_help_opens_with_ctrl_slash_and_closes(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
         assert app.mode == "help"
 
@@ -667,7 +668,7 @@ async def test_help_closes_on_any_key(tmp_path: Path):
     for key in ("x", "space", "f5", "tab"):
         app = SpoiderApp(tmp_path / "map.json", demo=False)
         async with app.run_test() as pilot:
-            await pilot.press("ctrl+slash")
+            await pilot.press("question_mark")
             await pilot.pause()
             assert app.mode == "help"
 
@@ -679,7 +680,7 @@ async def test_help_closes_on_any_key(tmp_path: Path):
 async def test_help_closes_on_ctrl_c(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
         await pilot.press("ctrl+c")
         await pilot.pause()
@@ -688,7 +689,7 @@ async def test_help_closes_on_ctrl_c(tmp_path: Path):
 
 
 async def test_a_cell_keeps_the_keys_that_open_help(tmp_path: Path):
-    """`?` and `^/` are characters and chords of the sentence, not the way out of it."""
+    """`?` and `.` are characters of the sentence, not the way out of it."""
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         await pilot.press("tab")
@@ -949,6 +950,291 @@ def test_config_can_rebind_every_chord(tmp_path: Path):
     assert merged["quit"] == defaults["quit"]  # blank is ignored
     assert "nonsense" not in merged  # unknown ids are ignored
     assert merged["edit"] == defaults["edit"]
+
+
+def test_a_line_replaces_the_defaults_and_a_missing_line_keeps_them():
+    """The file is the truth for an action it names, and only a fallback otherwise.
+
+    `go_up = k` means `k` and nothing else: the arrows and ^P go with the line, because
+    a key you did not choose still firing is how a config stops being readable.
+    """
+    from spoider.keys import build_binding_keymap
+
+    defaults = build_binding_keymap({})
+    changed = build_binding_keymap({"go_up": "k", "help": "f1"})
+    assert changed["go_up"] == "k", "the line is the whole truth for that action"
+    assert changed["help"] == "f1"
+    assert changed["mark"] == defaults["mark"], "an action with no line keeps its default"
+
+
+def test_every_binding_is_named_after_its_action():
+    """The file names a binding, and the code answers to an action: one vocabulary.
+
+    They used to differ (`left` was `go_left`, `prev` was `prev`), and the keymap,
+    which Textual looks up by id, quietly ignored every line where they did. `go_up`
+    rather than `prev` for the same reason: the name says which way the cursor goes.
+    """
+    for binding in BINDINGS:
+        assert binding.id == binding.action, (binding.id, binding.action)
+
+
+async def test_a_rebound_direction_reaches_the_keyboard(tmp_path: Path):
+    """`go_left = q` moves the cursor, and the arrow it replaced is dead."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("go_left = q\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("down")  # into a branch, where "left" means the parent
+        await pilot.pause()
+        start = app.focus
+
+        await pilot.press("q")
+        await pilot.pause()
+        assert app.focus != start, "the chord the file names moves the cursor"
+
+        # the line is the truth: the chords left off it stop working
+        here = app.focus
+        await pilot.press("left")
+        await pilot.pause()
+        assert app.focus == here, "the arrow is off the line, so it is dead"
+
+
+async def test_two_actions_on_one_chord_are_named_in_red(tmp_path: Path):
+    """The second claim on a key is refused, and both actions are named.
+
+    A key that runs one of two actions, decided by the order of the binding table, is
+    worse than a key that runs the one the file named first — so the later line loses
+    its chord and the reader is told which two actions were fighting over it.
+    """
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("mark = z\nfold = z\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        notes = list(app._notifications)
+        assert [n.message for n in notes] == [
+            "Warning: collision in config. z is bound to both mark and fold."
+        ]
+        assert notes[0].severity == "error"
+
+        # the first line owns the key; the second lost it and kept its own defaults
+        assert app.keymap["mark"] == "z"
+        await pilot.press("z")
+        await pilot.pause()
+        assert app.document.find(app.focus).mark is not None, "mark, the first line, ran"
+
+        await pilot.press("z", "z")
+        await pilot.pause()
+        assert len(list(app._notifications)) == 1, "said once, not on every keypress"
+
+
+async def test_a_default_gives_way_to_a_line_without_a_word(tmp_path: Path):
+    """`cut = ,` takes the comma off the debug key: the default was a placeholder.
+
+    Only two lines fighting over one chord is a mistake; a default losing its key to a
+    deliberate line is the reader's choice, and complaining about it would make the
+    common case noisy.
+    """
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("cut = ,\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        assert [n.message for n in app._notifications] == [], "no complaint: nothing disagreed"
+
+        assert app.keymap["cut"] == ","
+        assert app.keymap["toggle_properties"] == "`", "the debug key keeps what was left"
+
+        await pilot.press("tab")  # a child to cut, so the comma has something to do
+        await pilot.press("x", "enter")
+        await pilot.pause()
+        before = len(app.mm.cut_stack)
+        await pilot.press("comma")
+        await pilot.pause()
+        assert len(app.mm.cut_stack) == before + 1, "the comma cuts"
+
+
+def test_an_unbound_action_keeps_its_place_in_the_bar():
+    """No key, but not gone: the name stays, dimmed and capless, so the loss is visible."""
+    from spoider.chrome import hint_chunks
+    from spoider.keys import build_keymap
+
+    # the bar reads the display map, where an unbound action is "" and the dispatch map
+    # carries no key at all
+    keymap = build_keymap({"mark": "z", "fold": "z"})
+    chunks = hint_chunks(BINDINGS, frozenset(), keymap)
+    entries = {chunk.plain.strip(): chunk for chunk in chunks}
+
+    assert "fold" in entries, "still listed"
+    assert entries["fold"].plain == " fold "
+    style = str(entries["fold"].spans[0].style) if entries["fold"].spans else "dim"
+    assert "dim" in style, "greyed out"
+
+    assert "z mark" in entries, "the action that won the key still has its cap"
+
+
+async def test_help_lists_every_chord_an_action_answers_to(tmp_path: Path):
+    """The second chord is as real as the first, so the screen that answers "what can I
+    press" names both, with the one the file leads with still leading."""
+    from spoider.screens import help_text
+
+    app = SpoiderApp(demo=True, config_path=tmp_path / "c.conf")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        text = help_text(app).plain
+
+        for row, second in (
+            ("write straight back", "F2"),
+            ("quit; asks", "F10"),
+            ("undo the last edit", "F3"),
+            ("this help", "F1"),
+            ("the editor's settings", "F9"),
+            ("write out", "F12"),
+        ):
+            line = next(line for line in text.splitlines() if row in line)
+            assert second in line, (row, second)
+
+
+def test_the_function_keys_are_ordinary_chords():
+    """`F2` is a second chord of `save`, not a net: a line replaces it like the rest.
+
+    Six actions carry one — help F1, save F2, undo F3, settings F9, quit F10, write F12
+    — so they are reachable without a chord, and a rebind takes them away as it takes
+    any other chord away.
+    """
+    from spoider.keys import build_binding_keymap
+
+    defaults = build_binding_keymap({})
+    assert defaults["save"] == "ctrl+s,f2"
+    assert defaults["help"] == "question_mark,f1"
+    assert defaults["quit"] == "ctrl+x,f10"
+
+    chosen = build_binding_keymap({"help": "t"})
+    assert chosen["help"] == "t", "the line is the whole truth, F1 included"
+
+
+async def test_a_rebind_takes_the_function_key_with_it(tmp_path: Path):
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("save = ctrl+w\n")
+
+    path = tmp_path / "map.spoider"
+    app = SpoiderApp(path, demo=False, config_path=config_path)
+    async with app.run_test() as pilot:
+        await pilot.press("tab")
+        await pilot.press("a", "enter")
+        await pilot.pause()
+
+        await pilot.press("f2")  # off the line, so dead
+        await pilot.pause()
+        assert not path.exists(), "F2 is not bound any more"
+
+        await pilot.press("ctrl+w")
+        await pilot.pause()
+        assert path.exists(), "the chord the line names does the work"
+
+
+async def test_a_name_given_two_lines_keeps_the_last_and_says_so(tmp_path: Path):
+    """`mark = z` then `mark = u`: the last line stands, as in any rc file, and the
+    first is reported rather than dying quietly."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("mark = z\nmark = u\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        assert [n.message for n in app._notifications] == [
+            "Warning: mark is set twice, the first line is ignored."
+        ]
+        assert app.keymap["mark"] == "u"
+
+        await pilot.press("z")
+        await pilot.pause()
+        assert app.document.find(app.focus).mark is None, "the ignored line is dead"
+
+        await pilot.press("u")
+        await pilot.pause()
+        assert app.document.find(app.focus).mark is not None, "the last line is the one"
+
+
+async def test_a_warning_stays_until_the_file_is_fixed(tmp_path: Path):
+    """It does not fade, and it does not pile up.
+
+    A config that fights itself is the reader's to fix, so the complaint hangs there —
+    no timeout, no second copy — and the next reading of the file clears it and says
+    again whatever is wrong with the new one.
+    """
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("mark = z\nfold = z\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        notes = list(app._notifications)
+        assert len(notes) == 1
+        assert notes[0].timeout == float("inf"), "no timeout: it waits for the fix"
+
+        app._reload_config()  # same broken file
+        await pilot.pause()
+        assert len(list(app._notifications)) == 1, "said again, not added to"
+
+        config_path.write_text("mark = z\n")  # fixed
+        app._reload_config()
+        await pilot.pause()
+        assert [n.message for n in app._notifications] == [], "the fix takes the warning with it"
+
+
+async def test_a_chord_textual_owns_is_reported(tmp_path: Path):
+    """`ctrl+q` is Textual's own quit, so a line binding it would not do what it says.
+
+    Only for keys spoider does not already use: `tab` and `escape` belong to the map,
+    and saying so every launch would be noise.
+    """
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("mark = ctrl+q\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        notes_list = list(app._notifications)
+        notes = [n.message for n in notes_list]
+        assert len(notes) == 1, notes
+        assert "ctrl+q" in notes[0] and "Textual" in notes[0]
+        assert notes_list[0].severity == "error"
+
+
+async def test_a_chord_spoider_owns_is_not_called_foreign(tmp_path: Path):
+    """Only Textual's own keys are reported; `f5` is nobody's but ours."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("mark = f5\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        assert [n.message for n in app._notifications] == []
+
+
+async def test_tab_handed_to_another_action_is_reported(tmp_path: Path):
+    """`tab` reaches the map only because the insert binding is priority — the screen
+    binds it for focus, and an ordinary binding never gets a look in."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("go_down = tab\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        notes = [n.message for n in app._notifications]
+        assert any("Textual uses for focus next" in note for note in notes), notes
+
+
+async def test_a_clean_keymap_says_nothing(tmp_path: Path):
+    app = SpoiderApp(demo=True, config_path=tmp_path / "config.spoider")
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        assert [n.message for n in app._notifications] == []
 
 
 async def test_a_rebound_chord_takes_effect(tmp_path: Path):
@@ -1553,7 +1839,7 @@ def test_up_and_down_mean_what_is_drawn():
     assert (UP_MEANING["bush"], DOWN_MEANING["bush"]) == ("child", "parent")
     # sideways shapes keep the siblings on the up/down arrows
     for name in ("spider", "branch"):
-        assert (UP_MEANING[name], DOWN_MEANING[name]) == ("prev", "next")
+        assert (UP_MEANING[name], DOWN_MEANING[name]) == ("go_up", "go_down")
 
 
 # -- searching ------------------------------------------------------------
@@ -1754,7 +2040,7 @@ async def test_nothing_opens_over_the_map(tmp_path: Path):
     async with app.run_test() as pilot:
         for key, mode in (
             ("ctrl+o", "write"),
-            ("ctrl+slash", "help"),
+            ("question_mark", "help"),
         ):
             await pilot.press(key)
             await pilot.pause()
@@ -1779,7 +2065,7 @@ async def test_the_bar_says_what_each_drawer_accepts(tmp_path: Path):
         await pilot.press("escape")
         await pilot.pause()
 
-        await pilot.press("ctrl+slash")  # help: any key closes, nothing to say
+        await pilot.press("question_mark")  # help: any key closes, nothing to say
         await pilot.pause()
         line = bar.render().plain
         assert "move" not in line and "cancel" not in line
@@ -2139,7 +2425,7 @@ async def test_paste_keeps_the_mark_it_was_cut_with(tmp_path: Path):
 async def test_help_keeps_the_bar_and_says_how_to_leave(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
 
         assert app.mode == "help"
@@ -2329,7 +2615,7 @@ async def test_the_bar_leaves_selection_to_help(tmp_path: Path):
         assert "select" not in bar, "the shift keys are left to be discovered"
         assert "⇧" not in bar and "⌥" not in bar
 
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
         assert "select a run of siblings" in app.query_one(PanelBar).render().plain
 
@@ -2337,7 +2623,7 @@ async def test_the_bar_leaves_selection_to_help(tmp_path: Path):
 async def test_help_lists_the_selection_keys(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
 
         body = app.query_one(PanelBar).render().plain
@@ -2504,7 +2790,7 @@ async def test_saving_toasts_green_and_a_failure_toasts_red(tmp_path: Path):
         await pilot.pause()  # the toast is mounted a beat after the notification
 
         newest = app.query(Toast).last()
-        assert newest.has_class("-error"), "red"
+        assert newest.has_class("-warning"), "yellow: nothing is broken, there is just nothing there"
         assert "Nothing to paste" in str(newest.render())
 
 
@@ -3645,8 +3931,8 @@ def test_the_config_carries_a_vim_block_to_uncomment(tmp_path: Path):
     # uncommenting the block is the whole switch
     switched = parse(text + "\n" + "\n".join(line[2:] for line in block))
     chords = action_chords(switched.keys)
-    assert chords["prev"] == ["k", "up"], "and the arrows stay, they are not a convention"
-    assert chords["next"] == ["j", "down"]
+    assert chords["go_up"] == ["k", "up"], "and the arrows stay, they are not a convention"
+    assert chords["go_down"] == ["j", "down"]
     assert chords["go_left"] == ["h", "left"]
     assert chords["go_right"] == ["l", "right"]
     assert chords["edit"] == ["i"]
@@ -3732,6 +4018,32 @@ def test_install_desktop_writes_the_files_where_the_system_looks(tmp_path: Path,
     commands = [call[0] for call in calls]
     assert commands == ["update-mime-database", "update-desktop-database", "xdg-mime"]
     assert calls[-1][-2:] == ["spoider.desktop", "application/x-spoider"]
+
+
+def test_install_desktop_quotes_a_path_with_a_space(tmp_path: Path, monkeypatch):
+    """`Exec` is parsed like a command line, so an unquoted path with a space is two
+    arguments and the launcher does nothing at all."""
+    from spoider.desktop import install_desktop
+
+    monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: True)
+    monkeypatch.setattr(
+        "spoider.desktop.shutil.which", lambda name: "/home/Vili Smith/.local/bin/spoider"
+    )
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+
+    assert install_desktop() == 0
+
+    entry = (tmp_path / "share" / "applications" / "spoider.desktop").read_text()
+    assert 'Exec="/home/Vili Smith/.local/bin/spoider" %f' in entry
+
+
+def test_a_tool_that_fails_is_not_reported_as_having_run():
+    """The exit code is the answer, not the fact that a process started."""
+    from spoider.desktop import _run_tool
+
+    assert _run_tool(["true"]) is True
+    assert _run_tool(["false"]) is False, "a failing tool must not read as success"
+    assert _run_tool(["definitely-not-a-tool"]) is False
 
 
 def test_install_desktop_survives_a_tool_that_is_not_installed(tmp_path: Path, monkeypatch):
@@ -3977,7 +4289,7 @@ async def test_an_arrow_into_the_children_picks_the_one_in_its_direction(tmp_pat
 async def test_help_scrolls_when_it_runs_past_the_screen(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "h.conf", demo=False)
     async with app.run_test(size=(100, 20)) as pilot:
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
         panel = app.query_one(PanelBar)
         assert panel.scrollable, "this size cannot show the whole page"
@@ -4005,7 +4317,7 @@ async def test_help_scrolls_when_it_runs_past_the_screen(tmp_path: Path):
 async def test_a_help_page_that_fits_names_only_close(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "h.conf", demo=False)
     async with app.run_test(size=(140, 120)) as pilot:
-        await pilot.press("ctrl+slash")
+        await pilot.press("question_mark")
         await pilot.pause()
         panel = app.query_one(PanelBar)
         assert not panel.scrollable, "a tall screen shows it whole"
@@ -4036,7 +4348,7 @@ def test_the_demo_names_the_tree_keys_and_the_debug_box():
         assert word in joined, f"the demo should mention {word}"
 
 
-async def test_question_mark_opens_help_and_the_slash_still_does(tmp_path: Path):
+async def test_help_opens_on_the_question_mark_and_not_on_the_slash(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "q.conf", demo=False)
     async with app.run_test(size=(100, 40)) as pilot:
         await pilot.press("question_mark")
@@ -4047,7 +4359,7 @@ async def test_question_mark_opens_help_and_the_slash_still_does(tmp_path: Path)
 
         await pilot.press("ctrl+slash")
         await pilot.pause()
-        assert app.mode == "help", "^/ is still there for terminals that cannot send ?"
+        assert app.mode != "help", "^/ was listed but never arrived, so it is gone"
 
 
 async def test_the_help_leads_with_the_arrow_not_the_nano_chord(tmp_path: Path):
@@ -4059,7 +4371,10 @@ async def test_the_help_leads_with_the_arrow_not_the_nano_chord(tmp_path: Path):
         start = next(i for i, line in enumerate(lines) if line.strip() == "Navigation")
         moving = " ".join(lines[start : start + 6])
         assert "↑" in moving and "↓" in moving and "←" in moving and "→" in moving
-        assert "^P" not in moving and "^B" not in moving, "the nano chords are secondary"
+        # every chord is listed now, so the nano ones follow the arrow instead of
+        # being hidden — the arrow is what a hand reaches for first
+        assert moving.index("↑") < moving.index("^P"), "the arrow leads"
+        assert moving.index("←") < moving.index("^B")
 
 
 # -- --id places the cursor by identity ------------------------------------
@@ -4105,7 +4420,7 @@ async def test_a_missing_config_is_written_as_the_template(tmp_path: Path):
         await pilot.pause()
     text = config.read_text(encoding="utf-8")
     assert "editor settings" in text, "the commented template"
-    assert "# prev = " in text, "the keys are listed, commented out"
+    assert "# go_up = " in text, "the keys are listed, commented out"
     assert "autosave = " in text
 
 

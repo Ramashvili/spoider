@@ -9,11 +9,13 @@ import subprocess
 import sys
 from collections.abc import Iterable
 from pathlib import Path
+from typing import ClassVar, cast
 
 from textual import events
 from textual.app import App, ComposeResult, SuspendNotSupported
-from textual.binding import Binding
+from textual.binding import Binding, BindingType
 from textual.notifications import SeverityLevel
+from textual.screen import Screen
 
 from .actions_edit import EditActions
 from .actions_map import MapActions
@@ -41,8 +43,9 @@ from .files import SUFFIX
 from .keys import (
     BINDINGS,
     action_chords,
-    build_action_keymap,
+    build_binding_keymap,
     build_keymap,
+    resolve,
 )
 from .layout import label
 from .model import MapFileError, MindMap, Node, marks_of
@@ -240,10 +243,18 @@ class UnknownCell(Exception):
     """
 
 
+#: Every config complaint starts with this, which is how the next reading finds and
+#: clears the last one.
+WARNING = "Warning: "
+
+
 class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     CSS = APP_CSS
     TITLE = "spoider"
-    BINDINGS = BINDINGS
+    # Textual declares its table as `list[BindingType]`, the union with the tuple form
+    # it also accepts. Ours only ever holds Binding, and the cast is the one place the
+    # two shapes have to meet.
+    BINDINGS: ClassVar[list[BindingType]] = cast("list[BindingType]", BINDINGS)
     ENABLE_COMMAND_PALETTE = False
 
     def __init__(
@@ -349,7 +360,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         # A config is the reader's file: written once when it is missing, then only ever
         # edited line by line. Deleting it brings the commented template back.
         self._save_config()
-        self.set_keymap(build_action_keymap(self.config.keys))
+        self.set_keymap(build_binding_keymap(self.config.keys))
+        self._report_clashes()
         if self.load_error is not None:
             # the file is not a map: there is nothing to edit, so there is no canvas,
             # no title and no cursor — one red line, and the only key leaves
@@ -518,6 +530,73 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             return None
         return True
 
+    @staticmethod
+    def _plain_action(action: str) -> str:
+        """Textual's own ids read `app.focus_next`; the interesting half is the verb."""
+        return action.split(".")[-1].replace("_", " ")
+
+    @staticmethod
+    def _foreign_chords(chords: dict[str, list[str]]) -> dict[str, str]:
+        """Chords Textual answers before us, and what it does with them.
+
+        The binding chain runs from the focused widget up through the screen to the
+        app, so a chord the screen binds (`tab` for focus, `ctrl+c`) is taken before
+        an ordinary app binding of ours ever sees it. `Tab` works here only because
+        the cell-insert binding is `priority=True`, which outranks the screen — so a
+        chord counts as ours only while a priority binding actually holds it, and any
+        other line naming it will not do what it says.
+        """
+        priority = {
+            b.action for b in BINDINGS if b.priority
+        }
+        held = {chord for action in priority for chord in chords.get(action, [])}
+        foreign: dict[str, str] = {}
+        for table in (App, Screen):
+            for binding in table.BINDINGS:
+                if not isinstance(binding, Binding):
+                    continue  # Textual's own table may hold the tuple form
+                for key in str(binding.key).split(","):
+                    if key and key not in held:
+                        foreign.setdefault(key, binding.action)
+        return foreign
+
+    def _report_clashes(self) -> None:
+        """Say what the config asked for and could not have.
+
+        Two things can go wrong in the file and neither is visible in it: one chord
+        given to two actions, and one name given two lines. `resolve` refuses the
+        second claim (a key that runs one of two actions at random is worse than a key
+        that does nothing) and `parse` lets the last line stand, as any rc file does;
+        both are reported here, in red, once per reading of the file.
+        """
+        chords, clashes = resolve(self.config.keys)
+        said: list[str] = [f"{WARNING}collision in config. {text}." for _chord, text in clashes]
+        said += [
+            f"{WARNING}{name} is set twice, the first line is ignored."
+            for name in self.config.repeated
+        ]
+        # A chord Textual answers to itself is one spoider cannot hand to you: the
+        # widget or the app takes it first. Only for chords the defaults do not use,
+        # so the keys spoider already owns (tab, escape) are not called a problem.
+        foreign = self._foreign_chords(chords)
+        mine = {f"{chord}" for chord in (c for listed in chords.values() for c in listed)}
+        for chord in sorted(mine & foreign.keys()):
+            said.append(
+                f"{WARNING}{chord} is one Textual uses for {self._plain_action(foreign[chord])}, "
+                "so a line binding it will not do what it says."
+            )
+        # the file has just been read, so a mistake that is no longer there must go
+        # with it: the old report is dropped and, if nothing replaced it, the rack is
+        # refreshed so the toast disappears with it
+        for note in list(self._notifications):
+            if note.message.startswith(WARNING):
+                del self._notifications[note]
+        for message in said:
+            # no timeout: a config that fights itself is the reader's to fix, and a
+            # warning that fades after eight seconds is a warning nobody acts on
+            self.notify(message, severity="error", timeout=float("inf"))
+        self._refresh_notifications()
+
     @property
     def mode(self) -> str:
         """Who has the keys: the map, a cell being typed into, or a drawer."""
@@ -581,7 +660,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     @staticmethod
     def _binding_ids() -> set[str]:
         """Every id the config file may name: the chords this build can bind."""
-        return {binding.id for binding in BINDINGS if isinstance(binding, Binding) and binding.id}
+        return {binding.id for binding in BINDINGS if binding.id}
 
     def _key_entries(self) -> list[tuple[str, str, str]]:
         """(id, every chord that action answers to, what it does), one line each.
@@ -595,9 +674,11 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         entries: list[tuple[str, str, str]] = []
         seen: set[str] = set()
         for binding in BINDINGS:
-            if not isinstance(binding, Binding) or not binding.id or binding.action in seen:
+            if not binding.id or binding.action in seen:
                 continue
             seen.add(binding.action)
+            if not chords[binding.action]:
+                continue  # refused by a collision, so it has no chord to offer
             entries.append(
                 (
                     binding.id,
@@ -618,11 +699,21 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self.notify(f"Could not start an editor: {exc}", severity="error", timeout=4)
             return
 
+        self._reload_config()
+        self.notify("Config reloaded", timeout=2)
+
+    def _reload_config(self) -> None:
+        """Read the file again and put it into force.
+
+        The mistakes it contains are worth saying again: a reader who has just edited
+        the file by hand is exactly the one who needs to hear that two actions share a
+        chord, so the memory of what was already reported is cleared with each read.
+        """
         self.config = load_config(self.config_path, self._binding_ids())
         set_tab_width(self.config.tab_width)  # a new tab stop redraws the map
-        self.set_keymap(build_action_keymap(self.config.keys))  # new chords take effect straight away
+        self.set_keymap(build_binding_keymap(self.config.keys))  # new chords at once
+        self._report_clashes()
         self._refresh_chrome()
-        self.notify("Config reloaded", timeout=2)
 
     @property
     def marks(self) -> tuple[str, ...]:
@@ -1068,7 +1159,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
 
     def action_help(self) -> None:
-        """? — every key and option, with a line of explanation. ^/ does it too."""
+        """? — every key and option, with a line of explanation."""
         self._mode = "help"
         self._hide_drawers(PanelBar)
         self.query_one(PanelBar).show(help_text(self), self._help_key)

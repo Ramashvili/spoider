@@ -11,10 +11,12 @@ from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, cast
 
 from rich.text import Text
+from textual.binding import Binding
 from textual.widget import Widget
 
 if TYPE_CHECKING:
     from .app import SpoiderApp
+from .keys import BINDINGS
 
 #: nano's shorthand: ctrl is ^, meta (alt) is M-, and shift gets the S- that
 #: nano never needed, in the same shape. Letters and dashes, not glyphs nobody
@@ -126,6 +128,11 @@ def key_cap(key: str) -> str:
     return ARROWS.get(key, key.upper())
 
 
+def unbound(label: str) -> Text:
+    """A bar entry for an action with no key: its name alone, dimmed."""
+    return Text(f" {label} ", style="dim")
+
+
 def entry(key: str, label: str, *, literal: bool = False) -> Text:
     """`literal` prints the string as given — for caps like "esc/^C" that are not
     single keys and cannot be derived from a binding."""
@@ -143,14 +150,16 @@ def chord_of(binding, keymap: dict[str, str] | None = None) -> str:
     where a comma separates several keys, so that one is split — a comma key is
     written `comma` there and has no other way to be said.
     """
-    chosen = (keymap or {}).get(binding.id or "")
-    if chosen:
-        return str(chosen)
+    ident = binding.id or ""
+    if keymap is not None and ident in keymap:
+        # "" is an action whose chords were refused: it has no cap because it has no
+        # key, and the caller drops the entry rather than printing a default it lost
+        return str(keymap[ident])
     return str(binding.key).split(",")[0]
 
 
 def hint_chunks(
-    bindings: Iterable,
+    bindings: Iterable[Binding],
     skip: frozenset[str] = frozenset(),
     keymap: dict[str, str] | None = None,
     *,
@@ -159,15 +168,19 @@ def hint_chunks(
 ) -> list[Text]:
     """`skip` drops whole actions from the bar — autosave hides ^S, for instance.
     `keymap` holds the chords in force after the config has had its say."""
-    from textual.binding import Binding
 
     keymap = keymap or {}
     shown: list[tuple[str, Text]] = []
     for binding in bindings:
-        if not isinstance(binding, Binding) or not binding.show or binding.action in skip:
+        if not binding.show or binding.action in skip:
             continue
         key = chord_of(binding, keymap)
         label = (rename or {}).get(binding.action, binding.description)
+        if not key:
+            # an action whose chords were refused keeps its place, greyed and without a
+            # cap, so the reader sees what went missing instead of it vanishing
+            shown.append((binding.id or "", unbound(label)))
+            continue
         shown.append((binding.id or "", entry(key, label)))
 
     def rank(pair: tuple[str, Text]) -> int:
@@ -182,7 +195,11 @@ def hint_chunks(
 
 def pinned_chunks(keymap: dict[str, str] | None = None) -> list[Text]:
     keymap = keymap or {}
-    return [entry(keymap.get(ident, default), label) for ident, default, label in PINNED]
+    chunks: list[Text] = []
+    for ident, default, label in PINNED:
+        key = keymap.get(ident, default)
+        chunks.append(entry(key, label) if key else unbound(label))
+    return chunks
 
 
 def pinned_bar(keymap: dict[str, str] | None = None) -> Text:
@@ -308,7 +325,7 @@ class FooterBar(Widget):
             hints = edit_chunks()
         elif self.mode == "stack":
             spoider = cast("SpoiderApp", self.app)
-            hints = stack_chunks(spoider.BINDINGS, spoider.keymap)
+            hints = stack_chunks(BINDINGS, spoider.keymap)
         elif self.mode == "search":
             hints = search_chunks()
         elif self.mode == "custom":
@@ -316,7 +333,7 @@ class FooterBar(Widget):
         else:
             # autosave makes ^S redundant, so it leaves the bar with it on
             skip = frozenset({"save"}) if getattr(self.app, "autosave", False) else frozenset()
-            hints = hint_chunks(spoider.BINDINGS, skip, spoider.keymap)
+            hints = hint_chunks(BINDINGS, skip, spoider.keymap)
         # the pinned cluster is two keys the user may have rebound: it reads the
         # same keymap the hints do, in every mode
         return compose_footer(width, hints, pinned_bar(spoider.keymap))

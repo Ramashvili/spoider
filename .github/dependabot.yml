@@ -7,3 +7,11 @@ updates:
       interval: weekly
     commit-message:
       prefix: "actions"
+  # textual is the one runtime dependency: a fix in it reaches the suite through
+  # uv.lock, so this is the only place a bump would be noticed at all
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "uv"

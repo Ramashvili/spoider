@@ -87,6 +87,30 @@ to help.
   `spoider.files.write_atomic`. A map that cannot be read is reported, never half
   loaded.
 - **Don't invent scope.** Build what was asked for; propose the rest and wait.
+- **Nothing is left behind.** A mechanism that is removed or renamed takes its name with
+  it in the same change: the function, its import, the test that pinned it, the sentence
+  in the docs that promised it, and the glyph table entry that only it used. This project
+  changes its mind quickly, so the debris is real — `_fit_tokens` outlived the settings
+  screen by weeks, and `FALLBACKS` outlived its own meaning by an afternoon. Sweep for
+  the identifier across `src`, `tests` and the docs before committing, and for a module
+  function run this, which finds anything referenced only where it is defined:
+
+  ```bash
+  uv run python - <<'PY'
+  import ast, pathlib, re
+  src = pathlib.Path("src/spoider")
+  texts = {p: p.read_text() for p in src.glob("*.py")}
+  every = "\n".join(texts.values()) + "\n" + "\n".join(
+      p.read_text() for p in pathlib.Path("tests").glob("*.py"))
+  for path, text in texts.items():
+      for node in ast.parse(text).body:
+          if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+              if len(re.findall(rf"\b{node.name}\b", every)) <= 1:
+                  print(f"{path.name}:{node.lineno} {node.name}")
+  PY
+  ```
+
+  Two leftovers from a batch are a smell that the batch was not finished, not bad luck.
 
 ## The map and the stack panel are one document
 
@@ -186,6 +210,16 @@ writes one file and builds no road to it.
 Text is cleaned at ingest and escaped at write, so a map cannot inject XML. The embedded font
 is a file fontconfig named, and it must carry a `glyf` table, so a hostile fontconfig entry
 pointing at something that is not a font cannot be copied into a picture.
+## Types
+
+`pyright src/spoider` is clean and is part of the gate. `pyright tests` is **not**: about
+ninety errors, almost all of them the checker asking "what if it is None?" about an
+accessor a test already knows is not (`MindMap.find`, `Layout.get`, `_buffer`) or about
+`.plain` on Textual's `RichCast`. They cost nothing at runtime and the whole file set
+would have to be swept at once to clear them, so the choice is to keep the gate on
+`src/` and say so here rather than leave it looking forgotten. One thing did get fixed
+from that list: `BINDINGS` is `list[Binding]`, not Textual's union with the tuple form,
+so `binding.id` and `binding.action` are strings everywhere in our code.
 
 ## Tests
 
@@ -205,11 +239,64 @@ the suite neither reads nor writes the real `~/.config/spoider/spoider.conf`.
 ## Chords: one line per action
 
 The rc file names an action and lists *every* chord that action answers to, space
-separated (`left = ctrl+b left h`). `action_chords` is the one table: the file is
+separated (`go_left = left ctrl+b h`). `action_chords` is the one table: the file is
 rendered from it, `_action_for` matches a pressed key against it, the bars show the
-first chord of the list, and `build_action_keymap` joins them into the comma form
-Textual's own `App.set_keymap` expects. Aliases are extra bindings with the same
-action, so they never get a line of their own and cannot drift out of step.
+first chord of the list, and `build_binding_keymap` joins them into the comma form
+Textual's own `App.set_keymap` expects.
+
+**One binding per action, carrying every chord.** An alias is a second chord on that
+binding's key string (`Binding("e,ctrl+e", "edit", id="edit")`), never a binding of its
+own: Textual splits the list on commas itself, so `"up,ctrl+p,k"` is legal even though a
+bare comma would be read as the separator. The separate ids that used to carry the
+aliases (`edit_alt`, `left_vim`, `delete_key`, …) are gone, and a config that still
+names one has that line dropped as unknown.
+
+**Every binding is named after its action.** `go_left` moves the cursor left, `go_up`
+walks to the previous sibling, `go_end` goes to the deepest cell. The two used to
+disagree (`left` was `go_left`, `prev` was `prev`), which made the file read
+`left = left` and left the reader guessing which of the two names a line takes; a test
+now asserts `binding.id == binding.action` for every binding, so they cannot drift.
+
+**The keymap is keyed by binding id**, because that is what `App.set_keymap` and
+`BindingsMap.apply_keymap` look a binding up by (`keymap.get(binding.id)`) and what the
+file names. An action-keyed map agrees with that only where an id happens to equal its
+action name, so passing one left `left`, `right` and every alias line changing the bar
+and nothing else — the bug that made a rebind look applied and do nothing.
+
+**Two actions on one chord is refused, not resolved.** `keys.resolve` gives every chord
+one owner. A *line* competes only with another line: between two lines the earlier one
+wins — "the second line is refused" — and the loser keeps its other chords. A *default*
+is a placeholder and gives way to any line without a word, which is what makes `cut = ,`
+take the comma off the debug key quietly; complaining there would make the ordinary case
+noisy. The losing action keeps its other chords and loses that one, and
+`SpoiderApp._report_clashes` says which two actions were fighting, in red, on every
+reading of the file. Textual's own `handle_bindings_clash` is no use here: its body does
+nothing and its set holds only the binding that was already there, one side of the story.
+
+**A name given two lines** keeps the last, as any rc file does; `parse` records the
+name in `Config.repeated` and the same report names it, because the first line dying
+quietly is the kind of thing a reader never finds.
+
+**The report does not fade.** Those toasts are `timeout=float("inf")`: a config that
+fights itself is the reader's to fix, and a warning that expires is a warning nobody
+acts on. Each reading of the file removes the previous ones (`_notifications`, then
+`_refresh_notifications`) and says again only what is still wrong, so a fixed mistake
+takes its toast with it and a repeated one is not stacked twice.
+
+**Six actions carry a function key as a second chord** — help F1, save F2, undo F3,
+settings F9, quit F10, write F12 — declared on the binding itself (`"ctrl+s,f2"`). They
+are ordinary chords: the template lists them, the bar shows the first only, and a line
+that names the action replaces the whole list, so `help = t` takes `F1` with it. There is
+no net that survives a rebind; the point of the function keys is only that these six are
+reachable without a chord at all.
+
+**An unbound action keeps its place in the bar**, dimmed and without a cap (`unbound()`),
+rather than vanishing: a key that was taken away is worth seeing.
+
+**A chord Textual binds for itself** (`ctrl+q` for its quit, `tab` for focus) cannot be
+handed to an action of ours: the widget or the app answers first. `_foreign_chords`
+compares against Textual's own tables, minus the chords spoider already owns, and the
+report names those too — a line that will not do what it says.
 
 A search looks in both documents: `_search_order` puts the map first and then the stack, and
 walking to a hit on the stack opens the panel to show it, which is what "switch between them"

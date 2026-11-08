@@ -25,7 +25,6 @@ NAMED = {
     "=": "equals_sign",
     "-": "minus",
     "^,": "ctrl+comma",
-    "^/": "ctrl+slash",
     ".": "full_stop",
     ",": "comma",
     "?": "question_mark",

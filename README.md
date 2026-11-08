@@ -157,6 +157,18 @@ A complete example sits in [`examples/spoider.conf`](examples/spoider.conf): it 
 text a fresh install writes, so you can see what a newer release added without touching the
 file you already have.
 
+Six actions also answer to a function key — `F1` help, `F2` save, `F3` undo, `F9` settings,
+`F10` quit, `F12` write — as a second chord beside their usual one, which is how `?` lists
+them. They are chords like any other, not a permanent net: a line naming one of those
+actions replaces the whole list, so `help = t` takes both `?` and `F1` away.
+An action whose chords are all taken away keeps its place in the bar, greyed and without a
+key, so you can see what went missing.
+
+If a line gives a key to two actions, or names the same action twice, spoider says so in red
+when it reads the file: the first claim on a key stands, the later one is refused, and a
+repeated line keeps the last value. The warning does not fade — it waits until the line is
+fixed, and a key Textual answers itself (`tab`, `ctrl+q`) is named too, since a line binding
+one of those will not do what it says.
 ### Exporting a map
 
 A map is a terminal picture, and a terminal is not always the thing you want to send someone.

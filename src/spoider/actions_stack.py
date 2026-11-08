@@ -65,7 +65,7 @@ class StackActions:
         selection stays on the target as its children arrive.
         """
         if not self.mm.cut_stack:
-            self.notify("Nothing to paste", severity="error", timeout=2)
+            self.notify("Nothing to paste", severity="warning", timeout=2)
             return
         self._push_undo()  # the snapshot holds the stack, so undo puts it back
         cell = self.mm.pop_cut()
@@ -170,9 +170,9 @@ class StackActions:
             return False
         if action == "toggle_stack" or key in ("escape", "ctrl+c"):
             self.action_toggle_stack()
-        elif action == "prev":
+        elif action == "go_up":
             self._stack_select(doc, nav.to_sibling(doc, selected, -1))
-        elif action == "next":
+        elif action == "go_down":
             self._stack_select(doc, nav.to_sibling(doc, selected, 1))
         elif action == "go_right":
             self._stack_select(doc, nav.to_child(doc, selected))
@@ -186,7 +186,7 @@ class StackActions:
         elif action in ("extend_prev", "extend_next"):
             # the panel is always the branch shape: up and down walk siblings, so
             # those are the arrows that grow a run there
-            self._extend("prev" if action == "extend_prev" else "next")
+            self._extend("go_up" if action == "extend_prev" else "go_down")
         elif action in ("extend_left", "extend_right"):
             pass  # left and right go to the parent and into a cell, never sideways
         elif action == "mark":
@@ -271,7 +271,7 @@ class StackActions:
         was, rather than reporting a failure for a key that cannot work here.
         """
         if not self.mm.cut_stack:
-            self.notify("Nothing to paste", severity="error", timeout=2)
+            self.notify("Nothing to paste", severity="warning", timeout=2)
             return
         top = self.mm.cut_stack[-1]
         target = self.selected
