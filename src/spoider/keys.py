@@ -154,27 +154,31 @@ def resolve(
 
     owner: dict[str, str] = {}
     clashes: list[tuple[str, str]] = []
-    # a line in the file is a deliberate act, so its claim comes before a default's;
-    # between two lines the earlier one wins, which is what "the second line is
-    # refused" means. Defaults follow in binding-table order.
-    order: list[str] = []
-    for ident in overrides or {}:
-        action = action_of.get(ident)
-        if action in chords and action not in order:
-            order.append(action)  # type: ignore[arg-type]
-    for action in chords:
-        if action not in order:
-            order.append(action)
-    for action in order:
-        listed = chords[action]
+    # A line competes with another line; a default is a placeholder that gives way.
+    # `cut = ,` takes the comma off the debug key without a word, because nothing in
+    # the file disagreed — the default did, and the file is the deliberate act. Two
+    # lines claiming one chord is a real mistake, and that is what gets refused.
+    from_file = [
+        action
+        for action in (action_of.get(ident) for ident in overrides or {})
+        if action in chords
+    ]
+    for action in from_file:
         kept: list[str] = []
-        for chord in listed:
+        for chord in chords[action]:
             held = owner.get(chord)
             if held is None:
                 owner[chord] = action
                 kept.append(chord)
             elif held != action:
                 clashes.append((chord, f"{chord} is bound to both {held} and {action}"))
+        chords[action] = kept
+    for action, listed in chords.items():
+        if action in from_file:
+            continue
+        kept = [chord for chord in listed if chord not in owner]
+        for chord in kept:
+            owner.setdefault(chord, action)
         chords[action] = kept
     return chords, clashes
 def build_binding_keymap(overrides: dict[str, str] | None = None) -> dict[str, str]:

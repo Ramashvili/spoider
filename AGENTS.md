@@ -196,9 +196,11 @@ action name, so passing one left `left`, `right` and every alias line changing t
 and nothing else — the bug that made a rebind look applied and do nothing.
 
 **Two actions on one chord is refused, not resolved.** `keys.resolve` gives every chord
-one owner: a claim from a line in the file comes before a default (the file is the
-deliberate act), and between two lines the earlier one wins — "the second line is
-refused". The losing action keeps its other chords and loses that one, and
+one owner. A *line* competes only with another line: between two lines the earlier one
+wins — "the second line is refused" — and the loser keeps its other chords. A *default*
+is a placeholder and gives way to any line without a word, which is what makes `cut = ,`
+take the comma off the debug key quietly; complaining there would make the ordinary case
+noisy. The losing action keeps its other chords and loses that one, and
 `SpoiderApp._report_clashes` says which two actions were fighting, in red, on every
 reading of the file. Textual's own `handle_bindings_clash` is no use here: its body does
 nothing and its set holds only the binding that was already there, one side of the story.

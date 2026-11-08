@@ -1030,6 +1030,33 @@ async def test_two_actions_on_one_chord_are_named_in_red(tmp_path: Path):
         assert len(list(app._notifications)) == 1, "said once, not on every keypress"
 
 
+async def test_a_default_gives_way_to_a_line_without_a_word(tmp_path: Path):
+    """`cut = ,` takes the comma off the debug key: the default was a placeholder.
+
+    Only two lines fighting over one chord is a mistake; a default losing its key to a
+    deliberate line is the reader's choice, and complaining about it would make the
+    common case noisy.
+    """
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("cut = ,\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        assert [n.message for n in app._notifications] == [], "no complaint: nothing disagreed"
+
+        assert app.keymap["cut"] == ","
+        assert app.keymap["toggle_properties"] == "`", "the debug key keeps what was left"
+
+        await pilot.press("tab")  # a child to cut, so the comma has something to do
+        await pilot.press("x", "enter")
+        await pilot.pause()
+        before = len(app.mm.cut_stack)
+        await pilot.press("comma")
+        await pilot.pause()
+        assert len(app.mm.cut_stack) == before + 1, "the comma cuts"
+
+
 async def test_a_name_given_two_lines_keeps_the_last_and_says_so(tmp_path: Path):
     """`mark = z` then `mark = u`: the last line stands, as in any rc file, and the
     first is reported rather than dying quietly."""
