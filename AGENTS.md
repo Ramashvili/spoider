@@ -182,6 +182,39 @@ runs the cache rebuilders and sets the default. It writes nothing unless asked, 
 resolves the launcher's `Exec=` to the real binary path because a desktop session does
 not always have `~/.local/bin` on PATH.
 
+## Export
+
+`svg.py` writes the picture the renderer already drew; `palettes.py` owns the four palettes and
+discovered the typefaces. Both are only reachable from `--export` on the command line: there is
+no key, no drawer and no second format, because a smaller surface is easier to keep honest.
+
+`compose` normalises the origin, because a layout may place a left branch at negative
+coordinates and a file has no camera to follow it. Runs carry `textLength`, so a face whose
+advance is not 0.6 em still lands on the cell grid. The face is embedded, because a named one
+is a suggestion a viewer may decline. Cell metrics come from the face: `metrics()` reads the advance from `hmtx` and the line from
+`hhea`, so the grid the boxes are built on and the glyphs inside them agree. 0.6 by 1.4 stands
+in only when the tables cannot be read. `svg` is the only place the numbers are used, which is
+why one test checks the canvas against them and nothing else needs to.
+
+Only `glyf` faces are allowed (`is_truetype`): a CFF face delivered through `@font-face`
+renders nothing at all in a browser, which was Spleen, and a bitmap face cannot be scaled. The
+check reads the font's table directory rather than searching the bytes for `CFF `, which appear
+in files that have no such table.
+
+Still unguarded: a TrueType face with no letters (an icon font) draws nothing either. The
+character check the other branch had needs `fc-query --format %{charset}` here, and it is not
+built yet.
+
+## Export safety
+
+`write_svg` refuses to replace an existing file without `overwrite`, refuses a target that is
+the map itself, refuses a folder that is not there, and goes through `files.write_atomic`.
+`write_atomic` creates parent folders, so the folder check has to happen first: an export
+writes one file and builds no road to it.
+
+Text is cleaned at ingest and escaped at write, so a map cannot inject XML. The embedded font
+is a file fontconfig named, and it must carry a `glyf` table, so a hostile fontconfig entry
+pointing at something that is not a font cannot be copied into a picture.
 ## Types
 
 `pyright src/spoider` is clean and is part of the gate. `pyright tests` is **not**: about

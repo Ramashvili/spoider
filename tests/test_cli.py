@@ -5,6 +5,8 @@ Tested by standing a stub in for the app, so nothing waits for a terminal.
 
 from pathlib import Path
 
+import pytest
+
 from spoider import app as module
 from spoider.config import Config
 from spoider.model import MindMap, Node
@@ -242,3 +244,33 @@ def test_a_file_that_is_not_a_map_leaves_a_code_behind(monkeypatch, tmp_path: Pa
     else:
         raise AssertionError("an unreadable file should end with a failure code")
     assert app_holder["message"] is not None, "and it had a reason to give"
+
+
+def test_export_writes_an_svg_and_says_what_it_holds(tmp_path: Path, capsys):
+    from spoider.app import main
+
+    source = Path(__file__).parent.parent / "src/spoider/data/manual.spoider"
+    target = tmp_path / "picture.svg"
+    with pytest.raises(SystemExit) as done:
+        main([str(source), "--export", str(target), "--palette", "ink"])
+    assert done.value.code == 0
+    assert target.read_text(encoding="utf-8").startswith("<?xml")
+    assert str(target) in capsys.readouterr().out
+
+
+def test_export_refuses_names_it_does_not_have(tmp_path: Path, capsys):
+    from spoider.app import main
+
+    source = Path(__file__).parent.parent / "src/spoider/data/manual.spoider"
+    with pytest.raises(SystemExit) as done:
+        main([str(source), "--export", str(tmp_path / "x.svg"), "--palette", "purple"])
+    assert done.value.code == 2
+    assert "no palette called purple" in capsys.readouterr().err
+
+
+def test_export_needs_a_map():
+    from spoider.app import main
+
+    with pytest.raises(SystemExit) as done:
+        main(["--export", "/tmp/x.svg"])
+    assert done.value.code == 2
