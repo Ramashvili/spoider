@@ -43,6 +43,7 @@ from .desktop import install_desktop
 from .drawers import AskBar, ErrorBar, PanelBar, PromptBar
 from .editing import Buffer
 from .files import SUFFIX
+from .formats import EXPORT_FORMATS
 from .keys import (
     BINDINGS,
     action_chords,
@@ -54,7 +55,6 @@ from .layout import label
 from .model import MapFileError, MindMap, Node, marks_of
 from .nav import to_end, to_extreme_sibling, to_home
 from .screens import help_text
-from .svg import EXPORT_FORMATS
 from .text import clean, find_all, one_line, set_tab_width
 from .widgets import MindMapView, TopBar
 
@@ -1319,7 +1319,7 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         choices=EXPORT_FORMATS,
         metavar="FORMAT",
-        help="write the map in this format, then exit: svg",
+        help="write the map in this format, then exit: svg, markdown or text",
     )
     exporting.add_argument(
         "-o",
@@ -1332,18 +1332,18 @@ def main(argv: list[str] | None = None) -> None:
         "--palette",
         default=None,
         metavar="NAME",
-        help="paper, coloured-paper, coloured-ink or ink; paper without it",
+        help="paper, coloured-paper, coloured-ink or ink; paper without it; svg only",
     )
     exporting.add_argument(
         "--font",
         default=None,
         metavar="NAME",
-        help="a monospace family, by slug or by name; the first one here without it",
+        help="a monospace family, by slug or by name; the first one here without it; svg only",
     )
     exporting.add_argument(
         "--no-stack",
         action="store_true",
-        help="leave the cut stack out of the picture",
+        help="leave the cut stack out of the file",
     )
     exporting.add_argument(
         "-f",
@@ -1372,20 +1372,40 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(install_desktop())
     path = Path(args.path).expanduser() if args.path else None
     if args.export:
-        from .svg import ExportError, export_map
+        from .formats import TEXT_FORMATS, ExportError
 
+        if args.export in TEXT_FORMATS and (args.palette or args.font):
+            # a document has no colours and no face; naming them would only mislead
+            parser.error(
+                f"{args.export} writes the map as a document: no --palette and no --font"
+            )
         if path is None:
             parser.error("--export needs a map to read")
         assert args.output is not None, "--export is refused without -o above"
+        target = Path(args.output).expanduser()
         try:
-            written, sheet = export_map(
-                path,
-                output=Path(args.output).expanduser(),
-                palette_name=args.palette,
-                font_name=args.font,
-                with_stack=not args.no_stack,
-                overwrite=args.force,
-            )
+            if args.export == "svg":
+                from .svg import export_map
+
+                written, sheet = export_map(
+                    path,
+                    output=target,
+                    palette_name=args.palette,
+                    font_name=args.font,
+                    with_stack=not args.no_stack,
+                    overwrite=args.force,
+                )
+                caption = sheet.caption
+            else:
+                from .outline import export_document
+
+                written, caption = export_document(
+                    path,
+                    form=args.export,
+                    output=target,
+                    overwrite=args.force,
+                    with_stack=not args.no_stack,
+                )
         except ExportError as exc:
             print(f"spoider: {exc}", file=sys.stderr)
             raise SystemExit(2) from None
@@ -1393,7 +1413,7 @@ def main(argv: list[str] | None = None) -> None:
             where = exc.filename or args.output
             print(f"spoider: cannot write {where}: {exc.strerror or exc}", file=sys.stderr)
             raise SystemExit(2) from None
-        print(f"wrote {written} ({sheet.caption})")
+        print(f"wrote {written} ({caption})")
         raise SystemExit(0)
     try:
         app = SpoiderApp(path, demo=args.demo, position=args.position, cell_id=args.cell_id)

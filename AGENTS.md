@@ -224,12 +224,18 @@ not always have `~/.local/bin` on PATH.
 
 ## Export
 
-`svg.py` writes the picture the renderer already drew; `palettes.py` owns the four palettes and
-discovered the typefaces. Both are only reachable from `--export` on the command line: there is
-no key, no drawer and no second format, because a smaller surface is easier to keep honest.
-`--export` names the format and `-o` the file. The formats are `svg.EXPORT_FORMATS`, which the
-parser reads for its choices, so a writer and the flag that reaches it cannot drift apart; a
-second format is one name in that tuple and one branch in `main`.
+Three writers, all reachable from `--export` on the command line and nowhere else: there is no
+key and no drawer, because a smaller surface is easier to keep honest. `svg.py` writes the
+picture the renderer already drew, with `palettes.py` owning the four palettes and the
+typefaces. `outline.py` writes the same map as a document, in markdown or plain text, from the
+saved JSON alone: no palette, no face, nothing embedded, which is why a text export cannot come
+out looking wrong on another machine.
+
+`--export` names the format and `-o` the file. The names live in `formats.EXPORT_FORMATS`,
+which the parser reads for its choices, so a writer and the flag that reaches it cannot drift
+apart; adding a format is one name in that tuple, one branch in `main`, and a dialect in
+`outline.py` if it is a document rather than a picture. `formats.TEXT_FORMATS` is what makes
+`--palette` and `--font` an error there instead of a lie.
 
 `compose` normalises the origin, because a layout may place a left branch at negative
 coordinates and a file has no camera to follow it. Runs carry `textLength`, so a face whose
@@ -250,8 +256,9 @@ built yet.
 
 ## Export safety
 
-`write_svg` refuses to replace an existing file without `overwrite`, refuses a target that is
-the map itself, refuses a folder that is not there, and goes through `files.write_atomic`.
+`write_svg` and `outline.export_document` both refuse to replace an existing file without
+`overwrite`, refuse a target that is the map itself, refuse a folder that is not there, and go
+through `files.write_atomic`.
 `write_atomic` creates parent folders, so the folder check has to happen first: an export
 writes one file and builds no road to it.
 

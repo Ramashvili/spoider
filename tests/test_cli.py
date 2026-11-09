@@ -330,10 +330,11 @@ def test_the_format_and_the_file_are_two_flags(tmp_path: Path, capsys):
 
 
 def test_the_formats_on_the_command_line_are_the_ones_the_writer_lists():
-    """The parser's choices are `svg.EXPORT_FORMATS`, so a new writer cannot be half-added."""
-    from spoider import svg
+    """The parser's choices are `formats.EXPORT_FORMATS`, so a writer cannot be half-added."""
+    from spoider import formats
 
-    assert svg.EXPORT_FORMATS == ("svg",), "add a format by adding it here"
+    assert formats.EXPORT_FORMATS == ("svg", "markdown", "text"), "add a format here"
+    assert formats.TEXT_FORMATS < set(formats.EXPORT_FORMATS), "and say if it is a document"
 
 
 def test_force_has_both_spellings(tmp_path: Path, capsys):

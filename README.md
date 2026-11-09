@@ -173,13 +173,25 @@ one of those will not do what it says.
 
 A map is a terminal picture, and a terminal is not always the thing you want to send someone.
 `--export` names the format to write, `-o` names the file, and spoider exits without opening a
-screen. SVG is the format there is:
+screen. `svg` is the picture:
 
 ```bash
 spoider notes.spoider --export svg -o notes.svg
 spoider notes.spoider --export svg -o notes.svg --palette coloured-paper --font "JetBrainsMono Nerd Font"
 spoider notes.spoider --export svg -o notes.svg --no-stack
 ```
+
+`markdown` and `text` carry the same map as a document. Markdown makes the root and its
+children headings and everything below them a nested list, with the cut stack under a heading
+of its own at the end. Plain text is that tree without headings or dashes, one tab for every
+level down, which is the shape to paste into a note, a message or a comment.
+
+```bash
+spoider notes.spoider --export markdown -o notes.md
+spoider notes.spoider --export text -o notes.txt
+```
+
+Neither takes `--palette` or `--font`: a document has no colours and no face.
 
 The picture holds the whole map, from its first cell to its last, never the part of it that
 happened to be on screen, in the colour mode the map itself was saved with. By default the cut

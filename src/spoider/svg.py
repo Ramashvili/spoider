@@ -15,6 +15,7 @@ from pathlib import Path
 from xml.sax.saxutils import escape, quoteattr
 
 from .files import write_atomic
+from .formats import ExportError
 from .layout import compute, compute_stack
 from .model import MindMap
 from .palettes import (
@@ -33,10 +34,6 @@ from .palettes import (
 from .render import Grid, build_grid
 from .text import cell_len
 
-#: What `--export` can name. A second writer adds its name here and a branch to the dispatch
-#: in `app.main`, and the help lists the formats from this tuple, so the two cannot drift.
-EXPORT_FORMATS: tuple[str, ...] = ("svg",)
-
 #: Cell size in multiples of the type size, used only when a face will not say. A face that
 #: does say gets its own advance and line height, so the boxes and the text agree.
 CELL_WIDTH = 0.6
@@ -50,10 +47,6 @@ FONT_SIZE = 12.0
 #: box edge is visibly inside the picture rather than a hairline from its border.
 MARGIN = 5
 GAP = 3
-
-
-class ExportError(Exception):
-    """Something about this export cannot be done, said in words a person can act on."""
 
 
 @dataclass(frozen=True)
