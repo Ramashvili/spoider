@@ -28,6 +28,7 @@ NAMED = {
     ".": "full_stop",
     ",": "comma",
     "?": "question_mark",
+    "Esc": "escape",
 }
 ARROWS = "↑↓←→"
 VIM = "hjkl"
@@ -51,6 +52,15 @@ def key_names(token: str) -> list[str]:
         return ["grave_accent"]
     if len(token) == 1 and token.isascii():
         return [token]
+    if re.fullmatch(r"F(?:[1-9]|1[0-2])", token):
+        return [token.lower()]
+    if token.startswith("Alt+"):
+        rest = token[len("Alt+") :]
+        return [f"alt+{NAMED.get(rest, rest).lower()}"]
+    if token.startswith("Shift+"):
+        rest = token[len("Shift+") :]
+        if rest and all(char in ARROWS for char in rest):
+            return [f"shift+{NAMED[char]}" for char in rest]
     return []
 
 

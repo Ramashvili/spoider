@@ -89,6 +89,9 @@ is read, and a line the program cannot read is left out rather than guessed at.
 | `Tab` / `Return` | add a child, add a sibling |
 | `e` | edit the cell's text |
 | `↑↓←→` `hjkl` | walk the tree |
+| `Shift+↑↓←→` / `Esc` | select a run of cells, or drop the selection |
+| `^A` | select the whole text in a cell, or every sibling of this one |
+| `Alt+6` | copy the cell's text to the clipboard |
 | `Alt+↑` / `Alt+↓` | reorder siblings |
 | `^K` / `^U` | cut a branch to the stack, paste it under the current cell |
 | `p` | open the cut stack panel to inspect or edit cut branches |
@@ -106,9 +109,9 @@ is read, and a line the program cannot read is left out rather than guessed at.
 | `Alt+F` / `Alt+B` | the next or previous hit; the stack panel opens for a cut |
 | `^L` / `c` | cycle the layout shape, switch colour mode |
 | `=` / `-` | loosen or tighten the spacing |
-| `^Z` `^Y` | undo, redo |
-| `^S` `^O` `^X` | save, save as, quit |
-| `.` `?` | your settings in your editor, the full key list |
+| `^Z` `F3` / `^Y` | undo, redo |
+| `^S` `F2` / `^O` `F12` / `^X` `F10` | save, save as, quit |
+| `.` `F9` / `?` `F1` | your settings in your editor, the full key list |
 
 ## How it works
 
@@ -157,10 +160,6 @@ A complete example sits in [`examples/spoider.conf`](examples/spoider.conf): it 
 text a fresh install writes, so you can see what a newer release added without touching the
 file you already have.
 
-Six actions also answer to a function key — `F1` help, `F2` save, `F3` undo, `F9` settings,
-`F10` quit, `F12` write — as a second chord beside their usual one, which is how `?` lists
-them. They are chords like any other, not a permanent net: a line naming one of those
-actions replaces the whole list, so `help = t` takes both `?` and `F1` away.
 An action whose chords are all taken away keeps its place in the bar, greyed and without a
 key, so you can see what went missing.
 
