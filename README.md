@@ -192,6 +192,9 @@ to inherit colours from. `--font` takes any monospace family this machine has, b
 name; without it the first one found is used. The face travels inside the file, so the picture
 looks the same on a machine that has installed nothing.
 
+For those interested in having a high-quality PDF of a mind map, we recommend first exporting
+to SVG and then converting it to PDF with another program, such as Inkscape.
+
 The export is careful with the filesystem: it never replaces an existing file unless `-f` says
 so, it refuses to write over the map it just read, it writes atomically so an interrupted
 export leaves the old file rather than half a new one, and the folder you name has to exist.
