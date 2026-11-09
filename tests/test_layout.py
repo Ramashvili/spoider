@@ -84,6 +84,18 @@ def test_hit_test_finds_the_root():
     assert layout.hit(-50, -50) is None
 
 
+def test_an_empty_cell_is_drawn_as_empty_and_sized_for_the_placeholder():
+    """An empty cell keeps its place: the screen says so, the file holds nothing."""
+    mm = MindMap()
+    mm.root.text = ""
+    layout = compute(mm.root)
+    box = layout.boxes[mm.root.id]
+
+    assert label(mm.root) == "(empty)"
+    assert mm.root.text == "", "the placeholder is the screen's, never the file's"
+    assert box.w == 11, "7 characters, a space each side, both walls"
+
+
 def test_mark_prefixes_the_label_and_widens_the_box():
     mm = MindMap()
     node = mm.add_child(mm.root.id, "task")

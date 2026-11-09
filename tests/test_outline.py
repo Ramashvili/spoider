@@ -65,6 +65,18 @@ cumin
 """
 
 
+def test_an_empty_cell_leaves_a_bare_marker():
+    """A document has no placeholder: an empty cell is a heading with nothing after it."""
+    mm = MindMap()
+    mm.root.text = ""
+    mm.add_child(mm.root.id, "")
+
+    text = markdown(mm)
+
+    assert text.splitlines()[0] == "#", "the root's heading, with no text"
+    assert "##" in text.splitlines()
+
+
 def test_markdown_is_a_heading_for_two_levels_then_lists():
     assert markdown(_dish()) == EXPECTED_MARKDOWN
 

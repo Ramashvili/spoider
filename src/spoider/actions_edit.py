@@ -245,7 +245,11 @@ class EditActions:
     def finish_edit(self, *, commit: bool) -> None:
         node_id = self._edit_id
         self._edit_id = None
-        node = self._live_node(node_id) if node_id else None
+        # The tree the keys are in: the map, or the panel's copy of the stack. Deleting
+        # from `self.mm` while the panel has the keys missed the copy every time, so an
+        # abandoned cell in the panel stayed, and the copy was then written back with it.
+        doc = self.document
+        node = doc.find(node_id) if node_id else None
         text = self._buffer.text.strip() if self._buffer is not None else ""
         fresh = self._edit_fresh
         if node is not None:
@@ -255,12 +259,18 @@ class EditActions:
             node.sel = None
         self._buffer = None
 
-        if node is None or not commit or not text:
-            # An abandoned new node was only ever a promise; take it away again.
+        if node is None or not commit:
+            # An abandoned new node was only ever a promise; take it away again. An empty
+            # commit is not abandonment: an empty cell is a cell, and the screen draws it
+            # as "(empty)" until something is typed into it.
             if fresh and node is not None:
-                result = self.mm.delete(node.id)
+                result = doc.delete(node.id)
+                if self.stack_open:
+                    self._commit_stack(doc)
                 if result is not None:
                     self.selected = result[1]
+                if self.stack_open:
+                    self._stack_changed()
             self._sync_footer()
             self.view.refresh_map()
             return

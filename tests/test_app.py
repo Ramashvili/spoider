@@ -312,6 +312,100 @@ async def test_escape_cancels_a_new_node(tmp_path: Path):
         assert app.selected == app.mm.root.id
 
 
+async def test_an_empty_cell_stays_where_it_was_made(tmp_path: Path):
+    """Committing nothing leaves a cell; abandoning it, above, does not."""
+    from spoider.layout import lines_of
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("tab")
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert app.editing is False
+        assert len(app.mm.root.children) == 1, "an empty cell is a cell"
+        cell = app.mm.root.children[0]
+        assert cell.text == ""
+        assert app.selected == cell.id, "the cursor stands on it, as on any new cell"
+        assert lines_of(cell) == ["(empty)"], "and the screen says so"
+
+
+async def test_the_root_may_be_emptied(tmp_path: Path):
+    from spoider.layout import lines_of
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("e")
+        await pilot.pause()
+        for _ in range(len(app.mm.root.text)):
+            await pilot.press("backspace")
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert app.mm.root.text == "", "the root is a cell like the others"
+        assert lines_of(app.mm.root) == ["(empty)"]
+
+
+async def _a_cut_in_the_panel(pilot, app):
+    """One cell with text, cut onto the stack, panel open; returns the entry."""
+    await pilot.press("tab")
+    await pilot.pause()
+    await pilot.press("x")
+    await pilot.press("enter")
+    await pilot.pause()
+    app.select(app.mm.root.children[0].id)
+    await pilot.press("ctrl+k")
+    await pilot.pause()
+    await pilot.press("p")
+    await pilot.pause()
+    return app.mm.cut_stack[0]
+
+
+async def test_an_empty_cell_stays_in_the_panel_too(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        entry = await _a_cut_in_the_panel(pilot, app)
+
+        await pilot.press("tab")
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert [child.text for child in entry.children] == [""], "the panel keeps it too"
+
+
+async def test_escape_removes_a_new_cell_in_the_panel(tmp_path: Path):
+    """The delete went to the map while the panel owned the copy, so it never landed."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        entry = await _a_cut_in_the_panel(pilot, app)
+
+        await pilot.press("tab")
+        await pilot.pause()
+        await pilot.press("escape")
+        await pilot.pause()
+
+        assert entry.children == [], "abandoning removes it, in the panel as in the map"
+
+
+async def test_search_does_not_find_the_placeholder(tmp_path: Path):
+    """(empty) is what the screen draws, not what the map holds."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        await pilot.press("tab")
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+
+        await pilot.press("ctrl+f")
+        for letter in "empty":
+            await pilot.press(letter)
+        await pilot.pause()
+
+        assert app.matches == [], "nothing in the map says empty"
+
+
 async def test_ctrl_c_cancels_like_escape(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:

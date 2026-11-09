@@ -129,7 +129,10 @@ def lines_of(node: Node) -> list[str]:
     if node.preview is not None:
         text = clean_text(node.preview)
     else:
-        text = clean_text(node.text or "").strip() or "(untitled)"
+        # An empty cell is a cell: it keeps its place in the drawing and says so, the way
+        # an empty cut on the stack always has. The placeholder is what the screen shows,
+        # never what the file holds.
+        text = clean_text(node.text or "").strip() or "(empty)"
         text = f"{text}{fold_note(node)}"
     lines = expand_tabs(text).split("\n")
     if node.mark:
