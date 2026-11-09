@@ -159,11 +159,19 @@ def test_an_unmarked_cell_is_just_its_text():
     assert "## Ingredients" in markdown(_dish())
 
 
+def test_mermaid_asks_for_the_layout_that_keeps_cells_apart():
+    """Mermaid's default layout draws a wide map over itself; the tidy tree does not."""
+    text = mermaid(_dish())
+
+    assert text.startswith("---\nconfig:\n  layout: tidy-tree\n---\n"), text[:60]
+    assert text.splitlines()[4] == "mindmap"
+
+
 def test_mermaid_is_a_mindmap_with_two_spaces_per_level():
     """The renderer's own shape: a keyword, a root in a circle, then the tree."""
     text = mermaid(_dish())
 
-    assert text.startswith("mindmap\n")
+    assert text.splitlines()[4] == "mindmap", "the keyword follows the front matter"
     assert '  root(("Chilli"))' in text
     assert "    Ingredients\n      beef\n      beans" in text
     assert "    Method\n      brown the beef\n        in a wide pan" in text
@@ -181,11 +189,14 @@ def test_mermaid_leaves_the_stack_out():
 def test_mermaid_carries_the_colour_mode_it_was_saved_with():
     depth = _dish()
     depth.colours = "depth"
-    assert mermaid(depth).startswith("---\nconfig:\n  mindmap:\n    colorBy: depth\n---\n")
+    assert (
+        "---\nconfig:\n  layout: tidy-tree\n  mindmap:\n    colorBy: depth\n---\n"
+        in mermaid(depth)
+    )
 
     family = _dish()
     family.colours = "family"
-    assert not mermaid(family).startswith("---"), "the default needs no block"
+    assert "colorBy" not in mermaid(family), "a branch at a time is Mermaid's own default"
 
 
 def test_mermaid_breaks_lines_with_br():
@@ -235,7 +246,7 @@ def test_mermaid_is_a_document_format_on_the_command_line(tmp_path: Path):
 
     assert written == target
     assert caption == "9 cells", "no cuts mentioned: the format does not write them"
-    assert target.read_text(encoding="utf-8").startswith("mindmap")
+    assert "\nmindmap\n" in target.read_text(encoding="utf-8")
 
 
 def test_the_stack_comes_after_the_map_oldest_first():

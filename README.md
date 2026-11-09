@@ -203,9 +203,10 @@ comment. A cell's mark is printed before its text, the way the cell is drawn, so
 paper says what it says on the screen.
 
 `mermaid` carries the map as a Mermaid mind map, which is the shape to publish on a page
-that renders Mermaid: the keyword, two spaces per level, a root in a circle and every cell
-under it. The map's own colour mode travels with it, so a map that colours by depth asks the
-renderer for the same. A cell holding several lines keeps them as `<br/>`, a mark is printed
+that renders Mermaid: two spaces per level, a root in a circle and every cell under it. The
+file opens with the tidy-tree layout, because Mermaid's own layout draws the cells of a wide
+map over one another, and it carries the map's colour mode, so a map that colours by depth
+asks the renderer for the same. A cell holding several lines keeps them as `<br/>`, a mark is printed
 before its text, and a cell holding a bracket is quoted inside a square, because the parser
 would otherwise read the bracket as the start of a shape. The cut stack is left out: a
 published mind map is the map.

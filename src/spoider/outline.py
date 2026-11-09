@@ -159,11 +159,13 @@ def _mermaid_node(node: Node, number: int) -> str:
 
 def mermaid(document: MindMap) -> str:
     """The map as a Mermaid mind map: one root, every cell, no cut stack."""
-    head: list[str] = []
+    # Mermaid's own layout draws the nodes of a wide map over one another; the tidy tree
+    # keeps them apart, so every export asks for it. The map's colour mode rides along,
+    # because Mermaid colours a branch at a time unless told otherwise.
+    head = ["---", "config:", "  layout: tidy-tree"]
     if document.colours == "depth":
-        # Mermaid colours a branch at a time unless told otherwise, and the map may say
-        # that colour means the level instead
-        head = ["---", "config:", "  mindmap:", "    colorBy: depth", "---"]
+        head.extend(["  mindmap:", "    colorBy: depth"])
+    head.append("---")
     # the root is always inside its circle, so it is always quoted; an empty one needs the
     # space too, since the parser refuses a label with nothing in it
     root = _mermaid_label(document.root).replace('"', QUOTED) or EMPTY_LABEL
