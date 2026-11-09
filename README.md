@@ -60,12 +60,12 @@ uvx --from git+https://github.com/Ramashvili/spoider spoider --demo
 ## Run
 
 ```bash
-spoider                        # start a new buffer
-spoider ideas.spoider          # open a map, or create one at that path
-spoider --demo                 # open the interactive manual
-spoider -p 7.4.3 map.spoider   # land the cursor on the 3rd child of the 4th child of the 7th
-spoider -p s2.1 map.spoider    # land on the 1st child of the 2nd cut; opens the stack
-spoider --id 9f2c1a8b map.spoider   # land on the cell with that id
+spoider					# start a new buffer
+spoider file.spoider			# open a map, or create one at that path
+spoider --demo				# open the interactive manual
+spoider -p 7.4.3 file.spoider		# land the cursor on the 3rd child of the 4th child of the 7th
+spoider -p s2.1 file.spoider		# land on the 1st child of the 2nd cut; opens the stack
+spoider --id 9f2c1a8b file.spoider	# land on the cell with that id
 ```
 
 `--id` refuses a cell the map does not hold, and exits with code 2, so a program that
