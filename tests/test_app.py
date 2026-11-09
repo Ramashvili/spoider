@@ -2910,7 +2910,7 @@ async def test_cut_of_a_run_lands_on_the_cell_that_closes_the_gap(tmp_path: Path
 # -- what the toast says and where it says it -----------------------------
 
 
-async def test_a_cut_toasts_in_orange_at_the_top_right(tmp_path: Path):
+async def test_a_cut_toasts_in_green_at_the_top_right(tmp_path: Path):
     from textual.widgets._toast import Toast  # not exported by textual.widgets
 
     app = SpoiderApp(tmp_path / "map.json", demo=False)
@@ -2923,13 +2923,13 @@ async def test_a_cut_toasts_in_orange_at_the_top_right(tmp_path: Path):
         toast = app.query(Toast).last()
         assert "Cut onto the stack" in str(toast.render())
         assert "alpha" not in str(toast.render()), "a toast says what happened, not what was in the cell"
-        assert toast.has_class("-warning"), "a cut is neither a success nor a failure"
+        assert toast.has_class("-information"), "a cut worked, so it is green"
         region = toast.region
         assert region.y <= 3, "it hangs from the top"
         assert region.x + region.width >= 96, "and from the right"
 
 
-async def test_a_paste_toasts_in_orange_too(tmp_path: Path):
+async def test_a_paste_toasts_in_green_too(tmp_path: Path):
     from textual.widgets._toast import Toast
 
     app = SpoiderApp(tmp_path / "map.json", demo=False)
@@ -2943,7 +2943,7 @@ async def test_a_paste_toasts_in_orange_too(tmp_path: Path):
         await pilot.pause()
 
         newest = app.query(Toast).last()
-        assert newest.has_class("-warning")
+        assert newest.has_class("-information"), "a paste worked, so it is green"
         assert "Pasted from the stack" in str(newest.render())
         assert "alpha" not in str(newest.render())
 

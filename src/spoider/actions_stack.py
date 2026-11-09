@@ -54,9 +54,9 @@ class StackActions:
         self.selected = _standing_after(parent, end)
         self._mark_dirty()
         if len(taken) == 1:
-            self.notify("Cut onto the stack", severity="warning", timeout=NOTE)
+            self.notify("Cut onto the stack", timeout=NOTE)
         else:
-            self.notify(f"{len(taken)} cells cut onto the stack", severity="warning", timeout=NOTE)
+            self.notify(f"{len(taken)} cells cut onto the stack", timeout=NOTE)
     def action_paste(self) -> None:
         """^U — take the most recent cut off the stack and hang it here.
 
@@ -74,7 +74,7 @@ class StackActions:
             self._undo.pop()
             return
         self._mark_dirty()
-        self.notify("Pasted from the stack", severity="warning", timeout=NOTE)
+        self.notify("Pasted from the stack", timeout=NOTE)
     def action_toggle_stack(self) -> None:
         """`p` — the stack itself, as a panel of cells over the map.
 
