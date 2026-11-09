@@ -101,13 +101,17 @@ def test_the_help_sorts_the_options_into_sections(monkeypatch, capsys):
         assert printed.index(option, exporting) > exporting, f"{option} belongs under exporting"
 
 
-def test_the_help_ends_with_an_example_of_exporting(monkeypatch, capsys):
+def test_the_help_ends_with_an_example_of_each_format(monkeypatch, capsys):
     printed = _help(monkeypatch, capsys)
-    last_three = [line.strip() for line in printed.rstrip().splitlines() if line.strip()][-3:]
+    tail = [line.strip() for line in printed.rstrip().splitlines() if line.strip()]
 
-    assert last_three[0] == "EXAMPLES"
-    assert last_three[1] == "spoider notes.spoider --export svg -o notes.svg"
-    assert last_three[2].endswith('--font "JetBrainsMono Nerd Font"')
+    assert "EXAMPLES" in tail, "the block has a name"
+    examples = tail[tail.index("EXAMPLES") + 1 :]
+    assert examples[0] == "spoider notes.spoider --export svg -o notes.svg"
+    assert examples[1].endswith('--font "JetBrainsMono Nerd Font"')
+    assert examples[2] == "spoider notes.spoider --export markdown -o notes.md"
+    assert examples[3] == "spoider notes.spoider --export text -o notes.txt"
+    assert len(examples) == 4, "and nothing after them"
 
 
 def test_the_demo_flag_is_what_asks_for_the_demo_map(monkeypatch):

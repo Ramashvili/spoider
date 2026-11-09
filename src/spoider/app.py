@@ -1279,7 +1279,9 @@ def main(argv: list[str] | None = None) -> None:
             "EXAMPLES\n"
             "  spoider notes.spoider --export svg -o notes.svg\n"
             "  spoider notes.spoider --export svg -o notes.svg --palette ink "
-            '--font "JetBrainsMono Nerd Font"'
+            '--font "JetBrainsMono Nerd Font"\n'
+            "  spoider notes.spoider --export markdown -o notes.md\n"
+            "  spoider notes.spoider --export text -o notes.txt"
         ),
         formatter_class=_Help,
     )
