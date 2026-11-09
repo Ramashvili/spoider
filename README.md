@@ -181,22 +181,10 @@ spoider notes.spoider --export svg -o notes.svg --palette coloured-paper --font 
 spoider notes.spoider --export svg -o notes.svg --no-stack
 ```
 
-`markdown` and `text` carry the same map as a document. Markdown makes the root and its
-children headings and everything below them a nested list, with the cut stack under a heading
-of its own at the end. Plain text is that tree without headings or dashes, one tab for every
-level down, which is the shape to paste into a note, a message or a comment.
-
-```bash
-spoider notes.spoider --export markdown -o notes.md
-spoider notes.spoider --export text -o notes.txt
-```
-
-Neither takes `--palette` or `--font`: a document has no colours and no face.
-
 The picture holds the whole map, from its first cell to its last, never the part of it that
 happened to be on screen, in the colour mode the map itself was saved with. By default the cut
 stack sits beside it, so a reader can see what is waiting, and a caption underneath counts
-what the file holds. `--no-stack` leaves the stack out.
+what the file holds. `--no-stack` leaves the stack out, here and in the text formats.
 
 `--palette` takes `paper` (black on white, the default), `coloured-paper`, `coloured-ink` and
 `ink` (white on black): four palettes, complete in themselves, because a file has no terminal
@@ -206,6 +194,19 @@ looks the same on a machine that has installed nothing.
 
 For those interested in having a high-quality PDF of a mind map, we recommend first exporting
 to SVG and then converting it to PDF with another program, such as Inkscape.
+
+`markdown` and `text` carry the same map as a document. Markdown makes the root and its
+children headings and everything below them a nested list; the cut stack gets a heading of its
+own at the title's level, at the end of the file. Plain text is that tree without headings or
+dashes, one tab for every level down, which is the shape to paste into a note, a message or a
+comment.
+
+```bash
+spoider notes.spoider --export markdown -o notes.md
+spoider notes.spoider --export text -o notes.txt
+```
+
+Neither takes `--palette` or `--font`: a document has no colours and no face.
 
 The export is careful with the filesystem: it never replaces an existing file unless `-f` says
 so, it refuses to write over the map it just read, it writes atomically so an interrupted

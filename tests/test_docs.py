@@ -88,3 +88,14 @@ def test_the_example_config_is_the_template(tmp_path: Path):
     expected = render_config(Config(), app._key_entries())
     example = Path(__file__).resolve().parent.parent / "examples" / "spoider.conf"
     assert example.read_text(encoding="utf-8") == expected
+
+
+def test_the_readme_shows_how_to_write_every_format() -> None:
+    """A format a person cannot find in the README is one only its author knows about."""
+    from spoider.formats import EXPORT_FORMATS
+
+    text = README.read_text(encoding="utf-8")
+    assert "### Exporting a map" in text, "the section a reader is sent to"
+    section = text.split("### Exporting a map", 1)[1].split("\n### ", 1)[0]
+    missing = [name for name in EXPORT_FORMATS if f"--export {name}" not in section]
+    assert not missing, f"the README shows no way to write: {missing}"

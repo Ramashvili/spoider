@@ -231,6 +231,13 @@ typefaces. `outline.py` writes the same map as a document, in markdown or plain 
 saved JSON alone: no palette, no face, nothing embedded, which is why a text export cannot come
 out looking wrong on another machine.
 
+Markdown gives the root and its children headings and everything below them a nested list,
+two spaces a level; the cut stack is a second part of the document, so its heading sits at the
+title's level and ends the file. Plain text is the same tree with no headings and no dashes,
+one tab a level. A cell is flattened to one line on the way out, because a heading with a
+newline in it stops being a heading, and a collapsed branch is still written: the file is the
+map, not the screen.
+
 `--export` names the format and `-o` the file. The names live in `formats.EXPORT_FORMATS`,
 which the parser reads for its choices, so a writer and the flag that reaches it cannot drift
 apart; adding a format is one name in that tuple, one branch in `main`, and a dialect in
