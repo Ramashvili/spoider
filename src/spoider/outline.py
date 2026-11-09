@@ -42,6 +42,19 @@ def _line(text: str) -> str:
     return " ".join(part.strip() for part in text.splitlines() if part.strip())
 
 
+def _label(node: Node) -> str:
+    """A cell as the document shows it: its mark, a space, then its text.
+
+    The same order the cell is drawn in, so a map read on paper says what it says on the
+    screen. A mark with no text is the whole label, and an empty cell stays empty.
+    """
+    text = _line(node.text)
+    mark = _line(node.mark or "")
+    if not mark:
+        return text
+    return f"{mark} {text}".strip()
+
+
 def _forest(nodes: list[Node]) -> Iterator[tuple[Node, int]]:
     """Every node under these, depth first, with its depth below the first level.
 
@@ -70,12 +83,12 @@ def _document(lines: list[str]) -> str:
 def markdown(document: MindMap, *, with_stack: bool = True) -> str:
     """The map as markdown: a heading for the root and its children, lists below."""
     root = document.root
-    lines = [f"# {_line(root.text)}".rstrip(), ""]
+    lines = [f"# {_label(root)}".rstrip(), ""]
     for child in root.children:
-        lines.append(f"## {_line(child.text)}".rstrip())
+        lines.append(f"## {_label(child)}".rstrip())
         lines.append("")
         lines.extend(
-            f"{STEP * depth}- {_line(node.text)}".rstrip()
+            f"{STEP * depth}- {_label(node)}".rstrip()
             for node, depth in _forest(child.children)
         )
         lines.append("")
@@ -83,7 +96,7 @@ def markdown(document: MindMap, *, with_stack: bool = True) -> str:
         lines.append(f"# {STACK_HEADING}")
         lines.append("")
         lines.extend(
-            f"{STEP * depth}- {_line(node.text)}".rstrip()
+            f"{STEP * depth}- {_label(node)}".rstrip()
             for node, depth in _forest(document.cut_stack)
         )
     return _document(lines)
@@ -92,13 +105,13 @@ def markdown(document: MindMap, *, with_stack: bool = True) -> str:
 def plain(document: MindMap, *, with_stack: bool = True) -> str:
     """The same tree with no headings and no dashes, one tab per level."""
     lines = [
-        f"{TAB * depth}{_line(node.text)}"
+        f"{TAB * depth}{_label(node)}"
         for node, depth in _forest([document.root])
     ]
     if with_stack and document.cut_stack:
         lines.append("")
         lines.extend(
-            f"{TAB * depth}{_line(node.text)}"
+            f"{TAB * depth}{_label(node)}"
             for node, depth in _forest(document.cut_stack)
         )
     return _document(lines)

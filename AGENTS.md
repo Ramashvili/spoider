@@ -236,7 +236,8 @@ two spaces a level; the cut stack is a second part of the document, so its headi
 title's level and ends the file. Plain text is the same tree with no headings and no dashes,
 one tab a level. A cell is flattened to one line on the way out, because a heading with a
 newline in it stops being a heading, and a collapsed branch is still written: the file is the
-map, not the screen.
+map, not the screen. A mark is printed before its cell's text, as the cell is drawn, and a
+mark with no text is the whole label.
 
 `--export` names the format and `-o` the file. The names live in `formats.EXPORT_FORMATS`,
 which the parser reads for its choices, so a writer and the flag that reaches it cannot drift

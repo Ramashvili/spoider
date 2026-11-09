@@ -121,6 +121,32 @@ def test_a_cell_holding_several_lines_becomes_one():
     assert "\tfirst line second line" in plain(MindMap(root))
 
 
+def test_a_mark_is_printed_before_the_text_of_its_cell():
+    """The order the cell is drawn in, so the document says what the screen says."""
+    document = _dish()
+    document.root.mark = "⭐"
+    document.root.children[0].mark = "✅"
+
+    text = markdown(document)
+    assert "# ⭐ Chilli" in text
+    assert "## ✅ Ingredients" in text
+    assert "⭐ Chilli" in plain(document)
+    assert "\t✅ Ingredients" in plain(document)
+
+
+def test_a_mark_with_no_text_is_the_whole_cell():
+    branch = Node("items")
+    branch.children = [Node("", mark="!")]
+    root = Node("root")
+    root.children = [branch]
+    assert "- !" in markdown(MindMap(root)), "a list item that is only a mark"
+    assert "\t\t!" in plain(MindMap(root))
+
+
+def test_an_unmarked_cell_is_just_its_text():
+    assert "## Ingredients" in markdown(_dish())
+
+
 def test_the_stack_comes_after_the_map_oldest_first():
     text = plain(_dish())
     assert text.index("simmer") < text.index("paprika")

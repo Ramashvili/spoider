@@ -199,7 +199,8 @@ to SVG and then converting it to PDF with another program, such as Inkscape.
 children headings and everything below them a nested list; the cut stack gets a heading of its
 own at the title's level, at the end of the file. Plain text is that tree without headings or
 dashes, one tab for every level down, which is the shape to paste into a note, a message or a
-comment.
+comment. A cell's mark is printed before its text, the way the cell is drawn, so a map read on
+paper says what it says on the screen.
 
 ```bash
 spoider notes.spoider --export markdown -o notes.md
