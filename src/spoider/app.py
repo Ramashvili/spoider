@@ -7,7 +7,7 @@ import os
 import shlex
 import subprocess
 import sys
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import ClassVar, cast
 
@@ -324,6 +324,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._write_then_quit = False
         #: keys | search | write | marks | ask | help
         self._mode = "keys"
+        #: What acknowledging the red line does, while it is on screen. It lives here
+        #: rather than on the drawer, because a drawer hears keys only while it has focus.
+        self._error_ack: Callable[[], None] | None = None
         #: The words the open yes/no question offers, so the bar can name them.
         self._ask_words: tuple[str, str] = ("save", "discard")
         self._show_matches = False  # the count sits in the bar only for a while
@@ -608,6 +611,20 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         if self._mode == "keys" and self.editing:
             return "edit"
         return self._mode
+
+    def on_key(self, event: events.Key) -> None:
+        """A refused file has one way out, and the focus must not decide whether it works.
+
+        The red line is a drawer, and a drawer hears keys only while it holds the focus:
+        a terminal that left the focus on the hidden canvas swallowed every key, and the
+        program looked hung while it was alive and repainting. So the acknowledgement is
+        answered here, at the top, before any widget can claim the key.
+        """
+        if self._mode == "error" and self._error_ack is not None:
+            event.stop()
+            event.prevent_default()
+            ack, self._error_ack = self._error_ack, None
+            ack()
 
     def action_help_quit(self) -> None:
         """^C is escape in spoider, not Textual's "press ^X to quit" nudge."""
@@ -1112,8 +1129,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def _show_error(self, message: str, on_ack) -> None:
         """Refuse and explain: one line, red, and nothing to do but acknowledge it."""
         self._mode = "error"
+        self._error_ack = on_ack
         self._hide_drawers(ErrorBar)
-        self.query_one(ErrorBar).show(message, on_ack)
+        self.query_one(ErrorBar).show(message)
         self._sync_footer()
         self._refresh_chrome()
 
@@ -1159,6 +1177,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         for drawer in (PromptBar, AskBar, PanelBar):
             self.query_one(drawer).close()
         self._mode = "keys"
+        self._error_ack = None
         # the map comes back with the keys, unless there is no map to show at all
         self.view.display = self.load_error is None
         self._sync_footer()

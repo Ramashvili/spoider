@@ -5028,6 +5028,30 @@ async def test_a_dropped_paste_is_reported_as_a_failure(tmp_path: Path):
         assert "error" in severities, "a dropped paste is a failure, so it reads red"
 
 
+async def test_any_key_acknowledges_the_error_even_when_it_holds_no_focus(tmp_path: Path):
+    """The exit must not depend on where the focus happens to be.
+
+    In xfce4-terminal the drawer was left unfocused, every key went to the hidden canvas,
+    and the program looked hung while it was alive and repainting. Ask the app, not the
+    widget that happens to have the keys.
+    """
+    from spoider.widgets import MindMapView
+
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "e.conf", demo=False)
+    seen: list[str] = []
+    async with app.run_test(size=(100, 30)) as pilot:
+        app._show_error("map.spoider is not a spoider map", lambda: seen.append("acked"))
+        await pilot.pause()
+        app.query_one(MindMapView).focus()  # the focus somewhere else, as it was there
+        await pilot.pause()
+
+        await pilot.press("x")
+        await pilot.pause()
+
+        assert seen == ["acked"], "the key reached the app, not the widget"
+        assert app.mode == "error", "and it acked once, not twice"
+
+
 async def test_the_error_line_is_the_last_row_of_the_screen(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "e.conf", demo=False)
     async with app.run_test(size=(100, 24)) as pilot:

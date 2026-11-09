@@ -294,17 +294,16 @@ class ErrorBar(Drawer):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.message = ""
-        self._on_ack: Callable[[], None] = lambda: None
 
-    def show(self, message: str, on_ack: Callable[[], None]) -> None:
+    def show(self, message: str) -> None:
+        """Show the line. The key that acknowledges it is the app's business.
+
+        A drawer sees keys only while it holds focus, and this is the state where nothing
+        else may be done: a terminal that leaves the focus elsewhere left the program with
+        no way out at all. `SpoiderApp.on_key` answers for it, whatever has the focus.
+        """
         self.message = message
-        self._on_ack = on_ack
         self.open()
-
-    def on_key(self, event: events.Key) -> None:
-        event.stop()
-        event.prevent_default()
-        self._on_ack()
 
     def render(self) -> Text:
         width = self.size.width
