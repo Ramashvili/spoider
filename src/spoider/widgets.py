@@ -109,6 +109,19 @@ def compose_top_bar(
     return bar
 
 
+def name_bar(width: int, version: str) -> Text:
+    """The name and the version alone, for the one state where nothing else is true.
+
+    A file that could not be read has no path worth showing, no cell count and no shape
+    drawn. The version is the only fact a reader may need from that screen, and it is the
+    first thing anyone reporting the problem is asked for.
+    """
+    if width <= 0:
+        return Text("")
+    name = clip_head(f"spoider {version}", width)
+    return Text(name + " " * max(0, width - cell_len(name)))
+
+
 #: What the stack column calls itself, at the top of the wall.
 STACK_TITLE = "LIFO cut/paste stack"
 
@@ -132,6 +145,8 @@ class TopBar(Widget):
         height = self.size.width
         if height <= 0:
             return Text("")
+        if app.load_error is not None:
+            return name_bar(height, __version__)
         # No stat() per frame: the app tracks whether a file exists, so a file
         # deleted mid-session does not silently become "New Buffer".
         where = str(app.path) if app.has_file else "New Buffer"

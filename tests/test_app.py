@@ -1905,8 +1905,12 @@ async def test_a_file_that_cannot_be_read_is_refused_outright(tmp_path: Path):
         await pilot.pause()
         assert app.load_error is not None
         assert app.mode == "error", "nothing else may be done"
-        assert not app.query_one(TopBar).display, "no title for a file that is not a map"
-        assert not app.query_one(MindMapView).display, "no canvas either"
+        bar = app.query_one(TopBar)
+        assert bar.display, "the bar stays for its name and version"
+        name = bar.render().plain.strip()
+        assert name.startswith("spoider "), "which build refused the file"
+        assert "bad.json" not in name and "cells" not in name, "nothing else is true here"
+        assert not app.query_one(MindMapView).visible, "no canvas, and no rows for one"
         band = app.query_one(ErrorBar).render().plain
         assert "bad.json" in band and "not valid JSON" in band
 
