@@ -352,8 +352,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         yield PanelBar(id="panel")
         yield AskBar(id="ask")
         yield PromptBar(id="prompt")
-        yield FooterBar(id="footer")
+        # the red line sits above the bar of keys, so the way out stays the bottom row
+        # of the screen in every state
         yield ErrorBar(id="error")
+        yield FooterBar(id="footer")
 
     #: Rows a window needs before it can afford air around the map: below this,
     #: two rows of map are worth more than the tidier picture.

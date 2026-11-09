@@ -5056,14 +5056,20 @@ async def test_any_key_acknowledges_the_error_even_when_it_holds_no_focus(tmp_pa
         assert app.mode == "error", "and it acked once, not twice"
 
 
-async def test_the_error_line_is_the_last_row_of_the_screen(tmp_path: Path):
+async def test_the_error_line_sits_above_the_bar_of_keys(tmp_path: Path):
+    """The bar of keys is the bottom row in every state: it is the way out."""
+    from spoider.chrome import FooterBar
+
     app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "e.conf", demo=False)
     async with app.run_test(size=(100, 24)) as pilot:
         app._show_error("something is wrong", lambda: None)
         await pilot.pause()
+
         bar = app.query_one(ErrorBar)
-        assert bar.region.y == app.screen.size.height - 1, "flush with the bottom"
+        footer = app.query_one(FooterBar)
         assert bar.region.height == 1
+        assert footer.region.y == app.screen.size.height - 1, "the keys keep the last row"
+        assert bar.region.y == footer.region.y - 1, "and the red line is the row above"
 
 
 async def test_a_cell_takes_the_keys_that_open_the_drawers(tmp_path: Path, monkeypatch):
