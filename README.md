@@ -14,6 +14,7 @@ Distinct features of spoider, as compared to other mind mapping editors:
 - five mind map layouts
 - the positioning of cells is automatic
 - you can choose the spacing between cells
+- export to mermaid, SVG, markdown, plain text
 
 ![a mind map in spoider](media/spoider.png)
 
