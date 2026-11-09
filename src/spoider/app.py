@@ -795,7 +795,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self._settle_count()
             self.notify(
                 f"No match for {query!r}" if query else "Nothing to find",
-                severity="error",
+                severity="warning",
                 timeout=NOTE,
             )
             return
@@ -814,11 +814,11 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     def _walk_matches(self, direction: int) -> None:
         if not self.search_query.strip():
-            self.notify("Nothing to find: ^F searches first", timeout=NOTE)
+            self.notify("Nothing to find: ^F searches first", severity="warning", timeout=NOTE)
             return
         self._refresh_matches()  # the document with the keys may have changed since
         if not self.matches:
-            self.notify(f"No match for {self.search_query!r}", severity="error", timeout=NOTE)
+            self.notify(f"No match for {self.search_query!r}", severity="warning", timeout=NOTE)
             return
         self._show_matches = True
         self._jump_to_match(direction=direction)
@@ -1011,7 +1011,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def _write_submitted(self, value: str) -> None:
         self._close_drawers()
         if not value.strip() or Path(value.strip()).name in ("", SUFFIX):
-            self.notify("Name the file, then the suffix follows it", timeout=NOTE)
+            self.notify("Name the file, then the suffix follows it", severity="warning", timeout=NOTE)
             return
         target = Path(value).expanduser()
         if target.is_dir():
@@ -1211,14 +1211,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     def action_undo(self) -> None:
         if not self._undo:
-            self.notify("Nothing to undo", severity="error", timeout=QUICK)
+            self.notify("Nothing to undo", severity="warning", timeout=QUICK)
             return
         self._redo.append(self.mm.to_dict())
         self._restore(self._undo.pop())
 
     def action_redo(self) -> None:
         if not self._redo:
-            self.notify("Nothing to redo", severity="error", timeout=QUICK)
+            self.notify("Nothing to redo", severity="warning", timeout=QUICK)
             return
         self._undo.append(self.mm.to_dict())
         self._restore(self._redo.pop())

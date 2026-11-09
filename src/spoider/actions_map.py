@@ -72,7 +72,7 @@ class MapActions:
         """^D — delete everything selected, as one undoable step."""
         ids = self.selected_ids
         if self.mm.root.id in ids:
-            self.notify("The root node cannot be deleted", severity="error", timeout=NOTE)
+            self.notify("The root node cannot be deleted", severity="warning", timeout=NOTE)
             return
         self._push_undo()
         if len(ids) == 1:

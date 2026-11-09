@@ -33,7 +33,7 @@ class StackActions:
         """
         ids = self.selected_ids
         if self.mm.root.id in ids:
-            self.notify("The root node cannot be cut", severity="error", timeout=NOTE)
+            self.notify("The root node cannot be cut", severity="warning", timeout=NOTE)
             return
         parent = self.mm.parent(ids[0])
         if parent is None:

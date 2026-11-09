@@ -1193,6 +1193,67 @@ async def test_help_lists_every_chord_an_action_answers_to(tmp_path: Path):
             assert second in line, (row, second)
 
 
+def test_nothing_that_did_nothing_is_red():
+    """Green worked, yellow nothing happened, red failed — and the phrases keep it so.
+
+    A refusal is the program working: the root cannot be cut, undo has nothing to undo,
+    a search found no match. Those wear yellow. Red is spent only on the seven ways
+    writing a file can fail.
+    """
+    import ast
+    import pathlib as pathlib_
+
+    did_nothing = (
+        "Nothing to undo",
+        "Nothing to redo",
+        "No match for",
+        "Nothing to find",
+        "cannot be cut",
+        "cannot be deleted",
+        "Name the file",
+        "Nothing to paste",
+        "Stack empty",
+    )
+    failed = (
+        "A cell holds",
+        "Could not",
+        "is a directory",
+        "is not a spoider map",
+        "Cannot restore",
+    )
+
+
+    seen: list[str] = []
+    for path in pathlib_.Path("src/spoider").glob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "notify"
+            ):
+                continue
+            first = node.args[0] if node.args else None
+            if isinstance(first, ast.Constant):
+                text = str(first.value)
+            elif isinstance(first, ast.JoinedStr):
+                text = "".join(v.value if isinstance(v, ast.Constant) else "" for v in first.values)
+            else:
+                text = ""
+            given = {kw.arg: kw.value for kw in node.keywords}.get("severity")
+            severity = given.value if isinstance(given, ast.Constant) else "information"
+            for phrase in did_nothing:
+                if phrase in text:
+                    seen.append(phrase)
+                    assert severity == "warning", f"{phrase!r} is {severity}, and nothing happened"
+            for phrase in failed:
+                if phrase in text:
+                    seen.append(phrase)
+                    assert severity == "error", f"{phrase!r} is {severity}, and that is a failure"
+
+    for phrase in did_nothing + failed:
+        assert phrase in seen, f"no message holds {phrase!r} any more: update this list"
+
+
 def test_a_toast_lasts_one_of_three_lengths():
     """2, 6 or 10 seconds, or forever for a broken config — and never a bare number.
 
