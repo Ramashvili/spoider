@@ -2990,6 +2990,43 @@ async def test_a_cut_toasts_in_green_at_the_top_right(tmp_path: Path):
         assert region.x + region.width >= 96, "and from the right"
 
 
+async def test_a_notice_hangs_over_the_map_and_not_over_the_stack(tmp_path: Path):
+    """The stack column owns the right of the screen, so a notice stops at the pane."""
+    from textual.widgets._toast import Toast
+
+    from spoider.widgets import stack_column
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 30), notifications=True) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+
+        hung = app.query(Toast).last()
+        assert hung.region.x + hung.region.width >= 96, "hard against the window while shut"
+
+        await pilot.press("p")  # the stack opens under a notice that is already hanging
+        await pilot.pause()
+        columns = stack_column(app.stack_layout(), app.size.width)
+        assert columns > 0, "the panel is open"
+        moved = app.query(Toast).last()
+        assert moved.region.x + moved.region.width <= app.size.width - columns, (
+            "it shifts with the pane instead of covering the stack"
+        )
+
+        app.select(app.mm.root.id)
+        await pilot.press("ctrl+k")  # a notice born while the panel is open
+        await pilot.pause()
+        fresh = app.query(Toast).last()
+        assert fresh.region.x + fresh.region.width <= app.size.width - columns
+
+        await pilot.press("p")
+        await pilot.pause()
+        back = app.query(Toast).last()
+        assert back.region.x + back.region.width >= 96, "and comes back with the pane"
+
+
 async def test_a_paste_toasts_in_green_too(tmp_path: Path):
     from textual.widgets._toast import Toast
 

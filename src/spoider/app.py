@@ -56,7 +56,7 @@ from .model import MapFileError, MindMap, Node, marks_of
 from .nav import to_end, to_extreme_sibling, to_home
 from .screens import help_text
 from .text import clean, find_all, one_line, set_tab_width
-from .widgets import MindMapView, TopBar
+from .widgets import MindMapView, TopBar, stack_column
 
 # No colours here on purpose: the app runs on Textual's ansi theme, so every
 # surface inherits the terminal's palette. `ansi_default` means "whatever the
@@ -359,6 +359,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def on_resize(self, event: events.Resize) -> None:
         """Give the bars a row of air each while the window can spare them."""
         self.screen.set_class(event.size.height > self.ROOMY_HEIGHT, "roomy")
+        self._fit_toasts()
 
     def on_mount(self) -> None:
         # A config is the reader's file: written once when it is missing, then only ever
@@ -927,6 +928,30 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             return
         self.query_one(TopBar).refresh()
         self.query_one(FooterBar).refresh()
+        self._fit_toasts()
+
+    def _fit_toasts(self) -> None:
+        """Keep notices over the map, never over the cut stack beside it.
+
+        Textual docks the rack to the screen, so its right edge is the window's and a
+        notice covers the stack column. The rack's right margin takes the stack's width
+        instead, which also moves a notice that is already hanging when the panel opens.
+        """
+        if not self.is_mounted:
+            return
+        # by id: ToastRack is Textual's own private widget, but the id it composes
+        # with is stable and a selector costs no import
+        racks = self.screen.query("#textual-toastrack")
+        if not len(racks):
+            return  # before the screen has composed it
+        rack = racks.first()
+        columns = stack_column(self.stack_layout(), self.size.width)
+        # an offset rather than a margin: the rack is docked with a height of its own
+        # content, so a margin leaves its box where it was and the toasts do not move.
+        # The offset moves the box, so a notice already hanging shifts with the pane and
+        # one that arrives later is born in the right place.
+        if rack.styles.offset.x != -columns:
+            rack.styles.offset = (-columns, 0)
 
     def _autosave(self) -> bool:
         """Write silently to the current path. False when the write failed, which
