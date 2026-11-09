@@ -111,7 +111,8 @@ def test_the_help_ends_with_an_example_of_each_format(monkeypatch, capsys):
     assert examples[1].endswith('--font "JetBrainsMono Nerd Font"')
     assert examples[2] == "spoider notes.spoider --export markdown -o notes.md"
     assert examples[3] == "spoider notes.spoider --export text -o notes.txt"
-    assert len(examples) == 4, "and nothing after them"
+    assert examples[4] == "spoider notes.spoider --export mermaid -o notes.mmd"
+    assert len(examples) == 5, "and nothing after them"
 
 
 def test_the_demo_flag_is_what_asks_for_the_demo_map(monkeypatch):
@@ -337,7 +338,7 @@ def test_the_formats_on_the_command_line_are_the_ones_the_writer_lists():
     """The parser's choices are `formats.EXPORT_FORMATS`, so a writer cannot be half-added."""
     from spoider import formats
 
-    assert formats.EXPORT_FORMATS == ("svg", "markdown", "text"), "add a format here"
+    assert formats.EXPORT_FORMATS == ("svg", "markdown", "text", "mermaid"), "add a format here"
     assert formats.TEXT_FORMATS < set(formats.EXPORT_FORMATS), "and say if it is a document"
 
 

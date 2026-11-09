@@ -1306,7 +1306,8 @@ def main(argv: list[str] | None = None) -> None:
             "  spoider notes.spoider --export svg -o notes.svg --palette ink "
             '--font "JetBrainsMono Nerd Font"\n'
             "  spoider notes.spoider --export markdown -o notes.md\n"
-            "  spoider notes.spoider --export text -o notes.txt"
+            "  spoider notes.spoider --export text -o notes.txt\n"
+            "  spoider notes.spoider --export mermaid -o notes.mmd"
         ),
         formatter_class=_Help,
     )
@@ -1346,7 +1347,8 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         choices=EXPORT_FORMATS,
         metavar="FORMAT",
-        help="write the map in this format, then exit: svg, markdown or text",
+        help="write the map in this format, then exit: "
+        f"{', '.join(EXPORT_FORMATS)}",
     )
     exporting.add_argument(
         "-o",

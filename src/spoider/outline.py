@@ -11,7 +11,9 @@ paste it anywhere and see the shape without counting spaces.
 
 The cut stack follows the map, oldest cut first, the way the list holds it. Markdown gives
 it a heading; plain text separates it with a blank line and nothing else, since a label
-would be the heading that format does not have.
+would be the heading that format does not have. Mermaid is the one written for a renderer
+rather than a reader: one tree under one root, no stack, because a published mind map is
+the map.
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from .files import write_atomic
-from .formats import ExportError
+from .formats import EXPORT_FORMATS, ExportError
 from .model import MindMap, Node
 
 #: One level in plain text.
@@ -35,6 +37,19 @@ STEP = "  "
 #: The heading the cut stack gets in markdown, at the same level as the map's own title: it
 #: is a second part of the document, not another child of the map, and nothing follows it.
 STACK_HEADING = "Cut stack"
+
+#: The keyword Mermaid's mindmap parser wants on the line above the tree.
+MINDMAP = "mindmap"
+
+#: What ends a label the moment that parser meets it, because it opens or closes a shape.
+SHAPE_CHARS = frozenset('()[]{}"')
+
+#: What a label holds when the cell holds nothing: the parser refuses an empty one, and a
+#: published map still has to draw the cell that is there.
+EMPTY_LABEL = " "
+
+#: Mermaid's own spelling of a quote inside a label.
+QUOTED = "#quot;"
 
 
 def _line(text: str) -> str:
@@ -117,6 +132,47 @@ def plain(document: MindMap, *, with_stack: bool = True) -> str:
     return _document(lines)
 
 
+def _mermaid_label(node: Node) -> str:
+    """A cell as one Mermaid label: its mark, a space, the text, lines broken by `<br/>`.
+
+    Mermaid has no second line inside a label, so a paragraph becomes `<br/>` breaks; blank
+    lines go, as they do in the other two documents.
+    """
+    text = "<br/>".join(part.strip() for part in (node.text or "").splitlines() if part.strip())
+    mark = " ".join(part.strip() for part in (node.mark or "").splitlines() if part.strip())
+    return f"{mark} {text}".strip() if mark else text
+
+
+def _mermaid_node(node: Node, number: int) -> str:
+    """A label as the parser takes it: bare when that is safe, shaped and quoted when not.
+
+    A bare line is what a mind map should look like when its text is a sentence, but a
+    bracket in it ends the line the moment the parser meets it. Quoting alone is not enough:
+    the renderer takes `"a (label)"` as a parse error, and `n1["a (label)"]` as a cell. So
+    those few carry an id that exists only to hold the quotes, and a square.
+    """
+    label = _mermaid_label(node)
+    if label and not (SHAPE_CHARS & set(label)):
+        return label
+    return f'n{number}["{label.replace(chr(34), QUOTED) or EMPTY_LABEL}"]'
+
+
+def mermaid(document: MindMap) -> str:
+    """The map as a Mermaid mind map: one root, every cell, no cut stack."""
+    head: list[str] = []
+    if document.colours == "depth":
+        # Mermaid colours a branch at a time unless told otherwise, and the map may say
+        # that colour means the level instead
+        head = ["---", "config:", "  mindmap:", "    colorBy: depth", "---"]
+    # the root is always inside its circle, so it is always quoted; an empty one needs the
+    # space too, since the parser refuses a label with nothing in it
+    root = _mermaid_label(document.root).replace('"', QUOTED) or EMPTY_LABEL
+    lines = [*head, MINDMAP, f'{STEP}root(("{root}"))']
+    for number, (node, depth) in enumerate(_forest(document.root.children), start=1):
+        lines.append(f"{STEP * (depth + 2)}{_mermaid_node(node, number)}")
+    return _document(lines)
+
+
 def export_document(
     path: Path,
     *,
@@ -140,8 +196,10 @@ def export_document(
         body = markdown(document, with_stack=with_stack)
     elif form == "text":
         body = plain(document, with_stack=with_stack)
+    elif form == "mermaid":
+        body = mermaid(document)
     else:
-        raise ExportError(f"no such form: {form}; there is markdown and text")
+        raise ExportError(f"no such form: {form}; there is {', '.join(EXPORT_FORMATS)}")
 
     target = output.expanduser()
     if target.exists() and target.resolve() == Path(path).expanduser().resolve():
@@ -154,6 +212,6 @@ def export_document(
     write_atomic(target, body)
 
     summary = f"{document.count()} cells"
-    if with_stack and document.cut_stack:
+    if form != "mermaid" and with_stack and document.cut_stack:
         summary += f", {len(document.cut_stack)} cuts"
     return target, summary

@@ -8,10 +8,10 @@ a name in the tuple with no branch behind it is a promise that fails at run time
 from __future__ import annotations
 
 #: The formats the command line offers.
-EXPORT_FORMATS: tuple[str, ...] = ("svg", "markdown", "text")
+EXPORT_FORMATS: tuple[str, ...] = ("svg", "markdown", "text", "mermaid")
 
 #: A document rather than a drawing: no palette, no typeface, nothing to embed.
-TEXT_FORMATS: frozenset[str] = frozenset({"markdown", "text"})
+TEXT_FORMATS: frozenset[str] = frozenset({"markdown", "text", "mermaid"})
 
 
 class ExportError(Exception):

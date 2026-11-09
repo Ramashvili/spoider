@@ -8,7 +8,7 @@ import pytest
 
 from spoider.formats import ExportError
 from spoider.model import MindMap, Node
-from spoider.outline import export_document, markdown, plain
+from spoider.outline import export_document, markdown, mermaid, plain
 
 
 def _dish() -> MindMap:
@@ -157,6 +157,85 @@ def test_a_mark_with_no_text_is_the_whole_cell():
 
 def test_an_unmarked_cell_is_just_its_text():
     assert "## Ingredients" in markdown(_dish())
+
+
+def test_mermaid_is_a_mindmap_with_two_spaces_per_level():
+    """The renderer's own shape: a keyword, a root in a circle, then the tree."""
+    text = mermaid(_dish())
+
+    assert text.startswith("mindmap\n")
+    assert '  root(("Chilli"))' in text
+    assert "    Ingredients\n      beef\n      beans" in text
+    assert "    Method\n      brown the beef\n        in a wide pan" in text
+
+
+def test_mermaid_leaves_the_stack_out():
+    """A published mind map is the map: the cuts are a working list, not a branch."""
+    text = mermaid(_dish())
+
+    assert "paprika" not in text
+    assert "cumin" not in text
+    assert text.count("mindmap") == 1
+
+
+def test_mermaid_carries_the_colour_mode_it_was_saved_with():
+    depth = _dish()
+    depth.colours = "depth"
+    assert mermaid(depth).startswith("---\nconfig:\n  mindmap:\n    colorBy: depth\n---\n")
+
+    family = _dish()
+    family.colours = "family"
+    assert not mermaid(family).startswith("---"), "the default needs no block"
+
+
+def test_mermaid_breaks_lines_with_br():
+    map_ = MindMap(Node("two\nlines\n\nand a blank one"))
+    text = mermaid(map_)
+
+    assert 'root(("two<br/>lines<br/>and a blank one"))' in text
+
+
+def test_mermaid_quotes_a_label_that_would_end_the_line():
+    """`(` opens a shape, so a cell holding one is quoted and given an id to hold them."""
+    root = Node("the root")
+    root.children = [Node("a plain sentence"), Node("has (brackets) and [some]"), Node('a "quote"')]
+    text = mermaid(MindMap(root))
+
+    lines = text.splitlines()
+    assert "    a plain sentence" in lines, "safe text stays bare"
+    assert '    n2["has (brackets) and [some]"]' in lines
+    assert '    n3["a #quot;quote#quot;"]' in lines
+
+
+def test_mermaid_gives_an_empty_cell_something_to_draw():
+    """The parser refuses a label with nothing in it, so an empty cell holds a space."""
+    root = Node("root")
+    root.children = [Node("")]
+    text = mermaid(MindMap(root))
+
+    assert '    n1[" "]' in text
+
+
+def test_mermaid_keeps_a_mark_before_its_text():
+    root = Node("root")
+    marked = Node("idea")
+    marked.mark = "⭐"
+    root.children = [marked]
+
+    assert "    ⭐ idea" in mermaid(MindMap(root))
+
+
+def test_mermaid_is_a_document_format_on_the_command_line(tmp_path: Path):
+    """`--export mermaid` writes the file and says what it holds, with no stack count."""
+    source = tmp_path / "map.spoider"
+    _dish().save(source)
+    target = tmp_path / "map.mmd"
+
+    written, caption = export_document(source, form="mermaid", output=target)
+
+    assert written == target
+    assert caption == "9 cells", "no cuts mentioned: the format does not write them"
+    assert target.read_text(encoding="utf-8").startswith("mindmap")
 
 
 def test_the_stack_comes_after_the_map_oldest_first():
