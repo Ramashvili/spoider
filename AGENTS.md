@@ -40,10 +40,12 @@ change → commit → push → checks green → bump + tag → push --follow-tag
   notice. Such a commit joins the next version instead of taking one of its own.
 - **Repairing the app is a version**, even when a test is what found the fault, because a
   user can see the difference.
-- **Patch, unless the map format changes** or a default chord changes meaning for a config
-  that already exists. Those two are the breaks that earn a minor; everything else is a
-  patch. While the major number is 0 the distinction promises nothing to anyone, so keep it
-  simple and consistent rather than clever.
+- **Patch, unless the saved map format changes, the set of names the config file accepts
+  changes, or a default chord changes meaning for a config that already exists.** Those are
+  the breaks that earn a minor; everything else is a patch. A line that used to do something
+  and now does nothing counts, even for a reader who never wrote it. While the major number
+  is 0 the distinction promises nothing to anyone, so keep it simple and consistent rather
+  than clever.
 - **The tag message says what changed**, not the date. The date is already on the commit,
   and a tag that reads `v0.4.9 — 2026-11-09` says nothing a reader cannot get from the
   commit below it.
