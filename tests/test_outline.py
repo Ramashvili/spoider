@@ -41,7 +41,7 @@ EXPECTED_MARKDOWN = """\
 - add the beans
 - simmer
 
-## Cut stack
+# Cut stack
 
 - paprika
   - smoked
@@ -125,6 +125,14 @@ def test_the_stack_comes_after_the_map_oldest_first():
     text = plain(_dish())
     assert text.index("simmer") < text.index("paprika")
     assert text.index("paprika") < text.index("cumin")
+
+
+def test_the_stack_section_starts_at_the_highest_heading_and_ends_the_file():
+    """A second part of the document, not another child of the map."""
+    text = markdown(_dish())
+    assert text.index("# Cut stack") > text.index("## Method")
+    assert text.count("# Cut stack") == 1
+    assert text.rstrip().endswith("cumin"), "and nothing follows it"
 
 
 # -- the file, and the command line ----------------------------------------

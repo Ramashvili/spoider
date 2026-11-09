@@ -32,7 +32,8 @@ TAB = "\t"
 #: at any depth; four also works and doubles the width of a deep map for nothing.
 STEP = "  "
 
-#: The heading the cut stack gets in markdown.
+#: The heading the cut stack gets in markdown, at the same level as the map's own title: it
+#: is a second part of the document, not another child of the map, and nothing follows it.
 STACK_HEADING = "Cut stack"
 
 
@@ -79,7 +80,7 @@ def markdown(document: MindMap, *, with_stack: bool = True) -> str:
         )
         lines.append("")
     if with_stack and document.cut_stack:
-        lines.append(f"## {STACK_HEADING}")
+        lines.append(f"# {STACK_HEADING}")
         lines.append("")
         lines.extend(
             f"{STEP * depth}- {_line(node.text)}".rstrip()
