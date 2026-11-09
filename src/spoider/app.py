@@ -376,10 +376,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             # the file is not a map: there is nothing to edit, so there is no canvas,
             # no title and no cursor — one red line, and the only key leaves
             # the bar stays for its name and version: it is how a reader says which build
-            # refused the file. The canvas has nothing to draw, so it goes — hidden but
-            # still holding its rows, or the drawers would climb to the top of the screen
-            # and the red line would sit under the bar instead of at the bottom.
-            self.query_one(MindMapView).visible = False
+            # refused the file. The canvas has nothing to draw, so it takes its rows with
+            # it and the red line and the keys come up under the bar, on an otherwise
+            # empty screen: there is no map here, and the screen says so.
+            self.query_one(MindMapView).display = False
             self._show_error(self.load_error, self._leave_refused_file)
             return
         self._set_terminal_title()

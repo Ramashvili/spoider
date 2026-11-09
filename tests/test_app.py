@@ -1910,7 +1910,7 @@ async def test_a_file_that_cannot_be_read_is_refused_outright(tmp_path: Path):
         name = bar.render().plain.strip()
         assert name.startswith("spoider "), "which build refused the file"
         assert "bad.json" not in name and "cells" not in name, "nothing else is true here"
-        assert not app.query_one(MindMapView).visible, "no canvas, and no rows for one"
+        assert not app.query_one(MindMapView).display, "no canvas, and no rows kept for one"
         band = app.query_one(ErrorBar).render().plain
         assert "bad.json" in band and "not valid JSON" in band
 
