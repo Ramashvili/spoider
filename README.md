@@ -173,7 +173,9 @@ one of those will not do what it says.
 
 A map is a terminal picture, and a terminal is not always the thing you want to send someone.
 `--export` names the format to write, `-o` names the file, and spoider exits without opening a
-screen. `svg` is the picture:
+screen.
+
+The picture is `svg`:
 
 ```bash
 spoider notes.spoider --export svg -o notes.svg
@@ -181,35 +183,11 @@ spoider notes.spoider --export svg -o notes.svg --palette coloured-paper --font 
 spoider notes.spoider --export svg -o notes.svg --no-stack
 ```
 
-The picture holds the whole map, from its first cell to its last, never the part of it that
-happened to be on screen, in the colour mode the map itself was saved with. By default the cut
-stack sits beside it, so a reader can see what is waiting, and a caption underneath counts
-what the file holds. `--no-stack` leaves the stack out, here and in the text formats.
+The whole map is drawn, from its first cell to its last, never the part of it that happened to
+be on screen, in the colour mode the map itself was saved with. The cut stack sits beside it
+unless `--no-stack` asks otherwise, and a caption underneath counts what the file holds.
 
-`--palette` takes `paper` (black on white, the default), `coloured-paper`, `coloured-ink` and
-`ink` (white on black): four palettes, complete in themselves, because a file has no terminal
-to inherit colours from. `--font` takes any monospace family this machine has, by slug or by
-name; without it the first one found is used. The face travels inside the file, so the picture
-looks the same on a machine that has installed nothing.
-
-For those interested in having a high-quality PDF of a mind map, we recommend first exporting
-to SVG and then converting it to PDF with another program, such as Inkscape.
-
-`markdown` and `text` carry the same map as a document. Markdown makes the root and its
-children headings and everything below them a nested list; the cut stack gets a heading of its
-own at the title's level, at the end of the file. Plain text is that tree without headings or
-dashes, one tab for every level down, which is the shape to paste into a note, a message or a
-comment. A cell's mark is printed before its text, the way the cell is drawn, so a map read on
-paper says what it says on the screen.
-
-`mermaid` carries the map as a Mermaid mind map, which is the shape to publish on a page
-that renders Mermaid: two spaces per level, a root in a circle and every cell under it. The
-file opens with the tidy-tree layout, because Mermaid's own layout draws the cells of a wide
-map over one another, and it carries the map's colour mode, so a map that colours by depth
-asks the renderer for the same. A cell holding several lines keeps them as `<br/>`, a mark is printed
-before its text, and a cell holding a bracket is quoted inside a square, because the parser
-would otherwise read the bracket as the start of a shape. The cut stack is left out: a
-published mind map is the map.
+The documents are the other three:
 
 ```bash
 spoider notes.spoider --export markdown -o notes.md
@@ -217,18 +195,33 @@ spoider notes.spoider --export text -o notes.txt
 spoider notes.spoider --export mermaid -o notes.mmd
 ```
 
-None of them takes `--palette` or `--font`: a document has no colours and no face.
+`markdown` makes the root and its children headings and everything below them a nested list,
+with the cut stack under a heading of its own at the end of the file. `text` is that same tree
+with no headings and no dashes, one tab for every level down, which is the shape to paste into a
+note, a message or a comment. `mermaid` writes a Mermaid mind map, for a page that renders
+Mermaid.
+
+None of the three takes `--palette` or `--font`: a document has no colours and no face. Every
+format prints a cell's mark before its text, the way the cell is drawn, so a map read on paper
+says what it says on the screen.
+
+| flag | what it takes |
+|---|---|
+| `--export` | `svg`, `markdown`, `text` or `mermaid` |
+| `-o`, `--output` | the file to write; required with `--export` |
+| `--palette` | `paper` (the default), `coloured-paper`, `coloured-ink` or `ink`; `svg` only |
+| `--font` | a monospace family, by slug or by name; `svg` only |
+| `--no-stack` | leave the cut stack out of `svg`, `markdown` and `text` |
+| `-f`, `--force` | write over a file that is already there |
+
+For font selection, only TrueType faces are allowed.
+
+For those interested in having a high-quality PDF of a mind map, we recommend first exporting
+to SVG and then converting it to PDF with another program, such as Inkscape.
 
 The export is careful with the filesystem: it never replaces an existing file unless `-f` says
 so, it refuses to write over the map it just read, it writes atomically so an interrupted
 export leaves the old file rather than half a new one, and the folder you name has to exist.
-Only a face with TrueType outlines can be embedded, which also means a fontconfig entry
-pointing somewhere it should not cannot put that file into your picture.
-
-Only TrueType faces are allowed, and that is not a preference: a CFF face — Spleen's `.otf`
-sizes are CFF — embeds, loads, and then draws nothing at all, leaving the viewer to substitute
-a face nobody chose. A bitmap face cannot be scaled either. Both are refused by name, with the
-faces this machine can use listed.
 
 ## Development
 
