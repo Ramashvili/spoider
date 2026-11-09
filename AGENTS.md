@@ -26,6 +26,36 @@ uvx pyright --pythonpath .venv/bin/python src/spoider    # types
 A change is not done until all three are clean and there is a test that fails without
 it.
 
+## Versions and tags
+
+A version marks a state whose checks passed. Bump and tag in the same breath, after the
+run is green, never on the way in:
+
+```
+change → commit → push → checks green → bump + tag → push --follow-tags
+```
+
+- **Repairing the check is not a version.** A test that failed on the runner, and a test
+  rewritten so it stops failing, are a fix to the check rather than a change anyone can
+  notice. Such a commit joins the next version instead of taking one of its own.
+- **Repairing the app is a version**, even when a test is what found the fault, because a
+  user can see the difference.
+- **Patch, unless the map format changes** or a default chord changes meaning for a config
+  that already exists. Those two are the breaks that earn a minor; everything else is a
+  patch. While the major number is 0 the distinction promises nothing to anyone, so keep it
+  simple and consistent rather than clever.
+- **The tag message says what changed**, not the date. The date is already on the commit,
+  and a tag that reads `v0.4.9 — 2026-11-09` says nothing a reader cannot get from the
+  commit below it.
+- **`pyproject` names the last released version.** Unreleased work sits in the tree under
+  that number, which is why the bump is the release act and not the first act. Two builds
+  in one session cannot be told apart by the number; that is accepted.
+
+There are no GitHub Releases here, only tags, so the tags page is the whole history a
+visitor sees. That makes a tag placed before the checks agreed the one mistake that costs
+something: `v0.4.7` went out red on the runner, and `0.4.8` was spent repairing it instead
+of shipping anything.
+
 ## Layout
 
 | File | Role |
