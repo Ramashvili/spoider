@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from rich.cells import cell_len
 
-from spoider.layout import PAD, compute, compute_stack
+from spoider.layout import PAD, compute, compute_stack, lines_of
 from spoider.model import MindMap, Node
 from spoider.render import DEPTH_COLORS, LINK_COLOR, STACK_START, build_grid, render_text
 
@@ -199,6 +199,61 @@ def _shaped(layout: str):
     mm.add_child(mm.root.id, "child")
     mm.layout = layout
     return compute(mm.root, 0, layout)
+
+
+def _letters_painted_out(mm: MindMap, layout: str, spacing: int) -> list[str]:
+    """Every cell a cell's text stands in, checked against what the grid finally shows."""
+    lay = compute(mm.root, spacing, layout)
+    grid = build_grid(lay, mm.root.id)
+    wrong: list[str] = []
+    for box in lay.boxes.values():
+        left = box.x + 1 if lay.walls else box.x
+        top = box.y + 1 if lay.walls else box.y
+        for index, line in enumerate(lines_of(box.node)):
+            x = left
+            for ch in " " + line:
+                if ch.strip() and grid.cells.get((x, top + index), ("", ""))[0] != ch:
+                    wrong.append(f"{ch!r} at ({x}, {top + index}) under {box.node.text[:12]!r}")
+                x += max(cell_len(ch), 1)
+    return wrong
+
+
+def test_a_border_never_paints_out_a_letter():
+    """A bare cell's own row is its text, so the wall the stacked drop wrote on the parent's
+    edge landed on the letters: at -3 the demo map lost five of them in both shapes."""
+    mm = MindMap.demo()
+    for layout in ("pyramid", "bush", "spider", "branch", "branch-left"):
+        for spacing in (-5, -4, -3, 0, 3):
+            assert not _letters_painted_out(mm, layout, spacing), f"{layout} at {spacing}"
+
+
+def test_a_straight_drop_between_bare_cells_is_a_line():
+    """With no walls there is nothing to join: the one row between two bare cells is a link,
+    and the cell it hangs from keeps its text."""
+    mm = MindMap()
+    mm.root.text = "root"
+    child = mm.add_child(mm.root.id, "child")
+    lay = compute(mm.root, -3, "pyramid")
+    grid = build_grid(lay, mm.root.id)
+    root = lay.boxes[mm.root.id]
+    assert lay.boxes[child.id].y == root.bottom + 2, "one row between them"
+
+    ch, style = grid.cells[(root.cx, root.bottom + 1)]
+    assert (ch, style) == ("│", LINK_COLOR), "the drop is a link"
+    assert (root.cx, root.bottom) not in grid.edges, "no wall where there is no wall to join"
+
+
+def test_a_straight_drop_between_walled_cells_still_joins_them():
+    """With borders the same row is a wall, and the box's own edge grows a T pointing at it."""
+    mm = MindMap()
+    mm.root.text = "root"
+    mm.add_child(mm.root.id, "child")
+    lay = compute(mm.root, -1, "pyramid")
+    grid = build_grid(lay, mm.root.id)
+    root = lay.boxes[mm.root.id]
+
+    assert (root.cx, root.bottom) in grid.edges, "the wall carries the join"
+    assert (root.cx, root.bottom + 1) in grid.edges, "and the row between is a wall"
 
 
 def test_a_pyramid_link_leaves_the_parent_edge_and_arrives_at_the_childs():

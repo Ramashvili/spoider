@@ -68,6 +68,9 @@ class Grid:
     edges: dict[tuple[int, int], tuple[int, str]] = field(default_factory=dict)
     links: dict[tuple[int, int], int] = field(default_factory=dict)
     wide: set[tuple[int, int]] = field(default_factory=set)
+    #: Cells a letter or a mark stands in. A border may join another border, and a link
+    #: may pass through an empty cell, but neither may paint out what a cell says.
+    text: set[tuple[int, int]] = field(default_factory=set)
     width: int = 0
     height: int = 0
 
@@ -82,8 +85,12 @@ class Grid:
             width = cell_len(ch)
             found = mask is not None and index < len(mask) and mask[index]
             self.put(x, y, ch, _marked(style) if found else style)
+            if ch.strip():
+                self.text.add((x, y))
             if width == 2:
                 self.wide.add((x + 1, y))
+                if ch.strip():
+                    self.text.add((x + 1, y))
             x += max(width, 1)
 
     def add_edge(self, x: int, y: int, bits: int, style: str) -> None:
@@ -99,8 +106,11 @@ class Grid:
         self.links[(x, y)] = self.links.get((x, y), 0) | bits
 
     def finalize(self) -> Grid:
-        # Borders first: a link never overwrites a wall it only meets.
+        # Borders first: a link never overwrites a wall it only meets. A border is one
+        # box's edge; a letter is a cell saying something, and no edge paints it out.
         for (x, y), (bits, style) in self.edges.items():
+            if (x, y) in self.text:
+                continue
             ch = BOX_CHARS.get(bits)
             if ch:
                 self.cells[(x, y)] = (ch, style)
@@ -376,11 +386,15 @@ def _draw_stack_link(
     mid = start + step * min(1, room)
 
     if start == end and parent.cx == child.cx:
-        # One row between the edges and the centres line up: a straight drop.
-        # There is no segment to draw, so the single cell has to be set by hand.
-        grid.add_edge(parent.cx, start, U | D, LINK_COLOR)
-        grid.add_edge(parent.cx, parent_edge, D if down else U, LINK_COLOR)
-        grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
+        # One row between the edges and the centres line up: a straight drop. There is no
+        # segment to draw, so the one cell is set by hand: a wall where there are walls to
+        # join, and a link where the cells are bare and a wall would land on their text.
+        if walls:
+            grid.add_edge(parent.cx, start, U | D, LINK_COLOR)
+            grid.add_edge(parent.cx, parent_edge, D if down else U, LINK_COLOR)
+            grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
+        else:
+            grid.add_link(parent.cx, start, U | D)
         return
 
     points = [(parent.cx, start), (parent.cx, mid), (child.cx, mid), (child.cx, end)]

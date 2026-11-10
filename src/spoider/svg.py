@@ -92,6 +92,7 @@ def _normalised(grid: Grid) -> Grid:
     for (x, y), value in grid.links.items():
         out.links[(x - left, y - top)] = value
     out.wide.update((x - left, y - top) for x, y in grid.wide)
+    out.text.update((x - left, y - top) for x, y in grid.text)
     return out
 
 
