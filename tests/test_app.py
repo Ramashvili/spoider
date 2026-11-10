@@ -208,7 +208,9 @@ async def test_top_bar_tracks_location_and_cell_count(tmp_path: Path):
     app = SpoiderApp(path, demo=False)
     async with app.run_test() as pilot:
         bar = app.query_one(TopBar)
-        assert "New Buffer" in bar.render().plain
+        # the name is known before the file is: that is where ^S will write
+        assert "map.json" in bar.render().plain
+        assert "New Buffer" not in bar.render().plain
         assert "1 cell" in bar.render().plain
 
         await pilot.press("tab")
@@ -222,6 +224,23 @@ async def test_top_bar_tracks_location_and_cell_count(tmp_path: Path):
         assert "map.json" in rendered  # long path keeps its tail
         assert "New Buffer" not in rendered
         assert "2 cells" in rendered
+
+
+async def test_a_buffer_with_no_name_is_the_one_called_new_buffer():
+    app = SpoiderApp(None, demo=False)
+    async with app.run_test():
+        assert "New Buffer" in app.query_one(TopBar).render().plain
+
+
+async def test_a_file_deleted_under_the_app_loses_nothing_but_its_contents(tmp_path: Path):
+    """The name is where the next ^S writes, so deleting the file mid-session must not
+    take it off the bar."""
+    path = tmp_path / "map.json"
+    MindMap().save(path)
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test():
+        path.unlink()
+        assert "map.json" in app.query_one(TopBar).render().plain
 
 
 async def test_tab_adds_a_child_and_enter_adds_a_sibling(tmp_path: Path):

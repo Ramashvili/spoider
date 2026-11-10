@@ -147,9 +147,10 @@ class TopBar(Widget):
             return Text("")
         if app.load_error is not None:
             return name_bar(height, __version__)
-        # No stat() per frame: the app tracks whether a file exists, so a file
-        # deleted mid-session does not silently become "New Buffer".
-        where = str(app.path) if app.has_file else "New Buffer"
+        # The name, not the file: `spoider new.spoider` names where the first ^S goes, and
+        # a file deleted mid-session is still where the next ^S goes. "New Buffer" is left
+        # for a buffer with no name at all, which includes one whose file would not load.
+        where = str(app.path) if app.path is not None else "New Buffer"
         return compose_top_bar(
             height,
             __version__,
