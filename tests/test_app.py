@@ -3114,6 +3114,24 @@ async def test_a_cut_toasts_in_green_at_the_top_right(tmp_path: Path):
         assert region.x + region.width >= 96, "and from the right"
 
 
+async def test_a_copy_says_what_it_took_and_where_it_went(tmp_path: Path):
+    """The text goes two places: spoider's own buffer, which a paste inside a cell reads, and
+    the terminal's clipboard through OSC 52. The toast names the one the reader cares about."""
+    from textual.widgets._toast import Toast
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 30), notifications=True) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("alt+6")
+        await pilot.pause()
+
+        toast = app.query(Toast).last()
+        assert "copied cell text to the terminal clipboard" in str(toast.render())
+        assert app._text_clip == alpha.text, "and the buffer inside spoider holds it"
+        assert toast.has_class("-information")
+
+
 async def test_a_notice_hangs_over_the_map_and_not_over_the_stack(tmp_path: Path):
     """The stack column owns the right of the screen, so a notice stops at the pane."""
     from textual.widgets._toast import Toast

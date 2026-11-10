@@ -156,7 +156,7 @@ class EditActions:
             return
         self._text_clip = node.text
         self.copy_to_clipboard(node.text)
-        self.notify("copied the cell's text", timeout=QUICK)
+        self.notify("copied cell text to the terminal clipboard", timeout=QUICK)
     def _cut_or_copy(self, *, cut: bool) -> None:
         """^K cuts the selection out of a cell, M-6 copies it.
 
