@@ -45,7 +45,6 @@ def compose_top_bar(
     version: str,
     where: str,
     stat: str,
-    layout: str = "",
     dirty: bool = False,
     extra: str = "",
     extra_active: bool = False,
@@ -53,9 +52,8 @@ def compose_top_bar(
     """One line: name+version left, location centred, statistics right.
 
     `stat` is whatever the app wants counted — cells, or the matches of a search —
-    `extra` rides beside it (the cuts waiting on the stack) and the shape the map
-    is drawn in closes the band. They degrade in stages as the terminal narrows:
-    the shape first, then the cuts, then the centre, then the location is
+    and `extra` rides beside it (the cuts waiting on the stack). They degrade in
+    stages as the terminal narrows: the cuts, then the centre, then the location is
     truncated from the left (a path's tail is the useful half), then the name. The
     unsaved marker rides on the location, because a window title is not something
     everyone can see — tiling window managers have no title bar at all.
@@ -74,11 +72,6 @@ def compose_top_bar(
         if fits(candidate):
             style = STAT_ACTIVE_STYLE if extra_active else STAT_STYLE
             segments.append((extra, style))
-            joined = candidate
-    if layout:
-        candidate = f"{joined}{GAP}{layout} layout"
-        if fits(candidate):
-            segments.append((f"{layout} layout", STAT_STYLE))
             joined = candidate
     right_width = cell_len(joined)
     if width < right_width + 2:
@@ -156,7 +149,6 @@ class TopBar(Widget):
             __version__,
             where,
             app.stat_text(),
-            app.mm.layout,
             app.dirty,
             extra=app.cut_stat(),
             extra_active=app.stack_open,

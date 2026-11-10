@@ -134,25 +134,26 @@ def test_help_documents_every_binding():
 
 
 def test_top_bar_layout():
-    bar = compose_top_bar(80, "0.1.0", "/tmp/map.json", "7 cells", "bush").plain
+    bar = compose_top_bar(80, "0.1.0", "/tmp/map.json", "7 cells").plain
     assert bar.startswith("spoider 0.1.0")
-    assert bar.endswith("7 cells  bush layout"), "two columns between the counts"
+    assert bar.endswith("7 cells")
+    assert "layout" not in bar, "the shape is not a fact about the file"
     assert "/tmp/map.json" in bar
     assert len(bar) == 80
 
-    assert compose_top_bar(70, "0.1.0", "New Buffer", "1 cell", "spider").plain.endswith("1 cell  spider layout")
+    assert compose_top_bar(70, "0.1.0", "New Buffer", "1 cell").plain.endswith("1 cell")
     # too narrow for three fields: the location is the one that goes
     narrow = compose_top_bar(24, "0.1.0", "/tmp/map.json", "3 cells").plain
-    # and the shape is the first thing to go when even that does not fit
+    # and the location is what gives way when even the counts do not fit
     assert narrow.startswith("spoider 0.1.0") and narrow.endswith("3 cells")
     assert "/tmp" not in narrow
 
 
 def test_top_bar_marks_an_unsaved_buffer():
     assert compose_top_bar(90, "0.1.0", "/tmp/map.json", "7 cells").plain.count("*") == 0
-    dirty = compose_top_bar(90, "0.1.0", "/tmp/map.json", "7 cells", "", True).plain
+    dirty = compose_top_bar(90, "0.1.0", "/tmp/map.json", "7 cells", True).plain
     assert "map.json *" in dirty
-    assert compose_top_bar(90, "0.1.0", "New Buffer", "1 cell", "", True).plain.find("New Buffer *") > 0
+    assert compose_top_bar(90, "0.1.0", "New Buffer", "1 cell", True).plain.find("New Buffer *") > 0
 
 
 async def test_top_bar_star_appears_and_clears_with_the_edit(tmp_path: Path):
@@ -3343,9 +3344,9 @@ async def test_the_bar_switches_to_the_panel_keys(tmp_path: Path):
 def test_the_cut_count_is_marked_when_the_panel_is_open():
     from spoider.widgets import compose_top_bar
 
-    closed = compose_top_bar(120, "0.1.0", "/tmp/m.json", "5 cells total", "spider", False, "2 cuts in stack")
+    closed = compose_top_bar(120, "0.1.0", "/tmp/m.json", "5 cells total", False, "2 cuts in stack")
     opened = compose_top_bar(
-        120, "0.1.0", "/tmp/m.json", "5 cells total", "spider", False, "2 cuts in stack", True
+        120, "0.1.0", "/tmp/m.json", "5 cells total", False, "2 cuts in stack", True
     )
     assert "2 cuts in stack" in closed.plain and "2 cuts in stack" in opened.plain
     # only the live one goes yellow, and only while the panel is open
@@ -3353,7 +3354,7 @@ def test_the_cut_count_is_marked_when_the_panel_is_open():
     assert yellow, "the stack count is marked"
     assert not [span for span in closed.spans if "on yellow" in str(span.style)]
     # one space between the items, not a run of them
-    assert "5 cells total  2 cuts in stack  spider layout" in closed.plain
+    assert "5 cells total  2 cuts in stack" in closed.plain
     # the counts are plain: reverse is reserved for the place that has the keys
     assert not [span for span in closed.spans if "reverse" in str(span.style)]
     assert not [span for span in closed.spans if "bold" in str(span.style)]
