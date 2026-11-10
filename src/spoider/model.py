@@ -42,7 +42,8 @@ MAX_DEPTH = 400
 #: character, so this is the difference between a large map and a gigabyte of memory.
 MAX_CELL_CHARS = 10_000
 
-#: A mark is one glyph, so this is generous; it stops a palette entry being a paragraph.
+#: A mark is a short token: a glyph, a letter, a word at most. Sixteen is generous; the
+#: cap is what stops a palette entry being a paragraph.
 MAX_MARK_CHARS = 16
 
 #: A prompt asks for a word: a path, a query, a set of marks, a width. A tenth of what a cell
