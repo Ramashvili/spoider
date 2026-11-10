@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+from rich.cells import cell_len
 
 from spoider.app import BINDINGS, SpoiderApp
 from spoider.chrome import FooterBar, compose_footer, hint_chunks
@@ -600,11 +601,39 @@ async def test_write_dialog_caret_follows_typing(tmp_path: Path):
         await pilot.pause()
         assert prompt.value.startswith("x")
         assert prompt.cursor == 1
-        # and the caret is drawn where it is, not at the end
+        # the window followed the caret to the front of the path, so that is what is shown
         typed = prompt.render()
-        # a long path is trimmed at the left, so the value is what to look for
-        assert "map.json" in typed.plain
+        assert str(tmp_path)[:10] in typed.plain, "the window moved with the caret"
+        assert "map.json" not in typed.plain, "and the far end of the path is out of view"
         assert any("reverse" in str(span.style) for span in typed.spans), "the caret is drawn"
+
+
+def test_the_prompt_shows_the_end_of_a_value_and_walks_with_the_caret():
+    """A path longer than the band is drawn from its end, and the caret can walk the rest of
+    it into view instead of the front being out of reach for good."""
+    from spoider.drawers import _shown_value
+
+    value = "/tmp/some/quite/deep/place/notes.spoider"
+    room = 16
+
+    at_end, caret = _shown_value(value, len(value), room)
+    assert at_end.startswith("…") and at_end.endswith("notes.spoider")
+    assert cell_len(at_end) <= room
+    assert caret == len(at_end), "past the last character, where the prompt draws its blank"
+
+    at_start, caret = _shown_value(value, 0, room)
+    assert at_start.startswith("/tmp/some")
+    assert at_start.endswith("…")
+    assert cell_len(at_start) <= room
+    assert caret == 0
+
+    # somewhere in the middle: the caret's own character is always inside the window
+    middle = value.index("deep")
+    shown, caret = _shown_value(value, middle, room)
+    assert value[middle] == shown[caret]
+
+    # a value that fits is drawn whole, with no ellipsis invented
+    assert _shown_value("/tmp/a.spoider", 3, room) == ("/tmp/a.spoider", 3)
 
 
 async def test_write_out_asks_for_a_name(tmp_path: Path):

@@ -35,6 +35,38 @@ def values_match(value: str, recall: list[str]) -> bool:
     return bool(recall) and value == recall[0]
 
 
+def _shown_value(value: str, caret: int, room: int) -> tuple[str, int]:
+    """What the prompt draws of its value, and where the caret sits in what it draws.
+
+    A value that fits is drawn whole. A longer one is drawn from its end, which is the useful
+    half of a path, and the window moves with the caret: walking left, or pressing Home, brings
+    the front of it into view instead of leaving it out of reach, and an ellipsis stands at each
+    end that has text hidden behind it.
+    """
+    if room <= 0:
+        return "", 0
+    if cell_len(value) <= room:
+        return value, caret
+
+    # the end of the value, with a column kept for the head's ellipsis
+    tail_start = max(0, len(value) - (room - 1))
+    start = tail_start if caret >= tail_start else caret
+    head = "…" if start else ""
+    budget = room - cell_len(head)
+
+    index = start
+    used = 0
+    while index < len(value) and used + cell_len(value[index]) <= budget:
+        used += cell_len(value[index])
+        index += 1
+    tail = index < len(value)
+    while tail and used + 1 > budget and index > start:
+        index -= 1
+        used -= cell_len(value[index])
+    drawn = head + value[start:index] + ("…" if tail else "")
+    return drawn, cell_len(head + value[start:caret])
+
+
 class PromptBar(Drawer):
     """One line that asks for a word: a search, a file name, a set of marks.
 
@@ -221,13 +253,10 @@ class PromptBar(Drawer):
         # Cleaned on the way out only: the value itself is what gets written.
         value = clean(self.value)
         caret = len(clean(self.value[: self.cursor]))
+        room = max(1, width - cell_len(self.label) - 2)
+        value, caret = _shown_value(value, caret, room)
         if caret >= len(value):
             value += " "  # past the last character the caret sits on a blank
-        room = max(0, width - cell_len(self.label) - 2)
-        if cell_len(value) > room:
-            kept = clip_tail(value, room)
-            caret -= len(value) - len(kept) + 1  # the ellipsis stands for the rest
-            value = kept
         caret = max(0, min(caret, len(value) - 1))
         # The whole line is a band, so the question is visible against the map above it.
         # The caret is the one cell of that band left plain: a hole you can see, where a
