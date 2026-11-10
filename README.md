@@ -118,7 +118,7 @@ is read, and a line the program cannot read is left out rather than guessed at.
 | `PgUp` | the first sibling under the same parent |
 | `PgDn` | the last sibling under the same parent |
 | `Del` | delete the cell, as `^D` does |
-| `^J` | wrap a cell's text to a chosen column width |
+| `^J` | wrap a cell's text to a chosen column width, keeping the blank line between paragraphs |
 | `^F` | search cells, in the map and on the stack |
 | `Alt+F` / `Alt+B` | the next or previous hit; the stack panel opens for a cut |
 | `^L` / `c` | cycle the layout shape, switch colour mode |

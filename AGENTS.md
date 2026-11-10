@@ -69,7 +69,9 @@ of shipping anything.
 | `addressing.py` | reading `-p/--position`: a path of 1-based children, `s` for the stack |
 | `properties.py` | the `i` overlay: the file's own values, the cursor's address and id |
 | `widgets.py` | `MindMapView`: camera, hit-testing, the stack column, clicks |
-| `drawers.py` | bottom drawers: prompt, question, panel |
+| `editing.py` | `Buffer`: the text inside a cell or a prompt, its caret, its selection,
+  its undo runs, and the justify fill |
+| `drawers.py` | bottom drawers: prompt, question, panel, and the notice line |
 | `screens.py` | the text the help shows |
 | `chrome.py` | the shortcut bar: ranking, chunks, pinned cluster |
 | `config.py` | editor preferences in `~/.config/spoider/spoider.conf` |
