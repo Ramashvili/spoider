@@ -58,6 +58,10 @@ and says whether a `.spoider` file will now open in spoider:
 
 Both go under `XDG_DATA_HOME` when you have set one, and running the command twice is harmless.
 
+The arrangement is freedesktop's, so it works on Linux and on the BSDs that package
+shared-mime-info. Where that tool is absent, macOS and Windows among them, the first launch
+leaves the question unasked and the flag says what is missing instead of writing files nothing reads.
+
 ## Try it without installing
 
 ```bash

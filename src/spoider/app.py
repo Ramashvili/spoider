@@ -39,7 +39,7 @@ from .config import (
     update_config,
     write_config,
 )
-from .desktop import install_desktop
+from .desktop import desktop_available, install_desktop
 from .drawers import AskBar, ErrorBar, PanelBar, PromptBar
 from .editing import Buffer
 from .files import SUFFIX
@@ -217,9 +217,11 @@ def ask_desktop(config: Config, config_path: Path, key_entries: list[tuple[str, 
     """Ask, before the screen exists, whether to register .spoider with the desktop.
 
     Nothing is written to a terminal that is not one: a program launching a map gets no
-    question, and the answer is not recorded, so the question comes back next time.
+    question. A machine without the freedesktop tools that would honour the answer is not
+    asked either, and only a question that was put is recorded, so the question comes back
+    on a machine that gains them.
     """
-    if config.desktop_asked or not sys.stdin.isatty():
+    if config.desktop_asked or not sys.stdin.isatty() or not desktop_available():
         return False
     print("\n".join(desktop_notes(config_path)))
     try:

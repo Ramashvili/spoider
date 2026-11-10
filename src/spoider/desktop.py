@@ -72,6 +72,18 @@ def _shown(path: Path) -> str:
     return text
 
 
+def desktop_available() -> bool:
+    """Whether this machine has a desktop that reads the files at all.
+
+    The two files are half of it: shared-mime-info's `update-mime-database` reads the MIME
+    type and builds the database the desktop consults, so a machine without that tool has
+    no use for either file. macOS and Windows are such machines; so is a BSD with no
+    desktop packages installed. The test is the tool, not the platform, because the
+    freedesktop tools are packaged on the BSDs as much as on Linux.
+    """
+    return shutil.which("update-mime-database") is not None
+
+
 def install_desktop() -> int:
     """Register `.spoider` with the desktop: the MIME type, the entry, the default.
 
@@ -80,6 +92,13 @@ def install_desktop() -> int:
     harmless, and the return code says whether the association was actually made: 0 when
     a `.spoider` file would now open in spoider, 1 when it would not.
     """
+    if not desktop_available():
+        print(
+            "spoider: the desktop learns about .spoider from shared-mime-info, whose "
+            "update-mime-database is not on this machine; nothing was written."
+        )
+        return 1
+
     home = data_home()
     mime_dir = home / "mime" / "packages"
     apps_dir = home / "applications"

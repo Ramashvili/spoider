@@ -4278,6 +4278,7 @@ def test_install_desktop_names_the_files_it_wrote(tmp_path: Path, monkeypatch, c
     """A reader who has to remove them, or explain why the desktop still balks, needs
     the two paths rather than a sentence."""
     from spoider.desktop import install_desktop
+    monkeypatch.setattr("spoider.desktop.desktop_available", lambda: True)
 
     monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: True)
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
@@ -4306,6 +4307,7 @@ def test_install_desktop_writes_the_files_where_the_system_looks(tmp_path: Path,
     """One command after an install, and it must work from a wheel: the files ship
     inside the package, not in a clone."""
     from spoider.desktop import install_desktop
+    monkeypatch.setattr("spoider.desktop.desktop_available", lambda: True)
 
     calls: list[list[str]] = []
     monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: calls.append(argv) or True)
@@ -4328,6 +4330,7 @@ def test_install_desktop_quotes_a_path_with_a_space(tmp_path: Path, monkeypatch)
     """`Exec` is parsed like a command line, so an unquoted path with a space is two
     arguments and the launcher does nothing at all."""
     from spoider.desktop import install_desktop
+    monkeypatch.setattr("spoider.desktop.desktop_available", lambda: True)
 
     monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: True)
     monkeypatch.setattr(
@@ -4359,6 +4362,7 @@ def test_a_tool_that_is_missing_still_writes_the_files_but_reports_failure(
     reporting a success it did not have.
     """
     from spoider.desktop import install_desktop
+    monkeypatch.setattr("spoider.desktop.desktop_available", lambda: True)
 
     monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: False)
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
@@ -4372,6 +4376,7 @@ def test_an_unwritable_destination_is_a_sentence_not_a_traceback(
     tmp_path: Path, monkeypatch, capsys
 ):
     from spoider.desktop import install_desktop
+    monkeypatch.setattr("spoider.desktop.desktop_available", lambda: True)
 
     blocker = tmp_path / "blocker"
     blocker.write_text("a file where a directory belongs")
@@ -4385,6 +4390,7 @@ def test_an_unwritable_destination_is_a_sentence_not_a_traceback(
 def test_a_relative_data_home_is_ignored(tmp_path: Path, monkeypatch):
     """A relative XDG_DATA_HOME would scatter mime/ into the working directory."""
     from spoider.desktop import install_desktop
+    monkeypatch.setattr("spoider.desktop.desktop_available", lambda: True)
 
     monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: True)
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
@@ -4400,6 +4406,7 @@ def test_a_template_without_an_exec_line_installs_nothing(tmp_path: Path, monkey
     """The substitution is a literal match; a packaged entry that no longer carries the
     line is a packaging mistake, and silently writing `Exec=spoider` would hide it."""
     from spoider.desktop import install_desktop
+    monkeypatch.setattr("spoider.desktop.desktop_available", lambda: True)
 
     package = tmp_path / "pkg"
     data = package / "data"
@@ -4429,6 +4436,49 @@ def test_install_desktop_does_not_open_the_editor(monkeypatch, tmp_path: Path):
 
 
 # -- the first-run question about the desktop ------------------------------
+
+
+def test_the_install_writes_nothing_where_the_tools_are_absent(tmp_path: Path, monkeypatch, capsys):
+    """macOS and Windows have no shared-mime-info, so the two files would be clutter in a
+    directory nothing reads, and the report would name a command that does not exist."""
+    from spoider.desktop import install_desktop
+
+    monkeypatch.setattr("spoider.desktop.desktop_available", lambda: False)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+
+    assert install_desktop() == 1
+    assert not (tmp_path / "share").exists(), "nothing written, not even the directories"
+    out = capsys.readouterr().out
+    assert "shared-mime-info" in out and "nothing was written" in out
+
+
+def test_the_desktop_is_decided_by_the_tool_not_the_platform(monkeypatch):
+    """The BSDs package the freedesktop tools as Linux does, so asking the platform would
+    refuse a machine where the registration works."""
+    from spoider.desktop import desktop_available
+
+    monkeypatch.setattr(
+        "spoider.desktop.shutil.which",
+        lambda name: "/usr/local/bin/update-mime-database" if name == "update-mime-database" else None,
+    )
+    assert desktop_available() is True
+
+    monkeypatch.setattr("spoider.desktop.shutil.which", lambda name: None)
+    assert desktop_available() is False
+
+
+def test_the_question_is_not_asked_where_answering_it_could_not_work(tmp_path: Path, monkeypatch):
+    from spoider.app import ask_desktop
+    from spoider.config import Config
+
+    # app imported the name itself, so this is where the question looks, not the module
+    monkeypatch.setattr("spoider.app.desktop_available", lambda: False)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda prompt: pytest.fail("no question here"))
+
+    config = Config()
+    assert ask_desktop(config, tmp_path / "config", []) is False
+    assert config.desktop_asked is False, "the question stays owed for a machine that can answer it"
 
 
 # -- where the cursor starts ----------------------------------------------
