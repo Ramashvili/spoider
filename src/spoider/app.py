@@ -1001,7 +1001,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.mm.cursor = self.selected
         try:
             self.mm.save(path)
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
+            # ValueError is a path the filesystem cannot even look at: a NUL in a name, which
+            # the paste handler no longer makes, and anything else this build has not met
             self.notify(f"could not write {clean(str(path))}: {exc}", severity="error", timeout=FAILURE)
             return False
         self.path = path

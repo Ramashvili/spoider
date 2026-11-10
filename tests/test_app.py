@@ -5167,6 +5167,25 @@ async def test_a_paste_longer_than_a_prompt_is_cut_and_says_so(tmp_path: Path):
         assert any(str(MAX_PROMPT_CHARS) in line for line in seen), "the cut was said"
 
 
+async def test_a_name_the_filesystem_cannot_open_is_said_not_raised(tmp_path: Path):
+    """A NUL in a path makes `tempfile` raise ValueError, which the write used to let out of
+    the message handler. The app stays up and says what happened."""
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "k.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        seen: list[str] = []
+        app.notify = lambda message, **kwargs: seen.append(str(message))  # type: ignore[method-assign]
+        await pilot.press("tab")
+        await pilot.press("x")
+        await pilot.press("enter")
+        await pilot.pause()
+
+        from pathlib import Path as _Path
+
+        assert app._write(_Path(f"{tmp_path}/nul\x00name.spoider")) is False
+        assert app.is_running, "a bad name is not a dead app"
+        assert any("could not write" in line for line in seen), "and it said so"
+
+
 async def test_a_pasted_control_character_never_reaches_the_value(tmp_path: Path):
     """The prompt cleans on the way in, as a cell does: an escape in a clipboard is not text."""
     app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "k.conf", demo=False)
