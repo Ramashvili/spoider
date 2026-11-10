@@ -16,9 +16,11 @@ from rich.cells import cell_len
 from .model import MAX_CELL_CHARS
 from .text import tab_width, text_width
 
-#: What counts as part of a word for alt+backspace and alt+d. Anything that is not
-#: a space or punctuation, which is what a person means by "word" in prose.
-_BREAK = set(" \t\n.,;:!?()[]{}<>\"'`/\\|-—…")
+#: Where a word ends, for a jump as well as for a deletion: a space, a mark of punctuation,
+#: or a sign a line of code leans on. Anything else is part of the word, which is what a
+#: person means by "word" either way round: `don't` is two words, and `welcome.` is one word
+#: and a full stop.
+_BREAK = set(" \t\n.,;:!?()[]{}<>\"'`/\\|-—…_=+*&%$@~^#")
 
 
 def _is_word_char(ch: str) -> bool:
@@ -297,30 +299,14 @@ class Buffer:
             if self.caret == before:
                 break
 
-    def _word_start(self, index: int) -> int:
-        at = index
-        while at > 0 and self.text[at - 1].isspace():
-            at -= 1
-        while at > 0 and not self.text[at - 1].isspace():
-            at -= 1
-        return at
-
-    def _word_end(self, index: int) -> int:
-        at = index
-        while at < len(self.text) and self.text[at].isspace():
-            at += 1
-        while at < len(self.text) and not self.text[at].isspace():
-            at += 1
-        return at
-
     def word_left(self, *, extend: bool = False) -> None:
         self._begin_move(extend)
-        self.caret = self._word_start(self.caret)
+        self.caret = self._word_before()
         self.goal = None
 
     def word_right(self, *, extend: bool = False) -> None:
         self._begin_move(extend)
-        self.caret = self._word_end(self.caret)
+        self.caret = self._word_after()
         self.goal = None
 
     def document_home(self, *, extend: bool = False) -> None:

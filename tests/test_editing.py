@@ -36,6 +36,25 @@ def test_alt_backspace_at_the_start_of_the_text_does_nothing():
     assert buffer.caret == 0
 
 
+def test_a_word_ends_at_every_kind_of_punctuation():
+    """A jump and a deletion answer to the same rule: anything that is not a space, a mark of
+    punctuation or a sign a line of code leans on is part of the word."""
+    buffer = at("see foo.bar(baz)#qux")
+    stops = []
+    while buffer.caret:
+        buffer.word_left()
+        stops.append(buffer.caret)
+    assert stops == [17, 12, 8, 4, 0], "qux, baz, bar, foo, see"
+
+    buffer = at("see foo.bar(baz)#qux")
+    buffer.delete_word_before()
+    assert buffer.text == "see foo.bar(baz)#", "the word alone goes"
+    buffer.delete_word_before()
+    assert buffer.text == "see foo.bar(", "and the sign and bracket after it"
+    buffer.delete_word_before()
+    assert buffer.text == "see foo.", "a bracket before a word is not the word's"
+
+
 def test_alt_d_eats_the_word_after_the_caret():
     buffer = at("one two three", 4)  # on the "t" of "two"
     buffer.delete_word_after()
