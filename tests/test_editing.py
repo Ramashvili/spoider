@@ -207,6 +207,36 @@ def test_typing_and_deleting_are_separate_steps():
     assert buffer.text == ""
 
 
+def test_the_history_keeps_two_hundred_steps_and_no_more():
+    """Every step is a full copy of the text, so a session's worth of them is a leak."""
+    from spoider.editing import MAX_UNDO
+
+    buffer = at("")
+    for i in range(MAX_UNDO + 50):
+        buffer.insert("x")
+        buffer.left()
+        buffer.right()  # a move closes the run, so each insert is a step of its own
+    assert len(buffer._undo) == MAX_UNDO
+    assert buffer.text.count("x") == MAX_UNDO + 50, "trimming the history kept the text"
+
+
+def test_a_deletion_with_nothing_to_delete_records_nothing():
+    buffer = at("abc", 0)
+    for _ in range(3):
+        buffer.backspace()
+    assert buffer._undo == [], "a backspace at the start is not an undo step"
+
+    buffer = at("abc")
+    for _ in range(3):
+        buffer.delete()
+    assert buffer._undo == [], "nor is a delete at the end"
+
+    empty = at("", 0)
+    empty.delete_word_before()
+    empty.delete_word_after()
+    assert empty._undo == [], "and a word delete with no word left is not a step either"
+
+
 def test_a_word_delete_is_its_own_step():
     buffer = at("one two")
     for character in "!":

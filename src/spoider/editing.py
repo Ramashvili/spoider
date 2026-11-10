@@ -18,6 +18,11 @@ from rich.cells import cell_len
 from .model import MAX_CELL_CHARS
 from .text import tab_width, text_width
 
+#: How many undo steps a buffer keeps. Every step holds a full copy of the text, so a cell at
+#: its cap costs about 10 KB per step: two hundred of them is 2 MB, which is the difference
+#: between an editor and a leak.
+MAX_UNDO = 200
+
 #: A run of blank lines, which is one blank line between two paragraphs however many the
 #: writer typed.
 _BLANK_RUN = re.compile(r"[ \t]*\n(?:[ \t]*\n)+")
@@ -117,6 +122,8 @@ class Buffer:
         if run is not None and run == self._run:
             return
         self._undo.append((self.text, self.caret))
+        # the oldest step goes, so the history is bounded by steps rather than by the session
+        del self._undo[: max(0, len(self._undo) - MAX_UNDO)]
         self._redo.clear()
         self._run = run
 
@@ -166,19 +173,19 @@ class Buffer:
         self.caret += len(chunk)
 
     def backspace(self) -> None:
+        if self.selection() is None and self.caret == 0:
+            return  # nothing to delete, so nothing for ^Z to take back
         self._remember("backspace")
         if self._replace_selection(""):
-            return
-        if self.caret == 0:
             return
         self.text = self.text[: self.caret - 1] + self.text[self.caret :]
         self.caret -= 1
 
     def delete(self) -> None:
+        if self.selection() is None and self.caret >= len(self.text):
+            return
         self._remember("delete")
         if self._replace_selection(""):
-            return
-        if self.caret >= len(self.text):
             return
         self.text = self.text[: self.caret] + self.text[self.caret + 1 :]
 
@@ -199,18 +206,26 @@ class Buffer:
         return index
 
     def delete_word_before(self) -> None:
-        self._remember()
-        if self._replace_selection(""):
+        if self.selection() is not None:
+            self._remember()
+            self._replace_selection("")
             return
         start = self._word_before()
+        if start == self.caret:
+            return
+        self._remember()
         self.text = self.text[:start] + self.text[self.caret :]
         self.caret = start
 
     def delete_word_after(self) -> None:
-        self._remember()
-        if self._replace_selection(""):
+        if self.selection() is not None:
+            self._remember()
+            self._replace_selection("")
             return
         end = self._word_after()
+        if end == self.caret:
+            return
+        self._remember()
         self.text = self.text[: self.caret] + self.text[end:]
 
     # -- movement --------------------------------------------------------------
