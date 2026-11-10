@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from rich.cells import cell_len
+from textual import events
 
 from spoider.app import BINDINGS, SpoiderApp
 from spoider.chrome import FooterBar, compose_footer, hint_chunks
@@ -5111,6 +5112,56 @@ async def test_a_cell_answers_page_and_word_keys_end_to_end(tmp_path: Path):
         assert app._buffer.caret == 3, "a page down and up on one line returns"
         await pilot.press("enter")
         await pilot.pause()
+
+
+async def test_a_paste_lands_in_the_open_prompt(tmp_path: Path):
+    """A prompt used to swallow a paste: the app's handler only looked at the cell buffer.
+    The chunk lands at the caret, and a line break in it becomes the space a prompt can
+    use, so a pasted column of words arrives as one line."""
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "k.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("ctrl+w")
+        await pilot.pause()
+        field = app.query_one(PromptBar)
+        field.buffer.select_all()
+        field.on_paste(events.Paste("red blue"))
+        await pilot.pause()
+        assert field.value == "red blue"
+
+        field.on_paste(events.Paste("\n green"))
+        await pilot.pause()
+        assert field.value == "red blue green", "the break did not split the prompt"
+
+        # a terminal sends the break as a carriage return, or both, and both are the same space
+        field.on_paste(events.Paste("\r\n amber"))
+        field.on_paste(events.Paste("\r teal"))
+        await pilot.pause()
+        assert field.value == "red blue green amber teal", "every spelling of a break"
+
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.marks == ("red", "blue", "green", "amber", "teal"), "the paste reached the answer"
+
+
+async def test_a_paste_replaces_what_the_prompt_offered(tmp_path: Path):
+    """A prompt opened with its value selected is replaced by the first thing that arrives,
+    and a paste is no different from a keystroke."""
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "k.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("tab")
+        await pilot.press("a")
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.press("ctrl+j")
+        await pilot.pause()
+        field = app.query_one(PromptBar)
+        assert field._fresh, "the width is offered selected"
+        field.on_paste(events.Paste("40"))
+        await pilot.pause()
+        assert field.value == "40", "the offer was replaced, not appended to"
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.mm.justify == 40, "and the answer took"
 
 
 async def test_a_prompt_edits_like_a_cell(tmp_path: Path):

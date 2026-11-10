@@ -8,6 +8,7 @@ second footer to keep in step with the first.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 
 from rich.cells import cell_len
@@ -201,6 +202,22 @@ class PromptBar(Drawer):
             self._changed()
         self.refresh()
 
+    def on_paste(self, event: events.Paste) -> None:
+        """Text the terminal pasted lands at the caret, on one line: a prompt is one row,
+        so a line break in the chunk becomes the space between two words."""
+        event.stop()
+        # a break, and the air around it, is the space between two words: the chunk keeps
+        # its own leading space, so a paste that starts on a second line still separates
+        chunk = _BREAK_TO_SPACE.sub(" ", event.text)
+        if not clean(chunk).strip():
+            return
+        if self._fresh:
+            # the offered value is replaced by what was pasted, as it is by typing
+            self.buffer.select_all()
+        self.buffer.insert(chunk)
+        self._changed()
+        self.refresh()
+
     def _changed(self) -> None:
         """The text was edited: the history walk is over and the offered value is gone."""
         self._history_index = -1
@@ -269,6 +286,10 @@ class PromptBar(Drawer):
         used = cell_len(self.label) + cell_len(value)
         bar.append(" " * max(0, width - used), "reverse")
         return bar
+
+
+#: A line break in a pasted chunk, with the blanks around it, becomes one space.
+_BREAK_TO_SPACE = re.compile(r"[ \t]*(?:\r\n|\r|\n)[ \t]*")
 
 
 class NoticeBar(Drawer):
