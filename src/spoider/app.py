@@ -151,15 +151,15 @@ Toast {
    and one bright and two dim would say more about the terminal than the message. */
 Toast.-information {
     color: ansi_bright_green;
-    border-left: outer ansi_bright_green;
+    border-left: thick ansi_bright_green;
 }
 Toast.-warning {
     color: ansi_bright_yellow;
-    border-left: outer ansi_bright_yellow;
+    border-left: thick ansi_bright_yellow;
 }
 Toast.-error {
     color: ansi_bright_red;
-    border-left: outer ansi_bright_red;
+    border-left: thick ansi_bright_red;
 }
 """
 
@@ -708,11 +708,11 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             with self.suspend():
                 edit_in_editor(self.config_path)
         except (SuspendNotSupported, OSError) as exc:
-            self.notify(f"Could not start an editor: {exc}", severity="error", timeout=FAILURE)
+            self.notify(f"could not start an editor: {exc}", severity="error", timeout=FAILURE)
             return
 
         self._reload_config()
-        self.notify("Config reloaded", timeout=NOTE)
+        self.notify("config reloaded", timeout=NOTE)
 
     def _reload_config(self) -> None:
         """Read the file again and put it into force.
@@ -749,7 +749,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             if not self.config_path.exists():
                 write_config(self.config, self.config_path, self._key_entries())
         except OSError as exc:
-            self.notify(f"Could not write config: {exc}", severity="error", timeout=FAILURE)
+            self.notify(f"could not write config: {exc}", severity="error", timeout=FAILURE)
 
     #: How long the match count stays up after a search is taken, in seconds.
     MATCH_COUNT_SECONDS = 2.0
@@ -803,7 +803,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         if not self.matches:
             self._settle_count()
             self.notify(
-                f"No match for {query!r}" if query else "Nothing to find",
+                f"no match for {query!r}" if query else "nothing to find",
                 severity="warning",
                 timeout=NOTE,
             )
@@ -823,11 +823,11 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     def _walk_matches(self, direction: int) -> None:
         if not self.search_query.strip():
-            self.notify("Nothing to find: ^F searches first", severity="warning", timeout=NOTE)
+            self.notify("nothing to find: ^F searches first", severity="warning", timeout=NOTE)
             return
         self._refresh_matches()  # the document with the keys may have changed since
         if not self.matches:
-            self.notify(f"No match for {self.search_query!r}", severity="warning", timeout=NOTE)
+            self.notify(f"no match for {self.search_query!r}", severity="warning", timeout=NOTE)
             return
         self._show_matches = True
         self._jump_to_match(direction=direction)
@@ -969,7 +969,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         try:
             self.mm.save(self.path)
         except OSError as exc:
-            self.notify(f"Could not write {self.path}: {exc}", severity="error", timeout=FAILURE)
+            self.notify(f"could not write {self.path}: {exc}", severity="error", timeout=FAILURE)
             return False
         self.dirty = False
         self.has_file = True
@@ -1004,14 +1004,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         try:
             self.mm.save(path)
         except OSError as exc:
-            self.notify(f"Could not write {clean(str(path))}: {exc}", severity="error", timeout=FAILURE)
+            self.notify(f"could not write {clean(str(path))}: {exc}", severity="error", timeout=FAILURE)
             return False
         self.path = path
         self.has_file = True
         self.dirty = False
         self._set_terminal_title()
         self._refresh_chrome()
-        self.notify(f"Wrote {self.mm.count()} nodes to {clean(path.name)}", timeout=NOTE)
+        self.notify(f"wrote {self.mm.count()} nodes to {clean(path.name)}", timeout=NOTE)
         return True
 
     def _ask_where_to_write(self, *, then_quit: bool = False) -> None:
@@ -1044,7 +1044,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def _write_submitted(self, value: str) -> None:
         self._close_drawers()
         if not value.strip() or Path(value.strip()).name in ("", SUFFIX):
-            self.notify("Name the file, then the suffix follows it", severity="warning", timeout=NOTE)
+            self.notify("name the file, then the suffix follows it", severity="warning", timeout=NOTE)
             return
         target = Path(value).expanduser()
         if target.is_dir():
@@ -1057,7 +1057,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         try:
             self.mm = MindMap.from_dict(snapshot, marks=self.mm.marks)
         except MapFileError as exc:  # only reachable if a snapshot were corrupt
-            self.notify(f"Cannot restore that state: {exc}", severity="error", timeout=FAILURE)
+            self.notify(f"cannot restore that state: {exc}", severity="error", timeout=FAILURE)
             return
         if self.mm.find(self.selected) is None:
             self.selected = self.mm.root.id
@@ -1246,14 +1246,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     def action_undo(self) -> None:
         if not self._undo:
-            self.notify("Nothing to undo", severity="warning", timeout=QUICK)
+            self.notify("nothing to undo", severity="warning", timeout=QUICK)
             return
         self._redo.append(self.mm.to_dict())
         self._restore(self._undo.pop())
 
     def action_redo(self) -> None:
         if not self._redo:
-            self.notify("Nothing to redo", severity="warning", timeout=QUICK)
+            self.notify("nothing to redo", severity="warning", timeout=QUICK)
             return
         self._undo.append(self.mm.to_dict())
         self._restore(self._redo.pop())

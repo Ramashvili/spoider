@@ -1297,22 +1297,22 @@ def test_nothing_that_did_nothing_is_red():
     import pathlib as pathlib_
 
     did_nothing = (
-        "Nothing to undo",
-        "Nothing to redo",
-        "No match for",
-        "Nothing to find",
+        "nothing to undo",
+        "nothing to redo",
+        "no match for",
+        "nothing to find",
         "cannot be cut",
         "cannot be deleted",
-        "Name the file",
-        "Nothing to paste",
-        "Stack empty",
+        "name the file",
+        "nothing to paste",
+        "stack empty",
     )
     failed = (
-        "A cell holds",
-        "Could not",
+        "a cell holds",
+        "could not",
         "is a directory",
         "is not a spoider map",
-        "Cannot restore",
+        "cannot restore",
     )
 
 
@@ -1345,6 +1345,41 @@ def test_nothing_that_did_nothing_is_red():
 
     for phrase in did_nothing + failed:
         assert phrase in seen, f"no message holds {phrase!r} any more: update this list"
+
+
+def test_every_toast_starts_lowercase():
+    """A toast is a sentence about what just happened, and the sentence starts lowercase, the
+    way the rest of the program's own voice does. A leading path, count or chord keeps its own
+    case, since that is the subject rather than a word."""
+    import ast
+    import pathlib as pathlib_
+
+    wrong: list[str] = []
+    seen = 0
+    for path in pathlib_.Path("src/spoider").glob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "notify"
+            ):
+                continue
+            first = node.args[0] if node.args else None
+            if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                text = first.value
+            elif isinstance(first, ast.JoinedStr):
+                head = first.values[0] if first.values else None
+                text = head.value if isinstance(head, ast.Constant) else ""
+            else:
+                continue  # a variable, held elsewhere
+            if not text:
+                continue
+            seen += 1
+            if text[0].isupper():
+                wrong.append(f"{path.name}: {text[:40]!r}")
+
+    assert seen > 15, "the walk found the messages"
+    assert not wrong, "toasts that start with a capital: " + "; ".join(wrong)
 
 
 def test_a_toast_lasts_one_of_three_lengths():
@@ -1385,7 +1420,7 @@ def test_a_toast_lasts_one_of_three_lengths():
 
 
 async def test_an_empty_stack_says_so_as_a_note(tmp_path: Path):
-    """`p` with nothing cut yet is a note, not a failure: same colour as "Nothing to paste"."""
+    """`p` with nothing cut yet is a note, not a failure: same colour as "nothing to paste"."""
     from textual.widgets._toast import Toast
 
     app = SpoiderApp(demo=True, config_path=tmp_path / "c.conf")
@@ -1396,7 +1431,7 @@ async def test_an_empty_stack_says_so_as_a_note(tmp_path: Path):
         await pilot.pause()
 
         newest = app.query(Toast).last()
-        assert "Stack empty, nothing to see" in str(newest.render())
+        assert "stack empty, nothing to see" in str(newest.render())
         assert newest.has_class("-warning"), "yellow"
         assert app.stack_open is False, "the panel stays shut"
 
@@ -3071,7 +3106,7 @@ async def test_a_cut_toasts_in_green_at_the_top_right(tmp_path: Path):
         await pilot.pause()
 
         toast = app.query(Toast).last()
-        assert "Cut onto the stack" in str(toast.render())
+        assert "cut onto the stack" in str(toast.render())
         assert "alpha" not in str(toast.render()), "a toast says what happened, not what was in the cell"
         assert toast.has_class("-information"), "a cut worked, so it is green"
         region = toast.region
@@ -3131,7 +3166,7 @@ async def test_a_paste_toasts_in_green_too(tmp_path: Path):
 
         newest = app.query(Toast).last()
         assert newest.has_class("-information"), "a paste worked, so it is green"
-        assert "Pasted from the stack" in str(newest.render())
+        assert "pasted from the stack" in str(newest.render())
         assert "alpha" not in str(newest.render())
 
 
@@ -3152,7 +3187,7 @@ async def test_saving_toasts_green_and_a_failure_toasts_red(tmp_path: Path):
 
         newest = app.query(Toast).last()
         assert newest.has_class("-warning"), "yellow: nothing is broken, there is just nothing there"
-        assert "Nothing to paste" in str(newest.render())
+        assert "nothing to paste" in str(newest.render())
 
 
 async def test_the_pinned_cluster_follows_a_rebound_chord(tmp_path: Path):

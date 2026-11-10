@@ -156,7 +156,7 @@ class EditActions:
             return
         self._text_clip = node.text
         self.copy_to_clipboard(node.text)
-        self.notify("Copied the cell's text", timeout=QUICK)
+        self.notify("copied the cell's text", timeout=QUICK)
     def _cut_or_copy(self, *, cut: bool) -> None:
         """^K cuts the selection out of a cell, M-6 copies it.
 
@@ -237,7 +237,7 @@ class EditActions:
         buffer.insert(clean_text(chunk))
         if buffer.clipped:
             self.notify(
-                f"A cell holds {MAX_CELL_CHARS} characters at most, so the end was dropped",
+                f"a cell holds {MAX_CELL_CHARS} characters at most, so the end was dropped",
                 severity="error",
                 timeout=FAILURE,
             )
