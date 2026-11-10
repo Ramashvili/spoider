@@ -279,6 +279,66 @@ class PromptBar(Drawer):
         return bar
 
 
+class NoticeBar(Drawer):
+    """What just happened, on one line above the bar of keys, where nano puts its messages.
+
+    A prompt opens over it and the notice goes: a question is the more urgent thing to say.
+    The line is a band in the colour of its meaning, centred, and it takes no rows from the
+    map: it is drawn over the map's last row, or over the air above the bar when the window
+    is tall enough to keep that air.
+    """
+
+    can_focus = False
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.message = ""
+        self.style = ""
+        #: How wide the band is: the sentence plus one column of air each side.
+        self.band = 1
+        self._timer: object | None = None
+
+    def show(self, message: str, style: str, timeout: float | None) -> None:
+        """Say one thing, and take it back after its time. A newer notice replaces an older
+        one: there is one line, and the last thing that happened is the thing to read."""
+        if self._timer is not None:
+            self._timer.stop()  # type: ignore[attr-defined]
+            self._timer = None
+        self.message = message
+        self.style = style
+        self.band = min(self.app.size.width, cell_len(message) + 2) if message else 1
+        self.styles.width = self.band
+        self.display = bool(message)
+        if message and timeout is not None and timeout != float("inf"):
+            self._timer = self.set_timer(timeout, self.close)
+        self.refresh()
+
+    def close(self) -> None:
+        if self._timer is not None:
+            self._timer.stop()  # type: ignore[attr-defined]
+            self._timer = None
+        self.message = ""
+        self.display = False
+
+    def render(self) -> Text:
+        """A band the width of the sentence, one column of air each side of it.
+
+        The bar is placed by the app, which centres it and knows the screen, so this draws
+        only what it says and the air around it.
+        """
+        width = self.band
+        if width <= 0 or not self.message:
+            return Text("")
+        text = clean(self.message)
+        if cell_len(text) > width - 2:
+            # clip_head keeps the start and ends with its own ellipsis, so the band stays
+            # the width it asked for
+            text = clip_head(text, max(1, width - 2))
+        line = Text()
+        line.append(f" {text} ", self.style)  # a span, which the screen paints
+        return line
+
+
 class AskBar(Drawer):
     """One line that asks a yes/no question; the bar below spells out the keys."""
 

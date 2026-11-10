@@ -25,6 +25,7 @@ from .addressing import resolve as resolve_address
 from .chrome import (
     FAILURE,
     NOTE,
+    NOTICE_STYLES,
     QUICK,
     FooterBar,
     ask_chunks,
@@ -40,7 +41,7 @@ from .config import (
     write_config,
 )
 from .desktop import desktop_available, install_desktop
-from .drawers import AskBar, ErrorBar, PanelBar, PromptBar
+from .drawers import AskBar, ErrorBar, NoticeBar, PanelBar, PromptBar
 from .editing import Buffer
 from .files import SUFFIX
 from .formats import EXPORT_FORMATS
@@ -56,12 +57,18 @@ from .model import MapFileError, MindMap, Node, marks_of
 from .nav import to_end, to_extreme_sibling, to_home
 from .screens import help_text
 from .text import clean, find_all, one_line, set_tab_width
-from .widgets import MindMapView, TopBar, stack_column
+from .widgets import MindMapView, TopBar
 
 # No colours here on purpose: the app runs on Textual's ansi theme, so every
 # surface inherits the terminal's palette. `ansi_default` means "whatever the
 # terminal already uses", and `reverse` swaps its own fg/bg.
 APP_CSS = """
+Screen {
+    layers: base floating;
+    /* A bar is placed outside the flow; the screen itself never scrolls, so it must not
+       grow a scrollbar for one either. */
+    overflow: hidden;
+}
 #topbar {
     width: 100%;
     height: 1;
@@ -96,6 +103,17 @@ Screen.roomy MindMapView {
     text-wrap: nowrap;
     text-overflow: clip;
 }
+/* One-row bars do not take a row: they are painted on a layer over the map's last row,
+   which is the air above the bar when the window is tall enough to keep it, so a prompt
+   or a notice cannot move anything. Absolute keeps them out of the screen's own layout,
+   and the layer puts them above the map. */
+#ask, #prompt, #error, #notice {
+    width: 100%;
+    height: 1;
+    margin: 0;
+    layer: floating;
+    position: absolute;
+}
 /* A panel's last row is air: the bar is never hard against its text. A prompt cannot
    afford that row, because a prompt is one row tall. */
 #panel {
@@ -109,9 +127,15 @@ Screen.roomy MindMapView {
 }
 /* The error line: red, and the only thing that takes keys while it is up. */
 #error {
-    width: 100%;
-    height: 1;
     padding: 0 1;
+    display: none;
+    text-wrap: nowrap;
+    text-overflow: clip;
+}
+/* The notice: what just happened, in the colour of its meaning. It draws its own single
+   column of air, so the band is the sentence plus two and not a stripe across the screen. */
+#notice {
+    padding: 0;
     display: none;
     text-wrap: nowrap;
     text-overflow: clip;
@@ -133,36 +157,6 @@ Screen.roomy MindMapView {
     background: ansi_default;
     color: ansi_default;
     display: none;
-}
-/* Toasts are about what just happened, so they carry a meaning: green when it
-   worked, yellow for a cut or a paste, red when it did not. They hang from the
-   top right corner, over the map, where they do not cover the bar. */
-ToastRack {
-    dock: top;
-    align: right top;
-    margin-top: 1;
-    margin-bottom: 0;
-}
-Toast {
-    /* The box hugs its sentence, so a short notice is not a long empty strip, and it keeps
-       three columns plus the screen's own two from the edge: six columns of air in all. */
-    width: auto;
-    max-width: 50%;
-    margin-right: 3;
-}
-/* Bright tones, all three from the palette: the app has no colours of its own,
-   and one bright and two dim would say more about the terminal than the message. */
-Toast.-information {
-    color: ansi_bright_green;
-    border-left: thick ansi_bright_green;
-}
-Toast.-warning {
-    color: ansi_bright_yellow;
-    border-left: thick ansi_bright_yellow;
-}
-Toast.-error {
-    color: ansi_bright_red;
-    border-left: thick ansi_bright_red;
 }
 """
 
@@ -350,16 +344,20 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     # -- composition ----------------------------------------------------
 
     def compose(self) -> ComposeResult:
-        yield TopBar(id="topbar")
-        yield MindMapView(self)
-        # whatever the app has to ask is asked here, above the bar, and never in
-        # a window over the map: one bar, and it says what the question accepts
-        yield PanelBar(id="panel")
+        # The one-row bars are placed by an offset and painted on their own layer, so a
+        # question or a notice is drawn over the map's last row instead of taking a row
+        # from it: nothing moves when one of them comes or goes.
         yield AskBar(id="ask")
         yield PromptBar(id="prompt")
         # the red line sits above the bar of keys, so the way out stays the bottom row
         # of the screen in every state
         yield ErrorBar(id="error")
+        yield NoticeBar(id="notice")
+        yield TopBar(id="topbar")
+        yield MindMapView(self)
+        # whatever the app has to ask is asked here, above the bar, and never in
+        # a window over the map: one bar, and it says what the question accepts
+        yield PanelBar(id="panel")
         yield FooterBar(id="footer")
 
     #: Rows a window needs before it can afford air around the map: below this,
@@ -369,9 +367,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def on_resize(self, event: events.Resize) -> None:
         """Give the bars a row of air each while the window can spare them."""
         self.screen.set_class(event.size.height > self.ROOMY_HEIGHT, "roomy")
-        self._fit_toasts()
+        self._place_bars()
 
     def on_mount(self) -> None:
+        self._place_bars()
         # A config is the reader's file: written once when it is missing, then only ever
         # edited line by line. Deleting it brings the commented template back.
         self._save_config()
@@ -516,18 +515,19 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         timeout: float | None = None,
         markup: bool = True,
     ) -> None:
-        """A toast is written straight to the terminal, and some of what goes into
-        one is untrusted — a file name, a cell's text, a parse error quoting the
-        file. Clean it here so no call site has to remember, and flatten it: a toast
-        is one row, so the line break in a cell's text becomes a space instead of
-        joining two words."""
-        super().notify(
-            one_line(message),
-            title=one_line(title),
-            severity=severity,
-            timeout=timeout,
-            markup=markup,
+        """What just happened goes on one line above the bar of keys, the way nano says it.
+
+        Some of what goes into one is untrusted — a file name, a cell's text, a parse error
+        quoting the file — so it is cleaned here, once, and flattened: the line is one row, and
+        a line break in a cell's text becomes a space instead of joining two words. The
+        severity picks the colour of the band; a prompt, when one opens, takes the line and the
+        notice goes.
+        """
+        notice = self.query_one(NoticeBar)
+        notice.show(
+            one_line(message), NOTICE_STYLES.get(severity, NOTICE_STYLES["information"]), timeout
         )
+        self._place_bars()  # the band is as wide as the sentence, so it is centred again
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         """Nothing from the app keymap fires while a drawer or a cell has the
@@ -603,17 +603,15 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
                 f"{WARNING}{chord} is one Textual uses for {self._plain_action(foreign[chord])}, "
                 "so a line binding it will not do what it says."
             )
-        # the file has just been read, so a mistake that is no longer there must go
-        # with it: the old report is dropped and, if nothing replaced it, the rack is
-        # refreshed so the toast disappears with it
-        for note in list(self._notifications):
-            if note.message.startswith(WARNING):
-                del self._notifications[note]
-        for message in said:
-            # no timeout: a config that fights itself is the reader's to fix, and a
-            # warning that fades after eight seconds is a warning nobody acts on
-            self.notify(message, severity="error", timeout=float("inf"))
-        self._refresh_notifications()
+        # the file has just been read, so a mistake that is no longer there must go with it
+        notice = self.query_one(NoticeBar)
+        if notice.message.startswith(WARNING):
+            notice.close()
+        if said:
+            # one line holds one reading of the file, so the complaints are said together
+            # rather than the last of them winning; no timeout, because a config that
+            # fights itself is the reader's to fix and a warning that fades is not read
+            self.notify(" ".join(said), severity="error", timeout=float("inf"))
 
     @property
     def mode(self) -> str:
@@ -939,30 +937,27 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             return
         self.query_one(TopBar).refresh()
         self.query_one(FooterBar).refresh()
-        self._fit_toasts()
+        self._place_bars()
 
-    def _fit_toasts(self) -> None:
-        """Keep notices over the map, never over the cut stack beside it.
+    def _place_bars(self) -> None:
+        """Put the one-row bars on the row above the bar of keys.
 
-        Textual docks the rack to the screen, so its right edge is the window's and a
-        notice covers the stack column. The rack's right margin takes the stack's width
-        instead, which also moves a notice that is already hanging when the panel opens.
+        They are on their own layer, inside a container with no height, so this row is not
+        taken from the map: with a tall window it lands on the air above the bar, and on a
+        short one it lands on the map's last row, which is the price of not moving anything.
         """
         if not self.is_mounted:
             return
-        # by id: ToastRack is Textual's own private widget, but the id it composes
-        # with is stable and a selector costs no import
-        racks = self.screen.query("#textual-toastrack")
-        if not len(racks):
-            return  # before the screen has composed it
-        rack = racks.first()
-        columns = stack_column(self.stack_layout(), self.size.width)
-        # an offset rather than a margin: the rack is docked with a height of its own
-        # content, so a margin leaves its box where it was and the toasts do not move.
-        # The offset moves the box, so a notice already hanging shifts with the pane and
-        # one that arrives later is born in the right place.
-        if rack.styles.offset.x != -columns:
-            rack.styles.offset = (-columns, 0)
+        row = self.size.height - 1
+        if self.query_one("#footer", FooterBar).display:
+            row -= 1
+        for selector in ("#ask", "#prompt", "#error"):
+            for bar in self.query(selector):
+                bar.styles.offset = (0, max(0, row))
+        # the notice is as wide as its sentence, so it is centred rather than stretched
+        for notice in self.query("#notice"):
+            band = min(self.size.width, notice.band)  # type: ignore[attr-defined]
+            notice.styles.offset = (max(0, (self.size.width - band) // 2), max(0, row))
 
     def _autosave(self) -> bool:
         """Write silently to the current path. False when the write failed, which
@@ -1113,6 +1108,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         hiding = self.config.hide_footer and self._mode in ("keys", "edit")
         footer.display = not hiding
         footer.refresh()
+        self._place_bars()  # the bars sit above the footer, wherever that row now is
 
     # -- the drawers themselves ------------------------------------------
 
@@ -1134,6 +1130,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         for drawer in (PromptBar, AskBar, PanelBar, ErrorBar):
             if drawer not in keep:
                 self.query_one(drawer).close()
+        # a question outranks a notice: it needs the line, so what just happened goes
+        self.query_one(NoticeBar).close()
 
     def _show_prompt(
         self,

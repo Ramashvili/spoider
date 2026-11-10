@@ -340,11 +340,16 @@ nothing and its set holds only the binding that was already there, one side of t
 name in `Config.repeated` and the same report names it, because the first line dying
 quietly is the kind of thing a reader never finds.
 
-**The report does not fade.** Those toasts are `timeout=float("inf")`: a config that
-fights itself is the reader's to fix, and a warning that expires is a warning nobody
-acts on. Each reading of the file removes the previous ones (`_notifications`, then
-`_refresh_notifications`) and says again only what is still wrong, so a fixed mistake
-takes its toast with it and a repeated one is not stacked twice.
+**The report does not fade.** That notice has `timeout=float("inf")`: a config that
+fights itself is the reader's to fix, and a warning that expires is a warning nobody acts
+on. Each reading of the file clears the line (`NoticeBar.close`) and says again only what
+is still wrong, so a fixed mistake takes its warning with it.
+
+**Notices are one line, not windows.** `NoticeBar` is a one-row band above the bar of
+keys, where nano puts its messages, and it is placed by an offset on its own layer: it
+takes no row from the map, so nothing moves when a notice comes or goes. A prompt is
+placed the same way and outranks a notice, which is dropped when one opens. Textual's own
+toasts are not used at all.
 
 **Six actions carry a function key as a second chord** — help F1, save F2, undo F3,
 settings F9, quit F10, write F12 — declared on the binding itself (`"ctrl+s,f2"`). They

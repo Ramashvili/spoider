@@ -1201,11 +1201,9 @@ async def test_two_actions_on_one_chord_are_named_in_red(tmp_path: Path):
     app = SpoiderApp(demo=True, config_path=config_path)
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
-        notes = list(app._notifications)
-        assert [n.message for n in notes] == [
-            "Warning: collision in config. z is bound to both mark and fold."
-        ]
-        assert notes[0].severity == "error"
+        notice = _notice(app)
+        assert notice.message == "Warning: collision in config. z is bound to both mark and fold."
+        assert "red" in notice.style
 
         # the first line owns the key; the second lost it and kept its own defaults
         assert app.keymap["mark"] == "z"
@@ -1215,7 +1213,7 @@ async def test_two_actions_on_one_chord_are_named_in_red(tmp_path: Path):
 
         await pilot.press("z", "z")
         await pilot.pause()
-        assert len(list(app._notifications)) == 1, "said once, not on every keypress"
+        assert notice.message.count("collision") == 1, "said once, not on every keypress"
 
 
 async def test_a_default_gives_way_to_a_line_without_a_word(tmp_path: Path):
@@ -1421,8 +1419,6 @@ def test_a_toast_lasts_one_of_three_lengths():
 
 async def test_an_empty_stack_says_so_as_a_note(tmp_path: Path):
     """`p` with nothing cut yet is a note, not a failure: same colour as "nothing to paste"."""
-    from textual.widgets._toast import Toast
-
     app = SpoiderApp(demo=True, config_path=tmp_path / "c.conf")
     async with app.run_test(notifications=True) as pilot:
         app.mm.cut_stack.clear()
@@ -1430,9 +1426,9 @@ async def test_an_empty_stack_says_so_as_a_note(tmp_path: Path):
         await pilot.pause()
         await pilot.pause()
 
-        newest = app.query(Toast).last()
-        assert "stack empty, nothing to see" in str(newest.render())
-        assert newest.has_class("-warning"), "yellow"
+        notice = _notice(app)
+        assert "stack empty, nothing to see" in notice.message
+        assert "yellow" in notice.style, "yellow"
         assert app.stack_open is False, "the panel stays shut"
 
 
@@ -1496,9 +1492,7 @@ async def test_a_name_given_two_lines_keeps_the_last_and_says_so(tmp_path: Path)
     app = SpoiderApp(demo=True, config_path=config_path)
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
-        assert [n.message for n in app._notifications] == [
-            "Warning: mark is set twice, the first line is ignored."
-        ]
+        assert _notice(app).message == "Warning: mark is set twice, the first line is ignored."
         assert app.keymap["mark"] == "u"
 
         await pilot.press("z")
@@ -1523,18 +1517,18 @@ async def test_a_warning_stays_until_the_file_is_fixed(tmp_path: Path):
     app = SpoiderApp(demo=True, config_path=config_path)
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
-        notes = list(app._notifications)
-        assert len(notes) == 1
-        assert notes[0].timeout == float("inf"), "no timeout: it waits for the fix"
+        notice = _notice(app)
+        assert notice.display is True
+        assert notice._timer is None, "no timeout: it waits for the fix"
 
         app._reload_config()  # same broken file
         await pilot.pause()
-        assert len(list(app._notifications)) == 1, "said again, not added to"
+        assert notice.message.count("Warning:") == 1, "said again, not added to"
 
         config_path.write_text("mark = z\n")  # fixed
         app._reload_config()
         await pilot.pause()
-        assert [n.message for n in app._notifications] == [], "the fix takes the warning with it"
+        assert notice.display is False, "the fix takes the warning with it"
 
 
 async def test_a_chord_textual_owns_is_reported(tmp_path: Path):
@@ -1549,11 +1543,9 @@ async def test_a_chord_textual_owns_is_reported(tmp_path: Path):
     app = SpoiderApp(demo=True, config_path=config_path)
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
-        notes_list = list(app._notifications)
-        notes = [n.message for n in notes_list]
-        assert len(notes) == 1, notes
-        assert "ctrl+q" in notes[0] and "Textual" in notes[0]
-        assert notes_list[0].severity == "error"
+        notice = _notice(app)
+        assert "ctrl+q" in notice.message and "Textual" in notice.message
+        assert "red" in notice.style
 
 
 async def test_a_chord_spoider_owns_is_not_called_foreign(tmp_path: Path):
@@ -1576,8 +1568,7 @@ async def test_tab_handed_to_another_action_is_reported(tmp_path: Path):
     app = SpoiderApp(demo=True, config_path=config_path)
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
-        notes = [n.message for n in app._notifications]
-        assert any("Textual uses for focus next" in note for note in notes), notes
+        assert "Textual uses for focus next" in _notice(app).message
 
 
 async def test_a_clean_keymap_says_nothing(tmp_path: Path):
@@ -3092,12 +3083,17 @@ async def test_cut_of_a_run_lands_on_the_cell_that_closes_the_gap(tmp_path: Path
         assert app.selected == d.id
 
 
-# -- what the toast says and where it says it -----------------------------
+# -- what the notice line says and where it says it -----------------------
 
 
-async def test_a_cut_toasts_in_green_at_the_top_right(tmp_path: Path):
-    from textual.widgets._toast import Toast  # not exported by textual.widgets
+def _notice(app):
+    """The one line above the bar of keys: what it is saying and in what colour."""
+    from spoider.drawers import NoticeBar
 
+    return app.query_one(NoticeBar)
+
+
+async def test_a_cut_says_so_in_green_above_the_bar(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(100, 30), notifications=True) as pilot:
         alpha, _beta = _branch_map(app)
@@ -3105,20 +3101,19 @@ async def test_a_cut_toasts_in_green_at_the_top_right(tmp_path: Path):
         await pilot.press("ctrl+k")
         await pilot.pause()
 
-        toast = app.query(Toast).last()
-        assert "cut onto the stack" in str(toast.render())
-        assert "alpha" not in str(toast.render()), "a toast says what happened, not what was in the cell"
-        assert toast.has_class("-information"), "a cut worked, so it is green"
-        region = toast.region
-        assert region.y <= 3, "it hangs from the top"
-        assert app.size.width - (region.x + region.width) == 5, "and six columns of air from the right"
+        notice = _notice(app)
+        assert "cut onto the stack" in notice.message
+        assert "alpha" not in notice.message, "a notice says what happened, not what was in the cell"
+        assert "green" in notice.style and "reverse" in notice.style, "green, reversed"
+        assert notice.region.y == app.size.height - 2, "one row above the bar of keys"
+        assert notice.region.width == cell_len(notice.message) + 2, "the sentence and its air"
+        assert abs(notice.region.x - (app.size.width - notice.region.width) // 2) <= 1, "centred"
+        assert notice.render().plain == f" {notice.message} "
 
 
 async def test_a_copy_says_what_it_took_and_where_it_went(tmp_path: Path):
     """The text goes two places: spoider's own buffer, which a paste inside a cell reads, and
     the terminal's clipboard through OSC 52. The toast names the one the reader cares about."""
-    from textual.widgets._toast import Toast
-
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(100, 30), notifications=True) as pilot:
         alpha, _beta = _branch_map(app)
@@ -3126,71 +3121,95 @@ async def test_a_copy_says_what_it_took_and_where_it_went(tmp_path: Path):
         await pilot.press("alt+6")
         await pilot.pause()
 
-        toast = app.query(Toast).last()
-        assert "copied cell text to the terminal clipboard" in str(toast.render())
+        notice = _notice(app)
+        assert notice.message == "copied cell text to the terminal clipboard"
         assert app._text_clip == alpha.text, "and the buffer inside spoider holds it"
-        assert toast.has_class("-information")
+        assert "green" in notice.style
 
 
 async def test_a_notice_is_as_wide_as_its_sentence(tmp_path: Path):
-    """The box hugs what it says, so a short notice is not a long empty strip, and every
-    notice ends the same six columns from the right edge."""
-    from textual.widgets._toast import Toast
+    """Not a stripe across the screen: the band is the sentence with one column of air each
+    side, standing in the middle of the line."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 30), notifications=True) as pilot:
+        app.notify("something happened", timeout=6)
+        await pilot.pause()
+
+        notice = _notice(app)
+        assert notice.render().plain == " something happened ", "one column either side"
+        assert notice.region.width == cell_len("something happened") + 2
+        assert abs(notice.region.x - (app.size.width - notice.region.width) // 2) <= 1, "centred"
+
+        app.notify("shorter", timeout=6)
+        await pilot.pause()
+        assert notice.region.width == cell_len("shorter") + 2, "the band follows the sentence"
+
+
+async def test_a_long_notice_is_clipped_to_the_line(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(40, 20), notifications=True) as pilot:
+        app.notify("a sentence far too long to fit on one narrow line of the screen", timeout=6)
+        await pilot.pause()
+
+        notice = _notice(app)
+        drawn = notice.render().plain
+        assert notice.region.width == app.size.width, "nothing wider than the screen"
+        assert len(drawn) == notice.region.width and drawn.endswith("… "), "one row, cut"
+
+
+async def test_a_notice_takes_no_row_from_the_map(tmp_path: Path):
+    """It is painted over the map's last row, on a layer of its own, so nothing moves when
+    it arrives: not the map, not the bar."""
+    from spoider.widgets import MindMapView
 
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(100, 30), notifications=True) as pilot:
-        app.notify("short")
         await pilot.pause()
-        narrow = app.query(Toast).last().region
+        view = app.query_one(MindMapView)
+        before = (view.region, app.query_one("#footer").region)
 
-        app.notify("a much longer sentence, long enough to be worth reading twice")
+        app.notify("something happened", timeout=6)
         await pilot.pause()
-        wide = app.query(Toast).last().region
 
-        assert wide.width > narrow.width, "the box follows the sentence"
-        assert app.size.width - narrow.right == app.size.width - wide.right, "same air on the right"
+        assert (view.region, app.query_one("#footer").region) == before, "nothing moved"
+        assert _notice(app).region.y == app.size.height - 2, "the row above the bar of keys"
 
 
-async def test_a_notice_hangs_over_the_map_and_not_over_the_stack(tmp_path: Path):
-    """The stack column owns the right of the screen, so a notice stops at the pane."""
-    from textual.widgets._toast import Toast
-
-    from spoider.widgets import stack_column
+async def test_a_prompt_takes_no_row_from_the_map(tmp_path: Path):
+    """The prompt is placed by an offset like the notice, so a question does not resize the
+    map under it: the same rows show the same cells before and after."""
+    from spoider.widgets import MindMapView
 
     app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 24)) as pilot:
+        await pilot.pause()
+        view = app.query_one(MindMapView)
+        before = view.region
+
+        await pilot.press("ctrl+o")
+        await pilot.pause()
+
+        assert app.query_one("#prompt").display is True
+        assert view.region == before, "the map keeps its rows while a prompt is open"
+        assert app.query_one("#prompt").region.y == app.size.height - 2
+
+
+async def test_a_prompt_takes_the_line_and_the_notice_goes(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(100, 30), notifications=True) as pilot:
-        alpha, _beta = _branch_map(app)
-        app.select(alpha.id)
-        await pilot.press("ctrl+k")
+        app.notify("something happened", timeout=6)
+        await pilot.pause()
+        assert _notice(app).display is True
+
+        await pilot.press("ctrl+o")  # the write prompt needs the line
         await pilot.pause()
 
-        hung = app.query(Toast).last()
-        assert app.size.width - (hung.region.x + hung.region.width) == 5, "near the window edge"
-
-        await pilot.press("p")  # the stack opens under a notice that is already hanging
-        await pilot.pause()
-        columns = stack_column(app.stack_layout(), app.size.width)
-        assert columns > 0, "the panel is open"
-        moved = app.query(Toast).last()
-        assert moved.region.x + moved.region.width <= app.size.width - columns, (
-            "it shifts with the pane instead of covering the stack"
-        )
-
-        app.select(app.mm.root.id)
-        await pilot.press("ctrl+k")  # a notice born while the panel is open
-        await pilot.pause()
-        fresh = app.query(Toast).last()
-        assert fresh.region.x + fresh.region.width <= app.size.width - columns
-
-        await pilot.press("p")
-        await pilot.pause()
-        back = app.query(Toast).last()
-        assert app.size.width - (back.region.x + back.region.width) == 5, "and comes back with the pane"
+        assert _notice(app).display is False, "a question outranks a notice"
+        assert app.query_one("#prompt").display is True
+        assert app.query_one("#prompt").region.y == app.size.height - 2, "the same row"
 
 
 async def test_a_paste_toasts_in_green_too(tmp_path: Path):
-    from textual.widgets._toast import Toast
-
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(notifications=True) as pilot:
         alpha, beta = _branch_map(app)
@@ -3201,30 +3220,25 @@ async def test_a_paste_toasts_in_green_too(tmp_path: Path):
         await pilot.press("ctrl+u")
         await pilot.pause()
 
-        newest = app.query(Toast).last()
-        assert newest.has_class("-information"), "a paste worked, so it is green"
-        assert "pasted from the stack" in str(newest.render())
-        assert "alpha" not in str(newest.render())
+        notice = _notice(app)
+        assert "green" in notice.style, "a paste worked, so it is green"
+        assert "pasted from the stack" in notice.message
+        assert "alpha" not in notice.message
 
 
 async def test_saving_toasts_green_and_a_failure_toasts_red(tmp_path: Path):
-    from textual.widgets._toast import Toast
-
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(notifications=True) as pilot:
         await pilot.press("ctrl+s")  # the buffer has a path, so it writes
         await pilot.pause()
-        await pilot.pause()
 
-        assert app.query(Toast).last().has_class("-information"), "green"
+        assert "green" in _notice(app).style, "green"
 
         await pilot.press("ctrl+u")  # nothing has been cut
         await pilot.pause()
-        await pilot.pause()  # the toast is mounted a beat after the notification
 
-        newest = app.query(Toast).last()
-        assert newest.has_class("-warning"), "yellow: nothing is broken, there is just nothing there"
-        assert "nothing to paste" in str(newest.render())
+        assert "yellow" in _notice(app).style, "yellow: nothing is broken, there is just nothing"
+        assert "nothing to paste" in _notice(app).message
 
 
 async def test_the_pinned_cluster_follows_a_rebound_chord(tmp_path: Path):
@@ -3692,8 +3706,6 @@ async def test_undo_after_reordering_the_stack_puts_the_order_back(tmp_path: Pat
 
 
 async def test_c_cycles_the_colouring_and_says_so(tmp_path: Path):
-    from textual.widgets._toast import Toast
-
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(notifications=True) as pilot:
         assert app.mm.colours == "family"
@@ -3702,7 +3714,7 @@ async def test_c_cycles_the_colouring_and_says_so(tmp_path: Path):
         await pilot.pause()
         assert app.mm.colours == "depth"
         assert app.dirty is True, "the colouring is written into the map"
-        assert "depth" in str(app.query(Toast).last().render())
+        assert "depth" in _notice(app).message
 
         await pilot.press("c")
         await pilot.pause()

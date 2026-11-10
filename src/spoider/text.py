@@ -102,7 +102,7 @@ def text_width(text: str) -> int:
 def one_line(value: object) -> str:
     """`value` as one line, for the surfaces that hold a single row.
 
-    A cell may hold several lines, and a toast, a prompt or a top bar shows what was
+    A cell may hold several lines, and a notice, a prompt or a top bar shows what was
     taken from it. Cleaning alone would delete the line break and leave the words
     fused, so every run of whitespace becomes one space first.
     """

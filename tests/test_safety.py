@@ -128,30 +128,27 @@ async def test_a_map_named_with_escapes_does_not_write_them_out(tmp_path):
 
 
 async def test_notifications_are_cleaned_before_they_reach_the_terminal(tmp_path):
-    from textual.widgets._toast import Toast
-
     from spoider.app import SpoiderApp
+    from spoider.drawers import NoticeBar
 
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(notifications=True) as pilot:
         app.notify("bad \x1b]52;c;aGVsbG8=\x07 name", severity="error", timeout=8)
         await pilot.pause()
-        toast = app.query(Toast).last()
-        rendered = str(toast.render())
+        rendered = app.query_one(NoticeBar).render().plain
         assert "\x1b" not in rendered and "\x07" not in rendered
         assert "name" in rendered
 
 
 async def test_a_notification_holds_one_line_whatever_it_is_given(tmp_path):
-    from textual.widgets._toast import Toast
-
     from spoider.app import SpoiderApp
+    from spoider.drawers import NoticeBar
 
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(notifications=True) as pilot:
         app.notify("one\ntwo\n\nthree\tfour", timeout=8)
         await pilot.pause()
-        rendered = str(app.query(Toast).last().render())
+        rendered = app.query_one(NoticeBar).render().plain
         assert "one two three four" in rendered
         assert "onetwo" not in rendered
 

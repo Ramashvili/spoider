@@ -31,6 +31,15 @@ CARET_STYLE = "reverse"
 #: only, like every other colour here.
 ERROR_STYLE = "black on red"
 
+#: What just happened wears a reversed band in the colour of its meaning: the same reverse
+#: the prompts use, so the terminal's own background is what shows through the letters, with
+#: the palette's bright tone behind them.
+NOTICE_STYLES = {
+    "information": "bright_green reverse",
+    "warning": "bright_yellow reverse",
+    "error": "bright_red reverse",
+}
+
 #: Caps are coloured text, never a block: the colour comes from the terminal
 #: palette like everything else in the app.
 CAP_STYLE = "cyan"
@@ -101,10 +110,10 @@ PINNED: tuple[tuple[str, str, str], ...] = (
     ("help", "?", "help"),
 )
 
-#: How long a toast stays, in seconds — three lengths and no more. `QUICK` is an
-#: acknowledgement of a key you just pressed, `NOTE` is the outcome of what you did,
-#: `FAILURE` is something that did not work and has to be read. Config complaints are
-#: the one thing with no lifetime: they wait until the file is fixed.
+#: How long a notice stays on the line, in seconds — three lengths and no more. `QUICK` is
+#: an acknowledgement of a key you just pressed, `NOTE` is the outcome of what you did,
+#: `FAILURE` is something that did not work and has to be read. Config complaints are the
+#: one thing with no lifetime: they wait until the file is fixed.
 QUICK = 2.0
 NOTE = 6.0
 FAILURE = 10.0
