@@ -2,10 +2,15 @@ from spoider.layout import (
     BOX_H,
     MAX_SPACING,
     MIN_SPACING,
+    PAD,
     box_width,
+    caret_pos,
     compute,
     gaps_for,
     label,
+    mark_cells,
+    mark_row,
+    selection_span,
     subtree_height,
 )
 from spoider.model import LAYOUTS, MindMap, Node
@@ -113,6 +118,48 @@ def test_mark_prefixes_the_label_and_widens_the_box():
         if y == layout.box(node.id).y + 1
     )
     assert "⭐" in row and "task" in row
+
+
+def test_a_mark_stands_beside_the_middle_line():
+    """A cell of three lines says what it is about beside the middle of them, and every line
+    starts past the mark's columns, not only the first."""
+    mm = MindMap()
+    node = mm.add_child(mm.root.id, "one\ntwo\nthree")
+    node.mark = "⭐"
+    shift = mark_cells(node)
+    assert shift and mark_row(node) == 1, "three lines, so the mark is on the second"
+
+    layout = compute(mm.root)
+    box = layout.box(node.id)
+    grid = build_grid(layout, mm.root.id)
+    left = box.x + 1 + PAD  # inside the wall, where the mark's column begins
+
+    assert grid.cells[(left, box.y + 1 + 1)][0] == "⭐"
+    assert grid.cells[(left, box.y + 1)][0] == " ", "nothing on the first line"
+    for index, text in enumerate(("one", "two", "three")):
+        assert grid.cells[(left + shift, box.y + 1 + index)][0] == text[0], text
+
+
+def test_a_two_line_cell_puts_the_mark_on_the_upper_of_the_two():
+    mm = MindMap()
+    node = mm.add_child(mm.root.id, "one\ntwo")
+    node.mark = "⭐"
+    assert mark_row(node) == 0
+
+
+def test_the_selection_shifts_by_the_mark_on_every_line():
+    node = Node("one\ntwo\nthree", mark="⭐")
+    node.preview = "one\ntwo\nthree"
+    node.sel = (4, 7)  # all of "two"
+    assert selection_span(node, 1) == (mark_cells(node), mark_cells(node) + 3)
+    assert selection_span(node, 2) is None
+
+
+def test_the_caret_is_placed_inside_the_text_and_the_shift_comes_from_the_cell():
+    node = Node("one\nthree", mark="⭐")
+    node.preview = "one\nthree"
+    node.caret = 5
+    assert caret_pos(node) == (1, 1), "the row and a column in the text, not on the screen"
 
 
 def test_grid_draws_boxes_and_links():

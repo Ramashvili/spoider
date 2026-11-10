@@ -119,12 +119,12 @@ def fold_note(node: Node) -> str:
 
 
 def lines_of(node: Node) -> list[str]:
-    """What the cell shows, one entry per row.
+    """What the cell says, one entry per row, without the mark.
 
-    A cell may hold several lines, so the box grows downwards with them; the mark
-    rides on the first line and the folded-children count on the last. A tab in the
-    text is expanded here, once, so the box is drawn and measured against the same
-    columns the reader sees.
+    A cell may hold several lines, so the box grows downwards with them, and the folded
+    children count rides on the last. A tab in the text is expanded here, once, so the box is
+    drawn and measured against the same columns the reader sees. The mark is not part of this:
+    it stands beside the text, on the middle row, and `mark_cells` is the width it takes.
     """
     if node.preview is not None:
         text = clean_text(node.preview)
@@ -134,15 +134,27 @@ def lines_of(node: Node) -> list[str]:
         # never what the file holds.
         text = clean_text(node.text or "").strip() or "(empty)"
         text = f"{text}{fold_note(node)}"
-    lines = expand_tabs(text).split("\n")
-    if node.mark:
-        lines[0] = f"{clean(node.mark)} {lines[0]}"
-    return lines
+    return expand_tabs(text).split("\n")
+
+
+def mark_cells(node: Node) -> int:
+    """The columns a mark takes at the left of its cell: the glyph and a space after it."""
+    if not node.mark:
+        return 0
+    return cell_len(clean(node.mark)) + 1
+
+
+def mark_row(node: Node) -> int:
+    """Which row of the text the mark stands beside: the middle one, upper when even."""
+    return (len(lines_of(node)) - 1) // 2
 
 
 def label(node: Node) -> str:
-    """The whole cell as one string: search reads this, and so does the width."""
-    return "\n".join(lines_of(node))
+    """The whole cell as one string: search reads this, and a mark is part of what it says."""
+    lines = lines_of(node)
+    if node.mark:
+        lines = [f"{clean(node.mark)} {lines[0]}", *lines[1:]]
+    return "\n".join(lines)
 
 
 def selection_span(node: Node, line: int) -> tuple[int, int] | None:
@@ -166,15 +178,15 @@ def selection_span(node: Node, line: int) -> tuple[int, int] | None:
         return None
     left = text_width(text[offset:low])
     right = text_width(text[offset:high])
-    if node.mark and line == 0:
-        shift = cell_len(clean(node.mark)) + 1
-        left, right = left + shift, right + shift
-    return left, right
+    # the mark's column is reserved on every line, so the text of every line starts past it
+    shift = mark_cells(node)
+    return left + shift, right + shift
 
 
 def box_width(node: Node, walls: bool = True) -> int:
     edge = 2 if walls else 0
     width = max((cell_len(line) for line in lines_of(node)), default=0) + 2 * PAD + edge
+    width += mark_cells(node)
     if node.preview is not None:
         width += 1  # the caret's column, kept even when it hangs over a character:
         # a box that changes width as the caret moves re-centres the whole map
@@ -194,10 +206,7 @@ def caret_pos(node: Node) -> tuple[int, int] | None:
     caret = max(0, min(node.caret, len(buffer)))
     line = buffer.count("\n", 0, caret)
     start = buffer.rfind("\n", 0, caret) + 1
-    column = text_width(buffer[start:caret])
-    if node.mark and line == 0:
-        column += cell_len(clean(node.mark)) + 1
-    return line, column
+    return line, text_width(buffer[start:caret])
 
 
 def subtree_height(node: Node, gap_y: int = GAP_Y, walls: bool = True) -> int:

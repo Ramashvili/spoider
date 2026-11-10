@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from rich.cells import cell_len
 
-from spoider.layout import PAD, compute, compute_stack, lines_of
+from spoider.layout import PAD, compute, compute_stack, lines_of, mark_cells
 from spoider.model import MindMap, Node
 from spoider.render import DEPTH_COLORS, LINK_COLOR, STACK_START, build_grid, render_text
 
@@ -207,9 +207,10 @@ def _text_cells(lay) -> dict[tuple[int, int], str]:
     for box in lay.boxes.values():
         left = box.x + 1 if lay.walls else box.x
         top = box.y + 1 if lay.walls else box.y
+        # the mark holds the columns at the left of every row, so the text starts past them
         for index, line in enumerate(lines_of(box.node)):
-            x = left
-            for ch in " " + line:
+            x = left + PAD + mark_cells(box.node)
+            for ch in line:
                 if ch.strip():
                     own[(x, top + index)] = ch
                 x += max(cell_len(ch), 1)

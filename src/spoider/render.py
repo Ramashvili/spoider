@@ -20,6 +20,8 @@ from .layout import (
     caret_pos,
     fold_note,
     lines_of,
+    mark_cells,
+    mark_row,
     selection_span,
 )
 from .model import DEFAULT_COLOURS
@@ -265,43 +267,42 @@ def _draw_box(
     text_x = left + 1 if walls else left
     text_y = top + 1 if walls else top
     lines = lines_of(box.node)
+    # The mark takes the columns at the left of every row, and stands on the middle row: a
+    # cell whose text is three lines says what it is about beside the middle of them.
+    shift = mark_cells(box.node)
+    # an inverted cell keeps its mark out of the inversion: a picture has no colours to swap,
+    # only colours to ruin
+    plain = " ".join(part for part in inside.split() if part not in ("reverse", "underline"))
     for index, text in enumerate(lines):
-        row = " " * PAD + text + " " * max(0, inner - PAD - cell_len(text))
+        row = " " * (PAD + shift) + text + " " * max(0, inner - PAD - shift - cell_len(text))
         mask = _mask(row, query) or [False] * len(row)
         span = selection_span(box.node, index)
         if span is not None:
             start = PAD + span[0]
             for column in range(start, min(start + (span[1] - span[0]), len(mask))):
                 mask[column] = True
-        # an inverted cell keeps its mark out of the inversion: a picture has no colours
-        # to swap, only colours to ruin
-        mark = clean(box.node.mark) if box.node.mark else ""
-        mark_chars = len(mark) + 1 if mark else 0
-        plain = " ".join(part for part in inside.split() if part not in ("reverse", "underline"))
-        cut = PAD + mark_chars
-        if index == 0 and mark_chars and "reverse" in inside and cut < len(row):
-            grid.put_text(text_x, text_y + index, row[:cut], plain, mask[:cut])
-            # the row is sliced by character and placed by cell: a wide mark is one
-            # character and two columns
-            grid.put_text(
-                text_x + cell_len(row[:cut]), text_y + index, row[cut:], inside, mask[cut:]
-            )
-        else:
-            grid.put_text(text_x, text_y + index, row, inside, mask)
+        grid.put_text(text_x, text_y + index, row, inside, mask)
         # the folded count wears the colour of the links, so it reads as a number about
         # the structure rather than as part of the cell's own text
         note = fold_note(box.node)
         if note and index == len(lines) - 1:
-            start = PAD + len(text) - len(note)
+            start = PAD + shift + len(text) - len(note)
             x = text_x + cell_len(row[:start])
             for offset, char in enumerate(note):
                 marked = mask[start + offset] if start + offset < len(mask) else False
                 grid.put(x, top + 1 + index, char, _marked(LINK_COLOR) if marked else LINK_COLOR)
                 x += cell_len(char)
+    if box.node.mark:
+        grid.put_text(
+            text_x + PAD,
+            text_y + mark_row(box.node),
+            clean(box.node.mark),
+            plain if "reverse" in inside else inside,
+        )
     at = caret_pos(box.node)
     if at is not None:
         line, column = at
-        _hang_caret(grid, text_x + PAD + column, text_y + line, inside, box.node.overwrite)
+        _hang_caret(grid, text_x + PAD + shift + column, text_y + line, inside, box.node.overwrite)
 
 
 def _hang_caret(grid: Grid, x: int, y: int, style: str, overwrite: bool = False) -> None:
