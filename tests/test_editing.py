@@ -237,5 +237,16 @@ def test_reflow_collapses_the_whitespace_it_is_given():
     assert reflow("one    two\n  three", 40) == "one two three"
 
 
+def test_reflow_keeps_one_blank_line_between_paragraphs():
+    assert reflow("one\n\n\n\ntwo", 40) == "one\n\ntwo", "four breaks read as one break"
+    assert reflow("one\n\n\n\n\n\ntwo", 40) == "one\n\ntwo"
+
+
+def test_reflow_collapses_the_tabs_it_is_given():
+    # a tab is a break between two words, not an indent the wrap has to carry
+    assert reflow("one\n\t\tthree four", 40) == "one three four"
+    assert reflow("\t\tone two", 40) == "one two"
+
+
 def test_reflow_of_an_empty_line_is_an_empty_line():
     assert reflow("", 20) == ""

@@ -11,10 +11,16 @@ other and a selection is a pair of indices.
 
 from __future__ import annotations
 
+import re
+
 from rich.cells import cell_len
 
 from .model import MAX_CELL_CHARS
 from .text import tab_width, text_width
+
+#: A run of blank lines, which is one blank line between two paragraphs however many the
+#: writer typed.
+_BLANK_RUN = re.compile(r"[ \t]*\n(?:[ \t]*\n)+")
 
 #: Where a word ends, for a jump as well as for a deletion: a space, a mark of punctuation,
 #: or a sign a line of code leans on. Anything else is part of the word, which is what a
@@ -338,14 +344,16 @@ class Buffer:
 
 
 def reflow(text: str, width: int) -> str:
-    """`text` wrapped to `width` cells, a blank line keeping paragraphs apart.
+    """`text` filled to `width` cells, keeping the blank lines between paragraphs.
 
-    Every run of lines between blank lines is one paragraph: its words are joined
-    and filled greedily, which is what nano's justify does. A word longer than the
-    width is left on a line of its own rather than broken.
+    A run of blank lines is the one blank line that separates two paragraphs, whatever the
+    writer typed. The fill itself takes the text as prose: a tab, a run of spaces and a single
+    break all become the one space between two words, which is how nano justifies.
     """
     width = max(1, width)
-    paragraphs = text.split("\n\n")
+    body = text.replace("\r\n", "\n").replace("\r", "\n")
+    # any number of blank lines is the one that separates two paragraphs
+    paragraphs = _BLANK_RUN.sub("\n\n", body).split("\n\n")
     wrapped: list[str] = []
     for paragraph in paragraphs:
         words = paragraph.split()
