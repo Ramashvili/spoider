@@ -129,6 +129,14 @@ to help.
   next stop of `tab_width` from the config, and `lines_of` expands once so the box is
   measured and drawn against the same columns. Nothing may measure a cell with a bare
   `cell_len` on text that can hold a tab.
+- **A prompt edits with a cell's buffer.** `PromptBar` holds an `editing.Buffer`, so a word
+  jump, a word deletion, an undo and a paste answer to the same code as a cell, and
+  `MAX_PROMPT_CHARS` (512) is its limit rather than the cell's 10 000. The keys that would
+  need a second line are simply not offered, and a prompt that cannot keep all of a paste
+  says so.
+- **One word rule.** `_BREAK` in `editing.py` decides where a word ends for both a jump
+  (`ctrl+left`) and a deletion (`alt+backspace`). Two rules make the two disagree, which is
+  what `_word_start` and `_word_end` did with a whitespace test until they were deleted.
 - **Untrusted input.** Clean text at ingest *and* at draw (`spoider.text.clean`), cap
   nesting at `MAX_DEPTH`, regenerate duplicate ids, write through
   `spoider.files.write_atomic`. A map that cannot be read is reported, never half
@@ -417,6 +425,22 @@ chord, which is what keeps a leftover setting from rebinding a key.
   cursor glyph into the text: it splits the word it is sitting in.
 - `Shift+Return` and `^J` are only separable from `Return` under the kitty keyboard
   protocol. In a plain terminal both arrive as Enter.
+- A Rich `Text("x", style)` puts the style on the **base** of the text, which Textual's
+  compositor does not paint: the notice band lost its colour to exactly that. A segment
+  goes in as a span (`line.append(chunk, style)`) and is drawn.
+- Textual's input thread busy-loops when stdin reaches end of file: the read returns
+  empty, the inner loop `break`s, and `select` reports the dead descriptor ready again for
+  ever, so a process whose terminal has gone burns a whole core. Probe apps left on a
+  closed pseudo-terminal are how this is met in practice, and they are killed by PID. We
+  do not work around it: a real terminal closing sends SIGHUP, and the case that survives
+  is a pipe or a harness.
+- `files.write_atomic` resolves a link before writing, refuses a target that is not a
+  regular file or that its owner cannot write, and raises `WriteRefused`, an `OSError`
+  carrying the sentence to print. A failed `MindMap.save` is therefore not always an
+  errno, and the callers that catch `OSError` report it unchanged.
+- Overwriting an existing map is a question, and it lives in `_write_submitted`
+  (`_would_bury`), not in `_write`, which only refuses. "No path" means "not our own
+  file", so a buffer that has never been saved asks too.
 
 ## Navigating the map from a script
 
@@ -487,6 +511,8 @@ the tree.
 
 - A map wider than the terminal is clipped at the edges; there is no zoom out.
 - No drag-to-reparent — that is cut and paste.
-- Undo history is in memory for the session and not capped.
+- Undo history is in memory for the session, capped at 200 steps.
+- A prompt holds 512 characters, so a path longer than that cannot be typed or pasted into
+  one.
 - Autosave is off by default and there is no backup file.
 - No file locking: two editors on one map, last save wins.
