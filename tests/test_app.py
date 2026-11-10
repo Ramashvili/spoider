@@ -871,6 +871,40 @@ def test_the_config_holds_the_default_marks(tmp_path: Path):
     assert len(load_config(path).marks_default) == MAX_MARKS
 
 
+def test_the_config_records_the_version_that_wrote_it(tmp_path: Path):
+    """A later spoider has to know what these settings meant when they were written, and
+    the version in the file is what a migration works from."""
+    from spoider import __version__
+    from spoider.config import Config, load_config, write_config
+
+    path = tmp_path / "config.conf"
+    write_config(Config(), path)
+
+    assert f"created_by = {__version__}" in path.read_text(encoding="utf-8")
+    assert load_config(path).created_by == __version__
+
+
+def test_a_config_written_by_hand_has_no_version(tmp_path: Path):
+    from spoider.config import load_config
+
+    path = tmp_path / "hand.conf"
+    path.write_text("autosave = true\n", encoding="utf-8")
+    assert load_config(path).created_by == ""
+
+
+def test_a_setting_written_into_the_file_leaves_the_version_where_it_is(tmp_path: Path):
+    from spoider import __version__
+    from spoider.config import Config, load_config, update_config, write_config
+
+    path = tmp_path / "config.conf"
+    write_config(Config(), path)
+    update_config(path, {"desktop_asked": "true"})
+
+    text = path.read_text(encoding="utf-8")
+    assert text.count("created_by =") == 1, "one line, not a second one appended"
+    assert load_config(path).created_by == __version__
+
+
 async def test_a_new_map_starts_from_the_config_default(tmp_path: Path):
     config_path = tmp_path / "config.conf"
     config_path.write_text("marks_default = 🔴 🟢\n")

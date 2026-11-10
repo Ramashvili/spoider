@@ -97,7 +97,15 @@ def test_the_example_config_is_the_template(tmp_path: Path):
     app = SpoiderApp(None, config_path=tmp_path / "c.conf", demo=False)
     expected = render_config(Config(), app._key_entries())
     example = Path(__file__).resolve().parent.parent / "examples" / "spoider.conf"
-    assert example.read_text(encoding="utf-8") == expected
+
+    def without_the_version(text: str) -> list[str]:
+        # the line records which spoider wrote the file, and the example was written by an
+        # older build than the one under test: that difference is the line working
+        return [line for line in text.splitlines() if not line.startswith("created_by = ")]
+
+    shown = example.read_text(encoding="utf-8")
+    assert without_the_version(shown) == without_the_version(expected)
+    assert "created_by = " in shown
 
 
 def test_the_readme_shows_how_to_write_every_format() -> None:

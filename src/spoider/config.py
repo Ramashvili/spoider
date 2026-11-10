@@ -99,6 +99,9 @@ class Config:
     #: Whether the first-run question about registering .spoider with the desktop has
     #: been answered. Asking once is the point: a "no" is an answer, not a delay.
     desktop_asked: bool = False
+    #: The spoider version that wrote this file, so a later one can tell whether the
+    #: settings in it still mean what they meant. Empty in a file written by hand.
+    created_by: str = ""
     # binding id -> chord(s). Only what was actually changed; the defaults live in
     # the app, and the file shows them commented out.
     keys: dict[str, str] = field(default_factory=dict)
@@ -190,6 +193,9 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
             config.autosave = value.lower() in TRUE_WORDS
         elif name == "desktop_asked":
             config.desktop_asked = value.lower() in TRUE_WORDS
+        elif name == "created_by":
+            # provenance rather than a setting: one token, kept exactly as it stands
+            config.created_by = value if value and " " not in value else ""
         elif name == "hide_footer":
             config.hide_footer = value.lower() in TRUE_WORDS
         elif name == "marks_default":
@@ -217,11 +223,16 @@ def load_config(path: Path | None = None, known: Collection[str] | None = None) 
 
 def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -> str:
     """The file as the user reads it: overrides live, everything else commented."""
+    from . import __version__
+
     lines = [
         "# spoider — editor settings",
         "#",
         "# One setting per line. Text after # is a comment, so a line that starts",
         "# with # is doing nothing.",
+        "",
+        "# the version of spoider that wrote this file; a later one reads it to migrate",
+        f"created_by = {config.created_by or __version__}",
         "",
         "# true or false: save after every edit, and when quitting",
         f"autosave = {'true' if config.autosave else 'false'}",
