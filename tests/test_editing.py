@@ -172,6 +172,41 @@ def test_a_run_of_typing_is_one_undo_step():
     assert buffer.text == "", "the whole run, not one character"
 
 
+def test_a_run_of_backspaces_is_one_undo_step():
+    buffer = at("one two three")
+    for _ in range(5):
+        buffer.backspace()
+    assert buffer.text == "one two "
+    assert buffer.undo()
+    assert buffer.text == "one two three", "the whole run comes back at once, not letter by letter"
+
+
+def test_a_move_ends_the_run():
+    buffer = at("abcdef")
+    buffer.backspace()
+    buffer.backspace()
+    assert buffer.text == "abcd"
+    buffer.left()  # a move closes the run
+    buffer.backspace()
+    assert buffer.text == "abd"
+    buffer.undo()
+    assert buffer.text == "abcd", "the step after the move comes back on its own"
+    buffer.undo()
+    assert buffer.text == "abcdef", "and the run before it is the next step"
+
+
+def test_typing_and_deleting_are_separate_steps():
+    buffer = at("")
+    for character in "abc":
+        buffer.insert(character)
+    buffer.backspace()
+    assert buffer.text == "ab", "a deletion after typing is not part of that run"
+    buffer.undo()
+    assert buffer.text == "abc"
+    buffer.undo()
+    assert buffer.text == ""
+
+
 def test_a_word_delete_is_its_own_step():
     buffer = at("one two")
     for character in "!":

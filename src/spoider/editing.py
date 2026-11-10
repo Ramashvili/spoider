@@ -42,11 +42,12 @@ class Buffer:
         self.limit = MAX_CELL_CHARS
         #: True when the last insert dropped text because the cell was full.
         self.clipped = False
-        #: History of (text, caret). A run of typed characters is one step; anything
-        #: else starts a new one, which is what makes ^Z feel like an editor's.
+        #: History of (text, caret). A run of one kind of change is one step, whether it is
+        #: typed characters or backspaces; a change of another kind, or a move, starts the
+        #: next, which is what makes ^Z feel like an editor's.
         self._undo: list[tuple[str, int]] = []
         self._redo: list[tuple[str, int]] = []
-        self._typing = False
+        self._run: str | None = None
 
     # -- geometry --------------------------------------------------------------
 
@@ -104,13 +105,14 @@ class Buffer:
 
     # -- editing ---------------------------------------------------------------
 
-    def _remember(self, *, typing: bool = False) -> None:
-        """Snapshot before a change. A run of single characters is one step."""
-        if typing and self._typing:
+    def _remember(self, run: str | None = None) -> None:
+        """Snapshot before a change. A burst of one kind of change is one step, so holding
+        backspace across a word is undone by one ^Z rather than one per letter."""
+        if run is not None and run == self._run:
             return
         self._undo.append((self.text, self.caret))
         self._redo.clear()
-        self._typing = typing
+        self._run = run
 
     def undo(self) -> bool:
         if not self._undo:
@@ -118,7 +120,7 @@ class Buffer:
         self._redo.append((self.text, self.caret))
         self.text, self.caret = self._undo.pop()
         self.anchor = None
-        self._typing = False
+        self._run = None
         return True
 
     def redo(self) -> bool:
@@ -127,7 +129,7 @@ class Buffer:
         self._undo.append((self.text, self.caret))
         self.text, self.caret = self._redo.pop()
         self.anchor = None
-        self._typing = False
+        self._run = None
         return True
 
     @property
@@ -147,7 +149,7 @@ class Buffer:
             chunk = chunk[:room]
             self.clipped = True
         single = len(chunk) == 1 and chunk != "\n"
-        self._remember(typing=single)
+        self._remember("typing" if single else None)
         if self._replace_selection(chunk):
             return
         if self.overwrite and self.caret < len(self.text) and self.text[self.caret] != "\n":
@@ -158,7 +160,7 @@ class Buffer:
         self.caret += len(chunk)
 
     def backspace(self) -> None:
-        self._remember()
+        self._remember("backspace")
         if self._replace_selection(""):
             return
         if self.caret == 0:
@@ -167,7 +169,7 @@ class Buffer:
         self.caret -= 1
 
     def delete(self) -> None:
-        self._remember()
+        self._remember("delete")
         if self._replace_selection(""):
             return
         if self.caret >= len(self.text):
@@ -214,6 +216,8 @@ class Buffer:
                 self.anchor = self.caret
         else:
             self.anchor = None
+        # a move ends the run: the next change is a new step
+        self._run = None
 
     def left(self, *, extend: bool = False) -> None:
         span = self.selection()
