@@ -283,13 +283,19 @@ def prompt_chunks(verb: str) -> list[Text]:
     ]
 
 
-def ask_chunks(affirm: str = "save", deny: str = "discard") -> list[Text]:
-    """The keys a yes/no question accepts, worded the way that question asked it."""
-    return [
-        entry("y", affirm, literal=True),
-        entry("n", deny, literal=True),
-        entry("esc", "cancel", literal=True),
-    ]
+def ask_chunks(affirm: str = "save", deny: str = "discard", cancel: str | None = "cancel") -> list[Text]:
+    """The keys a yes/no question accepts, worded the way that question asked it.
+
+    `cancel` is None when escaping does what saying no does: one answer keeps one entry, and
+    both keys are named on it, rather than the same word promised twice.
+    """
+    keys = [entry("y", affirm, literal=True)]
+    if cancel is None:
+        keys.append(entry("esc/n", deny, literal=True))
+    else:
+        keys.append(entry("n", deny, literal=True))
+        keys.append(entry("esc", cancel, literal=True))
+    return keys
 
 
 def error_chunks() -> list[Text]:

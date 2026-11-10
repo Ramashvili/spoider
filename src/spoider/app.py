@@ -330,6 +330,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._error_ack: Callable[[], None] | None = None
         #: The words the open yes/no question offers, so the bar can name them.
         self._ask_words: tuple[str, str] = ("save", "discard")
+        #: None when the escape answers what no answers, so the bar names them together.
+        self._ask_cancel: str | None = "cancel"
         self._show_matches = False  # the count sits in the bar only for a while
         self._count_timer = None
         self._undo: list[dict] = []
@@ -1080,7 +1082,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def _ask_overwrite(self, target: Path) -> None:
         """A map is the most valuable file in reach, so replacing one is a question."""
         self._pending_write = target
-        self._ask_words = ("overwrite", "keep")
+        self._ask_words = ("overwrite", "cancel")
+        self._ask_cancel = None  # nothing written either way
         self._mode = "ask"
         self._hide_drawers(AskBar)
         self.query_one(AskBar).ask(f"overwrite {clean(target.name)}?", self._overwrite_answered)
@@ -1147,7 +1150,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             footer.custom = prompt_chunks("save" if mode == "marks" else mode)
         elif mode == "ask":
             footer.mode = "custom"
-            footer.custom = ask_chunks(*self._ask_words)
+            footer.custom = ask_chunks(*self._ask_words, cancel=self._ask_cancel)
         elif mode == "error":
             footer.mode = "custom"
             footer.custom = error_chunks()
@@ -1286,6 +1289,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     def _ask_to_save(self) -> None:
         self._ask_words = ("save", "discard")
+        self._ask_cancel = "cancel"
         self._mode = "ask"
         self._hide_drawers(AskBar)
         self.query_one(AskBar).ask("Save modified buffer?", self._save_answered)

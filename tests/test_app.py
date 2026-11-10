@@ -5188,6 +5188,9 @@ async def test_writing_over_another_map_asks_first(tmp_path: Path):
 
         ask = app.query_one(AskBar)
         assert ask.display and "other.spoider" in ask.question
+        # no and escape do the same thing here, so the bar names them as one key
+        asked = "".join(chunk.plain for chunk in app.query_one(FooterBar).custom)
+        assert "esc/n cancel" in asked and asked.count("cancel") == 1
         await pilot.press("n")
         await pilot.pause()
         assert other.read_text(encoding="utf-8") == before, "a no leaves the file alone"
