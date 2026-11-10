@@ -15,11 +15,35 @@ from pathlib import Path
 #: the JSON is, and nothing the app itself reads.
 SUFFIX = ".spoider"
 
+class WriteRefused(OSError):
+    """A write that must not happen, carrying the sentence to say in its place.
+
+    An `OSError`, so every caller that already reports a failed write reports this one the
+    same way, with the sentence rather than an errno.
+    """
+
+
 def write_atomic(path: Path, text: str) -> None:
-    """Write `text` to `path`, keeping the old contents until the write succeeds."""
-    path = Path(path)
+    """Write `text` to `path`, keeping the old contents until the write succeeds.
+
+    A link is written through rather than replaced: the reader keeps the link and the file it
+    names receives the text, which is what saving to a name means. Nothing is written over
+    that is not a regular file, and a file the reader made read-only stays read-only: the
+    rename needs only the directory, so without that check a `chmod 444` map would be
+    rewritten anyway.
+
+    The temp name is short on purpose. It used to carry the whole target name, so a name near
+    the filesystem's 255-byte limit could never be saved, because the temp name was the one
+    that did not fit.
+    """
+    path = Path(os.path.realpath(path))
     path.parent.mkdir(parents=True, exist_ok=True)
-    handle, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    if path.exists():
+        if not path.is_file():
+            raise WriteRefused("it is not a regular file")
+        if not os.access(path, os.W_OK):
+            raise WriteRefused("the file is read-only; change its mode first")
+    handle, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name[:120]}.", suffix=".tmp")
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as stream:
             stream.write(text)

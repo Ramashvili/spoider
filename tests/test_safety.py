@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
 from pathlib import Path
 
 import pytest
 
 from spoider import properties
 from spoider.app import SpoiderApp
+from spoider.files import WriteRefused
 from spoider.model import MAX_DEPTH, MapFileError, MindMap, Node
 
 
@@ -99,6 +102,52 @@ def test_saving_leaves_no_temporary_files_behind(tmp_path):
     path = tmp_path / "map.json"
     MindMap().save(path)
     assert [entry.name for entry in tmp_path.iterdir()] == ["map.json"]
+
+
+def test_saving_through_a_link_keeps_the_link(tmp_path: Path):
+    """The link is the name the reader gave, so the file it names receives the map."""
+    real = tmp_path / "real.spoider"
+    real.write_text("old", encoding="utf-8")
+    link = tmp_path / "link.spoider"
+    link.symlink_to(real)
+
+    MindMap().save(link)
+
+    assert link.is_symlink(), "a rename would have replaced the link itself"
+    assert real.read_text(encoding="utf-8") != "old", "and the map landed where the link points"
+
+
+def test_a_read_only_file_is_not_written_over(tmp_path: Path):
+    """A rename needs only the directory, so a chmod 444 file would be rewritten anyway."""
+    path = tmp_path / "map.spoider"
+    MindMap().save(path)
+    path.chmod(0o444)
+    before = path.read_bytes()
+
+    with pytest.raises(WriteRefused):
+        MindMap().save(path)
+
+    assert path.read_bytes() == before
+    path.chmod(0o644)
+
+
+def test_something_that_is_not_a_regular_file_is_left_alone(tmp_path: Path):
+    pipe = tmp_path / "pipe.spoider"
+    os.mkfifo(pipe)
+
+    with pytest.raises(WriteRefused):
+        MindMap().save(pipe)
+
+    assert stat.S_ISFIFO(pipe.stat().st_mode), "the pipe is still a pipe"
+    pipe.unlink()
+
+
+def test_a_name_near_the_filesystems_limit_can_be_saved(tmp_path: Path):
+    """The temp file used to carry the whole target name, so a legal name could not be saved."""
+    path = tmp_path / (("n" * 240) + ".spoider")
+    MindMap().save(path)
+    assert path.exists()
+    assert [entry.name for entry in tmp_path.iterdir()] == [path.name], "and no temp left"
 
 
 def test_the_depth_cap_counts_nodes_on_the_path():
