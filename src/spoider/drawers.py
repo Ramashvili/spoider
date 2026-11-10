@@ -16,6 +16,7 @@ from textual import events
 from textual.widget import Widget
 
 from .chrome import ERROR_STYLE
+from .editing import Buffer
 from .text import clean, clip_head, clip_tail
 
 
@@ -70,15 +71,16 @@ def _shown_value(value: str, caret: int, room: int) -> tuple[str, int]:
 class PromptBar(Drawer):
     """One line that asks for a word: a search, a file name, a set of marks.
 
-    Enter answers, esc or ^C backs out, ^Z and ^Y walk the edits, and up and down
-    recall earlier answers when the prompt was given a list to keep.
+    The editing is the cell editor's: a `Buffer` holds the text, so a word jump, a
+    deletion, an undo or a paste behaves here exactly as it does in a cell. The keys that
+    need a second line are simply not offered: enter answers, esc or ^C backs out, and up
+    and down recall earlier answers when the prompt was given a list to keep.
     """
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.label = ""
-        self.value = ""
-        self.cursor = 0
+        self.buffer = Buffer()
         self.recall: list[str] | None = None
         self._submit: Callable[[str], None] = lambda value: None
         self._cancel: Callable[[], None] = lambda: None
@@ -86,8 +88,25 @@ class PromptBar(Drawer):
         self._history_index = -1
         self._draft = ""
         self._fresh = False
-        self._undo: list[tuple[str, int]] = []
-        self._redo: list[tuple[str, int]] = []
+
+    # -- the two words the rest of the app speaks ------------------------
+
+    @property
+    def value(self) -> str:
+        return self.buffer.text
+
+    @value.setter
+    def value(self, text: str) -> None:
+        self.buffer.text = text
+        self.buffer.caret = len(text)
+
+    @property
+    def cursor(self) -> int:
+        return self.buffer.caret
+
+    @cursor.setter
+    def cursor(self, index: int) -> None:
+        self.buffer.caret = max(0, min(index, len(self.buffer.text)))
 
     # -- opening -------------------------------------------------------
 
@@ -104,7 +123,8 @@ class PromptBar(Drawer):
         change: Callable[[str], None] | None = None,
     ) -> None:
         self.label = label
-        self.value = value
+        # a fresh buffer, so the undo history starts with this question rather than the last
+        self.buffer = Buffer(value)
         # a caret position when the caller has one, the end of the value otherwise
         self.cursor = len(value) if cursor is None else max(0, min(cursor, len(value)))
         self.recall = recall
@@ -116,88 +136,77 @@ class PromptBar(Drawer):
         self._history_index = 0 if recall and values_match(value, recall) else -1
         self._draft = value
         self._fresh = preselect and bool(value)
-        self._undo.clear()
-        self._redo.clear()
         self.open()
 
     # -- keys ----------------------------------------------------------
 
     def on_key(self, event: events.Key) -> None:
         """The prompt owns every key while it is open: a stray ^D must not delete
-        the cell behind it, and a stray ^X must not quit."""
+        the cell behind it, and a stray ^X must not quit.
+
+        Everything that edits the text is the buffer's, so it behaves the way the cell
+        editor does: word jumps stop at punctuation, a run of one kind of change is one
+        undo step, and alt+backspace takes a word.
+        """
         event.stop()
         event.prevent_default()
 
         key = event.key
+        buffer = self.buffer
         if key == "enter":
             self._answer()
         elif key in ("escape", "ctrl+c"):
             self._cancel()
         elif key == "ctrl+z":
-            self._undo_edit()
+            if buffer.undo():
+                self._changed()
         elif key == "ctrl+y":
-            self._redo_edit()
-        elif key == "backspace" and self.cursor:
-            self._edit(self.value[: self.cursor - 1] + self.value[self.cursor :], self.cursor - 1)
-        elif key == "delete":
-            self._edit(self.value[: self.cursor] + self.value[self.cursor + 1 :], self.cursor)
+            if buffer.redo():
+                self._changed()
+        elif key in ("backspace", "alt+backspace"):
+            if key == "backspace":
+                buffer.backspace()
+            else:
+                buffer.delete_word_before()
+            self._changed()
+        elif key in ("delete", "alt+d"):
+            if key == "delete":
+                buffer.delete()
+            else:
+                buffer.delete_word_after()
+            self._changed()
         elif key in ("left", "ctrl+b"):
-            self.cursor = max(0, self.cursor - 1)
+            buffer.left()
         elif key in ("right", "ctrl+f"):
-            self.cursor = min(len(self.value), self.cursor + 1)
+            buffer.right()
+        elif key == "ctrl+left":
+            buffer.word_left()
+        elif key == "ctrl+right":
+            buffer.word_right()
         elif key in ("home", "ctrl+a", "ctrl+home"):
-            self.cursor = 0
+            buffer.home()
         elif key in ("end", "ctrl+e", "ctrl+end"):
-            self.cursor = len(self.value)
-        elif key == "pagedown":
-            self.cursor = min(len(self.value), self.cursor + self.page_width())
+            buffer.end()
         elif key == "pageup":
             self.cursor = max(0, self.cursor - self.page_width())
-        elif key == "ctrl+left":
-            self.cursor = self.word_start(self.cursor)
-        elif key == "ctrl+right":
-            self.cursor = self.word_end(self.cursor)
+        elif key == "pagedown":
+            self.cursor = min(len(buffer.text), self.cursor + self.page_width())
         elif key in ("up", "down") and self.recall:
             self._recall(+1 if key == "up" else -1)
         elif event.character and event.character.isprintable():
-            character = event.character
             if self._fresh:
                 # typing replaces what the prompt offered rather than appending
-                self._edit(character, len(character))
-            else:
-                self._edit(
-                    self.value[: self.cursor] + character + self.value[self.cursor :],
-                    self.cursor + len(character),
-                )
+                buffer.select_all()
+            buffer.insert(event.character)
+            self._changed()
         self.refresh()
 
-    def _edit(self, value: str, cursor: int) -> None:
-        self._undo.append((self.value, self.cursor))
-        self._redo.clear()
+    def _changed(self) -> None:
+        """The text was edited: the history walk is over and the offered value is gone."""
         self._history_index = -1
         self._fresh = False
-        self.value = value
-        self.cursor = cursor
         if self._change is not None:
-            self._change(value)
-
-    def _restore(self, state: tuple[str, int]) -> None:
-        self.value, self.cursor = state
-        self._fresh = False
-        if self._change is not None:
-            self._change(self.value)
-
-    def _undo_edit(self) -> None:
-        if not self._undo:
-            return
-        self._redo.append((self.value, self.cursor))
-        self._restore(self._undo.pop())
-
-    def _redo_edit(self) -> None:
-        if not self._redo:
-            return
-        self._undo.append((self.value, self.cursor))
-        self._restore(self._redo.pop())
+            self._change(self.buffer.text)
 
     def _answer(self) -> None:
         value = self.value.strip()
@@ -220,7 +229,6 @@ class PromptBar(Drawer):
         self._history_index = target
         self._fresh = False
         self.value = self._draft if target == -1 else self.recall[target]
-        self.cursor = len(self.value)
         if self._change is not None:
             self._change(self.value)
 
@@ -229,22 +237,6 @@ class PromptBar(Drawer):
     def page_width(self) -> int:
         """How far a page key moves: the room the value has on the line."""
         return max(1, self.size.width - len(self.label) - 2)
-
-    def word_start(self, index: int) -> int:
-        at = index
-        while at > 0 and self.value[at - 1].isspace():
-            at -= 1
-        while at > 0 and not self.value[at - 1].isspace():
-            at -= 1
-        return at
-
-    def word_end(self, index: int) -> int:
-        at = index
-        while at < len(self.value) and self.value[at].isspace():
-            at += 1
-        while at < len(self.value) and not self.value[at].isspace():
-            at += 1
-        return at
 
     def render(self) -> Text:
         width = self.size.width

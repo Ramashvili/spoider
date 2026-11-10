@@ -1108,21 +1108,14 @@ async def test_prompt_supports_undo_and_redo(tmp_path: Path):
         field = app.query_one(PromptBar)
         assert field.value.startswith("abc")
 
+        # one run of typing is one undo step, as it is in a cell
         await pilot.press("ctrl+z")
-        await pilot.pause()
-        assert field.value.startswith("ab")
-
-        await pilot.press("ctrl+z")
-        await pilot.pause()
-        assert field.value.startswith("a")
-
-        await pilot.press("ctrl+z")  # and back to the value it opened with
         await pilot.pause()
         assert field.value == " ".join(app.marks) + " ", "the offered value, space included"
 
         await pilot.press("ctrl+y")
         await pilot.pause()
-        assert field.value.startswith("a")
+        assert field.value.startswith("abc"), "and redo puts the run back in one step"
 
 
 def test_config_can_rebind_every_chord(tmp_path: Path):
@@ -5118,6 +5111,41 @@ async def test_a_cell_answers_page_and_word_keys_end_to_end(tmp_path: Path):
         assert app._buffer.caret == 3, "a page down and up on one line returns"
         await pilot.press("enter")
         await pilot.pause()
+
+
+async def test_a_prompt_edits_like_a_cell(tmp_path: Path):
+    """The prompt holds a Buffer, so the keys that edit text are the cell editor's: a word
+    jump, a word deletion, home and end, and a run of typing as one undo step."""
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "k.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("ctrl+f")
+        await pilot.press(*"one two three")
+        await pilot.pause()
+        field = app.query_one(PromptBar)
+        assert field.value == "one two three"
+
+        await pilot.press("ctrl+left")
+        await pilot.pause()
+        assert field.value[field.cursor :] == "three", "one word back"
+
+        await pilot.press("alt+backspace")
+        await pilot.pause()
+        assert field.value == "one three", "the word before the caret goes"
+
+        await pilot.press("home")
+        await pilot.pause()
+        assert field.cursor == 0
+        await pilot.press("end")
+        await pilot.pause()
+        assert field.cursor == len(field.value)
+
+        # a run of typing and a single deletion are each one undo step, as in a cell
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert field.value == "one two three", "the deletion comes back"
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert field.value == "", "and the run of typing before it, in one step"
 
 
 async def test_a_prompt_answers_page_and_word_keys(tmp_path: Path):
