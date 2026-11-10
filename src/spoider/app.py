@@ -664,23 +664,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         """Editor preference, not document state — written to the config file."""
         return self.config.autosave
 
-    def set_hide_footer(self, value: bool) -> None:
-        """Editor preference: the bar at the bottom, or the rows it takes."""
-        if value == self.config.hide_footer:
-            return
-        self.config.hide_footer = bool(value)
-        self._save_config({"hide_footer": "true" if value else "false"})
-        self._sync_footer()
-
-    def set_autosave(self, value: bool) -> None:
-        if value == self.config.autosave:
-            return
-        self.config.autosave = bool(value)
-        self._save_config({"autosave": "true" if value else "false"})
-        if self.config.autosave and self.dirty:
-            self._autosave()  # commit what is on screen the moment you switch it on
-        self._refresh_chrome()
-
     @property
     def keymap(self) -> dict[str, str]:
         """binding id -> chord(s) in force: the defaults with the config on top."""
@@ -757,13 +740,11 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.mm.marks = cleaned
         self._mark_dirty()
 
-    def _save_config(self, changes: dict[str, str] | None = None) -> None:
+    def _save_config(self) -> None:
+        """Write the template where the file is missing; an existing one is the reader's."""
         try:
-            if changes is None:
-                if not self.config_path.exists():
-                    write_config(self.config, self.config_path, self._key_entries())
-                return
-            update_config(self.config_path, changes)
+            if not self.config_path.exists():
+                write_config(self.config, self.config_path, self._key_entries())
         except OSError as exc:
             self.notify(f"Could not write config: {exc}", severity="error", timeout=FAILURE)
 

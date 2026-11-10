@@ -13,6 +13,14 @@ from spoider.screens import HELP, help_text, keys_for
 from spoider.widgets import MindMapView, TopBar, compose_top_bar
 
 
+def _asking_for_autosave(tmp_path: Path) -> Path:
+    """A config that turns autosave on, written as a reader writes it: there is no screen
+    for the setting any more, so the file is where every test of it begins."""
+    config_path = tmp_path / "autosave.conf"
+    config_path.write_text("autosave = true\n", encoding="utf-8")
+    return config_path
+
+
 def test_every_shortcut_uses_a_modifier():
     # Bare keys are the terminal's own cursor keys, the letters that are reached for
     # constantly and collide with nothing, the two inserts, the vim aliases, the two
@@ -165,10 +173,8 @@ async def test_top_bar_star_appears_and_clears_with_the_edit(tmp_path: Path):
 
 
 async def test_top_bar_never_shows_the_star_under_autosave(tmp_path: Path):
-    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=tmp_path / "e.conf")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=_asking_for_autosave(tmp_path))
     async with app.run_test() as pilot:
-        app.set_autosave(True)
-        await pilot.pause()
         await pilot.press("tab")
         await pilot.press("a", "enter")
         await pilot.pause()
@@ -820,36 +826,25 @@ async def test_a_cell_keeps_the_keys_that_open_help(tmp_path: Path):
         assert app.mode == "help"
 
 
-async def test_toggling_autosave_persists_to_the_editor_config(tmp_path: Path):
+async def test_autosave_is_a_line_in_the_file(tmp_path: Path):
+    """There is no screen that turns it on: `.` opens this file, and the next launch, or the
+    reload after the editor closes, is what puts the setting into force."""
+    config_path = _asking_for_autosave(tmp_path)
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
+    async with app.run_test():
+        assert app.autosave is True
+        assert "^S save" not in app.query_one("#footer").render().plain
+
+
+async def test_reloading_the_config_puts_a_new_setting_into_force(tmp_path: Path):
     config_path = tmp_path / "config.conf"
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
-    async with app.run_test() as pilot:
+    async with app.run_test():
         assert app.autosave is False
-        app.set_autosave(True)  # the config file is where this lives now
-        await pilot.pause()
+        config_path.write_text("autosave = true\n", encoding="utf-8")
+        app._reload_config()
         assert app.autosave is True
-
-    assert load_config(config_path).autosave is True
-    reopened = SpoiderApp(tmp_path / "map.json", config_path=config_path)
-    assert reopened.autosave is True  # and it survives the editor restarting
-
-
-async def test_toggling_autosave_repaints_the_footer_immediately(tmp_path: Path):
-    app = SpoiderApp(tmp_path / "map.json", demo=False)
-    async with app.run_test() as pilot:
-        footer = app.query_one("#footer")
-        repaints = []
-        original = footer.refresh
-
-        def spy(*args, **kwargs):
-            repaints.append(1)
-            return original(*args, **kwargs)
-
-        footer.refresh = spy  # type: ignore[method-assign]
-        app.set_autosave(True)
-        await pilot.pause()
-        assert repaints, "changing autosave must repaint the bar, not wait for a nudge"
-        assert "^S save" not in footer.render().plain
+        assert "^S save" not in app.query_one("#footer").render().plain, "the bar repaints too"
 
 
 def test_the_config_holds_the_default_marks(tmp_path: Path):
@@ -1598,10 +1593,8 @@ def test_the_saved_config_mentions_every_rebindable_chord(tmp_path: Path):
 
 async def test_autosave_writes_after_every_edit(tmp_path: Path):
     path = tmp_path / "map.json"
-    app = SpoiderApp(path, demo=False, config_path=tmp_path / "config.conf")
+    app = SpoiderApp(path, demo=False, config_path=_asking_for_autosave(tmp_path))
     async with app.run_test() as pilot:
-        app.set_autosave(True)
-        await pilot.pause()
 
         await pilot.press("tab")
         await pilot.press("a", "enter")
@@ -1621,10 +1614,8 @@ async def test_autosave_writes_after_every_edit(tmp_path: Path):
 
 async def test_autosave_quits_without_asking(tmp_path: Path):
     path = tmp_path / "map.json"
-    app = SpoiderApp(path, demo=False, config_path=tmp_path / "config.conf")
+    app = SpoiderApp(path, demo=False, config_path=_asking_for_autosave(tmp_path))
     async with app.run_test() as pilot:
-        app.set_autosave(True)
-        await pilot.pause()
         await pilot.press("tab")
         await pilot.press("a", "enter")
         await pilot.pause()
@@ -1638,15 +1629,13 @@ async def test_autosave_quits_without_asking(tmp_path: Path):
 
 
 async def test_autosave_hides_manual_save_from_the_bar(tmp_path: Path):
-    app = SpoiderApp(tmp_path / "map.json", demo=False)
-    async with app.run_test() as pilot:
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=_asking_for_autosave(tmp_path))
+    async with app.run_test():
         from spoider.chrome import compose_footer, hint_chunks
 
         with_save = compose_footer(160, hint_chunks(BINDINGS)).plain
         assert "^S save" in with_save
 
-        app.set_autosave(True)
-        await pilot.pause()
         without = compose_footer(160, hint_chunks(BINDINGS, frozenset({"save"}))).plain
         assert "^S save" not in without
         # the bar the app actually renders agrees
@@ -1980,9 +1969,8 @@ async def test_the_path_survives_the_file_disappearing(tmp_path: Path):
 
 
 async def test_quit_stays_put_when_autosave_cannot_write(tmp_path: Path, monkeypatch):
-    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=_asking_for_autosave(tmp_path))
     async with app.run_test() as pilot:
-        app.set_autosave(True)
         app.mm.add_child(app.selected, "work that must not vanish")
         app.dirty = True
 
@@ -2447,9 +2435,8 @@ async def test_save_asks_for_a_name_when_the_buffer_has_none(tmp_path: Path, mon
 
 
 async def test_a_new_buffer_quits_with_autosave_on(tmp_path: Path):
-    app = SpoiderApp(None, demo=False)
+    app = SpoiderApp(None, demo=False, config_path=_asking_for_autosave(tmp_path))
     async with app.run_test() as pilot:
-        app.set_autosave(True)
         app.mm.add_child(app.selected, "work in progress")
         app._mark_dirty()
         assert app.dirty, "nowhere to autosave to, so it stays dirty"

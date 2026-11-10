@@ -276,18 +276,6 @@ def write_config(
     write_atomic(path, render_config(config, key_entries))
 
 
-#: The keys spoider writes itself, with how each one is spelled in the file.
-_OWNED = (
-    "autosave",
-    "marks_default",
-    "justify_width_default",
-    "desktop_asked",
-    "hide_footer",
-    "tab_width",
-    "page_lines",
-)
-
-
 def update_config(path: Path, changes: dict[str, str]) -> None:
     """Set the given keys, leaving every other line in the file exactly as it was.
 
