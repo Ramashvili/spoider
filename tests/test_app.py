@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -5141,6 +5142,56 @@ async def test_a_paste_lands_in_the_open_prompt(tmp_path: Path):
         await pilot.press("enter")
         await pilot.pause()
         assert app.marks == ("red", "blue", "green", "amber", "teal"), "the paste reached the answer"
+
+
+async def test_a_paste_longer_than_a_prompt_is_cut_and_says_so(tmp_path: Path):
+    """A prompt holds a word, not a paragraph: what does not fit is said, never dropped in
+    silence, and the work happens on a bounded prefix of the clipboard."""
+    from spoider.model import MAX_PROMPT_CHARS
+
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "k.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        seen: list[str] = []
+        app.notify = lambda message, **kwargs: seen.append(str(message))  # type: ignore[method-assign]
+
+        await pilot.press("ctrl+f")
+        await pilot.pause()
+        field = app.query_one(PromptBar)
+        started = time.perf_counter()
+        field.on_paste(events.Paste("q" * 2_000_000))
+        await pilot.pause()
+        elapsed = time.perf_counter() - started
+
+        assert len(field.value) == MAX_PROMPT_CHARS
+        assert elapsed < 1.0, "two megabytes of clipboard is not a two second pause"
+        assert any(str(MAX_PROMPT_CHARS) in line for line in seen), "the cut was said"
+
+
+async def test_a_pasted_control_character_never_reaches_the_value(tmp_path: Path):
+    """The prompt cleans on the way in, as a cell does: an escape in a clipboard is not text."""
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "k.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("ctrl+f")
+        await pilot.pause()
+        field = app.query_one(PromptBar)
+        field.on_paste(events.Paste("evil\x1b]0;x\x07.spoider"))
+        await pilot.pause()
+        assert field.value == "evil]0;x.spoider", "the escapes are gone, the name is not"
+
+
+def test_folding_the_breaks_of_a_long_run_of_blanks_is_one_pass():
+    """The pattern this replaced backtracked at every column: a hundred thousand spaces
+    without a break in them froze the screen for over a minute."""
+    from spoider.drawers import _fold_breaks
+
+    started = time.perf_counter()
+    folded = _fold_breaks(" " * 1_000_000)
+    elapsed = time.perf_counter() - started
+    assert folded == " " * 1_000_000
+    assert elapsed < 0.2, f"a megabyte of blanks took {elapsed:.2f}s"
+
+    assert _fold_breaks("alpha\nbeta gamma") == "alpha beta gamma"
+    assert _fold_breaks("a \r\n b") == "a b", "the blanks around a break go with it"
 
 
 async def test_a_paste_replaces_what_the_prompt_offered(tmp_path: Path):

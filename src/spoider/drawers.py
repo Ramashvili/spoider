@@ -8,7 +8,6 @@ second footer to keep in step with the first.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable
 
 from rich.cells import cell_len
@@ -16,8 +15,9 @@ from rich.text import Text
 from textual import events
 from textual.widget import Widget
 
-from .chrome import ERROR_STYLE
+from .chrome import ERROR_STYLE, FAILURE
 from .editing import Buffer
+from .model import MAX_PROMPT_CHARS
 from .text import clean, clip_head, clip_tail
 
 
@@ -81,7 +81,7 @@ class PromptBar(Drawer):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.label = ""
-        self.buffer = Buffer()
+        self.buffer = self._fresh_buffer()
         self.recall: list[str] | None = None
         self._submit: Callable[[str], None] = lambda value: None
         self._cancel: Callable[[], None] = lambda: None
@@ -89,6 +89,12 @@ class PromptBar(Drawer):
         self._history_index = -1
         self._draft = ""
         self._fresh = False
+
+    def _fresh_buffer(self, value: str = "") -> Buffer:
+        """A prompt's buffer: the cell editor's, holding a word rather than a paragraph."""
+        buffer = Buffer(value)
+        buffer.limit = MAX_PROMPT_CHARS
+        return buffer
 
     # -- the two words the rest of the app speaks ------------------------
 
@@ -125,7 +131,7 @@ class PromptBar(Drawer):
     ) -> None:
         self.label = label
         # a fresh buffer, so the undo history starts with this question rather than the last
-        self.buffer = Buffer(value)
+        self.buffer = self._fresh_buffer(value)
         # a caret position when the caller has one, the end of the value otherwise
         self.cursor = len(value) if cursor is None else max(0, min(cursor, len(value)))
         self.recall = recall
@@ -199,6 +205,7 @@ class PromptBar(Drawer):
                 # typing replaces what the prompt offered rather than appending
                 buffer.select_all()
             buffer.insert(event.character)
+            self._capped()
             self._changed()
         self.refresh()
 
@@ -206,17 +213,31 @@ class PromptBar(Drawer):
         """Text the terminal pasted lands at the caret, on one line: a prompt is one row,
         so a line break in the chunk becomes the space between two words."""
         event.stop()
-        # a break, and the air around it, is the space between two words: the chunk keeps
-        # its own leading space, so a paste that starts on a second line still separates
-        chunk = _BREAK_TO_SPACE.sub(" ", event.text)
+        # A clipboard can be megabytes long, and a prompt holds 512 characters: the work
+        # below happens on a bounded prefix, so nothing pays for text that is dropped.
+        # Breaks become the space between two words, and the chunk is cleaned on the way in
+        # the way a cell's is: a control character in a one-line prompt is never content.
+        chunk = clean(_fold_breaks(event.text[: MAX_PROMPT_CHARS * 4]))
         if not clean(chunk).strip():
             return
         if self._fresh:
             # the offered value is replaced by what was pasted, as it is by typing
             self.buffer.select_all()
         self.buffer.insert(chunk)
+        self._capped()
         self._changed()
         self.refresh()
+
+    def _capped(self) -> None:
+        """Say when the prompt could not keep all of what arrived, rather than cut it quietly."""
+        if not self.buffer.clipped:
+            return
+        self.buffer.clipped = False
+        self.app.notify(
+            f"a prompt holds {MAX_PROMPT_CHARS} characters, so the end was dropped",
+            severity="error",
+            timeout=FAILURE,
+        )
 
     def _changed(self) -> None:
         """The text was edited: the history walk is over and the offered value is gone."""
@@ -288,8 +309,21 @@ class PromptBar(Drawer):
         return bar
 
 
-#: A line break in a pasted chunk, with the blanks around it, becomes one space.
-_BREAK_TO_SPACE = re.compile(r"[ \t]*(?:\r\n|\r|\n)[ \t]*")
+def _fold_breaks(text: str) -> str:
+    """A pasted chunk on one line: every break, and the blanks around it, is one space.
+
+    Split and join rather than a pattern. The regex this replaces was
+    `[ \t]*(?:\r\n|\r|\n)[ \t]*`, and a run of blanks with no break in it made the greedy
+    group backtrack at every column: a paste of a hundred thousand spaces froze the screen
+    for over a minute. Folding the breaks by hand cannot do that.
+    """
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    if len(lines) == 1:
+        return lines[0]
+    first = lines[0].rstrip(" \t")
+    last = lines[-1].lstrip(" \t")
+    middle = [line.strip(" \t") for line in lines[1:-1] if line.strip(" \t")]
+    return " ".join([first, *middle, last])
 
 
 class NoticeBar(Drawer):

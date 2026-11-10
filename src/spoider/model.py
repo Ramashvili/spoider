@@ -45,6 +45,12 @@ MAX_CELL_CHARS = 10_000
 #: A mark is one glyph, so this is generous; it stops a palette entry being a paragraph.
 MAX_MARK_CHARS = 16
 
+#: A prompt asks for a word: a path, a query, a set of marks, a width. A tenth of what a cell
+#: holds is still more than any path, and it is what keeps a pasted clipboard cheap: the work
+#: a prompt does on the text happens on the whole chunk before the buffer clamps it, so an
+#: uncapped prompt pays for megabytes to keep five hundred characters.
+MAX_PROMPT_CHARS = 512
+
 #: The shapes a map can be drawn in. The name is stored in the file, like the
 #: spacing, so a map opens looking the way it was left.
 LAYOUTS = ("spider", "branch", "branch-left", "pyramid", "bush")
