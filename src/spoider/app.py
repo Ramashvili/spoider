@@ -144,8 +144,11 @@ ToastRack {
     margin-bottom: 0;
 }
 Toast {
-    width: 44;
+    /* The box hugs its sentence, so a short notice is not a long empty strip, and it keeps
+       three columns plus the screen's own two from the edge: six columns of air in all. */
+    width: auto;
     max-width: 50%;
+    margin-right: 3;
 }
 /* Bright tones, all three from the palette: the app has no colours of its own,
    and one bright and two dim would say more about the terminal than the message. */

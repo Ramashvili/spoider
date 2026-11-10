@@ -3111,7 +3111,7 @@ async def test_a_cut_toasts_in_green_at_the_top_right(tmp_path: Path):
         assert toast.has_class("-information"), "a cut worked, so it is green"
         region = toast.region
         assert region.y <= 3, "it hangs from the top"
-        assert region.x + region.width >= 96, "and from the right"
+        assert app.size.width - (region.x + region.width) == 5, "and six columns of air from the right"
 
 
 async def test_a_copy_says_what_it_took_and_where_it_went(tmp_path: Path):
@@ -3132,6 +3132,25 @@ async def test_a_copy_says_what_it_took_and_where_it_went(tmp_path: Path):
         assert toast.has_class("-information")
 
 
+async def test_a_notice_is_as_wide_as_its_sentence(tmp_path: Path):
+    """The box hugs what it says, so a short notice is not a long empty strip, and every
+    notice ends the same six columns from the right edge."""
+    from textual.widgets._toast import Toast
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 30), notifications=True) as pilot:
+        app.notify("short")
+        await pilot.pause()
+        narrow = app.query(Toast).last().region
+
+        app.notify("a much longer sentence, long enough to be worth reading twice")
+        await pilot.pause()
+        wide = app.query(Toast).last().region
+
+        assert wide.width > narrow.width, "the box follows the sentence"
+        assert app.size.width - narrow.right == app.size.width - wide.right, "same air on the right"
+
+
 async def test_a_notice_hangs_over_the_map_and_not_over_the_stack(tmp_path: Path):
     """The stack column owns the right of the screen, so a notice stops at the pane."""
     from textual.widgets._toast import Toast
@@ -3146,7 +3165,7 @@ async def test_a_notice_hangs_over_the_map_and_not_over_the_stack(tmp_path: Path
         await pilot.pause()
 
         hung = app.query(Toast).last()
-        assert hung.region.x + hung.region.width >= 96, "hard against the window while shut"
+        assert app.size.width - (hung.region.x + hung.region.width) == 5, "near the window edge"
 
         await pilot.press("p")  # the stack opens under a notice that is already hanging
         await pilot.pause()
@@ -3166,7 +3185,7 @@ async def test_a_notice_hangs_over_the_map_and_not_over_the_stack(tmp_path: Path
         await pilot.press("p")
         await pilot.pause()
         back = app.query(Toast).last()
-        assert back.region.x + back.region.width >= 96, "and comes back with the pane"
+        assert app.size.width - (back.region.x + back.region.width) == 5, "and comes back with the pane"
 
 
 async def test_a_paste_toasts_in_green_too(tmp_path: Path):
