@@ -63,6 +63,15 @@ def data_home() -> Path:
     return Path.home() / ".local" / "share"
 
 
+def _shown(path: Path) -> str:
+    """A path the way it is read: the home directory as `~`, anything else whole."""
+    home = str(Path.home())
+    text = str(path)
+    if text.startswith(home + os.sep):
+        return "~" + text[len(home) :]
+    return text
+
+
 def install_desktop() -> int:
     """Register `.spoider` with the desktop: the MIME type, the entry, the default.
 
@@ -101,6 +110,11 @@ def install_desktop() -> int:
         # an unwritable home, a read-only mount, a full disk: say which, and stop
         print(f"spoider: cannot write to {home}: {exc}")
         return 1
+
+    # name what was written: a reader who wants to remove it, or to see why the desktop
+    # still does not know the type, needs the two paths more than a summary sentence
+    print(f"wrote {_shown(mime_dir / 'x-spoider.xml')} (the MIME type)")
+    print(f"wrote {_shown(apps_dir / 'spoider.desktop')} (the launcher)")
 
     _run_tool(["update-mime-database", str(home / "mime")])
     _run_tool(["update-desktop-database", str(apps_dir)])

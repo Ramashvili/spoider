@@ -49,6 +49,15 @@ That puts `spoider` on your PATH. On first launch, spoider asks whether your des
 always recognise `.spoider` files and open them in spoider when you open one from your file
 browser; `spoider --install-desktop` does the same thing by hand, without the question.
 
+Either way it writes two files where your desktop looks for them, names them as it writes them,
+and says whether a `.spoider` file will now open in spoider:
+
+- `~/.local/share/applications/spoider.desktop`, the launcher that starts spoider on a map
+- `~/.local/share/mime/packages/x-spoider.xml`, the MIME type that teaches the desktop what a `.spoider`
+  file is
+
+Both go under `XDG_DATA_HOME` when you have set one, and running the command twice is harmless.
+
 ## Try it without installing
 
 ```bash

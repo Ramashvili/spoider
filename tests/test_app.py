@@ -4274,6 +4274,34 @@ def test_the_packaging_tells_the_desktop_what_a_map_is():
     assert "Terminal=true" in desktop, "spoider is a terminal program"
 
 
+def test_install_desktop_names_the_files_it_wrote(tmp_path: Path, monkeypatch, capsys):
+    """A reader who has to remove them, or explain why the desktop still balks, needs
+    the two paths rather than a sentence."""
+    from spoider.desktop import install_desktop
+
+    monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: True)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+
+    assert install_desktop() == 0
+
+    out = capsys.readouterr().out
+    # the path is shown with `~` when it is under home, and a scratch directory is, so the
+    # assertion is on what each line says rather than on a prefix it may have shortened
+    assert "wrote " in out and "x-spoider.xml (the MIME type)" in out
+    assert "spoider.desktop (the launcher)" in out
+    assert out.index("x-spoider.xml") < out.index("spoider.desktop"), "written order"
+
+
+def test_a_written_file_under_home_is_named_with_a_tilde(tmp_path: Path, monkeypatch):
+    from spoider.desktop import _shown
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert _shown(tmp_path / ".local" / "share" / "applications" / "spoider.desktop") == (
+        "~/.local/share/applications/spoider.desktop"
+    )
+    assert _shown(Path("/opt/spoider.desktop")) == "/opt/spoider.desktop"
+
+
 def test_install_desktop_writes_the_files_where_the_system_looks(tmp_path: Path, monkeypatch):
     """One command after an install, and it must work from a wheel: the files ship
     inside the package, not in a clone."""
