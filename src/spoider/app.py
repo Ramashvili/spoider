@@ -725,6 +725,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         set_tab_width(self.config.tab_width)  # a new tab stop redraws the map
         self.set_keymap(build_binding_keymap(self.config.keys))  # new chords at once
         self._report_clashes()
+        # hide_footer is a decision _sync_footer makes about the bar's box, so a reload
+        # that skips it leaves the bar standing until the next mode change
+        self._sync_footer()
         self._refresh_chrome()
 
     @property

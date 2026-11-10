@@ -836,6 +836,21 @@ async def test_autosave_is_a_line_in_the_file(tmp_path: Path):
         assert "^S save" not in app.query_one("#footer").render().plain
 
 
+async def test_reloading_the_config_hides_the_bar_the_file_asks_for(tmp_path: Path):
+    """`hide_footer` is a decision about the bar's own box, made in _sync_footer; a reload
+    that refreshed the chrome without it left the bar standing until the next mode change."""
+    config_path = tmp_path / "config.conf"
+    config_path.write_text("desktop_asked = true\n", encoding="utf-8")
+    app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
+    async with app.run_test():
+        footer = app.query_one("#footer")
+        assert footer.display is True
+
+        config_path.write_text("desktop_asked = true\nhide_footer = true\n", encoding="utf-8")
+        app._reload_config()
+        assert footer.display is False, "the file said to hide it, so the reload hides it"
+
+
 async def test_reloading_the_config_puts_a_new_setting_into_force(tmp_path: Path):
     config_path = tmp_path / "config.conf"
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=config_path)
