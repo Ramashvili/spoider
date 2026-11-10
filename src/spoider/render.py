@@ -198,7 +198,9 @@ def build_grid(
         for child in box.node.children:
             child_box = layout.boxes.get(child.id)
             if child_box is not None:
-                _draw_link(grid, box, child_box, walls=layout.walls, spines=spines)
+                _draw_link(
+                    grid, box, child_box, walls=layout.walls, spines=spines, bands=layout.bands
+                )
     _draw_spines(grid, spines)
     return grid.finalize()
 
@@ -322,9 +324,10 @@ def _draw_link(
     child: Placed,
     walls: bool = True,
     spines: dict[tuple[str, int], tuple[int, int]] | None = None,
+    bands: dict[int, tuple[int, int]] | None = None,
 ) -> None:
     if child.flow in (DOWN, UP):
-        _draw_stack_link(grid, parent, child, child.flow, walls=walls)
+        _draw_stack_link(grid, parent, child, child.flow, walls=walls, bands=bands)
         return
     if child.flow == RIGHT:
         start = parent.x + parent.w
@@ -362,53 +365,70 @@ def _draw_link(
 
 
 def _draw_stack_link(
-    grid: Grid, parent: Placed, child: Placed, flow: str, walls: bool = True
+    grid: Grid,
+    parent: Placed,
+    child: Placed,
+    flow: str,
+    walls: bool = True,
+    bands: dict[int, tuple[int, int]] | None = None,
 ) -> None:
-    """A link between two levels of a pyramid or a bush: down or up the page."""
+    """A link between two levels of a pyramid or a bush: down or up the page.
+
+    The trunk turns in the gap between two *bands*, not between two boxes. A cell shorter than
+    the tallest in its level leaves rows of the band beside it, and a trunk drawn in those rows
+    runs into a cousin that owns them: the cousin's wall cuts the line in two. So the line
+    leaves the box, travels down its own column to the band's edge, and only then turns.
+    """
     down = flow == DOWN
     step = 1 if down else -1
-    start = parent.bottom + 1 if down else parent.y - 1
-    end = child.y - 1 if down else child.bottom + 1
     parent_edge = parent.bottom if down else parent.y
     child_edge = child.y if down else child.bottom
-    room = (end - start) * step
+    bands = bands or {}
+    pband = bands.get(parent.depth)
+    cband = bands.get(child.depth)
+    # the row the trunk turns in, and the last row it may reach: past the parent's band and
+    # before the child's, so a cousin standing in its own band is never in the way
+    turn = parent_edge + step if pband is None else (pband[1] + 1 if down else pband[0] - 1)
+    limit = child_edge - step if cband is None else (cband[0] - 1 if down else cband[1] + 1)
+    room = (limit - turn) * step
 
     if room < -1:
-        # The two boxes share a border row; the border merge already joins them.
+        # the bands leave no room between them: nothing to draw, and nothing to join
         return
     if room == -1:
-        # Nothing between the edges: say which way the line goes on each of them.
+        # the boxes are a row apart: their borders point at each other
         if walls:
             grid.add_edge(parent.cx, parent_edge, D if down else U, LINK_COLOR)
             grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
         return
 
-    mid = start + step * min(1, room)
+    mid = turn + step * min(1, room)
 
-    if start == end and parent.cx == child.cx:
-        # One row between the edges and the centres line up: a straight drop. There is no
-        # segment to draw, so the one cell is set by hand: a wall where there are walls to
-        # join, and a link where the cells are bare and a wall would land on their text.
+    if room == 0 and parent.cx == child.cx:
+        # one row between two cells whose centres line up: that row is the whole line, and
+        # there is no segment to draw it, so it is set by hand
         if walls:
-            grid.add_edge(parent.cx, start, U | D, LINK_COLOR)
-            grid.add_edge(parent.cx, parent_edge, D if down else U, LINK_COLOR)
-            grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
+            grid.add_edge(parent.cx, turn, U | D, LINK_COLOR)
         else:
-            grid.add_link(parent.cx, start, U | D)
-        return
-
-    points = [(parent.cx, start), (parent.cx, mid), (child.cx, mid), (child.cx, end)]
-    for (x1, y1), (x2, y2) in pairwise(points):
-        if y1 == y2:
-            _horizontal(grid, x1, x2, y1)
-        else:
-            _vertical(grid, y1, y2, x1)
+            grid.add_link(parent.cx, turn, U | D)
+    else:
+        # down the cell's own column to the turn, across, then down the child's column
+        points = [
+            (parent.cx, parent_edge + step),
+            (parent.cx, mid),
+            (child.cx, mid),
+            (child.cx, child_edge - step),
+        ]
+        for (x1, y1), (x2, y2) in pairwise(points):
+            if y1 == y2:
+                _horizontal(grid, x1, x2, y1)
+            else:
+                _vertical(grid, y1, y2, x1)
 
     # the trunk leaves the parent's edge and arrives at the child's
     if walls:
         grid.add_edge(parent.cx, parent_edge, D if down else U, LINK_COLOR)
-        if end == mid:
-            grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
+        grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
 
 
 def _horizontal(grid: Grid, x1: int, x2: int, y: int) -> None:

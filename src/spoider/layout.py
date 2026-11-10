@@ -250,6 +250,10 @@ class Layout:
     families: dict[str, int] = field(default_factory=dict)
     #: False at the tightest spacing, where a cell is its text and nothing else.
     walls: bool = True
+    #: For the stacked shapes only: the first and last row each level occupies. A cell
+    #: shorter than its level leaves rows of the band at its sides, and a connector drawn in
+    #: those rows is drawn inside a cousin's box.
+    bands: dict[int, tuple[int, int]] = field(default_factory=dict)
 
     def box(self, node_id: str) -> Placed | None:
         return self.boxes.get(node_id)
@@ -316,7 +320,14 @@ def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout
 
     width = max(box.right for box in boxes.values()) + 1
     height = max(box.bottom for box in boxes.values()) + 1
-    return Layout(boxes, width, height, families_of(root), walls=gaps.walls)
+    # A level's band is the rows its cells share: the tallest cell in a level covers all of
+    # them, whichever edge the shape aligns on, so the boxes themselves say where it is.
+    bands: dict[int, tuple[int, int]] = {}
+    if layout in ("pyramid", "bush"):
+        for placed in boxes.values():
+            top, bottom = bands.get(placed.depth, (placed.y, placed.bottom))
+            bands[placed.depth] = (min(top, placed.y), max(bottom, placed.bottom))
+    return Layout(boxes, width, height, families_of(root), walls=gaps.walls, bands=bands)
 
 
 def compute_stack(entries: Sequence[Node], spacing: int = 0) -> Layout:

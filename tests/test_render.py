@@ -201,20 +201,38 @@ def _shaped(layout: str):
     return compute(mm.root, 0, layout)
 
 
-def _letters_painted_out(mm: MindMap, layout: str, spacing: int) -> list[str]:
-    """Every cell a cell's text stands in, checked against what the grid finally shows."""
-    lay = compute(mm.root, spacing, layout)
-    grid = build_grid(lay, mm.root.id)
-    wrong: list[str] = []
+def _text_cells(lay) -> dict[tuple[int, int], str]:
+    """Every cell a box's text stands in, with the character that belongs there."""
+    own: dict[tuple[int, int], str] = {}
     for box in lay.boxes.values():
         left = box.x + 1 if lay.walls else box.x
         top = box.y + 1 if lay.walls else box.y
         for index, line in enumerate(lines_of(box.node)):
             x = left
             for ch in " " + line:
-                if ch.strip() and grid.cells.get((x, top + index), ("", ""))[0] != ch:
-                    wrong.append(f"{ch!r} at ({x}, {top + index}) under {box.node.text[:12]!r}")
+                if ch.strip():
+                    own[(x, top + index)] = ch
                 x += max(cell_len(ch), 1)
+    return own
+
+
+def _defects(mm: MindMap, layout: str, spacing: int) -> list[str]:
+    """Cells where a letter and a line disagree about who owns the cell.
+
+    A glyph standing on a letter is one fault (the letter is lost), and a connector drawn into
+    a cell a letter owns is the other (the line comes out in two pieces, because the text wins
+    when the grid is finished).
+    """
+    lay = compute(mm.root, spacing, layout)
+    grid = build_grid(lay, mm.root.id)
+    wrong: list[str] = []
+    for (x, y), ch in _text_cells(lay).items():
+        if (x, y) in grid.edges:
+            wrong.append(f"a wall on {ch!r} at ({x}, {y})")
+        elif (x, y) in grid.links:
+            wrong.append(f"a line under {ch!r} at ({x}, {y})")
+        elif grid.cells.get((x, y), ("", ""))[0] != ch:
+            wrong.append(f"{ch!r} replaced at ({x}, {y})")
     return wrong
 
 
@@ -224,7 +242,7 @@ def test_a_border_never_paints_out_a_letter():
     mm = MindMap.demo()
     for layout in ("pyramid", "bush", "spider", "branch", "branch-left"):
         for spacing in (-5, -4, -3, 0, 3):
-            assert not _letters_painted_out(mm, layout, spacing), f"{layout} at {spacing}"
+            assert not _defects(mm, layout, spacing), f"{layout} at {spacing}"
 
 
 def test_a_straight_drop_between_bare_cells_is_a_line():
@@ -254,6 +272,98 @@ def test_a_straight_drop_between_walled_cells_still_joins_them():
 
     assert (root.cx, root.bottom) in grid.edges, "the wall carries the join"
     assert (root.cx, root.bottom + 1) in grid.edges, "and the row between is a wall"
+
+
+def _joined(grid, layout, parent, child) -> bool:
+    """Whether the drawn connectors run unbroken from one box's edge to the other's: cells
+    walk from the parent's T to the child's T, and only link cells are passable, so a line
+    that a wall cuts in two is two lines that do not meet."""
+    down = child.flow == "down"
+    start = (parent.cx, parent.bottom if down else parent.y)
+    goal = (child.cx, child.y if down else child.bottom)
+    seen = {start}
+    queue = [start]
+    while queue:
+        x, y = queue.pop()
+        if (x, y) == goal:
+            return True
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            step = (x + dx, y + dy)
+            if step in seen:
+                continue
+            if step != goal and step not in grid.links:
+                continue
+            seen.add(step)
+            queue.append(step)
+    return False
+
+
+def _mixed_heights() -> MindMap:
+    """A level where one cell is three lines tall and its cousins are one: the shape of every
+    map on which a trunk used to run through the tall cell's rows."""
+    mm = MindMap()
+    mm.root.text = "root"
+    short = mm.add_child(mm.root.id, "short")
+    tall = mm.add_child(mm.root.id, "tall\ncells\nhere")
+    mm.add_child(short.id, "s1")
+    mm.add_child(short.id, "s2")
+    mm.add_child(tall.id, "t1")
+    mm.add_child(tall.id, "t2")
+    return mm
+
+
+def test_where_there_is_a_row_the_line_runs_all_the_way():
+    """The guard on the band change: a line that exists is one line, from the parent's edge to
+    the child's. At the tight spacings there is no row between the levels, so there is no line
+    to be whole or broken, which is the shape those settings were chosen to have."""
+    mm = _mixed_heights()
+    short = mm.root.children[0]
+    for layout in ("pyramid", "bush"):
+        # -1 and the spacings below it keep no row between levels, so there is no line to
+        # draw there in the first place: what this asks is that a line which exists is whole
+        for spacing in (0, 2, 5):
+            lay = compute(mm.root, spacing, layout)
+            grid = build_grid(lay, mm.root.id)
+            parent = lay.boxes[mm.root.id]
+            assert _joined(grid, lay, parent, lay.boxes[short.id]), f"{layout} at {spacing}"
+
+
+def _varied_maps(count: int) -> list[MindMap]:
+    """Maps whose levels mix one-line cells with three-line ones, which is the shape that
+    puts a trunk in a row a cousin owns. Fixed seed: the same maps every run."""
+    import random
+
+    words = ["a", "bb", "ccc", "dddd", "eeeee", "ffffff", "widgets", "notes", "planning", "x y z"]
+    random.seed(7)
+    maps = []
+    for _ in range(count):
+        mm = MindMap()
+        mm.root.text = random.choice(words)
+
+        def grow(node, depth):
+            if depth == 0:
+                return
+            for _ in range(random.randint(1, 3)):
+                text = "\n".join(
+                    " ".join(random.choice(words) for _ in range(random.randint(1, 3)))
+                    for _ in range(random.randint(1, 3))
+                )
+                grow(mm.add_child(node.id, text), depth - 1)
+
+        grow(mm.root, 3)
+        maps.append(mm)
+    return maps
+
+
+def test_no_cell_is_ever_drawn_on_a_connector():
+    """A trunk drawn in the row past the parent's own box can be a row of a taller cousin's
+    box, and the cousin's wall cuts the line where it stands."""
+    for mm in _varied_maps(20):
+        for layout in ("pyramid", "bush"):
+            for spacing in (-5, -4, -3, -1, 0, 2):
+                assert not _defects(mm, layout, spacing), (
+                    f"{layout} at {spacing}, {mm.count()} cells"
+                )
 
 
 def test_a_pyramid_link_leaves_the_parent_edge_and_arrives_at_the_childs():
