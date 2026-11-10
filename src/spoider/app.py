@@ -179,15 +179,20 @@ _NOT_A_MAP_LIMIT = 64 * 1024 * 1024
 
 
 def _not_a_map(path: Path) -> str | None:
-    """Why this existing file is not a spoider map, or None when it is one."""
+    """What is wrong with this existing file, phrased to follow its name, or None when it is
+    a spoider map.
+
+    One clause, and no parser output: what the reader needs is that this is not a file of
+    theirs to replace, not what the JSON reader made of its first line.
+    """
     try:
         if path.stat().st_size > _NOT_A_MAP_LIMIT:
-            return "too large"
+            return "already exists and is too large to read"
         MindMap.load(path)
-    except MapFileError as exc:
-        return str(exc)
+    except MapFileError:
+        return "already exists and is NOT a spoider map"
     except OSError as exc:
-        return exc.strerror or str(exc)
+        return f"already exists and cannot be read: {exc.strerror or exc}"
     return None
 
 
@@ -995,8 +1000,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             reason = _not_a_map(path)
             if reason is not None:
                 self.notify(
-                    f"{clean(path.name)} is not a spoider map ({reason}); "
-                    "write somewhere else",
+                    f"{clean(path.name)} {reason}; write somewhere else",
                     severity="error",
                     timeout=FAILURE,
                 )

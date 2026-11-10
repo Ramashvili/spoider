@@ -9,7 +9,7 @@ from textual import events
 from spoider.app import BINDINGS, SpoiderApp
 from spoider.chrome import FooterBar, compose_footer, hint_chunks
 from spoider.config import load_config
-from spoider.drawers import AskBar, ErrorBar, PanelBar, PromptBar
+from spoider.drawers import AskBar, ErrorBar, NoticeBar, PanelBar, PromptBar
 from spoider.layout import compute
 from spoider.model import LAYOUTS, MindMap, Node
 from spoider.screens import HELP, help_text, keys_for
@@ -1304,7 +1304,7 @@ def test_nothing_that_did_nothing_is_red():
         "a cell holds",
         "could not",
         "is a directory",
-        "is not a spoider map",
+        "write somewhere else",
         "cannot restore",
     )
 
@@ -5205,6 +5205,32 @@ async def test_writing_over_another_map_asks_first(tmp_path: Path):
         await pilot.pause()
         assert "mine" in other.read_text(encoding="utf-8"), "a yes writes it"
         assert not app.dirty
+
+
+async def test_a_foreign_file_is_refused_in_one_clause(tmp_path: Path):
+    """The refusal used to carry the JSON reader's complaint about the file's first line:
+    the reader needs to know it is not their map, not what the parser made of it."""
+    text = tmp_path / "notes.txt"
+    text.write_text("hello\n", encoding="utf-8")
+
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "k.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("tab")
+        await pilot.press(*"mine")
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.press("ctrl+o")
+        await pilot.pause()
+        app.query_one(PromptBar).value = str(text)
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert not app.query_one(AskBar).display, "a file that is not a map is not a question"
+        assert (
+            app.query_one(NoticeBar).message
+            == "notes.txt already exists and is NOT a spoider map; write somewhere else"
+        )
+        assert text.read_text(encoding="utf-8") == "hello\n"
 
 
 async def test_a_buffer_with_no_file_of_its_own_still_asks(tmp_path: Path):
