@@ -321,6 +321,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._last_query = ""  # the last one submitted, to know a repeat
         self._search_history: list[str] = []
         self._write_then_quit = False
+        #: The file a pending overwrite question is about.
+        self._pending_write: Path | None = None
         #: keys | search | write | marks | ask | help
         self._mode = "keys"
         #: What acknowledging the red line does, while it is on screen. It lives here
@@ -1050,6 +1052,53 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         if target.is_dir():
             self.notify(f"{target} is a directory", severity="error", timeout=FAILURE)
             return
+        if self._would_bury(target):
+            self._ask_overwrite(target)
+            return
+        self._finish_write(target)
+
+    def _same_map(self, first: Path, second: Path) -> bool:
+        """Whether two paths name one file, taking a link at its word rather than its name."""
+        try:
+            return first.expanduser().resolve() == second.expanduser().resolve()
+        except OSError:  # a path that cannot be resolved is not one of ours
+            return False
+
+    def _would_bury(self, target: Path) -> bool:
+        """Whether writing here would replace a map that is not the one being edited.
+
+        A file that is not a map is not a question but a refusal, and that lives in `_write`;
+        saving a map over its own file is what ^S is for and never asks.
+        """
+        # a buffer with no file of its own cannot be saving over itself, so it asks too
+        if self.path is not None and self._same_map(target, self.path):
+            return False
+        if not target.is_file() or _not_a_map(target) is not None:
+            return False
+        return True
+
+    def _ask_overwrite(self, target: Path) -> None:
+        """A map is the most valuable file in reach, so replacing one is a question."""
+        self._pending_write = target
+        self._ask_words = ("overwrite", "keep")
+        self._mode = "ask"
+        self._hide_drawers(AskBar)
+        self.query_one(AskBar).ask(f"overwrite {clean(target.name)}?", self._overwrite_answered)
+        self._sync_footer()
+
+    def _overwrite_answered(self, choice: str | None) -> None:
+        target, self._pending_write = self._pending_write, None
+        self._close_drawers()
+        if target is None:
+            return
+        if choice != "yes":
+            # nothing was written, so the buffer stays dirty and a later ^S still offers it
+            self._write_then_quit = False
+            self.notify("nothing written", severity="warning", timeout=NOTE)
+            return
+        self._finish_write(target)
+
+    def _finish_write(self, target: Path) -> None:
         if self._write(target) and self._write_then_quit:
             self.exit()
 

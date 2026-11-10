@@ -5167,6 +5167,84 @@ async def test_a_paste_longer_than_a_prompt_is_cut_and_says_so(tmp_path: Path):
         assert any(str(MAX_PROMPT_CHARS) in line for line in seen), "the cut was said"
 
 
+async def test_writing_over_another_map_asks_first(tmp_path: Path):
+    """A map is the most valuable file in reach: replacing one is a question, and no means no."""
+    other = tmp_path / "other.spoider"
+    other.write_text(json.dumps({"root": {"text": "OTHER"}}), encoding="utf-8")
+    before = other.read_text(encoding="utf-8")
+
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "k.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("tab")
+        await pilot.press(*"mine")
+        await pilot.press("enter")
+        await pilot.pause()
+
+        await pilot.press("ctrl+o")
+        await pilot.pause()
+        app.query_one(PromptBar).value = str(other)
+        await pilot.press("enter")
+        await pilot.pause()
+
+        ask = app.query_one(AskBar)
+        assert ask.display and "other.spoider" in ask.question
+        await pilot.press("n")
+        await pilot.pause()
+        assert other.read_text(encoding="utf-8") == before, "a no leaves the file alone"
+        assert app.dirty, "and the buffer is still unsaved"
+
+        await pilot.press("ctrl+o")
+        await pilot.pause()
+        app.query_one(PromptBar).value = str(other)
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.press("y")
+        await pilot.pause()
+        assert "mine" in other.read_text(encoding="utf-8"), "a yes writes it"
+        assert not app.dirty
+
+
+async def test_a_buffer_with_no_file_of_its_own_still_asks(tmp_path: Path):
+    """No path cannot mean "this file is mine": a buffer that has never been saved writes over
+    a map as blindly as any other, so it asks the same question."""
+    existing = tmp_path / "existing.spoider"
+    existing.write_text(json.dumps({"root": {"text": "EXISTING"}}), encoding="utf-8")
+    before = existing.read_text(encoding="utf-8")
+
+    app = SpoiderApp(None, config_path=tmp_path / "k.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("tab")
+        await pilot.press(*"mine")
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.press("ctrl+o")
+        await pilot.pause()
+        app.query_one(PromptBar).value = str(existing)
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert app.query_one(AskBar).display, "no path is not a licence to overwrite"
+        await pilot.press("n")
+        await pilot.pause()
+        assert existing.read_text(encoding="utf-8") == before, "and no kept its word"
+
+
+async def test_saving_a_map_over_its_own_file_never_asks(tmp_path: Path):
+    path = tmp_path / "own.spoider"
+    path.write_text(json.dumps({"root": {"text": "root"}}), encoding="utf-8")
+    app = SpoiderApp(path, config_path=tmp_path / "k.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.press("tab")
+        await pilot.press(*"child")
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.dirty
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        assert not app.dirty, "^S wrote the file it came from without a question"
+        assert not app.query_one(AskBar).display
+
+
 async def test_a_name_the_filesystem_cannot_open_is_said_not_raised(tmp_path: Path):
     """A NUL in a path makes `tempfile` raise ValueError, which the write used to let out of
     the message handler. The app stays up and says what happened."""
