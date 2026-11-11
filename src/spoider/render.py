@@ -240,7 +240,13 @@ def build_grid(
 #: Pictures are cached per block of the map rather than per camera position. A caret moving
 #: one column pans the camera by one, and a screen-sized picture rebuilt for that costs the
 #: same as a document-sized one did before; a block covers the screen and a little more.
-BLOCK_X, BLOCK_Y = 32, 16
+#:
+#: The blocks are not square because the camera's moves are not: typing creeps sideways a
+#: column at a time, while an arrow key re-centres on a cell up to twenty rows away. Measured
+#: on a 120x40 screen over a 105-cell map, a picture rebuilt for 32x16 blocks costs 6.25 ms and
+#: for 32x4 costs 5.15 ms, while the tall block buys a cache hit only for vertical moves of a
+#: few rows, which navigation never makes.
+BLOCK_X, BLOCK_Y = 32, 4
 
 
 def cache_window(

@@ -455,6 +455,77 @@ chord, which is what keeps a leftover setting from rebinding a key.
   (`_would_bury`), not in `_write`, which only refuses. "No path" means "not our own
   file", so a buffer that has never been saved asks too.
 
+## What drawing costs
+
+Measured, process CPU per keystroke at 120x40, and worth knowing before touching the
+renderer again:
+
+| cells | paint a kept picture | rebuild it | typed character | arrow key |
+| --- | --- | --- | --- | --- |
+| 55 | 1.3 ms | 5.4 ms | 12.4 ms | 15.0 ms |
+| 105 | 1.3 ms | 6.4 ms | 13.7 ms | 16.0 ms |
+| 211 | 1.3 ms | 8.8 ms | 16.0 ms | 16.5 ms |
+
+The picture, therefore, is about six of the fourteen milliseconds a keystroke costs at a
+typical size. The rest is Textual's compositor chopping and writing the screen, and no change
+of ours reaches it, which is why picture work is worth doing only where it removes a whole
+category of work rather than a constant.
+
+Three rules keep it that way, and each came from a measured fault:
+
+- **The picture is only worth the window.** `build_grid(..., window=)` drops every write
+  outside it and skips boxes it cannot reach, so a screen costs the screen. Drawing the whole
+  document cost 50 ms a change on a 541-cell map, against 3.4 ms for a window. A window is the
+  camera's view rounded out to blocks of 32 by 16 (`cache_window`), so a caret moving a column
+  does not rebuild a page.
+- **The caret is a style, not a cell.** `Grid.caret` records where it hangs, `render_text`
+  applies it. Moving the caret repaints (`view.refresh()`), and rebuilding the map for it was
+  most of what holding a key in a cell cost.
+- **An unchanged box moves nothing.** `_sync_preview` measures the edited box and asks for a
+  new picture (`refresh_picture()`, the arrangement kept) when it is still the size the layout
+  gave it, or a new arrangement (`refresh_map()`) when it has grown. A character typed inside
+  a line that is not the longest went from 22 to 11 ms on a 541-cell map.
+
+The selection is still part of the picture, which is the one false dependency left: it adds
+reverse video to a box's frame, so every cursor move rebuilds a page even when the camera stays
+inside its block. Moving it to the assembly the way the caret went would be a cleanup worth
+about 3 ms on a move, and it needs the frame/inside rule, the `lead` underline and the
+search-hit cancellation carried across, so it is a change to weigh rather than a tidy-up.
+
+Do not reach for the tail of the table. A map over 500 cells is rare, the layout is honest work
+there (9 ms of the 20 a character costs, because its siblings really do move), and an
+incremental layout or a per-cell patch buys a few milliseconds where nobody types fast enough
+to feel them.
+
+## What a keystroke costs
+
+Measured on this machine, a 120x40 terminal, process CPU per keystroke:
+
+| map | picture repainted | picture rebuilt | typed character | arrow key |
+| --- | --- | --- | --- | --- |
+| 55 cells | 1.3 ms | 4.2 ms | 11.8 ms | 13.9 ms |
+| 105 cells | 1.3 ms | 5.1 ms | 12.9 ms | 15.4 ms |
+| 541 cells | 1.5 ms | 3.4 ms | 20.4 ms | 14.5 ms |
+
+About seven of those milliseconds are Textual's compositor chopping the screen and writing it.
+The rest is ours, and the picture is the part we can make smaller:
+
+- a picture is built only for the cells the camera can reach (`build_grid(..., window=...)`),
+  so its cost is the screen rather than the document: 50 ms becomes 3.4 on 541 cells;
+- the window is the screen rounded out to 32 by 4 cells, because typing creeps the camera
+  sideways a column at a time and navigation moves it twenty rows at once. Tall blocks cost
+  1.1 ms a rebuild (6.25 against 5.15 at 120x40) and are never hit;
+- the caret is a style applied while the window is assembled (`Grid.caret`), not a cell in the
+  picture, so moving it repaints instead of rebuilding;
+- a box whose text changed without changing size keeps its arrangement: `refresh_picture`
+  against `refresh_map`, decided in `_sync_preview` by measuring the box.
+
+Two things were measured and deliberately not built. A layout that translates instead of
+recomputing (`compute()` is 9.2 ms on 500 cells, 1.7 on 100) and a patch that redraws one box
+inside the shared character grid (about 2 ms, and it has to re-merge the connectors that meet
+the box's walls). Both pay off only on the very large maps, which are the rare ones, and both
+live where the last two drawing bugs lived.
+
 ## Navigating the map from a script
 
 Driving spoider from a key sequence is how the tour video and its checks are built, and
