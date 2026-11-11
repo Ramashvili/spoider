@@ -496,9 +496,30 @@ def _draw_stack_link(
         grid.add_edge(child.cx, child_edge, U if down else D, LINK_COLOR)
 
 
+def _clip(first: int, second: int, low: int, high: int) -> tuple[int, int] | None:
+    """The part of a run from `first` towards `second` that lies in [low, high), or None.
+
+    Clipping the run rather than each cell it writes is what makes an off-window connector
+    free: its loop is empty, so the characters it would have touched never enter the picture.
+    """
+    if second > first:
+        start, end = max(first, low), min(second, high)
+        return (start, end) if start < end else None
+    start, end = min(first, high - 1), max(second, low - 1)
+    return (start, end) if start > end else None
+
+
 def _horizontal(grid: Grid, x1: int, x2: int, y: int) -> None:
     if x1 == x2:
         return
+    window = grid.window
+    if window is not None:
+        if not window[1] <= y < window[3]:
+            return
+        clipped = _clip(x1, x2, window[0], window[2])
+        if clipped is None:
+            return
+        x1, x2 = clipped
     step = 1 if x2 > x1 else -1
     for x in range(x1, x2, step):
         grid.add_link(x, y, R if step > 0 else L)
@@ -508,6 +529,14 @@ def _horizontal(grid: Grid, x1: int, x2: int, y: int) -> None:
 def _vertical(grid: Grid, y1: int, y2: int, x: int) -> None:
     if y1 == y2:
         return
+    window = grid.window
+    if window is not None:
+        if not window[0] <= x < window[2]:
+            return
+        clipped = _clip(y1, y2, window[1], window[3])
+        if clipped is None:
+            return
+        y1, y2 = clipped
     step = 1 if y2 > y1 else -1
     for y in range(y1, y2, step):
         grid.add_link(x, y, D if step > 0 else U)

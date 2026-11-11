@@ -499,6 +499,16 @@ def test_a_picture_built_for_the_window_draws_the_same_screen():
     assert len(clipped.cells) * 2 < len(whole.cells), "and it is a fraction of the drawing"
 
 
+def test_a_window_that_sees_nothing_draws_nothing():
+    """A connector whose run never enters the window is clipped, not walked cell by cell."""
+    mm = _big_map()
+    layout = compute(mm.root, 0)
+    far = (layout.width + 100, layout.height + 100, layout.width + 200, layout.height + 200)
+    grid = build_grid(layout, (), colours="depth", window=far)
+    assert grid.cells == {}
+    assert grid.links == {}
+
+
 def test_the_caret_inverts_its_character_and_does_not_split_the_word():
     plain = Node("alpha")
     typed = Node("alpha")
