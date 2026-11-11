@@ -18,6 +18,7 @@ from .render import (
     STACK_START,
     Grid,
     build_grid,
+    cache_window,
     caret_cell,
     render_text,
 )
@@ -164,7 +165,9 @@ class MindMapView(Widget, can_focus=True):
         self.spoider = spoider
         self._layout: Layout | None = None
         self._grid: Grid | None = None
-        self._grid_key: tuple[int, tuple[str, ...], str, str] | None = None
+        self._grid_key: (
+            tuple[int, tuple[str, ...], str, str, tuple[int, int, int, int]] | None
+        ) = None
         self._offset_x = 0
         self._offset_y = 0
 
@@ -250,9 +253,14 @@ class MindMapView(Widget, can_focus=True):
         chosen = () if elsewhere else tuple(self.spoider.selected_ids)
         lead = self.spoider.selected if len(chosen) > 1 else None
         colours = self.spoider.mm.colours
-        key = (id(layout), chosen, query, colours)
+        # the picture is only worth the cells the window can reach, and it is a different
+        # picture once the camera has moved
+        window = cache_window(self._offset_x, self._offset_y, field, height)
+        key = (id(layout), chosen, query, colours, window)
         if self._grid is None or self._grid_key != key:
-            self._grid = build_grid(layout, chosen, query, lead=lead, colours=colours)
+            self._grid = build_grid(
+                layout, chosen, query, lead=lead, colours=colours, window=window
+            )
             self._grid_key = key
         grid = self._grid
         if panel is not None:

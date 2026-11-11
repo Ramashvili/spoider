@@ -12,7 +12,14 @@ from rich.text import Text
 
 from spoider.layout import PAD, compute, compute_stack, lines_of, mark_cells
 from spoider.model import MindMap, Node
-from spoider.render import DEPTH_COLORS, LINK_COLOR, STACK_START, build_grid, render_text
+from spoider.render import (
+    DEPTH_COLORS,
+    LINK_COLOR,
+    STACK_START,
+    build_grid,
+    cache_window,
+    render_text,
+)
 
 EVIL = "\x1b[2J\x1b[31mred\x1b]52;c;SGVsbG8=\x07\x9b31m"
 
@@ -453,6 +460,43 @@ def _styled(mm: MindMap):
     grid = build_grid(layout, ())
     text = render_text(grid, 0, 0, max(80, layout.width), max(12, layout.height))
     return layout, text
+
+
+def _big_map() -> MindMap:
+    mm = MindMap(Node("root"))
+    for index in range(6):
+        branch = mm.add_child(mm.root.id, f"branch {index}")
+        for leaf in range(8):
+            mm.add_child(branch.id, f"leaf {index}.{leaf} with some words in it")
+    return mm
+
+
+def test_a_window_rounds_out_to_blocks_so_a_small_pan_reuses_the_picture():
+    """A caret moving one column pans the camera by one, and rebuilding a screen-sized
+    picture for that is the waste this came to remove."""
+    assert cache_window(10, 5, 80, 24) == cache_window(11, 5, 80, 24)
+
+    left, top, right, bottom = cache_window(33, 17, 80, 24)
+    assert left <= 33 and top <= 17, "the window covers the screen it was asked for"
+    assert right >= 113 and bottom >= 41
+
+
+def test_a_picture_built_for_the_window_draws_the_same_screen():
+    """The camera is a window onto the map, so drawing only what it can reach may not change
+    one character of what is shown."""
+    mm = _big_map()
+    layout = compute(mm.root, 0)
+    box = layout.box(mm.root.id)
+    left, top, width, height = max(0, box.cx - 40), max(0, box.cy - 12), 80, 24
+    window = cache_window(left, top, width, height)
+
+    whole = build_grid(layout, (), colours="depth")
+    clipped = build_grid(layout, (), colours="depth", window=window)
+
+    assert render_text(clipped, left, top, width, height).plain == render_text(
+        whole, left, top, width, height
+    ).plain
+    assert len(clipped.cells) * 2 < len(whole.cells), "and it is a fraction of the drawing"
 
 
 def test_the_caret_inverts_its_character_and_does_not_split_the_word():

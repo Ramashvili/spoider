@@ -73,6 +73,10 @@ class Grid:
     #: Cells a letter or a mark stands in. A border may join another border, and a link
     #: may pass through an empty cell, but neither may paint out what a cell says.
     text: set[tuple[int, int]] = field(default_factory=set)
+    #: The cells a picture is worth keeping, as (left, top, right, bottom) in grid
+    #: coordinates: a write outside it is dropped, so the picture costs the screen rather
+    #: than the document. None keeps everything.
+    window: tuple[int, int, int, int] | None = None
     #: Where the caret hangs, as (x, y, overwrite). The caret is a style rather than a
     #: character, so it is applied while the window is assembled, not drawn into the picture:
     #: moving it then costs a repaint instead of a whole map.
@@ -80,26 +84,41 @@ class Grid:
     width: int = 0
     height: int = 0
 
+    def _seen(self, x: int, y: int) -> bool:
+        window = self.window
+        if window is None:
+            return True
+        return window[0] <= x < window[2] and window[1] <= y < window[3]
+
     def put(self, x: int, y: int, ch: str, style: str) -> None:
+        if not self._seen(x, y):
+            return
         self.cells[(x, y)] = (ch, style)
 
     def put_text(
         self, x: int, y: int, text: str, style: str, mask: list[bool] | None = None
     ) -> None:
         """Draw a run; `mask` marks the characters a search found."""
+        seen = self._seen
+        cells = self.cells
         for index, ch in enumerate(text):
             width = cell_len(ch)
-            found = mask is not None and index < len(mask) and mask[index]
-            self.put(x, y, ch, _marked(style) if found else style)
-            if ch.strip():
-                self.text.add((x, y))
-            if width == 2:
-                self.wide.add((x + 1, y))
+            # the whole row outside the window is skipped cell by cell, which is what makes a
+            # picture cost the screen rather than the document
+            if seen(x, y):
+                found = mask is not None and index < len(mask) and mask[index]
+                cells[(x, y)] = (ch, _marked(style) if found else style)
                 if ch.strip():
-                    self.text.add((x + 1, y))
+                    self.text.add((x, y))
+                if width == 2:
+                    self.wide.add((x + 1, y))
+                    if ch.strip():
+                        self.text.add((x + 1, y))
             x += max(width, 1)
 
     def add_edge(self, x: int, y: int, bits: int, style: str) -> None:
+        if not self._seen(x, y):
+            return
         """Join this cell to its neighbours in the given directions.
 
         Whoever claims a cell first keeps its style, so a wall that a link later
@@ -109,6 +128,8 @@ class Grid:
         self.edges[(x, y)] = (current | bits, owner)
 
     def add_link(self, x: int, y: int, bits: int) -> None:
+        if not self._seen(x, y):
+            return
         self.links[(x, y)] = self.links.get((x, y), 0) | bits
 
     def finalize(self) -> Grid:
@@ -173,12 +194,17 @@ def build_grid(
     lead: str | None = None,
     colours: str = DEFAULT_COLOURS,
     depth_shift: int = 0,
+    window: tuple[int, int, int, int] | None = None,
 ) -> Grid:
     """`selected` is one id or a whole run of them; `lead` is the one the cursor
     is on, which is only worth marking when the run is longer than one."""
     chosen = {selected} if isinstance(selected, str) else set(selected)
-    grid = Grid(width=layout.width, height=layout.height)
+    grid = Grid(width=layout.width, height=layout.height, window=window)
     for box in sorted(layout.boxes.values(), key=lambda placed: (placed.y, placed.x)):
+        # a box the window cannot reach is not drawn at all: skipping its text is the whole
+        # saving, since a row is measured and cleaned character by character
+        if window is not None and not _visible(box, window):
+            continue
         # A cell being renamed drops its selection block: the caret is the highlight
         # there, and a reverse-on-reverse caret would be invisible.
         editing = box.node.preview is not None
@@ -209,6 +235,34 @@ def build_grid(
                 )
     _draw_spines(grid, spines)
     return grid.finalize()
+
+
+#: Pictures are cached per block of the map rather than per camera position. A caret moving
+#: one column pans the camera by one, and a screen-sized picture rebuilt for that costs the
+#: same as a document-sized one did before; a block covers the screen and a little more.
+BLOCK_X, BLOCK_Y = 32, 16
+
+
+def cache_window(
+    left: int, top: int, width: int, height: int
+) -> tuple[int, int, int, int]:
+    """The window a picture covers: the screen, rounded out to whole blocks."""
+    x0 = (left // BLOCK_X) * BLOCK_X
+    y0 = (top // BLOCK_Y) * BLOCK_Y
+    x1 = -(-(left + width) // BLOCK_X) * BLOCK_X
+    y1 = -(-(top + height) // BLOCK_Y) * BLOCK_Y
+    return x0, y0, x1, y1
+
+
+def _visible(box: Placed, window: tuple[int, int, int, int]) -> bool:
+    """Whether any of a box falls inside the window."""
+    left, top, right, bottom = window
+    return (
+        box.x < right
+        and box.x + box.w > left
+        and box.y < bottom
+        and box.y + box.h > top
+    )
 
 
 def _draw_spines(grid: Grid, spines: dict[tuple[str, int], tuple[int, int]]) -> None:
