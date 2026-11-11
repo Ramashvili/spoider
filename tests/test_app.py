@@ -1527,6 +1527,74 @@ async def test_a_warning_stays_until_the_file_is_fixed(tmp_path: Path):
         assert notice.display is False, "the fix takes the warning with it"
 
 
+async def test_a_key_that_cannot_move_the_caret_does_not_repaint(
+    tmp_path: Path, monkeypatch
+):
+    """Right at the last character goes nowhere, so nothing on the screen changes and the
+    frame a repaint would cost is wasted."""
+    from spoider.widgets import MindMapView
+
+    drawn: list[int] = []
+    original = MindMapView.render
+
+    def counted(self):
+        drawn.append(1)
+        return original(self)
+
+    monkeypatch.setattr(MindMapView, "render", counted)
+
+    app = SpoiderApp(demo=True, config_path=tmp_path / "k.conf")
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+e")
+        await pilot.pause()
+        app._buffer.select_all()
+        app._buffer.insert("abc")
+        await pilot.pause()
+        await pilot.press("end")
+        await pilot.pause()
+
+        drawn.clear()
+        for _ in range(3):
+            await pilot.press("right")
+        await pilot.pause()
+        assert drawn == [], "the caret cannot pass the edge, so nothing was drawn"
+
+        await pilot.press("left")
+        await pilot.pause()
+        assert drawn, "a key that moves the caret draws it"
+
+
+async def test_a_move_that_cannot_happen_does_not_repaint(tmp_path: Path, monkeypatch):
+    """The same at the map: an arrow that finds no cell leaves the picture alone."""
+    from spoider.widgets import MindMapView
+
+    path = tmp_path / "m.spoider"
+    mm = MindMap(Node("root"))
+    mm.add_child(mm.root.id, "only child")
+    mm.save(path)
+
+    drawn: list[int] = []
+    original = MindMapView.render
+
+    def counted(self):
+        drawn.append(1)
+        return original(self)
+
+    monkeypatch.setattr(MindMapView, "render", counted)
+
+    app = SpoiderApp(path, config_path=tmp_path / "k.conf")
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        await pilot.press("right")  # onto the child, the only cell there is
+        await pilot.pause()
+        drawn.clear()
+        for _ in range(3):
+            await pilot.press("right")
+        await pilot.pause()
+        assert drawn == [], "no cell to the right, so nothing was drawn"
+
+
 async def test_typing_inside_a_line_does_not_redo_the_arrangement(
     tmp_path: Path, monkeypatch
 ):

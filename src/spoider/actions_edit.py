@@ -58,7 +58,8 @@ class EditActions:
         self._buffer = Buffer("" if fresh else (node.text or ""))
         self._buffer.PAGE_LINES = self.config.page_lines
         # the picture is new to this cell, so the first synchronisation must rebuild it
-        self._preview_key = None
+        self._picture_key = None
+        self._state_key = None
         self._sync_preview()
         self._sync_footer()
     def _sync_preview(self) -> None:
@@ -74,11 +75,20 @@ class EditActions:
         # The picture depends on the text and the selection in it, not on where the caret
         # stands: moving the caret repaints one cell, and rebuilding the whole map for it was
         # most of what holding a key cost.
-        key = (node.preview, node.sel)
-        if key == self._preview_key:
-            self.view.refresh()  # the caret moved, or the mode did
+        # What the picture is made of, and everything the screen shows of this cell. A key
+        # that moves nothing, a right at the last character, is neither: the caret cannot go
+        # past the edge, and repainting the map for it was a wasted frame per press.
+        picture = (node.preview, node.sel)
+        state = (picture, node.caret, node.overwrite)
+        if state == self._state_key:
             return
-        self._preview_key = key
+        self._state_key = state
+        if picture == self._picture_key:
+            # the caret moved, or the mode did. Marking the two cells dirty was measured and
+            # is slower, because Textual rebuilds the widget's whole content either way.
+            self.view.refresh()
+            return
+        self._picture_key = picture
         if self._kept_its_size(node):
             # the box says something else but is no bigger, so nothing around it moves
             self.view.refresh_picture()
