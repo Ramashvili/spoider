@@ -507,8 +507,13 @@ Measured on this machine, a 120x40 terminal, process CPU per keystroke:
 | 105 cells | 1.3 ms | 5.1 ms | 12.9 ms | 15.4 ms |
 | 541 cells | 1.5 ms | 3.4 ms | 20.4 ms | 14.5 ms |
 
-About seven of those milliseconds are Textual's compositor chopping the screen and writing it.
-The rest is ours, and the picture is the part we can make smaller:
+Those per-keystroke columns come from `run_test`, which awaits a message round trip per key and
+a headless write, and it inflates a keystroke about thirty times: a caret move measures 10 ms
+there and about 0.3 ms in a terminal, where thirty presses a second is 1% of a core. Use them to
+compare one change with another, never as what a reader feels. The picture columns are timed
+directly and are what they say. About seven of those harness milliseconds are Textual's
+compositor chopping the screen and writing it, and the rest is ours; the picture is the part we
+can make smaller:
 
 - a picture is built only for the cells the camera can reach (`build_grid(..., window=...)`),
   so its cost is the screen rather than the document: 50 ms becomes 3.4 on 541 cells;
@@ -518,7 +523,11 @@ The rest is ours, and the picture is the part we can make smaller:
 - the caret is a style applied while the window is assembled (`Grid.caret`), not a cell in the
   picture, so moving it repaints instead of rebuilding;
 - a box whose text changed without changing size keeps its arrangement: `refresh_picture`
-  against `refresh_map`, decided in `_sync_preview` by measuring the box.
+  against `refresh_map`, decided in `_sync_preview` by measuring the box;
+- a key that moves nothing repaints nothing: `_sync_preview` compares what the screen shows of
+  the cell, and `select` returns when the cursor is already there. Marking only the two cells a
+  caret leaves and reaches was tried and measured slower, because a repaint rebuilds the
+  widget's whole content either way.
 
 Two things were measured and deliberately not built. A layout that translates instead of
 recomputing (`compute()` is 9.2 ms on 500 cells, 1.7 on 100) and a patch that redraws one box
