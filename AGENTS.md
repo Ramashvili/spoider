@@ -361,9 +361,18 @@ is still wrong, so a fixed mistake takes its warning with it.
 
 **Notices are one line, not windows.** `NoticeBar` is a one-row band above the bar of
 keys, where nano puts its messages, and it is placed by an offset on its own layer: it
-takes no row from the map, so nothing moves when a notice comes or goes. A prompt is
-placed the same way and outranks a notice, which is dropped when one opens. Textual's own
-toasts are not used at all.
+takes no row from the map, so nothing moves when a notice comes or goes.
+
+Two kinds of sentence share that row. A *temporary* notice has a time (`QUICK`, `NOTE`,
+`FAILURE`) and goes when it is up. A *standing* one has none: `timeout=float("inf")`, and the
+only thing that asks for it is a config that fights itself, because that is the reader's to
+fix. A temporary notice steps in front of a standing one and the line goes back when its time
+is up, so a warning is never lost to a later remark. The three words are `show` to say
+something, `close` to lend the line to a question (which restores it when it closes), and
+`forget` to drop what is standing when the file it complained about has been read again.
+
+A prompt is placed the same way and takes the line while it is open. Textual's own toasts are
+not used at all.
 
 **Six actions carry a function key as a second chord** — help F1, save F2, undo F3,
 settings F9, quit F10, write F12 — declared on the binding itself (`"ctrl+s,f2"`). They

@@ -329,10 +329,11 @@ def _fold_breaks(text: str) -> str:
 class NoticeBar(Drawer):
     """What just happened, on one line above the bar of keys, where nano puts its messages.
 
-    A prompt opens over it and the notice goes: a question is the more urgent thing to say.
-    The line is a band in the colour of its meaning, centred, and it takes no rows from the
-    map: it is drawn over the map's last row, or over the air above the bar when the window
-    is tall enough to keep that air.
+    A temporary notice steps in front of a standing one and gives the line back when its time
+    is up. A notice with no time is the one the reader has to act on, a config that fights
+    itself, so it is kept rather than said once and lost. A prompt opens over the line and the
+    notice goes; it comes back when the question does. The line is a band in the colour of its
+    meaning, centred, and it takes no row from the map.
     """
 
     can_focus = False
@@ -344,28 +345,61 @@ class NoticeBar(Drawer):
         #: How wide the band is: the sentence plus one column of air each side.
         self.band = 1
         self._timer: object | None = None
+        #: What has no time of its own and waits for its fix: the config's complaints.
+        self._standing: tuple[str, str] | None = None
+        #: Called after every change of what is drawn, so the band is centred again.
+        self.on_change: Callable[[], None] | None = None
 
     def show(self, message: str, style: str, timeout: float | None) -> None:
-        """Say one thing, and take it back after its time. A newer notice replaces an older
-        one: there is one line, and the last thing that happened is the thing to read."""
+        """Say one thing, and take it back after its time.
+
+        A notice with no time is kept: a temporary notice written over it is the later thing
+        to read, not a reason to forget the older one, and the line goes back when the newer
+        one's time is up.
+        """
+        standing = timeout == float("inf")
+        if standing:
+            self._standing = (message, style)
+        self._draw(message, style)
+        self._stop_timer()
+        if message and not standing and timeout is not None:
+            self._timer = self.set_timer(timeout, self._expire)
+
+    def restore(self) -> None:
+        """Give the line back to what is standing, or clear it when nothing is."""
+        if self._standing is None:
+            self._draw("", "")
+        else:
+            self._draw(*self._standing)
+
+    def close(self) -> None:
+        """A question needs the line: the notice goes, and what is standing waits for it."""
+        self._stop_timer()
+        self._draw("", "")
+
+    def forget(self) -> None:
+        """Nothing is standing any more: the file that complained has been read again."""
+        self._standing = None
+        self.close()
+
+    def _expire(self) -> None:
+        self._timer = None
+        self.restore()
+
+    def _stop_timer(self) -> None:
         if self._timer is not None:
             self._timer.stop()  # type: ignore[attr-defined]
             self._timer = None
+
+    def _draw(self, message: str, style: str) -> None:
         self.message = message
         self.style = style
         self.band = min(self.app.size.width, cell_len(message) + 2) if message else 1
         self.styles.width = self.band
         self.display = bool(message)
-        if message and timeout is not None and timeout != float("inf"):
-            self._timer = self.set_timer(timeout, self.close)
+        if self.on_change is not None:
+            self.on_change()
         self.refresh()
-
-    def close(self) -> None:
-        if self._timer is not None:
-            self._timer.stop()  # type: ignore[attr-defined]
-            self._timer = None
-        self.message = ""
-        self.display = False
 
     def render(self) -> Text:
         """A band the width of the sentence, one column of air each side of it.

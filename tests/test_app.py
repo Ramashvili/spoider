@@ -1,3 +1,4 @@
+import asyncio
 import json
 import time
 from pathlib import Path
@@ -1524,6 +1525,48 @@ async def test_a_warning_stays_until_the_file_is_fixed(tmp_path: Path):
         app._reload_config()
         await pilot.pause()
         assert notice.display is False, "the fix takes the warning with it"
+
+
+async def test_a_temporary_notice_gives_the_line_back_to_a_standing_one(tmp_path: Path):
+    """A config complaint has no time of its own, so a cut reported over it is the later thing
+    to read rather than a reason to lose the warning that was waiting."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("mark = z\nfold = z\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        notice = _notice(app)
+        assert notice.message.startswith("Warning:")
+
+        app.notify("nothing to paste", severity="warning", timeout=0.3)
+        await pilot.pause()
+        assert notice.message == "nothing to paste", "the later thing is what is read"
+
+        await asyncio.sleep(0.45)
+        await pilot.pause()
+        assert notice.message.startswith("Warning:"), "and the standing one comes back"
+        assert notice.display is True
+
+
+async def test_a_prompt_gives_the_line_back_when_it_closes(tmp_path: Path):
+    """A question needs the line; the warning it covered is still standing when it goes."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("mark = z\nfold = z\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        notice = _notice(app)
+        assert notice.message.startswith("Warning:")
+
+        await pilot.press("ctrl+f")
+        await pilot.pause()
+        assert notice.message == "", "the question has the line"
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert notice.message.startswith("Warning:"), "and the warning is still there"
 
 
 async def test_a_bad_config_does_not_get_a_green_note_on_top(tmp_path: Path, monkeypatch):

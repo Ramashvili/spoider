@@ -379,6 +379,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._place_bars()
 
     def on_mount(self) -> None:
+        self.query_one(NoticeBar).on_change = self._place_bars
         self._place_bars()
         # A config is the reader's file: written once when it is missing, then only ever
         # edited line by line. Deleting it brings the commented template back.
@@ -613,9 +614,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
                 "so a line binding it will not do what it says."
             )
         # the file has just been read, so a mistake that is no longer there must go with it
-        notice = self.query_one(NoticeBar)
-        if notice.message.startswith(WARNING):
-            notice.close()
+        self.query_one(NoticeBar).forget()
         if said:
             # one line holds one reading of the file, so the complaints are said together
             # rather than the last of them winning; no timeout, because a config that
@@ -1233,6 +1232,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self.query_one(drawer).close()
         self._mode = "keys"
         self._error_ack = None
+        # the line the question borrowed goes back to what was standing on it
+        self.query_one(NoticeBar).restore()
         # the map comes back with the keys, unless there is no map to show at all
         self.view.display = self.load_error is None
         self._sync_footer()
