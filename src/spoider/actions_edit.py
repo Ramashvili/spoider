@@ -11,6 +11,7 @@ from textual import events
 
 from .chrome import FAILURE, QUICK
 from .editing import Buffer, reflow
+from .layout import box_height, box_width
 from .model import MAX_CELL_CHARS
 from .text import clean_text
 
@@ -74,11 +75,29 @@ class EditActions:
         # stands: moving the caret repaints one cell, and rebuilding the whole map for it was
         # most of what holding a key cost.
         key = (node.preview, node.sel)
-        if key != self._preview_key:
-            self._preview_key = key
-            self.view.refresh_map()
+        if key == self._preview_key:
+            self.view.refresh()  # the caret moved, or the mode did
+            return
+        self._preview_key = key
+        if self._kept_its_size(node):
+            # the box says something else but is no bigger, so nothing around it moves
+            self.view.refresh_picture()
         else:
-            self.view.refresh()
+            self.view.refresh_map()
+
+    def _kept_its_size(self, node) -> bool:
+        """Whether a cell's box is still the size the layout gave it.
+
+        A wider box moves its children and its siblings, so the arrangement is redone; a
+        box that stayed the same size moves nothing and only its own cells change.
+        """
+        layout = self.view.layout_
+        placed = layout.box(node.id)
+        if placed is None:
+            return False
+        return placed.w == box_width(node, layout.walls) and placed.h == box_height(
+            node, layout.walls
+        )
     def handle_edit_key(self, key: str, character: str | None) -> bool:
         """Every keystroke while typing into a cell. Returns True if consumed.
 

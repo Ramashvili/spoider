@@ -172,8 +172,18 @@ class MindMapView(Widget, can_focus=True):
         self._offset_y = 0
 
     def refresh_map(self) -> None:
-        """Drop the cached layout and picture; call after any document change."""
+        """Drop the cached layout and picture; call after any change of shape or structure."""
         self._layout = None
+        self._grid = None
+        self._grid_key = None
+        self.refresh()
+
+    def refresh_picture(self) -> None:
+        """Drop the picture and keep the arrangement.
+
+        A box whose text changed without changing its size moves nothing, so the layout a
+        keystroke used to throw away is still true: one box is redrawn where it stands.
+        """
         self._grid = None
         self._grid_key = None
         self.refresh()

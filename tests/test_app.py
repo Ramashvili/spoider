@@ -1527,6 +1527,47 @@ async def test_a_warning_stays_until_the_file_is_fixed(tmp_path: Path):
         assert notice.display is False, "the fix takes the warning with it"
 
 
+async def test_typing_inside_a_line_does_not_redo_the_arrangement(
+    tmp_path: Path, monkeypatch
+):
+    """A box that says something else but is no bigger moves nothing: its own cells change
+    and the layout a keystroke used to throw away is still true."""
+    from spoider import widgets as widgets_module
+
+    calls: list[int] = []
+    original = widgets_module.compute
+
+    def counted(*args, **kwargs):
+        calls.append(1)
+        return original(*args, **kwargs)
+
+    app = SpoiderApp(demo=True, config_path=tmp_path / "k.conf")
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+e")
+        await pilot.pause()
+        app._buffer.select_all()
+        app._buffer.insert("ab\n" + "x" * 60)  # a short line above a long one
+        await pilot.press("y")
+        await pilot.pause()
+        await pilot.press("up")
+        await pilot.press("home")
+        await pilot.pause()
+
+        monkeypatch.setattr(widgets_module, "compute", counted)
+        calls.clear()
+        for _ in range(4):
+            await pilot.press("y")  # the short line grows, the box does not
+        await pilot.pause()
+        assert calls == [], "nothing around the box moved"
+
+        await pilot.press("down")  # onto the long line, where a character widens the box
+        await pilot.press("end")
+        await pilot.press("y")
+        await pilot.pause()
+        assert calls, "a wider box moves its children, so the arrangement is redone"
+
+
 async def test_moving_the_caret_repaints_and_does_not_rebuild_the_map(
     tmp_path: Path, monkeypatch
 ):
