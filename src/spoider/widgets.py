@@ -18,6 +18,7 @@ from .render import (
     STACK_START,
     Grid,
     build_grid,
+    caret_cell,
     render_text,
 )
 from .text import clean, clip_head
@@ -256,12 +257,23 @@ class MindMapView(Widget, can_focus=True):
         grid = self._grid
         if panel is not None:
             grid = self._with_stack(grid, panel, width, height)
+        # The caret is a style rather than part of the picture, so it is applied here and
+        # may be newer than the grid: moving it costs a repaint, not a rebuild.
+        grid.caret = self._caret_here(layout)
         floaters = []
         if self.spoider.show_properties:
             floaters.append((self._property_sections(), LINK_COLOR))
         return render_text(
             grid, self._offset_x, self._offset_y, width, height, floaters=floaters
         )
+
+    def _caret_here(self, layout) -> tuple[int, int, bool] | None:
+        """Where the caret hangs now, or None when no cell is being typed into."""
+        focus = layout.box(self.spoider.selected)
+        if focus is None or focus.node.preview is None:
+            return None
+        at = caret_cell(focus, layout.walls)
+        return None if at is None else (at[0], at[1], focus.node.overwrite)
 
     def _property_sections(self) -> list[tuple[str, list[tuple[str, str]]]]:
         spoider = self.spoider

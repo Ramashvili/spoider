@@ -8,6 +8,7 @@ terminal.
 from __future__ import annotations
 
 from rich.cells import cell_len
+from rich.text import Text
 
 from spoider.layout import PAD, compute, compute_stack, lines_of, mark_cells
 from spoider.model import MindMap, Node
@@ -535,13 +536,28 @@ def test_the_grid_follows_the_colouring_the_document_asks_for():
     assert style_of("family", "deep under left") != style_of("depth", "deep under left")
 
 
-def _cell_styles(node: Node, width: int = 60):
-    """The grid cells of one cell's text row, as (char, style)."""
+def _cell_grid(node: Node):
+    """The picture of one cell, and its layout."""
     mm = MindMap(node)
     layout = compute(mm.root, 0)
-    grid = build_grid(layout, (), colours="depth")
+    return layout, build_grid(layout, (), colours="depth")
+
+
+def _cell_styles(node: Node, width: int = 60):
+    """The grid cells of one cell's text row, as (char, style).
+
+    The caret is not among them: it is a style applied while the window is assembled, so
+    moving it costs a repaint rather than a new picture.
+    """
+    layout, grid = _cell_grid(node)
     box = layout.boxes[node.id]
     return [grid.cells[(x, box.y + 1)] for x in range(box.x + 1, box.right)]
+
+
+def _assembled(node: Node) -> Text:
+    """The window drawn from a cell's picture, caret included."""
+    layout, grid = _cell_grid(node)
+    return render_text(grid, 0, 0, max(60, layout.width), max(8, layout.height))
 
 
 def test_the_two_caret_modes_are_drawn_differently():
@@ -549,8 +565,8 @@ def test_the_two_caret_modes_are_drawn_differently():
     for node, flag in ((inserting, False), (overwriting, True)):
         node.preview, node.caret, node.overwrite = "abcd", 2, flag
 
-    insert_styles = [style for _, style in _cell_styles(inserting)]
-    overwrite_styles = [style for _, style in _cell_styles(overwriting)]
+    insert_styles = [str(span.style) for span in _assembled(inserting).spans]
+    overwrite_styles = [str(span.style) for span in _assembled(overwriting).spans]
     caret_insert = [style for style in insert_styles if "reverse" in style]
     caret_overwrite = [style for style in overwrite_styles if "underline" in style]
     assert caret_insert, "inserting draws a filled block"
@@ -564,8 +580,13 @@ def test_selected_text_is_highlighted_in_the_cell():
     node.preview, node.caret, node.sel = "alpha beta", 5, (0, 5)
     cells = _cell_styles(node)
     highlighted = "".join(ch for ch, style in cells if "reverse" in style)
-    # the trailing space is the caret, which sits at the end of the selection
-    assert highlighted == "alpha ", "the selection, and only it, is reversed"
+    assert highlighted == "alpha", "the selection, and only it, is reversed"
+
+    # and the caret is the blank the cell keeps after it, drawn over the picture
+    layout, grid = _cell_grid(node)
+    box = layout.boxes[node.id]
+    assert grid.caret is not None
+    assert grid.caret[:2] == (box.x + 1 + 1 + 5, box.y + 1), "the end of the selection"
 
 
 def test_the_tightest_spacing_drops_the_walls_and_inverts_only_the_cursor():

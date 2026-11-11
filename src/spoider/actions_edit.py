@@ -56,6 +56,8 @@ class EditActions:
         self._edit_fresh = fresh
         self._buffer = Buffer("" if fresh else (node.text or ""))
         self._buffer.PAGE_LINES = self.config.page_lines
+        # the picture is new to this cell, so the first synchronisation must rebuild it
+        self._preview_key = None
         self._sync_preview()
         self._sync_footer()
     def _sync_preview(self) -> None:
@@ -68,7 +70,15 @@ class EditActions:
         node.caret = self._buffer.caret
         node.overwrite = self._buffer.overwrite
         node.sel = self._buffer.selection()
-        self.view.refresh_map()
+        # The picture depends on the text and the selection in it, not on where the caret
+        # stands: moving the caret repaints one cell, and rebuilding the whole map for it was
+        # most of what holding a key cost.
+        key = (node.preview, node.sel)
+        if key != self._preview_key:
+            self._preview_key = key
+            self.view.refresh_map()
+        else:
+            self.view.refresh()
     def handle_edit_key(self, key: str, character: str | None) -> bool:
         """Every keystroke while typing into a cell. Returns True if consumed.
 

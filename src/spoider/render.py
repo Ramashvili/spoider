@@ -73,6 +73,10 @@ class Grid:
     #: Cells a letter or a mark stands in. A border may join another border, and a link
     #: may pass through an empty cell, but neither may paint out what a cell says.
     text: set[tuple[int, int]] = field(default_factory=set)
+    #: Where the caret hangs, as (x, y, overwrite). The caret is a style rather than a
+    #: character, so it is applied while the window is assembled, not drawn into the picture:
+    #: moving it then costs a repaint instead of a whole map.
+    caret: tuple[int, int, bool] | None = None
     width: int = 0
     height: int = 0
 
@@ -299,24 +303,30 @@ def _draw_box(
             clean(box.node.mark),
             plain if "reverse" in inside else inside,
         )
-    at = caret_pos(box.node)
+    at = caret_cell(box, walls)
     if at is not None:
-        line, column = at
-        _hang_caret(grid, text_x + PAD + shift + column, text_y + line, inside, box.node.overwrite)
+        grid.caret = (at[0], at[1], box.node.overwrite)
 
 
-def _hang_caret(grid: Grid, x: int, y: int, style: str, overwrite: bool = False) -> None:
-    """Invert the cell the renaming caret is over rather than giving it a column.
+def caret_cell(box: Placed, walls: bool = True) -> tuple[int, int] | None:
+    """The grid cell the caret of a cell being typed into hangs in, or None for a settled one.
 
-    The character stays where it is and only its colours change, so a word is never
-    pushed apart by a cursor that is not part of it — nano's block, drawn the same
-    way a mark or a search hit is.
+    One place knows the arithmetic, so the picture and a repaint of it agree: the caret is
+    the box's text origin, its mark's columns, and the line and column inside the text.
     """
-    ch, under = grid.cells.get((x, y), (" ", style))
-    # Two cursors, two shapes: a filled block while inserting, an underline while
-    # overwriting, so the mode is visible at a glance rather than by remembering.
-    mark = "underline" if overwrite else CARET_STYLE
-    grid.put(x, y, ch, f"{under} {mark}".strip())
+    at = caret_pos(box.node)
+    if at is None:
+        return None
+    line, column = at
+    left = box.x + 1 if walls else box.x
+    top = box.y + 1 if walls else box.y
+    return left + PAD + mark_cells(box.node) + column, top + line
+
+
+def _caret_style(style: str, overwrite: bool) -> str:
+    """Two cursors, two shapes: a filled block while inserting, an underline while
+    overwriting, so the mode is visible at a glance rather than by remembering."""
+    return f"{style} {'underline' if overwrite else CARET_STYLE}".strip()
 
 
 def _draw_link(
@@ -465,13 +475,19 @@ def render_text(
     the camera has cropped the grid: an overlay that lived in grid coordinates would slide
     around as the map scrolled and lose its right edge with it.
     """
+    caret = grid.caret
     screen: list[list[tuple[str, str]]] = []
     for y in range(oy, oy + height):
         line: list[tuple[str, str]] = []
         for x in range(ox, ox + width):
             if (x, y) in grid.wide:
                 continue
-            line.append(grid.cells.get((x, y), (" ", "")))
+            ch, style = grid.cells.get((x, y), (" ", ""))
+            if caret is not None and x == caret[0] and y == caret[1]:
+                # the character stays where it is and only its colours change, so a cursor
+                # that is not part of the word never pushes it apart
+                style = _caret_style(style, caret[2])
+            line.append((ch, style))
         screen.append(line)
     for rows, style in floaters or []:
         paint_box(screen, rows, style)

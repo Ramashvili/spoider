@@ -1527,6 +1527,48 @@ async def test_a_warning_stays_until_the_file_is_fixed(tmp_path: Path):
         assert notice.display is False, "the fix takes the warning with it"
 
 
+async def test_moving_the_caret_repaints_and_does_not_rebuild_the_map(
+    tmp_path: Path, monkeypatch
+):
+    """A caret is a style, not a cell: moving it changes nothing the picture is made of, and
+    rebuilding the whole map for it was most of what holding a key cost."""
+    from spoider import widgets as widgets_module
+
+    calls: list[int] = []
+    original = widgets_module.build_grid
+
+    def counted(*args, **kwargs):
+        calls.append(1)
+        return original(*args, **kwargs)
+
+    app = SpoiderApp(demo=True, config_path=tmp_path / "k.conf")
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+e")
+        await pilot.pause()
+        app._buffer.select_all()
+        app._buffer.insert("abcdef")
+        await pilot.pause()
+        monkeypatch.setattr(widgets_module, "build_grid", counted)
+        await pilot.press("left")  # the first move drops the selection, which is a change
+        await pilot.pause()
+
+        calls.clear()
+        for _ in range(5):
+            await pilot.press("left")
+        await pilot.pause()
+        assert app._buffer.caret == 0, "the caret moved"
+        assert calls == [], "and the picture was reused"
+
+        text = app.view.render()
+        reversed_cells = [span for span in text.spans if "reverse" in str(span.style)]
+        assert len(reversed_cells) == 1, "the caret is still drawn, and drawn once"
+
+        await pilot.press("x")
+        await pilot.pause()
+        assert calls, "a character changes the text, so the picture is rebuilt"
+
+
 async def test_a_temporary_notice_gives_the_line_back_to_a_standing_one(tmp_path: Path):
     """A config complaint has no time of its own, so a cut reported over it is the later thing
     to read rather than a reason to lose the warning that was waiting."""
