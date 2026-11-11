@@ -1526,6 +1526,41 @@ async def test_a_warning_stays_until_the_file_is_fixed(tmp_path: Path):
         assert notice.display is False, "the fix takes the warning with it"
 
 
+async def test_a_bad_config_does_not_get_a_green_note_on_top(tmp_path: Path, monkeypatch):
+    """The reader who has just edited the file is the one who needs to hear what is wrong with
+    it, so a green "config reloaded" over the top of the warning is the message they lose."""
+    import contextlib
+
+    from spoider import app as app_module
+
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("mark = z\n", encoding="utf-8")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        # a terminal in a test cannot be suspended, and the editor is a function
+        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
+
+        def writes_badly(path) -> None:
+            Path(path).write_text("mark = z\nfold = z\n", encoding="utf-8")
+
+        monkeypatch.setattr(app_module, "edit_in_editor", writes_badly)
+        app.open_config()
+        await pilot.pause()
+        notice = _notice(app)
+        assert "Warning:" in notice.message, "the warning is what is left standing"
+        assert "config reloaded" not in notice.message
+
+        def writes_cleanly(path) -> None:
+            Path(path).write_text("mark = z\n", encoding="utf-8")
+
+        monkeypatch.setattr(app_module, "edit_in_editor", writes_cleanly)
+        app.open_config()
+        await pilot.pause()
+        assert _notice(app).message == "config reloaded", "a file with nothing wrong says so"
+
+
 async def test_a_chord_textual_owns_is_reported(tmp_path: Path):
     """`ctrl+q` is Textual's own quit, so a line binding it would not do what it says.
 

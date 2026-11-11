@@ -587,8 +587,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
                         foreign.setdefault(key, binding.action)
         return foreign
 
-    def _report_clashes(self) -> None:
-        """Say what the config asked for and could not have.
+    def _report_clashes(self) -> bool:
+        """Say what the config asked for and could not have, and whether there was anything.
 
         Two things can go wrong in the file and neither is visible in it: one chord
         given to two actions, and one name given two lines. `resolve` refuses the
@@ -621,6 +621,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             # rather than the last of them winning; no timeout, because a config that
             # fights itself is the reader's to fix and a warning that fades is not read
             self.notify(" ".join(said), severity="error", timeout=float("inf"))
+        return bool(said)
 
     @property
     def mode(self) -> str:
@@ -721,11 +722,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self.notify(f"could not start an editor: {exc}", severity="error", timeout=FAILURE)
             return
 
-        self._reload_config()
-        self.notify("config reloaded", timeout=NOTE)
+        # a green note on top of a red warning is the warning the reader never reads, and
+        # the one who has just edited the file is exactly the one who needs it
+        if self._reload_config():
+            self.notify("config reloaded", timeout=NOTE)
 
-    def _reload_config(self) -> None:
-        """Read the file again and put it into force.
+    def _reload_config(self) -> bool:
+        """Read the file again and put it into force, saying whether it asked for nothing
+        it cannot have.
 
         The mistakes it contains are worth saying again: a reader who has just edited
         the file by hand is exactly the one who needs to hear that two actions share a
@@ -734,11 +738,12 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.config = load_config(self.config_path, self._binding_ids())
         set_tab_width(self.config.tab_width)  # a new tab stop redraws the map
         self.set_keymap(build_binding_keymap(self.config.keys))  # new chords at once
-        self._report_clashes()
+        complained = self._report_clashes()
         # hide_footer is a decision _sync_footer makes about the bar's box, so a reload
         # that skips it leaves the bar standing until the next mode change
         self._sync_footer()
         self._refresh_chrome()
+        return not complained
 
     @property
     def marks(self) -> tuple[str, ...]:
