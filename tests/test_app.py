@@ -3871,6 +3871,39 @@ async def test_the_map_shows_no_cursor_while_the_panel_is_open(tmp_path: Path):
         )
 
 
+async def test_the_panel_follows_the_keys_that_move_in_it(tmp_path: Path, monkeypatch):
+    """A cell of the cut stack is not in the map's arrangement, so the rows the map holds cannot
+    reach it: a key that moves in the panel asks for the window, or nothing is drawn and the
+    screen says nothing about which entry the keys are on."""
+    from spoider.widgets import MindMapView
+
+    whole: list[int] = []
+    original = MindMapView.refresh
+
+    def counted(self, *regions):
+        if not regions:
+            whole.append(1)
+        return original(self, *regions)
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(110, 24)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.mm.add_child(app.mm.root.id, "gamma")
+        app.view.refresh_map()
+        app.select(alpha.id)
+        await pilot.pause()
+        for _ in range(3):  # three entries, so the keys have somewhere to go
+            await pilot.press("ctrl+k")
+        await pilot.press("p")
+        await pilot.pause()
+
+        monkeypatch.setattr(MindMapView, "refresh", counted)
+        whole.clear()
+        await pilot.press("down")
+        await pilot.pause()
+        assert whole, "the map laid out for the panel cannot draw the panel: ask for the window"
+
+
 async def test_undo_works_inside_the_stack_view(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(110, 24)) as pilot:

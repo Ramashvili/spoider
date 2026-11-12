@@ -251,13 +251,22 @@ class MindMapView(Widget, can_focus=True):
         return {row for row in on_screen if 0 <= row < self.size.height}
 
     def _touch(self, ids: list[str]) -> None:
-        """Mark the rows of these cells dirty, and only those."""
+        """Mark the rows of these cells dirty, and only those.
+
+        A cell of the cut stack is not in the map's arrangement, and the stack takes columns of
+        every row besides, so anything that names a cell the map does not hold asks for the window
+        rather than for rows: the panel is a small place that is being paged through by hand.
+        """
         self._settle()
+        if self.spoider.stack_layout() is not None:
+            self.refresh()
+            return
         rows: set[int] = set()
         for node_id in ids:
             box = self.layout_.box(node_id)
             if box is None:
-                continue
+                self.refresh()
+                return
             for row in range(box.y, box.y + box.h):
                 on_screen = self._row_on_screen((box.x, row, False))
                 if on_screen is not None:
