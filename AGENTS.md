@@ -507,13 +507,28 @@ Measured on this machine, a 120x40 terminal, process CPU per keystroke:
 | 105 cells | 1.3 ms | 5.1 ms | 12.9 ms | 15.4 ms |
 | 541 cells | 1.5 ms | 3.4 ms | 20.4 ms | 14.5 ms |
 
-Those per-keystroke columns come from `run_test`, which awaits a message round trip per key and
-a headless write, and it inflates a keystroke about thirty times: a caret move measures 10 ms
-there and about 0.3 ms in a terminal, where thirty presses a second is 1% of a core. Use them to
-compare one change with another, never as what a reader feels. The picture columns are timed
-directly and are what they say. About seven of those harness milliseconds are Textual's
-compositor chopping the screen and writing it, and the rest is ours; the picture is the part we
-can make smaller:
+Those per-keystroke columns come from `run_test`, which awaits a message round trip per key
+against a headless write and lands a third above a real window; they compare one change with
+another. The picture columns are timed directly and are what they say.
+
+### Measuring what a key costs
+
+Take the pid from the pane, never from `pgrep -f`: a pattern that names the launcher also matches
+the shell that started it, and timing that shell reports an idle process and makes the app look
+free. A caret move measured that way read 0.3 ms; the real figure is 7.8 ms.
+
+    tmux new-session -d -s m -x 200 -y 50 "XDG_CONFIG_HOME=/tmp/x spoider map.spoider"
+    PID=$(tmux list-panes -t m -F '#{pane_pid}')          # the app, not its shell
+    a=$(awk '{print $14+$15}' /proc/$PID/stat)
+    # send the key sixty times, fifty milliseconds apart, with tmux send-keys
+    b=$(awk '{print $14+$15}' /proc/$PID/stat)            # (b - a) ticks of 10 ms
+
+Sixty caret moves inside a cell cost 47 ticks at 200x50 on a two-cell map and on a five-hundred
+-cell map alike, so the cost of a key is the frame and not the document. At twenty presses a
+second that is a sixth of one core, and a caret move that changed two cells should not rebuild
+the window to show them.
+
+The picture is the part we can make smaller:
 
 - a picture is built only for the cells the camera can reach (`build_grid(..., window=...)`),
   so its cost is the screen rather than the document: 50 ms becomes 3.4 on 541 cells;
