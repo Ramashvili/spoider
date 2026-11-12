@@ -356,6 +356,10 @@ class MindMapView(Widget, can_focus=True):
         )
         if key == self._settled_for:
             return
+        # anything that changes what a row says — the mode, a selection, the panel opening — goes
+        # through here, so a change the view was not told about still gets drawn: a frame whose
+        # key moved asks for every row, and the rows that matter ask for themselves as well
+        self.refresh()
         width, height = self.size
         panel = self.spoider.stack_layout()
         # While the stack is open the right of the screen is its column, so the map is framed in
@@ -444,13 +448,44 @@ class MindMapView(Widget, can_focus=True):
                 text.append("\n")
         return text
 
+    def _panel_origin(self, panel: Layout, width: int, height: int) -> tuple[int, int]:
+        """Where the panel's own arrangement starts on the screen: its column, and its scroll.
+
+        A stack taller than the column follows its own selection. One place works this out, so the
+        picture and the caret drawn into it cannot disagree about where an entry is.
+        """
+        column = stack_column(panel, width)
+        wall = width - column
+        shift = 0
+        chosen = self.spoider.selected
+        focus = panel.box(chosen) if chosen else None
+        if focus is not None and focus.y + BOX_H + 2 > height - 1:
+            shift = focus.y + BOX_H + 2 - (height - 1)
+        return wall + 2, 2 - shift
+
     def _caret_here(self, layout) -> tuple[int, int, bool] | None:
-        """Where the caret hangs now, or None when no cell is being typed into."""
-        focus = layout.box(self.spoider.selected)
+        """Where the caret hangs now, in grid coordinates, or None when nothing is being typed.
+
+        A cell is a cell wherever it is drawn: the map's cells and the cut stack's are placed by
+        the same picture, so the caret is worked out from the arrangement that holds it, offset by
+        where that arrangement starts on the screen.
+        """
+        chosen = self.spoider.selected
+        panel = self.spoider.stack_layout()
+        source = layout
+        offset = (0, 0)
+        if panel is not None and layout.box(chosen) is None:
+            # being typed into, the cell is an entry of the cut stack, in the panel's columns
+            source = panel
+            left, top = self._panel_origin(panel, self.size.width, self.size.height)
+            offset = (self._offset_x + left, self._offset_y + top)
+        focus = source.box(chosen)
         if focus is None or focus.node.preview is None:
             return None
-        at = caret_cell(focus, layout.walls)
-        return None if at is None else (at[0], at[1], focus.node.overwrite)
+        at = caret_cell(focus, source.walls)
+        if at is None:
+            return None
+        return at[0] + offset[0], at[1] + offset[1], focus.node.overwrite
 
     def _property_sections(self) -> list[tuple[str, list[tuple[str, str]]]]:
         spoider = self.spoider
@@ -498,20 +533,15 @@ class MindMapView(Widget, can_focus=True):
             colours="depth",
             depth_shift=DEPTH_COLORS.index(STACK_START) + 1,
         )
-        # a stack taller than the column follows its own selection
-        shift = 0
-        chosen = self.spoider.selected
-        focus = panel.box(chosen) if chosen else None
-        if focus is not None and focus.y + 2 + BOX_H > height - 1:
-            shift = focus.y + 2 + BOX_H - (height - 1)
+        left, top = self._panel_origin(panel, width, height)
         for (x, y), cell in art.cells.items():
-            row = y - shift + 2
+            row = top + y
             if x <= inner and 0 < row < height:
-                combined.cells[(self._offset_x + wall + 2 + x, self._offset_y + row)] = cell
+                combined.cells[(self._offset_x + left + x, self._offset_y + row)] = cell
         for x, y in art.wide:
-            row = y - shift + 2
+            row = top + y
             if x <= inner and 0 < row < height:
-                combined.wide.add((self._offset_x + wall + 2 + x, self._offset_y + row))
+                combined.wide.add((self._offset_x + left + x, self._offset_y + row))
         return combined
 
     def on_key(self, event: events.Key) -> None:

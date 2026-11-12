@@ -3871,6 +3871,37 @@ async def test_the_map_shows_no_cursor_while_the_panel_is_open(tmp_path: Path):
         )
 
 
+async def test_a_stack_entry_is_typed_into_like_a_cell(tmp_path: Path):
+    """A cell of the cut stack is a cell: typing into it puts a caret in it, in the panel's
+    columns, and draws it without the selection block the panel wears."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 20)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.pause()
+        await pilot.press("ctrl+k")
+        await pilot.press("p")
+        await pilot.pause()
+        await pilot.press("e")
+        await pilot.pause()
+
+        rows = app.view.screen_cells()
+        divider = next(x for x, (glyph, _style) in enumerate(rows[0]) if glyph == DIVIDER)
+        reversed_cells = [
+            (x, y)
+            for y, row in enumerate(rows)
+            for x, (_glyph, style) in enumerate(row)
+            if "reverse" in style
+        ]
+        assert len(reversed_cells) == 1, "one caret, and no selection block under it"
+        caret_x, _caret_y = reversed_cells[0]
+        assert caret_x > divider, "and it is in the panel, where the cell is drawn"
+
+        await pilot.press("X")
+        await pilot.pause()
+        assert app._buffer.text.endswith("X"), "the keys go into the entry"
+
+
 async def test_the_panel_follows_the_keys_that_move_in_it(tmp_path: Path, monkeypatch):
     """A cell of the cut stack is not in the map's arrangement, so the rows the map holds cannot
     reach it: a key that moves in the panel asks for the window, or nothing is drawn and the
