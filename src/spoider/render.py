@@ -153,43 +153,6 @@ class Grid:
         return self
 
 
-def row_cells(
-    layout: Layout,
-    y: int,
-    left: int,
-    width: int,
-    chosen: str | Collection[str] = (),
-    query: str = "",
-    lead: str | None = None,
-    colours: str = DEFAULT_COLOURS,
-    caret: tuple[int, int, bool] | None = None,
-) -> list[tuple[str, str]]:
-    """The glyphs of one screen row, left to right, with what each is drawn in.
-
-    The row is drawn by the same code that draws a whole window, given a window one row tall, so
-    a line on its own and a picture of everything cannot disagree about how a cell looks. The
-    caret, when it is on this row, is a style on one of its glyphs: a row that did not change is
-    a row Textual never asks for again.
-    """
-    grid = build_grid(
-        layout,
-        chosen,
-        query,
-        lead=lead,
-        colours=colours,
-        window=(left, y, left + width, y + 1),
-    )
-    cells: list[tuple[str, str]] = []
-    for x in range(left, left + width):
-        if (x, y) in grid.wide:  # the column a wide glyph already covers
-            continue
-        glyph, style = grid.cells.get((x, y), (" ", ""))
-        if caret is not None and x == caret[0] and y == caret[1]:
-            style = caret_style(style, caret[2])
-        cells.append((glyph, style))
-    return cells
-
-
 def strip_of(cells: list[tuple[str, str]], width: int) -> Strip:
     """One row of glyphs as the line Textual keeps: runs of a style, joined, never re-split."""
     segments: list[Segment] = []

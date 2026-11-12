@@ -24,7 +24,6 @@ from .render import (
     caret_cell,
     caret_style,
     paint_box,
-    row_cells,
     strip_of,
 )
 from .text import clean, clip_head
@@ -185,14 +184,9 @@ class MindMapView(Widget, can_focus=True):
         self._field = 0
         #: The caret's place in the grid, when a cell is being typed into.
         self._caret: tuple[int, int, bool] | None = None
-        #: Every row of the window at once; only the stack panel needs that, since it takes
-        #: columns of all of them.
-        self._whole: list[list[tuple[str, str]]] | None = None
-        self._whole_for: tuple | None = None
-        #: The picture of the window, built once when the arrangement changes, since a row cut
-        #: from it costs nothing and building every row on its own walks the whole map each time.
-        self._picture: Grid | None = None
-        self._picture_for: tuple | None = None
+        #: Every row of the window, drawn once for the frame this was drawn for.
+        self._rows: list[list[tuple[str, str]]] | None = None
+        self._rows_for: tuple | None = None
 
     # -- what the app says changed ------------------------------------
     def refresh_map(self) -> None:
@@ -207,10 +201,6 @@ class MindMapView(Widget, can_focus=True):
         self._layout = None
         self._forget()
         self._settle()
-        # the window is drawn once for the frame, and the rows are cut from it: a row built on
-        # its own would walk the map to find the cells on it, and a camera that moved makes every
-        # row a different row
-        self._draw_picture()
         if camera != (self._offset_x, self._offset_y) or previous is None:
             self.refresh()
             return
@@ -227,10 +217,10 @@ class MindMapView(Widget, can_focus=True):
         self._touch([node for node in (was, self.spoider.selected) if node])
 
     def refresh_caret(self) -> None:
-        """Only the caret moved: the row it left and the row it reached."""
+        """Only the caret moved: the row it left and the row it reached, and no picture rebuilt."""
         before = self._caret
-        self._forget()
-        self._settle()
+        # the rows of the frame are drawn without the caret, so only its place is worked out again
+        self._caret = self._caret_here(self.layout_)
         rows = {
             row
             for row in (self._row_on_screen(before), self._row_on_screen(self._caret))
@@ -241,10 +231,8 @@ class MindMapView(Widget, can_focus=True):
     def _forget(self) -> None:
         """Everything worked out for the last frame is out of date."""
         self._settled_for = None
-        self._whole = None
-        self._whole_for = None
-        self._picture = None
-        self._picture_for = None
+        self._rows = None
+        self._rows_for = None
 
     def _moved_rows(self, before: Layout, after: Layout) -> set[int]:
         """The screen rows whose glyphs changed: the cells that moved, and the places they left."""
@@ -275,22 +263,6 @@ class MindMapView(Widget, can_focus=True):
                 if on_screen is not None:
                     rows.add(on_screen)
         self._mark(rows)
-
-    def _draw_picture(self) -> None:
-        """Draw the window once, for the rows that will be cut from it."""
-        width, height = self.size
-        if width <= 0 or height <= 0:
-            return
-        chosen = self._chosen()
-        self._picture = build_grid(
-            self.layout_,
-            chosen,
-            self.spoider.search_query,
-            lead=self.spoider.selected if len(chosen) > 1 else None,
-            colours=self.spoider.mm.colours,
-            window=cache_window(self._offset_x, self._offset_y, self._field, height),
-        )
-        self._picture_for = self._settled_for
 
     def _row_on_screen(self, cell: tuple[int, int, bool] | None) -> int | None:
         if cell is None:
@@ -401,77 +373,45 @@ class MindMapView(Widget, can_focus=True):
         return strip_of(self._row_at(y), width)
 
     def _row_at(self, y: int) -> list[tuple[str, str]]:
-        width = self.size.width
-        self._settle()
-        picture = self._picture_now()
-        if self.spoider.stack_layout() is not None or self.spoider.show_properties:
-            return self._whole_rows()[y]
-        chosen = self._chosen()
-        if picture is not None:
-            # the window was drawn whole for this frame: a row is a slice of it
-            cells = self._slice(picture, y, width)
-        else:
-            cells = row_cells(
-                self.layout_,
-                self._offset_y + y,
-                self._offset_x,
-                self._field,
-                chosen,
-                self.spoider.search_query,
-                lead=self.spoider.selected if len(chosen) > 1 else None,
-                colours=self.spoider.mm.colours,
-                caret=self._caret,
-            )
-        if self._field < width:
-            cells += [(" ", "")] * (width - self._field)
-        return cells
+        """One row of the window, with the caret on it if the caret is on it.
 
-    def _picture_now(self) -> Grid | None:
-        """The whole window drawn for this frame, or None when rows are drawn one at a time.
-
-        A row cut from a picture costs nothing; a row built on its own walks the map to find the
-        cells on it. Both have their place: a caret move touches two rows, a change of
-        arrangement touches rows all over the window.
+        The rows of the frame are drawn without the caret and kept until the map itself changes,
+        so a caret move is a copy of one row with one glyph restyled: the picture is not built
+        again for it, and no other row is touched.
         """
-        if self.spoider.stack_layout() is not None or self.spoider.show_properties:
-            return None  # those take the whole-window path, which builds its own picture
-        if self._picture is None or self._picture_for != self._settled_for:
-            return None
-        return self._picture
-
-    def _slice(self, picture: Grid, y: int, width: int) -> list[tuple[str, str]]:
-        """One row of a picture that already covers the window."""
-        cells: list[tuple[str, str]] = []
-        row = self._offset_y + y
+        self._settle()
+        row = self._rows_frame()[y]
         caret = self._caret
-        for x in range(self._offset_x, self._offset_x + width):
-            if (x, row) in picture.wide:
-                continue
-            glyph, style = picture.cells.get((x, row), (" ", ""))
-            if caret is not None and (x, row) == (caret[0], caret[1]):
-                style = caret_style(style, caret[2])
-            cells.append((glyph, style))
-        return cells
+        if caret is not None and caret[1] - self._offset_y == y:
+            x = caret[0] - self._offset_x
+            if 0 <= x < len(row):
+                glyph, style = row[x]
+                row = list(row)
+                row[x] = (glyph, caret_style(style, caret[2]))
+        return row
 
-    def _whole_rows(self) -> list[list[tuple[str, str]]]:
-        """Every row of the window at once: the stack panel takes columns of all of them."""
-        if self._whole is not None and self._whole_for == self._settled_for:
-            return self._whole
+    def _rows_frame(self) -> list[list[tuple[str, str]]]:
+        """Every row of the window, drawn once for this frame.
+
+        One picture for the whole window, cut into rows: a row drawn on its own would have to
+        walk the map to find the cells on it, and the connectors between two cells resolve from
+        the rows above and below them, so a row is not something that can be drawn in isolation.
+        """
+        if self._rows is not None and self._rows_for == self._settled_for:
+            return self._rows
         width, height = self.size
-        panel = self.spoider.stack_layout()
-        window = cache_window(self._offset_x, self._offset_y, self._field, height)
         chosen = self._chosen()
+        panel = self.spoider.stack_layout()
         grid = build_grid(
             self.layout_,
             chosen,
             self.spoider.search_query,
             lead=self.spoider.selected if len(chosen) > 1 else None,
             colours=self.spoider.mm.colours,
-            window=window,
+            window=cache_window(self._offset_x, self._offset_y, self._field, height),
         )
         if panel is not None:
             grid = self._with_stack(grid, panel, width, height)
-        grid.caret = self._caret
         rows: list[list[tuple[str, str]]] = []
         for row in range(height):
             cells: list[tuple[str, str]] = []
@@ -482,8 +422,7 @@ class MindMapView(Widget, can_focus=True):
             rows.append(cells)
         if self.spoider.show_properties:
             paint_box(rows, self._property_sections(), LINK_COLOR)
-        self._whole = rows
-        self._whole_for = self._settled_for
+        self._rows, self._rows_for = rows, self._settled_for
         return rows
 
     def render(self) -> Text:
