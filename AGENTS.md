@@ -49,6 +49,22 @@ it.
 
 ## Versions and tags
 
+The version is the only thing a frozen install knows about where it came from: a wheel carries no
+`.git`, no branch and no working tree. So the tier that says *which build this is* is the version's
+local label, and the top bar prints it without any other machinery.
+
+- `0.5.3` is the version: what would be published, numbered by the rule above — a minor only when
+  something about files or config changes.
+- `0.5.3+redraw` is a candidate: the same version built from a branch that is not ready to publish.
+  Bump the label when you reinstall for a new round (`+redraw.2`), so a stale install cannot
+  pretend to be the build just made.
+- `main` carries no label; dropping it is the act of releasing, because the index refuses a local
+  version.
+
+Do not derive the branch at runtime or bake a build file: a frozen install can do neither, and the
+version already says what is needed.
+
+
 A version marks a state whose checks passed. Bump and tag in the same breath, after the
 run is green, never on the way in:
 
