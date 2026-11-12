@@ -14,6 +14,26 @@ it matters: argparse lays an invocation out differently from 3.13 on, and a test
 reads a rendering passes on one and fails on the other. Write assertions against the
 property, and run the version you are not on when the assertion touches output.
 
+## Rendering
+
+The map is drawn a line at a time. `MindMapView.render_line(y)` builds one row from the layout and
+the camera, and the view marks only the rows that changed dirty (`refresh(Region(0, row, width, 1))`):
+Textual keeps the lines it holds and asks again only for those. A caret move is two rows, a cursor
+move is the rows of the two cells, a letter is the rows of the cells that moved.
+
+Two ways to draw a row, and the choice matters:
+
+- a row cut from the window's picture, built once per frame (`_draw_picture`), costs nothing;
+- a row built on its own (`row_cells`) walks the map to find the cells on it, which is fine for a
+  couple of rows and wrong for fifty.
+
+What the numbers say, 541 cells at 200x50 in a terminal: an arrow on the map costs 10 ms (it was
+21 when the wall repainted whole), a letter 19.7 ms, a caret move 3.2 ms. The letter is not much
+better than it was because a smooth camera pans one column per letter, so every row is a different
+row: what dominates a letter is Textual chopping ten thousand columns, not our drawing. A window
+that holds still while a cell is typed into, or a map cut into bands, is what would move that
+number, and both cost something the reader can see.
+
 ## Commands
 
 ```bash

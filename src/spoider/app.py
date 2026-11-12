@@ -937,9 +937,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         """Move the cursor; a plain move gives up the run of selected cells."""
         if node_id == self.selected and self.anchor is None:
             return  # a key that could not move it changes nothing on screen
+        was = self.selected
         self.anchor = None
         self.selected = node_id
-        self.view.refresh()
+        self.view.refresh_selection(was)
 
     def _push_undo(self) -> None:
         self._undo.append(self.mm.to_dict())

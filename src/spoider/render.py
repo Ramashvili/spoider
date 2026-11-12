@@ -7,7 +7,10 @@ from dataclasses import dataclass, field
 from itertools import pairwise
 
 from rich.cells import cell_len
+from rich.segment import Segment
+from rich.style import Style
 from rich.text import Text
+from textual.strip import Strip
 
 from .chrome import CARET_STYLE
 from .layout import (
@@ -148,6 +151,60 @@ class Grid:
             if ch:
                 self.cells[(x, y)] = (ch, LINK_COLOR)
         return self
+
+
+def row_cells(
+    layout: Layout,
+    y: int,
+    left: int,
+    width: int,
+    chosen: str | Collection[str] = (),
+    query: str = "",
+    lead: str | None = None,
+    colours: str = DEFAULT_COLOURS,
+    caret: tuple[int, int, bool] | None = None,
+) -> list[tuple[str, str]]:
+    """The glyphs of one screen row, left to right, with what each is drawn in.
+
+    The row is drawn by the same code that draws a whole window, given a window one row tall, so
+    a line on its own and a picture of everything cannot disagree about how a cell looks. The
+    caret, when it is on this row, is a style on one of its glyphs: a row that did not change is
+    a row Textual never asks for again.
+    """
+    grid = build_grid(
+        layout,
+        chosen,
+        query,
+        lead=lead,
+        colours=colours,
+        window=(left, y, left + width, y + 1),
+    )
+    cells: list[tuple[str, str]] = []
+    for x in range(left, left + width):
+        if (x, y) in grid.wide:  # the column a wide glyph already covers
+            continue
+        glyph, style = grid.cells.get((x, y), (" ", ""))
+        if caret is not None and x == caret[0] and y == caret[1]:
+            style = caret_style(style, caret[2])
+        cells.append((glyph, style))
+    return cells
+
+
+def strip_of(cells: list[tuple[str, str]], width: int) -> Strip:
+    """One row of glyphs as the line Textual keeps: runs of a style, joined, never re-split."""
+    segments: list[Segment] = []
+    run: list[str] = []
+    run_style = ""
+    parsed: dict[str, Style] = {}
+    for glyph, style in cells:
+        if run and style != run_style:
+            segments.append(Segment("".join(run), parsed.setdefault(run_style, Style.parse(run_style)) if run_style else None))
+            run = []
+        run_style = style
+        run.append(glyph)
+    if run:
+        segments.append(Segment("".join(run), parsed.setdefault(run_style, Style.parse(run_style)) if run_style else None))
+    return Strip(segments, width)
 
 
 def cell_colour(mode: str, depth: int, family: int) -> str | None:
@@ -383,7 +440,7 @@ def caret_cell(box: Placed, walls: bool = True) -> tuple[int, int] | None:
     return left + PAD + mark_cells(box.node) + column, top + line
 
 
-def _caret_style(style: str, overwrite: bool) -> str:
+def caret_style(style: str, overwrite: bool) -> str:
     """Two cursors, two shapes: a filled block while inserting, an underline while
     overwriting, so the mode is visible at a glance rather than by remembering."""
     return f"{style} {'underline' if overwrite else CARET_STYLE}".strip()
@@ -575,7 +632,7 @@ def render_text(
             if caret is not None and x == caret[0] and y == caret[1]:
                 # the character stays where it is and only its colours change, so a cursor
                 # that is not part of the word never pushes it apart
-                style = _caret_style(style, caret[2])
+                style = caret_style(style, caret[2])
             line.append((ch, style))
         screen.append(line)
     for rows, style in floaters or []:

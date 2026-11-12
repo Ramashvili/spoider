@@ -8,7 +8,7 @@ from rich.cells import cell_len
 from textual import events
 
 from spoider.app import BINDINGS, SpoiderApp
-from spoider.chrome import FooterBar, compose_footer, hint_chunks
+from spoider.chrome import DIVIDER, FooterBar, compose_footer, hint_chunks
 from spoider.config import load_config
 from spoider.drawers import AskBar, ErrorBar, NoticeBar, PanelBar, PromptBar
 from spoider.layout import compute
@@ -159,6 +159,10 @@ def test_top_bar_marks_an_unsaved_buffer():
     assert "map.json *" in dirty
     assert compose_top_bar(90, "0.1.0", "New Buffer", "1 cell", True).plain.find("New Buffer *") > 0
 
+
+def drawn_cells(app) -> list[tuple[str, str]]:
+    """Every glyph on the map, with the style it is drawn in: what the view puts on the screen."""
+    return [cell for row in app.view.screen_cells() for cell in row]
 
 async def test_top_bar_star_appears_and_clears_with_the_edit(tmp_path: Path):
     path = tmp_path / "map.json"
@@ -1527,21 +1531,20 @@ async def test_a_warning_stays_until_the_file_is_fixed(tmp_path: Path):
         assert notice.display is False, "the fix takes the warning with it"
 
 
-async def test_a_key_that_cannot_move_the_caret_does_not_repaint(
-    tmp_path: Path, monkeypatch
-):
-    """Right at the last character goes nowhere, so nothing on the screen changes and the
-    frame a repaint would cost is wasted."""
+async def test_a_key_that_cannot_move_the_caret_draws_no_row(tmp_path: Path, monkeypatch):
+    """Right at the last character goes nowhere: the caret cannot pass the edge, so no row of the
+    screen is drawn again for it. A key that does move the caret draws the row it left and the row
+    it reached, and nothing else."""
     from spoider.widgets import MindMapView
 
     drawn: list[int] = []
-    original = MindMapView.render
+    original = MindMapView.render_line
 
-    def counted(self):
-        drawn.append(1)
-        return original(self)
+    def counted(self, y: int):
+        drawn.append(y)
+        return original(self, y)
 
-    monkeypatch.setattr(MindMapView, "render", counted)
+    monkeypatch.setattr(MindMapView, "render_line", counted)
 
     app = SpoiderApp(demo=True, config_path=tmp_path / "k.conf")
     async with app.run_test(size=(100, 30)) as pilot:
@@ -1558,11 +1561,12 @@ async def test_a_key_that_cannot_move_the_caret_does_not_repaint(
         for _ in range(3):
             await pilot.press("right")
         await pilot.pause()
-        assert drawn == [], "the caret cannot pass the edge, so nothing was drawn"
+        assert drawn == [], "the caret cannot pass the edge, so no row was drawn"
 
         await pilot.press("left")
         await pilot.pause()
-        assert drawn, "a key that moves the caret draws it"
+        assert drawn, "a key that moves the caret draws the rows it touched"
+        assert len(set(drawn)) <= 4, f"and only those: {sorted(set(drawn))}"
 
 
 async def test_a_move_that_cannot_happen_does_not_repaint(tmp_path: Path, monkeypatch):
@@ -1636,19 +1640,23 @@ async def test_typing_inside_a_line_does_not_redo_the_arrangement(
         assert calls, "a wider box moves its children, so the arrangement is redone"
 
 
-async def test_moving_the_caret_repaints_and_does_not_rebuild_the_map(
-    tmp_path: Path, monkeypatch
-):
-    """A caret is a style, not a cell: moving it changes nothing the picture is made of, and
-    rebuilding the whole map for it was most of what holding a key cost."""
+async def test_moving_the_caret_draws_no_map(tmp_path: Path, monkeypatch):
+    """The caret is a style on one glyph of one row: moving it neither lays the map out again nor
+    rebuilds its picture."""
     from spoider import widgets as widgets_module
 
-    calls: list[int] = []
-    original = widgets_module.build_grid
+    built: list[int] = []
+    computed: list[int] = []
+    original_build = widgets_module.build_grid
+    original_compute = widgets_module.compute
 
-    def counted(*args, **kwargs):
-        calls.append(1)
-        return original(*args, **kwargs)
+    def built_counted(*args, **kwargs):
+        built.append(1)
+        return original_build(*args, **kwargs)
+
+    def computed_counted(*args, **kwargs):
+        computed.append(1)
+        return original_compute(*args, **kwargs)
 
     app = SpoiderApp(demo=True, config_path=tmp_path / "k.conf")
     async with app.run_test(size=(100, 30)) as pilot:
@@ -1658,24 +1666,19 @@ async def test_moving_the_caret_repaints_and_does_not_rebuild_the_map(
         app._buffer.select_all()
         app._buffer.insert("abcdef")
         await pilot.pause()
-        monkeypatch.setattr(widgets_module, "build_grid", counted)
         await pilot.press("left")  # the first move drops the selection, which is a change
         await pilot.pause()
 
-        calls.clear()
-        for _ in range(5):
+        monkeypatch.setattr(widgets_module, "build_grid", built_counted)
+        monkeypatch.setattr(widgets_module, "compute", computed_counted)
+        built.clear()
+        computed.clear()
+        for _ in range(3):
             await pilot.press("left")
         await pilot.pause()
-        assert app._buffer.caret == 0, "the caret moved"
-        assert calls == [], "and the picture was reused"
-
-        text = app.view.render()
-        reversed_cells = [span for span in text.spans if "reverse" in str(span.style)]
-        assert len(reversed_cells) == 1, "the caret is still drawn, and drawn once"
-
-        await pilot.press("x")
-        await pilot.pause()
-        assert calls, "a character changes the text, so the picture is rebuilt"
+        assert app._buffer.caret == 2, "the caret moved three characters left"
+        assert computed == [], "the arrangement was not worked out again"
+        assert built == [], "and no picture was built"
 
 
 async def test_a_temporary_notice_gives_the_line_back_to_a_standing_one(tmp_path: Path):
@@ -3853,15 +3856,17 @@ async def test_the_map_shows_no_cursor_while_the_panel_is_open(tmp_path: Path):
 
         await pilot.press("p")  # with nothing cut, the panel stays shut
         await pilot.pause()
-        before = {style for _, style in app.view._grid.cells.values()}
+        before = {style for _glyph, style in drawn_cells(app)}
         assert any("reverse" in style for style in before), "the map shows where you are"
 
         await pilot.press("ctrl+k")
         await pilot.press("p")
         await pilot.pause()
-        during = {style for _, style in app.view._grid.cells.values()}
+        rows = app.view.screen_cells()
+        divider = next(x for x, (glyph, _style) in enumerate(rows[0]) if glyph == DIVIDER)
+        on_the_map = [cell for row in rows for cell in row[:divider]]
 
-        assert not any("reverse" in style for style in during), (
+        assert not any("reverse" in style for _glyph, style in on_the_map), (
             "the only highlight on screen is the panel's"
         )
 
@@ -5265,17 +5270,17 @@ async def test_a_prompt_leaves_no_cell_framed(tmp_path: Path):
         app.mm.add_child(app.mm.root.id, "target")
         app.view.refresh_map()
         await pilot.pause()
-        framed = [ch for (_x, _y), (ch, style) in app.view._grid.cells.items() if "reverse" in style]
+        framed = [glyph for glyph, style in drawn_cells(app) if "reverse" in style]
         assert framed, "the cursor's cell is framed while the map has the keys"
 
         await pilot.press("ctrl+f")
         await pilot.pause()
-        framed = [ch for (_x, _y), (ch, style) in app.view._grid.cells.items() if "reverse" in style]
+        framed = [glyph for glyph, style in drawn_cells(app) if "reverse" in style]
         assert not framed, "the prompt is the reversed thing now"
 
         await pilot.press("escape")
         await pilot.pause()
-        framed = [ch for (_x, _y), (ch, style) in app.view._grid.cells.items() if "reverse" in style]
+        framed = [glyph for glyph, style in drawn_cells(app) if "reverse" in style]
         assert framed, "and the frame comes back"
 
 

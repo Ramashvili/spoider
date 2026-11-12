@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, cast
 from rich.cells import cell_len
 from rich.text import Text
 from textual import events
+from textual.geometry import Region
+from textual.strip import Strip
 from textual.widget import Widget
 
 from .chrome import DIVIDER
@@ -20,7 +22,10 @@ from .render import (
     build_grid,
     cache_window,
     caret_cell,
-    render_text,
+    caret_style,
+    paint_box,
+    row_cells,
+    strip_of,
 )
 from .text import clean, clip_head
 
@@ -158,35 +163,147 @@ class TopBar(Widget):
 
 
 class MindMapView(Widget, can_focus=True):
-    """A camera over the map. The view follows the selection instead of scrolling."""
+    """A camera over the map, drawn a line at a time.
+
+    A key changes a few rows of the screen: the cell being typed into, the cell that lost the
+    cursor, the rows a cell has pushed aside. So the view is asked for a line and draws that line,
+    and marks only the rows that changed: Textual keeps the lines it already holds, and a keystroke
+    costs the lines it touches instead of the window. Painting is where the time went -- a
+    screen-sized widget repainted for one changed cell measured 49 ms against 1 ms for the cell
+    itself -- and this is the shape that follows from the measurement.
+    """
 
     def __init__(self, spoider: SpoiderApp) -> None:
         super().__init__()
         self.spoider = spoider
         self._layout: Layout | None = None
-        self._grid: Grid | None = None
-        self._grid_key: (
-            tuple[int, tuple[str, ...], str, str, tuple[int, int, int, int]] | None
-        ) = None
+        #: What the field, the camera and the caret were worked out for: rows are drawn against
+        #: what is settled here, so two rows of one frame cannot disagree about the camera.
+        self._settled_for: tuple | None = None
         self._offset_x = 0
         self._offset_y = 0
+        self._field = 0
+        #: The caret's place in the grid, when a cell is being typed into.
+        self._caret: tuple[int, int, bool] | None = None
+        #: Every row of the window at once; only the stack panel needs that, since it takes
+        #: columns of all of them.
+        self._whole: list[list[tuple[str, str]]] | None = None
+        self._whole_for: tuple | None = None
+        #: The picture of the window, built once when the arrangement changes, since a row cut
+        #: from it costs nothing and building every row on its own walks the whole map each time.
+        self._picture: Grid | None = None
+        self._picture_for: tuple | None = None
 
+    # -- what the app says changed ------------------------------------
     def refresh_map(self) -> None:
-        """Drop the cached layout and picture; call after any change of shape or structure."""
+        """A change of shape or structure: the arrangement is done again.
+
+        The map is drawn once for the window and its rows are cut from that, and only the rows
+        that actually moved are handed back to Textual: a letter that grows a cell moves the
+        cells below and beside it, not the whole screen.
+        """
+        previous = self._layout
+        camera = (self._offset_x, self._offset_y)
         self._layout = None
-        self._grid = None
-        self._grid_key = None
-        self.refresh()
+        self._forget()
+        self._settle()
+        # the window is drawn once for the frame, and the rows are cut from it: a row built on
+        # its own would walk the map to find the cells on it, and a camera that moved makes every
+        # row a different row
+        self._draw_picture()
+        if camera != (self._offset_x, self._offset_y) or previous is None:
+            self.refresh()
+            return
+        self._mark(self._moved_rows(previous, self.layout_))
 
     def refresh_picture(self) -> None:
-        """Drop the picture and keep the arrangement.
+        """A cell says something else at the size it had: only its own rows are new."""
+        self._forget()
+        self._touch([self.spoider.selected])
 
-        A box whose text changed without changing its size moves nothing, so the layout a
-        keystroke used to throw away is still true: one box is redrawn where it stands.
-        """
-        self._grid = None
-        self._grid_key = None
-        self.refresh()
+    def refresh_selection(self, was: str | None) -> None:
+        """The cursor moved: the two cells it left and reached changed colour, nothing else."""
+        self._forget()
+        self._touch([node for node in (was, self.spoider.selected) if node])
+
+    def refresh_caret(self) -> None:
+        """Only the caret moved: the row it left and the row it reached."""
+        before = self._caret
+        self._forget()
+        self._settle()
+        rows = {
+            row
+            for row in (self._row_on_screen(before), self._row_on_screen(self._caret))
+            if row is not None
+        }
+        self._mark(rows)
+
+    def _forget(self) -> None:
+        """Everything worked out for the last frame is out of date."""
+        self._settled_for = None
+        self._whole = None
+        self._whole_for = None
+        self._picture = None
+        self._picture_for = None
+
+    def _moved_rows(self, before: Layout, after: Layout) -> set[int]:
+        """The screen rows whose glyphs changed: the cells that moved, and the places they left."""
+        rows: set[int] = set()
+        for node_id, box in after.boxes.items():
+            old = before.boxes.get(node_id)
+            if old is not None and (old.x, old.y, old.w, old.h) == (box.x, box.y, box.w, box.h):
+                continue
+            rows.update(range(box.y, box.y + box.h))
+            if old is not None:
+                rows.update(range(old.y, old.y + old.h))
+        for node_id, old in before.boxes.items():
+            if node_id not in after.boxes:
+                rows.update(range(old.y, old.y + old.h))
+        on_screen = {row - self._offset_y for row in rows}
+        return {row for row in on_screen if 0 <= row < self.size.height}
+
+    def _touch(self, ids: list[str]) -> None:
+        """Mark the rows of these cells dirty, and only those."""
+        self._settle()
+        rows: set[int] = set()
+        for node_id in ids:
+            box = self.layout_.box(node_id)
+            if box is None:
+                continue
+            for row in range(box.y, box.y + box.h):
+                on_screen = self._row_on_screen((box.x, row, False))
+                if on_screen is not None:
+                    rows.add(on_screen)
+        self._mark(rows)
+
+    def _draw_picture(self) -> None:
+        """Draw the window once, for the rows that will be cut from it."""
+        width, height = self.size
+        if width <= 0 or height <= 0:
+            return
+        chosen = self._chosen()
+        self._picture = build_grid(
+            self.layout_,
+            chosen,
+            self.spoider.search_query,
+            lead=self.spoider.selected if len(chosen) > 1 else None,
+            colours=self.spoider.mm.colours,
+            window=cache_window(self._offset_x, self._offset_y, self._field, height),
+        )
+        self._picture_for = self._settled_for
+
+    def _row_on_screen(self, cell: tuple[int, int, bool] | None) -> int | None:
+        if cell is None:
+            return None
+        row = cell[1] - self._offset_y
+        return row if 0 <= row < self.size.height else None
+
+    def _mark(self, rows: set[int]) -> None:
+        """Ask Textual for these rows again, and for nothing else."""
+        if not rows:
+            return
+        width = self.size.width or 1
+        self.refresh(*(Region(0, row, width, 1) for row in sorted(rows)))
 
     @property
     def layout_(self) -> Layout:
@@ -243,47 +360,141 @@ class MindMapView(Widget, can_focus=True):
             y = min(max(y, 0), layout.height - height)
         return x, y
 
-    def render(self) -> Text:
-        width, height = self.size.width, self.size.height
-        if width <= 0 or height <= 0:
-            return Text("")
-        layout = self.layout_
+    def _settle(self) -> None:
+        """Work out the field, the camera and the caret once for the rows about to be drawn."""
+        key = (
+            id(self.layout_),
+            self.spoider.selected,
+            tuple(self.spoider.selected_ids),
+            self.spoider.search_query,
+            self.spoider.mm.colours,
+            self.size,
+            self.spoider.stack_open,
+            self.spoider.mode,
+            self.spoider.show_properties,
+        )
+        if key == self._settled_for:
+            return
+        width, height = self.size
         panel = self.spoider.stack_layout()
-        # While the stack is open the right of the screen is its column, so the map
-        # is framed in what is left instead of being centred underneath it.
-        field = width - stack_column(panel, width) if panel is not None else width
-        self._offset_x, self._offset_y = self.camera(field, height)
-        # Drawing the whole map costs ~25 ms on a 500-cell document, and moving the
-        # camera does not change a single cell — only a new layout or a new
-        # selection does. Reverse means "you are here", so only one thing wears it:
-        # while the stack panel or a prompt has the keys, the cell's frame steps aside
-        # and the band above the bar is the place to look.
-        query = self.spoider.search_query
+        # While the stack is open the right of the screen is its column, so the map is framed in
+        # what is left of the screen instead of being centred underneath it.
+        self._field = width - stack_column(panel, width) if panel is not None else width
+        self._offset_x, self._offset_y = self.camera(self._field, height)
+        self._caret = self._caret_here(self.layout_)
+        self._settled_for = key
+
+    def _chosen(self) -> tuple[str, ...]:
+        """What wears the reverse: one thing at a time, and nothing while a bar has the keys."""
         elsewhere = self.spoider.stack_open or self.spoider.mode not in ("keys", "edit")
-        chosen = () if elsewhere else tuple(self.spoider.selected_ids)
-        lead = self.spoider.selected if len(chosen) > 1 else None
-        colours = self.spoider.mm.colours
-        # the picture is only worth the cells the window can reach, and it is a different
-        # picture once the camera has moved
-        window = cache_window(self._offset_x, self._offset_y, field, height)
-        key = (id(layout), chosen, query, colours, window)
-        if self._grid is None or self._grid_key != key:
-            self._grid = build_grid(
-                layout, chosen, query, lead=lead, colours=colours, window=window
+        return () if elsewhere else tuple(self.spoider.selected_ids)
+
+    def screen_cells(self) -> list[list[tuple[str, str]]]:
+        """Every row of the window as it is drawn: what the tests read, and what the eye sees."""
+        return [self._row_at(y) for y in range(self.size.height)]
+
+    def render_line(self, y: int) -> Strip:
+        """One row of the window, drawn from the arrangement and the camera."""
+        width = self.size.width
+        if width <= 0 or y < 0 or y >= self.size.height:
+            return Strip.blank(max(width, 0))
+        return strip_of(self._row_at(y), width)
+
+    def _row_at(self, y: int) -> list[tuple[str, str]]:
+        width = self.size.width
+        self._settle()
+        picture = self._picture_now()
+        if self.spoider.stack_layout() is not None or self.spoider.show_properties:
+            return self._whole_rows()[y]
+        chosen = self._chosen()
+        if picture is not None:
+            # the window was drawn whole for this frame: a row is a slice of it
+            cells = self._slice(picture, y, width)
+        else:
+            cells = row_cells(
+                self.layout_,
+                self._offset_y + y,
+                self._offset_x,
+                self._field,
+                chosen,
+                self.spoider.search_query,
+                lead=self.spoider.selected if len(chosen) > 1 else None,
+                colours=self.spoider.mm.colours,
+                caret=self._caret,
             )
-            self._grid_key = key
-        grid = self._grid
+        if self._field < width:
+            cells += [(" ", "")] * (width - self._field)
+        return cells
+
+    def _picture_now(self) -> Grid | None:
+        """The whole window drawn for this frame, or None when rows are drawn one at a time.
+
+        A row cut from a picture costs nothing; a row built on its own walks the map to find the
+        cells on it. Both have their place: a caret move touches two rows, a change of
+        arrangement touches rows all over the window.
+        """
+        if self.spoider.stack_layout() is not None or self.spoider.show_properties:
+            return None  # those take the whole-window path, which builds its own picture
+        if self._picture is None or self._picture_for != self._settled_for:
+            return None
+        return self._picture
+
+    def _slice(self, picture: Grid, y: int, width: int) -> list[tuple[str, str]]:
+        """One row of a picture that already covers the window."""
+        cells: list[tuple[str, str]] = []
+        row = self._offset_y + y
+        caret = self._caret
+        for x in range(self._offset_x, self._offset_x + width):
+            if (x, row) in picture.wide:
+                continue
+            glyph, style = picture.cells.get((x, row), (" ", ""))
+            if caret is not None and (x, row) == (caret[0], caret[1]):
+                style = caret_style(style, caret[2])
+            cells.append((glyph, style))
+        return cells
+
+    def _whole_rows(self) -> list[list[tuple[str, str]]]:
+        """Every row of the window at once: the stack panel takes columns of all of them."""
+        if self._whole is not None and self._whole_for == self._settled_for:
+            return self._whole
+        width, height = self.size
+        panel = self.spoider.stack_layout()
+        window = cache_window(self._offset_x, self._offset_y, self._field, height)
+        chosen = self._chosen()
+        grid = build_grid(
+            self.layout_,
+            chosen,
+            self.spoider.search_query,
+            lead=self.spoider.selected if len(chosen) > 1 else None,
+            colours=self.spoider.mm.colours,
+            window=window,
+        )
         if panel is not None:
             grid = self._with_stack(grid, panel, width, height)
-        # The caret is a style rather than part of the picture, so it is applied here and
-        # may be newer than the grid: moving it costs a repaint, not a rebuild.
-        grid.caret = self._caret_here(layout)
-        floaters = []
+        grid.caret = self._caret
+        rows: list[list[tuple[str, str]]] = []
+        for row in range(height):
+            cells: list[tuple[str, str]] = []
+            for x in range(self._offset_x, self._offset_x + width):
+                if (x, self._offset_y + row) in grid.wide:
+                    continue
+                cells.append(grid.cells.get((x, self._offset_y + row), (" ", "")))
+            rows.append(cells)
         if self.spoider.show_properties:
-            floaters.append((self._property_sections(), LINK_COLOR))
-        return render_text(
-            grid, self._offset_x, self._offset_y, width, height, floaters=floaters
-        )
+            paint_box(rows, self._property_sections(), LINK_COLOR)
+        self._whole = rows
+        self._whole_for = self._settled_for
+        return rows
+
+    def render(self) -> Text:
+        """The whole window as one Text: what the tests read, and what the screen holds."""
+        text = Text()
+        for y in range(self.size.height):
+            for segment in self.render_line(y):
+                text.append(segment.text, segment.style or "")
+            if y != self.size.height - 1:
+                text.append("\n")
+        return text
 
     def _caret_here(self, layout) -> tuple[int, int, bool] | None:
         """Where the caret hangs now, or None when no cell is being typed into."""
