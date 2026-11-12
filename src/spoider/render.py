@@ -28,7 +28,7 @@ from .layout import (
     selection_span,
 )
 from .model import DEFAULT_COLOURS
-from .text import clean, find_all
+from .text import clean, clusters, find_all
 
 R, D, L, U = 1, 2, 4, 8
 
@@ -104,19 +104,21 @@ class Grid:
         """Draw a run; `mask` marks the characters a search found."""
         seen = self._seen
         cells = self.cells
-        for index, ch in enumerate(text):
-            width = cell_len(ch)
+        # a glyph and its selectors are one thing on screen: drawn a code point at a time, the
+        # selector takes a column of its own and every glyph after an emoji is out by one
+        for index, cluster in enumerate(clusters(text)):
+            width = cell_len(cluster)
             # the whole row outside the window is skipped cell by cell, which is what makes a
             # picture cost the screen rather than the document
             if seen(x, y):
                 found = mask is not None and index < len(mask) and mask[index]
-                cells[(x, y)] = (ch, _marked(style) if found else style)
-                if ch.strip():
+                cells[(x, y)] = (cluster, _marked(style) if found else style)
+                if cluster.strip():
                     self.text.add((x, y))
-                if width == 2:
-                    self.wide.add((x + 1, y))
-                    if ch.strip():
-                        self.text.add((x + 1, y))
+                for extra in range(1, max(width, 1)):
+                    self.wide.add((x + extra, y))
+                    if cluster.strip():
+                        self.text.add((x + extra, y))
             x += max(width, 1)
 
     def add_edge(self, x: int, y: int, bits: int, style: str) -> None:
@@ -658,16 +660,9 @@ def paint_box(
         for x in range(1, top):
             put(x, index, " ")
         column = 1
-        # a base glyph and the selectors after it are one thing on screen, and only the
-        # whole cluster knows its width: `⚠` is one column, `⚠️` is two. The cluster goes
-        # in a single cell and the columns it covers are reserved as empty.
-        clusters: list[str] = []
-        for char in line:
-            if cell_len(char) == 0 and clusters:
-                clusters[-1] += char
-            else:
-                clusters.append(char)
-        for cluster in clusters:
+        # a base glyph and the selectors after it are one thing on screen: the cluster goes in
+        # a single cell and the columns it covers are reserved as empty
+        for cluster in clusters(line):
             cluster_width = cell_len(cluster)
             if column + cluster_width > top:
                 break
