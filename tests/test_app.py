@@ -1640,6 +1640,32 @@ async def test_typing_inside_a_line_does_not_redo_the_arrangement(
         assert calls, "a wider box moves its children, so the arrangement is redone"
 
 
+async def test_an_emoji_on_the_row_does_not_move_the_caret(tmp_path: Path):
+    """A wide glyph is one cell on two columns. A row is kept as cells, so a list position stops
+    being a screen column the moment an emoji appears: the caret is found by its column, and the
+    cell that sits there is the character it is on."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 20)) as pilot:
+        await pilot.pause()
+        one = app.mm.add_child(app.mm.root.id, "two")
+        one.mark = "⚠️"  # two code points, two columns, one cell
+        app.view.refresh_map()
+        app.select(one.id)
+        await pilot.pause()
+        await pilot.press("ctrl+e")
+        await pilot.pause()
+        await pilot.press("home")
+        await pilot.pause()
+
+        view = app.view
+        y = view._caret[1] - view._offset_y
+        columns, cells = view._rows_frame()[y]
+        under = [cells[i][0] for i, column in enumerate(columns) if column == view._caret[0]]
+        assert under == ["t"], (
+            f"the caret is on {under!r}: the emoji before it moved it out of step with the row"
+        )
+
+
 async def test_moving_the_caret_draws_no_map(tmp_path: Path, monkeypatch):
     """The caret is a style on one glyph of one row: moving it neither lays the map out again nor
     rebuilds its picture."""

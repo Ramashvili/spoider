@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from bisect import bisect_left
 from typing import TYPE_CHECKING, cast
 
 from rich.cells import cell_len
@@ -185,7 +186,7 @@ class MindMapView(Widget, can_focus=True):
         #: The caret's place in the grid, when a cell is being typed into.
         self._caret: tuple[int, int, bool] | None = None
         #: Every row of the window, drawn once for the frame this was drawn for.
-        self._rows: list[list[tuple[str, str]]] | None = None
+        self._rows: list[tuple[list[int], list[tuple[str, str]]]] | None = None
         self._rows_for: tuple | None = None
 
     # -- what the app says changed ------------------------------------
@@ -378,6 +379,10 @@ class MindMapView(Widget, can_focus=True):
         """Every row of the window as it is drawn: what the tests read, and what the eye sees."""
         return [self._row_at(y) for y in range(self.size.height)]
 
+    #: A row of the frame is the columns its cells sit on, and the cells themselves. The columns
+    #: are kept because a wide glyph is one cell on two columns: a list index stops being a screen
+    #: column the moment one appears, and the caret is placed by screen column.
+
     def render_line(self, y: int) -> Strip:
         """One row of the window, drawn from the arrangement and the camera."""
         width = self.size.width
@@ -393,17 +398,18 @@ class MindMapView(Widget, can_focus=True):
         again for it, and no other row is touched.
         """
         self._settle()
-        row = self._rows_frame()[y]
+        columns, cells = self._rows_frame()[y]
         caret = self._caret
         if caret is not None and caret[1] - self._offset_y == y:
-            x = caret[0] - self._offset_x
-            if 0 <= x < len(row):
-                glyph, style = row[x]
-                row = list(row)
-                row[x] = (glyph, caret_style(style, caret[2]))
-        return row
+            # by screen column, not by list position: a wide glyph is one cell on two columns
+            at = bisect_left(columns, caret[0])
+            if at < len(columns) and columns[at] == caret[0]:
+                glyph, style = cells[at]
+                cells = list(cells)
+                cells[at] = (glyph, caret_style(style, caret[2]))
+        return cells
 
-    def _rows_frame(self) -> list[list[tuple[str, str]]]:
+    def _rows_frame(self) -> list[tuple[list[int], list[tuple[str, str]]]]:
         """Every row of the window, drawn once for this frame.
 
         One picture for the whole window, cut into rows: a row drawn on its own would have to
@@ -412,6 +418,7 @@ class MindMapView(Widget, can_focus=True):
         """
         if self._rows is not None and self._rows_for == self._settled_for:
             return self._rows
+        # (each row keeps the columns its cells sit on, so the caret can be found by column)
         width, height = self.size
         chosen = self._chosen()
         panel = self.spoider.stack_layout()
@@ -425,16 +432,20 @@ class MindMapView(Widget, can_focus=True):
         )
         if panel is not None:
             grid = self._with_stack(grid, panel, width, height)
-        rows: list[list[tuple[str, str]]] = []
+        rows: list[tuple[list[int], list[tuple[str, str]]]] = []
         for row in range(height):
+            columns: list[int] = []
             cells: list[tuple[str, str]] = []
             for x in range(self._offset_x, self._offset_x + width):
                 if (x, self._offset_y + row) in grid.wide:
                     continue
+                columns.append(x)
                 cells.append(grid.cells.get((x, self._offset_y + row), (" ", "")))
-            rows.append(cells)
+            rows.append((columns, cells))
         if self.spoider.show_properties:
-            paint_box(rows, self._property_sections(), LINK_COLOR)
+            painted = [row for _columns, row in rows]
+            paint_box(painted, self._property_sections(), LINK_COLOR)
+            rows = [(columns, cells) for (columns, _old), cells in zip(rows, painted, strict=False)]
         self._rows, self._rows_for = rows, self._settled_for
         return rows
 
