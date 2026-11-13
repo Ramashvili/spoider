@@ -127,18 +127,14 @@ def towards(mm: MindMap, layout, here: str, dx: int, dy: int) -> str | None:
     return best
 
 
-def nearest(
-    mm: MindMap, layout, here: str, dx: int, dy: int, only: set[str] | None = None
-) -> str | None:
-    """The cell nearest in the direction pressed, as a reader's eye takes it.
+def nearest(mm: MindMap, layout, here: str, dx: int, dy: int) -> str | None:
+    """The cell a step reaches when it has to cross the picture rather than the tree.
 
-    Wholly ahead: a cell that is beside us but starts in our own column is not to the right of
-    us. Among those, the closest line wins — the same row for a sidewise step, the same column
-    for one up or down — and between two on one line, the shorter gap between the boxes.
-
-    The stack panel asks this rather than `towards`, because its picture is a list of little
-    trees rather than one tree: a cell on our own level may sit forty rows away, while the cell
-    the eye calls next is the one beside it on the same line.
+    Wholly ahead, because a cell beside us that starts in our own column is not to our right of
+    us. Then the closest line, measured between the boxes' bands across that way — the rows for a
+    sidewise step, the columns for one up or down — so a wide cell shares a line with a narrow one
+    beside it and a tall cell shares a column with a short one. Bands that touch or overlap are the
+    same line. Then the shorter gap, between the boxes' nearest edges.
     """
     start = layout.boxes.get(here)
     if start is None:
@@ -146,18 +142,22 @@ def nearest(
     best: str | None = None
     best_key: tuple[int, int] | None = None
     for box in layout.boxes.values():
-        if box.node.id == here or (only is not None and box.node.id not in only):
+        if box.node.id == here:
             continue
         if dx > 0:
-            ahead, across = box.x - start.right, abs(box.cy - start.cy)
+            ahead = box.x - start.right
         elif dx < 0:
-            ahead, across = start.x - box.right, abs(box.cy - start.cy)
+            ahead = start.x - box.right
         elif dy > 0:
-            ahead, across = box.y - start.bottom, abs(box.cx - start.cx)
+            ahead = box.y - start.bottom
         else:
-            ahead, across = start.y - box.bottom, abs(box.cx - start.cx)
+            ahead = start.y - box.bottom
         if ahead < 0:
             continue
+        if dx:
+            across = max(0, max(box.y - start.bottom, start.y - box.bottom))
+        else:
+            across = max(0, max(box.x - start.right, start.x - box.right))
         key = (across, ahead)
         if best_key is None or key < best_key:
             best, best_key = box.node.id, key
