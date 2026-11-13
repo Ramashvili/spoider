@@ -134,13 +134,14 @@ def nearest(mm: MindMap, layout, here: str, dx: int, dy: int) -> str | None:
     us. Then the closest line, measured between the boxes' bands across that way — the rows for a
     sidewise step, the columns for one up or down — so a wide cell shares a line with a narrow one
     beside it and a tall cell shares a column with a short one. Bands that touch or overlap are the
-    same line. Then the shorter gap, between the boxes' nearest edges.
+    same line. Then the shorter gap, between the boxes' nearest edges, and a cell on our own
+    level of the tree breaks an exact tie.
     """
     start = layout.boxes.get(here)
     if start is None:
         return None
     best: str | None = None
-    best_key: tuple[int, int] | None = None
+    best_key: tuple[int, int, int] | None = None
     for box in layout.boxes.values():
         if box.node.id == here:
             continue
@@ -158,7 +159,8 @@ def nearest(mm: MindMap, layout, here: str, dx: int, dy: int) -> str | None:
             across = max(0, max(box.y - start.bottom, start.y - box.bottom))
         else:
             across = max(0, max(box.x - start.right, start.x - box.right))
-        key = (across, ahead)
+        same_level = 0 if box.depth == start.depth else 1
+        key = (across, ahead, same_level)
         if best_key is None or key < best_key:
             best, best_key = box.node.id, key
     return best

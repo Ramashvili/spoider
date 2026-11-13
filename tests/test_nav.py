@@ -176,6 +176,25 @@ def test_nothing_in_that_direction_means_no_move():
     assert nav.towards(mm, layout, nodes["g1"].id, +1, 0) is None
 
 
+def test_a_cell_on_our_own_level_breaks_an_exact_tie():
+    """Two cells the same distance away, one above our line and one below it: the one at our
+    depth wins, because it is the one the reader is reading along."""
+    mm = MindMap(Node("root"))
+    here = mm.add_child(mm.root.id, "here")
+    above = Node("above")
+    below = Node("below")
+
+    def layout_for(above_depth: int, below_depth: int):
+        return layout_of(
+            placed(here, 0, 0, w=8, depth=2),
+            placed(above, 20, -4, w=8, depth=above_depth),
+            placed(below, 20, 4, w=8, depth=below_depth),
+        )
+
+    assert nav.nearest(mm, layout_for(3, 2), here.id, +1, 0) == below.id
+    assert nav.nearest(mm, layout_for(2, 3), here.id, +1, 0) == above.id
+
+
 def test_only_a_parent_child_or_sibling_counts_as_a_relative():
     mm = MindMap(Node("root"))
     one = mm.add_child(mm.root.id, "one")
