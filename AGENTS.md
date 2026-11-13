@@ -65,12 +65,15 @@ Do not derive the branch at runtime or bake a build file: a frozen install can d
 version already says what is needed.
 
 
-A version marks a state whose checks passed. Bump and tag in the same breath, after the
-run is green, never on the way in:
+A version marks a state whose checks passed here. Bump and tag in the same breath, once the
+run here is green, and push the commit and its tag together:
 
 ```
-change → commit → push → checks green → bump + tag → push --follow-tags
+change → commit → checks green here → bump + tag → push --follow-tags
 ```
+
+The runner confirms after the fact rather than before: a red run is answered in the next commit,
+not by holding the tag back.
 
 - **Repairing the check is not a version.** A test that failed on the runner, and a test
   rewritten so it stops failing, are a fix to the check rather than a change anyone can
