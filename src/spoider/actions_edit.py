@@ -84,9 +84,8 @@ class EditActions:
             return
         self._state_key = state
         if picture == self._picture_key:
-            # the caret moved, or the mode did. Marking the two cells dirty was measured and
-            # is slower, because Textual rebuilds the widget's whole content either way.
-            self.view.refresh()
+            # the caret moved, or the mode did: two rows of the screen, and nothing else
+            self.view.refresh_caret()
             return
         self._picture_key = picture
         if self._kept_its_size(node):

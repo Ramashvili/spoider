@@ -94,9 +94,24 @@ def expand_tabs(text: str) -> str:
     return "\n".join(lines)
 
 
+def clusters(text: str) -> list[str]:
+    """`text` split into what a terminal draws as one thing: a glyph and the selectors after it.
+
+    `⚠` is one column and `⚠️` is two, and only the whole cluster knows which: counting code
+    points, or drawing them one at a time, puts every glyph after an emoji one column out.
+    """
+    out: list[str] = []
+    for char in text:
+        if cell_len(char) == 0 and out:
+            out[-1] += char
+        else:
+            out.append(char)
+    return out
+
+
 def text_width(text: str) -> int:
-    """How many cells `text` occupies once its tabs are drawn."""
-    return cell_len(expand_tabs(text))
+    """How many columns `text` occupies once its tabs are drawn."""
+    return sum(cell_len(cluster) for cluster in clusters(expand_tabs(text)))
 
 
 def one_line(value: object) -> str:

@@ -14,6 +14,27 @@ it matters: argparse lays an invocation out differently from 3.13 on, and a test
 reads a rendering passes on one and fails on the other. Write assertions against the
 property, and run the version you are not on when the assertion touches output.
 
+## Rendering
+
+The map is drawn a line at a time. `MindMapView.render_line(y)` gives Textual one row, and the view
+marks only the rows that changed dirty (`refresh(Region(0, row, width, 1))`): Textual keeps the
+lines it holds and asks again only for those. A caret move is two rows, a cursor move is the rows of
+the two cells, a letter is the rows of the cells that moved.
+
+Two rules that cost time to learn:
+
+- a row is cut from a picture of the window, never drawn on its own. The connectors between two
+  cells resolve from the rows above and below them, so a row built with a window one row tall
+  breaks every junction and every corner;
+- the rows of a frame are drawn *without* the caret, and the caret is applied to one glyph when the
+  row is handed over. A caret move then costs a copied row rather than a rebuilt picture.
+
+What the numbers say, 541 cells at 200x50 in a terminal: a caret move 2.3 ms, an arrow on the map
+9.7 ms, a letter 19 ms. The letter is barely better than it was because a smooth camera pans one
+column per letter, so every row is a different row: what dominates a letter is Textual chopping ten
+thousand columns, not our drawing. A window that held still while a cell was typed into, or a map
+cut into bands, is what would move that number, and both cost something the reader can see.
+
 ## Commands
 
 ```bash
@@ -27,6 +48,22 @@ A change is not done until all three are clean and there is a test that fails wi
 it.
 
 ## Versions and tags
+
+The version is the only thing a frozen install knows about where it came from: a wheel carries no
+`.git`, no branch and no working tree. So the tier that says *which build this is* is the version's
+local label, and the top bar prints it without any other machinery.
+
+- `0.5.3` is the version: what would be published, numbered by the rule above — a minor only when
+  something about files or config changes.
+- `0.5.3+redraw` is a candidate: the same version built from a branch that is not ready to publish.
+  Bump the label when you reinstall for a new round (`+redraw.2`), so a stale install cannot
+  pretend to be the build just made.
+- `main` carries no label; dropping it is the act of releasing, because the index refuses a local
+  version.
+
+Do not derive the branch at runtime or bake a build file: a frozen install can do neither, and the
+version already says what is needed.
+
 
 A version marks a state whose checks passed. Bump and tag in the same breath, after the
 run is green, never on the way in:
