@@ -6,7 +6,7 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
-dependencies = ["textual>=1.0,<7"]
+dependencies = ["textual>=1.0,<9"]
 
 [project.scripts]
 spoider = "spoider.app:main"
