@@ -1666,11 +1666,15 @@ async def test_an_emoji_on_the_row_does_not_move_the_caret(tmp_path: Path):
         )
 
 
-async def test_the_help_page_leaves_the_keys_on_the_last_row(tmp_path: Path):
+@pytest.mark.parametrize("size", [(200, 50), (160, 44), (120, 30), (100, 20), (60, 15)])
+async def test_the_help_page_leaves_the_keys_on_the_last_row(tmp_path: Path, size):
     """The help is a page, so it takes every row the top line leaves and the bar of keys
-    stays on the bottom row, where the eye looks for it in every other mode."""
+    stays on the bottom row, where the eye looks for it in every other mode. It takes what
+    is left rather than counting rows: a screen that shows one more line of chrome must not
+    push the bar off the bottom."""
+    width, height = size
     app = SpoiderApp(demo=True, config_path=tmp_path / "k.conf")
-    async with app.run_test(size=(100, 20)) as pilot:
+    async with app.run_test(size=(width, height)) as pilot:
         await pilot.pause()
         await pilot.press("?")
         await pilot.pause()
@@ -1678,9 +1682,9 @@ async def test_the_help_page_leaves_the_keys_on_the_last_row(tmp_path: Path):
         page = app.query_one(PanelBar)
         bar = app.query_one("#footer")
         assert bar.region.y == app.size.height - 1, (
-            f"the keys sit on row {bar.region.y} of {app.size.height}"
+            f"at {width}x{height} the keys sit on row {bar.region.y}"
         )
-        assert page.region.y == 1 and page.region.bottom == bar.region.y, (
+        assert page.region.bottom == bar.region.y, (
             "the page does not fill the rows between the top line and the keys"
         )
 

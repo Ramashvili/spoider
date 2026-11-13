@@ -9,6 +9,7 @@ second footer to keep in step with the first.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TYPE_CHECKING, cast
 
 from rich.cells import cell_len
 from rich.text import Text
@@ -19,6 +20,9 @@ from .chrome import ERROR_STYLE, FAILURE
 from .editing import Buffer
 from .model import MAX_PROMPT_CHARS
 from .text import clean, clip_head, clip_tail
+
+if TYPE_CHECKING:
+    from .app import SpoiderApp
 
 
 class Drawer(Widget, can_focus=True):
@@ -504,13 +508,19 @@ class PanelBar(Drawer):
         self._text = text
         self._offset = 0
         self._key_handler = on_key
-        rows = max(1, text.plain.count("\n") + 1)
-        # the page takes every row between the top line and the bar of keys, so the bar is
-        # the last row of the screen and the text scrolls inside the page, not the screen
-        room = max(3, self.app.size.height - 2)
-        self._rows = min(rows, room)
-        self.styles.height = room
+        # the page takes every row the top line and the bar of keys leave, whatever else the
+        # screen is showing: the bar is the last row, and the text scrolls inside the page
+        self.styles.height = "1fr"
+        self._rows = max(1, text.plain.count("\n") + 1)
         self.open()
+
+    def on_resize(self, event: events.Resize) -> None:
+        """The window over the text is however many rows the page has been given, and the
+        bar of keys says whether it scrolls, so it is set again when that number moves."""
+        self._rows = max(1, self.size.height)
+        self.refresh()
+        if self.display:
+            cast("SpoiderApp", self.app).refresh_footer()
 
     @property
     def rows(self) -> int:

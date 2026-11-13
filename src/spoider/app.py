@@ -1143,6 +1143,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         return self.mm.find(node_id)
 
 
+    def refresh_footer(self) -> None:
+        """Set the bar of keys again: a drawer may have changed what it can offer."""
+        self._sync_footer()
+
     def _sync_footer(self) -> None:
         """The bar never leaves; it swaps to the keys of whatever has them now."""
         footer = self.query_one("#footer", FooterBar)
