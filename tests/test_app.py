@@ -14,7 +14,7 @@ from spoider.drawers import AskBar, ErrorBar, NoticeBar, PanelBar, PromptBar
 from spoider.layout import compute
 from spoider.model import LAYOUTS, MindMap, Node
 from spoider.screens import HELP, help_text, keys_for
-from spoider.widgets import MindMapView, TopBar, compose_top_bar
+from spoider.widgets import MindMapView, TopBar, compose_top_bar, stack_column
 
 
 def _asking_for_autosave(tmp_path: Path) -> Path:
@@ -1683,6 +1683,32 @@ async def test_the_help_page_leaves_the_keys_on_the_last_row(tmp_path: Path):
         assert page.region.y == 1 and page.region.bottom == bar.region.y, (
             "the page does not fill the rows between the top line and the keys"
         )
+
+
+async def test_a_stack_entry_wider_than_its_column_shifts_into_view(tmp_path: Path):
+    """The stack takes half the screen at most, so a wide entry cannot be shown whole. The page
+    moves left as little as it takes to keep what is being typed into in the column, instead of
+    drawing past the edge of the screen and losing the caret with it."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 20)) as pilot:
+        await pilot.pause()
+        wide = app.mm.add_child(app.mm.root.id, "an entry " + "wide " * 20)
+        app.view.refresh_map()
+        app.select(wide.id)
+        await pilot.press("ctrl+k")
+        await pilot.press("p")
+        await pilot.pause()
+        await pilot.press("ctrl+e")
+        await pilot.press("End")
+        await pilot.pause()
+
+        view = app.view
+        wall = view.size.width - stack_column(view.spoider.stack_layout(), view.size.width)
+        assert wall < view._caret[0] < view.size.width, (
+            f"the caret is at column {view._caret[0]}, outside the column that starts at {wall}"
+        )
+        drawn = "".join(glyph for glyph, _style in view.screen_cells()[3][wall:])
+        assert not drawn.startswith("an entry"), "the page did not move: still the clipped left end"
 
 
 async def test_moving_the_caret_draws_no_map(tmp_path: Path, monkeypatch):

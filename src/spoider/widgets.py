@@ -472,7 +472,25 @@ class MindMapView(Widget, can_focus=True):
         focus = panel.box(chosen) if chosen else None
         if focus is not None and focus.y + BOX_H + 2 > height - 1:
             shift = focus.y + BOX_H + 2 - (height - 1)
-        return wall + 2, 2 - shift
+        return wall + 2 - self._panel_shift(panel, width), 2 - shift
+
+    def _panel_shift(self, panel: Layout, width: int) -> int:
+        """How far the stack's page is moved left, so that the chosen entry is in the column.
+
+        The column is at most half the screen, so an entry wider than that cannot be shown
+        whole. The smallest shift that keeps it whole is the one taken; when it is too wide for
+        that, the shift follows the caret instead, and the left edge when nothing is being typed.
+        """
+        chosen = self.spoider.selected
+        focus = panel.box(chosen) if chosen else None
+        if focus is None:
+            return 0
+        inner = max(0, stack_column(panel, width) - 3)
+        if focus.w <= inner:
+            return max(0, focus.x + focus.w - inner)
+        at = caret_cell(focus, panel.walls) if focus.node.preview is not None else None
+        x = at[0] if at is not None else focus.x
+        return max(0, x - inner)
 
     def _caret_here(self, layout) -> tuple[int, int, bool] | None:
         """Where the caret hangs now, in grid coordinates, or None when nothing is being typed.
@@ -545,13 +563,14 @@ class MindMapView(Widget, can_focus=True):
             depth_shift=DEPTH_COLORS.index(STACK_START) + 1,
         )
         left, top = self._panel_origin(panel, width, height)
+        shift = self._panel_shift(panel, width)
         for (x, y), cell in art.cells.items():
             row = top + y
-            if x <= inner and 0 < row < height:
+            if shift <= x <= shift + inner and 0 < row < height:
                 combined.cells[(self._offset_x + left + x, self._offset_y + row)] = cell
         for x, y in art.wide:
             row = top + y
-            if x <= inner and 0 < row < height:
+            if shift <= x <= shift + inner and 0 < row < height:
                 combined.wide.add((self._offset_x + left + x, self._offset_y + row))
         return combined
 
