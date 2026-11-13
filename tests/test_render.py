@@ -519,7 +519,7 @@ def test_the_caret_inverts_its_character_and_does_not_split_the_word():
     settled_box = settled.box(plain.id)
     editing_box = editing.box(typed.id)
     assert editing_box is not None and settled_box is not None
-    assert editing_box.w == settled_box.w + 1, "one reserved column, wherever the caret is"
+    assert editing_box.w == settled_box.w, "typing into a cell does not widen it"
 
     _, text = _styled(MindMap(typed))
     assert "alpha" in text.plain, "the word is whole"
@@ -529,16 +529,20 @@ def test_the_caret_inverts_its_character_and_does_not_split_the_word():
     assert text.plain.index("alpha") > 0
 
 
-def test_the_caret_at_the_end_takes_one_blank_column():
+def test_the_caret_at_the_end_sits_in_the_padding_of_the_same_box():
+    """Typing into a cell does not stretch it: the blank column the box already keeps before its
+    right wall is where the caret sits once it is past the last character."""
     settled = Node("alpha")
     plain = compute(MindMap(settled).root, 0)
     typed = Node("alpha")
     typed.preview, typed.caret = "alpha", 5
     editing = compute(MindMap(typed).root, 0)
-    assert editing.box(typed.id).w == plain.box(settled.id).w + 1
+    assert editing.box(typed.id).w == plain.box(settled.id).w, "the box kept its width"
 
     _, text = _styled(MindMap(typed))
-    assert any("reverse" in str(span.style) for span in text.spans)
+    reversed_cells = [span for span in text.spans if "reverse" in str(span.style)]
+    assert len(reversed_cells) == 1, "the caret is shown"
+    assert text.plain[reversed_cells[0].start] == " ", "on the blank the box keeps at its end"
 
 
 def test_the_cells_width_does_not_change_as_the_caret_moves():

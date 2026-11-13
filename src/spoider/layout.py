@@ -187,9 +187,9 @@ def box_width(node: Node, walls: bool = True) -> int:
     edge = 2 if walls else 0
     width = max((cell_len(line) for line in lines_of(node)), default=0) + 2 * PAD + edge
     width += mark_cells(node)
-    if node.preview is not None:
-        width += 1  # the caret's column, kept even when it hangs over a character:
-        # a box that changes width as the caret moves re-centres the whole map
+    # No extra column for the caret: a cell being typed into is the same width as a settled
+    # one, so entering it does not stretch it. At the end of the text the caret sits on the
+    # right wall, which shows it without a column of its own.
     return width
 
 
