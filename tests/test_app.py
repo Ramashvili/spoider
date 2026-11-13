@@ -1666,6 +1666,25 @@ async def test_an_emoji_on_the_row_does_not_move_the_caret(tmp_path: Path):
         )
 
 
+async def test_the_help_page_leaves_the_keys_on_the_last_row(tmp_path: Path):
+    """The help is a page, so it takes every row the top line leaves and the bar of keys
+    stays on the bottom row, where the eye looks for it in every other mode."""
+    app = SpoiderApp(demo=True, config_path=tmp_path / "k.conf")
+    async with app.run_test(size=(100, 20)) as pilot:
+        await pilot.pause()
+        await pilot.press("?")
+        await pilot.pause()
+
+        page = app.query_one(PanelBar)
+        bar = app.query_one("#footer")
+        assert bar.region.y == app.size.height - 1, (
+            f"the keys sit on row {bar.region.y} of {app.size.height}"
+        )
+        assert page.region.y == 1 and page.region.bottom == bar.region.y, (
+            "the page does not fill the rows between the top line and the keys"
+        )
+
+
 async def test_moving_the_caret_draws_no_map(tmp_path: Path, monkeypatch):
     """The caret is a style on one glyph of one row: moving it neither lays the map out again nor
     rebuilds its picture."""

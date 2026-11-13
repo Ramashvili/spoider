@@ -505,9 +505,11 @@ class PanelBar(Drawer):
         self._offset = 0
         self._key_handler = on_key
         rows = max(1, text.plain.count("\n") + 1)
-        room = max(3, self.app.size.height - 4)  # the bar, the top line, a little map
+        # the page takes every row between the top line and the bar of keys, so the bar is
+        # the last row of the screen and the text scrolls inside the page, not the screen
+        room = max(3, self.app.size.height - 2)
         self._rows = min(rows, room)
-        self.styles.height = self._rows
+        self.styles.height = room
         self.open()
 
     @property
