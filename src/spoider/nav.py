@@ -178,6 +178,21 @@ def tree_root(mm: MindMap, node_id: str) -> str:
     return node_id
 
 
+def to_entry(mm: MindMap, node_id: str) -> str:
+    """The entry this cell belongs to: the top of the cut's own tree.
+
+    A cut stack is one document whose root nothing draws, so the walk up stops at the entry
+    rather than at that root — each entry is a tree with a main cell of its own.
+    """
+    node = mm.find(node_id)
+    while node is not None:
+        parent = mm.parent(node.id)
+        if parent is None or parent.id == mm.root.id:
+            return node.id
+        node = parent
+    return node_id
+
+
 def to_home(mm: MindMap, node_id: str) -> str:
     """The main cell of the tree the cursor is in."""
     return tree_root(mm, node_id)

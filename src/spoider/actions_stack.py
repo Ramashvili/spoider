@@ -180,6 +180,16 @@ class StackActions:
             self._stack_select(doc, nav.to_child(doc, selected))
         elif action == "go_left":
             self._stack_select(doc, nav.to_parent(doc, selected))
+        elif action == "go_home":
+            # the panel's root is a cell nothing draws, so home is the entry's own main cell
+            self._stack_select(doc, nav.to_entry(doc, selected))
+        elif action == "go_end":
+            self._stack_select(doc, nav.to_end(doc, selected))
+        elif action == "top_sibling":
+            # the entries are siblings under that invisible root, so this is the first entry
+            self._stack_select(doc, nav.to_extreme_sibling(doc, selected, last=False))
+        elif action == "bottom_sibling":
+            self._stack_select(doc, nav.to_extreme_sibling(doc, selected, last=True))
         elif action == "edit":
             if doc.find(selected) is not None:
                 self.begin_edit(selected)

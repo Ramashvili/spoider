@@ -1715,6 +1715,58 @@ async def test_a_stack_entry_wider_than_its_column_shifts_into_view(tmp_path: Pa
         assert not drawn.startswith("an entry"), "the page did not move: still the clipped left end"
 
 
+async def test_the_page_keys_work_inside_the_stack(tmp_path: Path):
+    """The panel's root is a cell nothing draws, so the page keys had nothing to climb to and
+    did nothing. They mean what they mean on the map: first and last sibling, which at the top
+    level is the first and last entry, the deepest cell below, and the entry's own main cell."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        one = app.mm.add_child(app.mm.root.id, "one")
+        kid = app.mm.add_child(one.id, "kid")
+        app.mm.add_child(kid.id, "deep")
+        two = app.mm.add_child(app.mm.root.id, "two")
+        app.mm.add_child(app.mm.root.id, "three")
+        app.view.refresh_map()
+        for node in (one, two):
+            app.select(node.id)
+            await pilot.pause()
+            await pilot.press("ctrl+k")
+            await pilot.pause()
+        await pilot.press("p")
+        await pilot.pause()
+
+        doc = app._stack_doc()
+        assert [node.text for node in doc.root.children] == ["two", "one"], "newest first"
+
+        def here() -> str:
+            node = doc.find(app.selected)
+            return node.text if node else "nothing"
+
+        app.select(one.id)
+        await pilot.pause()
+        await pilot.press("pageup")
+        await pilot.pause()
+        assert here() == "two", "pageup is the first entry under the panel's root"
+
+        await pilot.press("pagedown")
+        await pilot.pause()
+        assert here() == "one", "pagedown is the last entry"
+
+        await pilot.press("right")
+        await pilot.press("right")
+        await pilot.pause()
+        assert here() == "deep"
+
+        await pilot.press("home")
+        await pilot.pause()
+        assert here() == "one", "home is the entry's main cell, not the top of the panel"
+
+        await pilot.press("end")
+        await pilot.pause()
+        assert here() == "deep", "end is the deepest cell below"
+
+
 async def test_moving_the_caret_draws_no_map(tmp_path: Path, monkeypatch):
     """The caret is a style on one glyph of one row: moving it neither lays the map out again nor
     rebuilds its picture."""
