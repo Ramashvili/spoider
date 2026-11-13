@@ -1767,6 +1767,86 @@ async def test_the_page_keys_work_inside_the_stack(tmp_path: Path):
         assert here() == "deep", "end is the deepest cell below"
 
 
+async def test_the_panel_moves_by_the_maps_rule(tmp_path: Path):
+    """The panel's arrows are the map's: the shape answers when it names a relative, and where
+    it has none, the panel's own arrangement answers, so a leaf is not a dead end. The entries
+    are the document's top level, so they are siblings of one another. Distance in the panel is
+    the reader's: wholly ahead, the closest line, then the shorter gap."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        a = app.mm.add_child(app.mm.root.id, "A")
+        a1 = app.mm.add_child(a.id, "A1")
+        a2 = app.mm.add_child(a.id, "A2")
+        app.mm.add_child(a2.id, "A2a")
+        b = app.mm.add_child(app.mm.root.id, "B")
+        app.mm.add_child(b.id, "B1")
+        app.mm.add_child(app.mm.root.id, "keep")
+        app.view.refresh_map()
+        for node in (b, a):  # B cut first, so the panel reads A then B
+            app.select(node.id)
+            await pilot.pause()
+            await pilot.press("ctrl+k")
+            await pilot.pause()
+        await pilot.press("p")
+        await pilot.pause()
+
+        doc = app._stack_doc()
+        layout = app.stack_layout()
+
+        def here() -> str:
+            node = doc.find(app.selected)
+            return node.text if node else "nothing"
+
+        def at(text: str) -> int:
+            node = next(n for e in app._stack_entries() for n in _walk(e) if n.text == text)
+            return layout.box(node.id).x
+
+        # a leaf asks the arrangement, and reaches the cell on its line, further right
+        app.select(a1.id)
+        await pilot.pause()
+        await pilot.press("right")
+        await pilot.pause()
+        assert here() == "A2a", f"→ from a leaf reached {here()!r}, not the cell on its line"
+        assert at("A2a") > at("A1")
+
+        # the end of an entry reaches the entry below at the cell facing it
+        await pilot.press("down")
+        await pilot.pause()
+        assert here() == "B1", f"↓ from the end of an entry reached {here()!r}, not B1"
+
+        # the entries are siblings of one another: ↑ from the lower one reaches the upper
+        app.select(b.id)
+        await pilot.pause()
+        await pilot.press("up")
+        await pilot.pause()
+        assert here() == "A", f"↑ from the lower entry reached {here()!r}"
+
+        # and at the top there is nothing above, so it does not wrap round to the last
+        app.select(a.id)
+        await pilot.pause()
+        await pilot.press("up")
+        await pilot.pause()
+        assert here() != "B", "↑ wrapped round to the last entry"
+
+        # a folded entry opens rather than swallowing the step
+        a.collapsed = True
+        app.view.refresh()
+        await pilot.pause()
+        app.select(a.id)
+        await pilot.pause()
+        await pilot.press("right")
+        await pilot.pause()
+        assert here() == "A", "→ moved while the entry was folded"
+        assert a.collapsed is False, "→ did not open the folded entry"
+
+
+def _walk(node):
+    yield node
+    for kid in node.children:
+        yield from _walk(kid)
+
+
 async def test_moving_the_caret_draws_no_map(tmp_path: Path, monkeypatch):
     """The caret is a style on one glyph of one row: moving it neither lays the map out again nor
     rebuilds its picture."""

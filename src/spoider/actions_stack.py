@@ -17,6 +17,9 @@ from .layout import compute_stack
 from .model import MindMap, Node
 from .nav import _standing_after
 
+#: The four arrows, as the step each one takes across the canvas.
+_ARROWS = {"go_left": (-1, 0), "go_right": (1, 0), "go_up": (0, -1), "go_down": (0, 1)}
+
 
 class StackActions:
     def action_cut(self) -> None:
@@ -172,14 +175,8 @@ class StackActions:
             return False
         if action == "toggle_stack" or key in ("escape", "ctrl+c"):
             self.action_toggle_stack()
-        elif action == "go_up":
-            self._stack_select(doc, nav.to_sibling(doc, selected, -1))
-        elif action == "go_down":
-            self._stack_select(doc, nav.to_sibling(doc, selected, 1))
-        elif action == "go_right":
-            self._stack_select(doc, nav.to_child(doc, selected))
-        elif action == "go_left":
-            self._stack_select(doc, nav.to_parent(doc, selected))
+        elif action in _ARROWS:
+            self._stack_go(doc, selected, action)
         elif action == "go_home":
             # the panel's root is a cell nothing draws, so home is the entry's own main cell
             self._stack_select(doc, nav.to_entry(doc, selected))
@@ -246,6 +243,43 @@ class StackActions:
         else:
             return False
         return True
+    def _stack_go(self, doc: MindMap, selected: str, action: str) -> None:
+        """An arrow in the panel, by the map's own rule.
+
+        The entries are the children of the document's invisible root, so they are siblings to
+        one another: up and down walk them, right goes into an entry's children and left comes
+        back out. What the shape cannot answer, the panel's own arrangement answers, exactly as
+        the map's canvas does — so a leaf is not a dead end and the arrows cross between entries
+        the way they cross between branches.
+        """
+        dx, dy = _ARROWS[action]
+        if action == "go_up":
+            target = nav.to_sibling(doc, selected, -1)
+        elif action == "go_down":
+            target = nav.to_sibling(doc, selected, 1)
+        elif action == "go_right":
+            target = nav.to_child(doc, selected)
+        else:
+            target = nav.to_parent(doc, selected)
+
+        lead = doc.find(selected)
+        if lead is not None and lead.collapsed and any(
+            child.id == target for child in lead.children
+        ):
+            # a folded entry opens before the cursor walks in, as on the map
+            self._push_undo()
+            lead.collapsed = False
+            self._stack_changed()
+            return
+        if target == doc.root.id:
+            target = selected  # the invisible root is not a cell to stand on
+        if target != selected and nav.is_direct_relative(doc, selected, target):
+            self._stack_select(doc, target)
+            return
+        layout = self.stack_layout()
+        reached = nav.nearest(doc, layout, selected, dx, dy) if layout is not None else None
+        self._stack_select(doc, reached or selected)
+
     def _stack_reorder(self, doc: MindMap, node_id: str, delta: int) -> None:
         """Move a cell among its siblings inside the panel. For an entry at the
         top level that is the stack's own order, so alt+↑ puts it nearer the top."""

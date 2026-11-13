@@ -127,6 +127,43 @@ def towards(mm: MindMap, layout, here: str, dx: int, dy: int) -> str | None:
     return best
 
 
+def nearest(
+    mm: MindMap, layout, here: str, dx: int, dy: int, only: set[str] | None = None
+) -> str | None:
+    """The cell nearest in the direction pressed, as a reader's eye takes it.
+
+    Wholly ahead: a cell that is beside us but starts in our own column is not to the right of
+    us. Among those, the closest line wins — the same row for a sidewise step, the same column
+    for one up or down — and between two on one line, the shorter gap between the boxes.
+
+    The stack panel asks this rather than `towards`, because its picture is a list of little
+    trees rather than one tree: a cell on our own level may sit forty rows away, while the cell
+    the eye calls next is the one beside it on the same line.
+    """
+    start = layout.boxes.get(here)
+    if start is None:
+        return None
+    best: str | None = None
+    best_key: tuple[int, int] | None = None
+    for box in layout.boxes.values():
+        if box.node.id == here or (only is not None and box.node.id not in only):
+            continue
+        if dx > 0:
+            ahead, across = box.x - start.right, abs(box.cy - start.cy)
+        elif dx < 0:
+            ahead, across = start.x - box.right, abs(box.cy - start.cy)
+        elif dy > 0:
+            ahead, across = box.y - start.bottom, abs(box.cx - start.cx)
+        else:
+            ahead, across = start.y - box.bottom, abs(box.cx - start.cx)
+        if ahead < 0:
+            continue
+        key = (across, ahead)
+        if best_key is None or key < best_key:
+            best, best_key = box.node.id, key
+    return best
+
+
 def child_towards(mm: MindMap, layout, here: str, dx: int, dy: int) -> str | None:
     """The child the canvas puts nearest in the direction pressed.
 
