@@ -18,6 +18,7 @@ from spoider.render import (
     STACK_START,
     build_grid,
     cache_window,
+    caret_cell,
     render_text,
 )
 
@@ -462,6 +463,42 @@ def _styled(mm: MindMap):
     return layout, text
 
 
+def _at(text: Text, x: int, y: int) -> tuple[str, str]:
+    """The glyph and style at a place in a rendered picture, by its own line lengths."""
+    lines = text.split("\n")
+    index = sum(len(line.plain) + 1 for line in lines[:y]) + x
+    glyph = text.plain[index]
+    style = str(text.style)
+    for span in text.spans:
+        if span.start <= index < span.end:
+            style = str(span.style)
+    return glyph, style
+
+
+def test_the_cell_being_typed_into_wears_a_solid_left_wall():
+    """A filled block down the left wall, in the cell's own colour, says which cell the keys are
+    in, and it is a wall again when the typing stops."""
+    node = Node("alpha")
+    settled = _styled(MindMap(node))[0].box(node.id)
+
+    typed = Node("alpha")
+    typed.preview, typed.caret = "alpha", 2
+    layout = compute(MindMap(typed).root, 0)
+    grid = build_grid(layout, ())
+    box = layout.box(typed.id)
+
+    left = [grid.cells[(box.x, y)] for y in range(box.y, box.y + box.h)]
+    assert [glyph for glyph, _style in left] == ["█"] * box.h, "the wall is one column of blocks"
+    right = [grid.cells[(box.x + box.w - 1, y)] for y in range(box.y + 1, box.y + box.h - 1)]
+    wall_colours = {style.replace(" reverse", "").strip() for _glyph, style in right}
+    assert {style for _glyph, style in left} == wall_colours, "the block wears the cell's colour"
+    assert all("reverse" not in style for _glyph, style in left), "not by reversing"
+
+    plain = build_grid(compute(MindMap(settled.node).root, 0), ())
+    assert (settled.x, settled.y) in plain.cells
+    assert plain.cells[(settled.x, settled.y)][0] != "█", "a settled cell has its corner back"
+
+
 def _big_map() -> MindMap:
     mm = MindMap(Node("root"))
     for index in range(6):
@@ -523,10 +560,10 @@ def test_the_caret_inverts_its_character_and_does_not_split_the_word():
 
     _, text = _styled(MindMap(typed))
     assert "alpha" in text.plain, "the word is whole"
-    reversed_cells = [span for span in text.spans if "reverse" in str(span.style)]
-    assert len(reversed_cells) == 1, "exactly one cell is inverted, and it is the caret"
-    assert text.plain[reversed_cells[0].start] == "p", "the character under the caret"
-    assert text.plain.index("alpha") > 0
+    x, y = caret_cell(editing_box)
+    glyph, style = _at(text, x, y)
+    assert glyph == "p", "the character under the caret"
+    assert "reverse" in style, "the caret is shown by reversing what it is on"
 
 
 def test_the_caret_at_the_end_sits_in_the_padding_of_the_same_box():
@@ -540,9 +577,10 @@ def test_the_caret_at_the_end_sits_in_the_padding_of_the_same_box():
     assert editing.box(typed.id).w == plain.box(settled.id).w, "the box kept its width"
 
     _, text = _styled(MindMap(typed))
-    reversed_cells = [span for span in text.spans if "reverse" in str(span.style)]
-    assert len(reversed_cells) == 1, "the caret is shown"
-    assert text.plain[reversed_cells[0].start] == " ", "on the blank the box keeps at its end"
+    x, y = caret_cell(editing.box(typed.id))
+    glyph, style = _at(text, x, y)
+    assert glyph == " ", "on the blank the box keeps at its end"
+    assert "reverse" in style, "the caret is shown"
 
 
 def test_the_cells_width_does_not_change_as_the_caret_moves():

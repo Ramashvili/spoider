@@ -4095,14 +4095,22 @@ async def test_a_stack_entry_is_typed_into_like_a_cell(tmp_path: Path):
         rows = app.view.screen_cells()
         divider = next(x for x, (glyph, _style) in enumerate(rows[0]) if glyph == DIVIDER)
         reversed_cells = [
-            (x, y)
+            (x, y, glyph)
             for y, row in enumerate(rows)
-            for x, (_glyph, style) in enumerate(row)
+            for x, (glyph, style) in enumerate(row)
             if "reverse" in style
         ]
-        assert len(reversed_cells) == 1, "one caret, and no selection block under it"
-        caret_x, _caret_y = reversed_cells[0]
-        assert caret_x > divider, "and it is in the panel, where the cell is drawn"
+        blocks = [
+            (x, y, glyph)
+            for y, row in enumerate(rows)
+            for x, (glyph, _style) in enumerate(row)
+            if glyph == "█"
+        ]
+        carets = [cell for cell in reversed_cells if cell[2] != "█"]
+        assert len(blocks) == 3, "the entry's left wall says which cell the keys are in"
+        assert all(cell[0] > divider for cell in blocks), "the blocks are in the panel"
+        assert len(carets) == 1, "one caret, and no selection block under it"
+        assert carets[0][0] > divider, "and it is in the panel, where the cell is drawn"
 
         await pilot.press("X")
         await pilot.pause()

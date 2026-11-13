@@ -76,6 +76,9 @@ class Grid:
     #: Cells a letter or a mark stands in. A border may join another border, and a link
     #: may pass through an empty cell, but neither may paint out what a cell says.
     text: set[tuple[int, int]] = field(default_factory=set)
+    #: The left wall of a cell being typed into, drawn as a solid block in the cell's own
+    #: colour: a filled column says "this is the cell you are in".
+    edited: dict[tuple[int, int], str] = field(default_factory=dict)
     #: The cells a picture is worth keeping, as (left, top, right, bottom) in grid
     #: coordinates: a write outside it is dropped, so the picture costs the screen rather
     #: than the document. None keeps everything.
@@ -146,6 +149,8 @@ class Grid:
             ch = BOX_CHARS.get(bits)
             if ch:
                 self.cells[(x, y)] = (ch, style)
+        for (x, y), colour in self.edited.items():
+            self.cells[(x, y)] = ("█", colour)
         for (x, y), bits in self.links.items():
             if (x, y) in self.cells:
                 continue
@@ -347,6 +352,13 @@ def _draw_box(
             grid.add_edge(x, bottom, L | R, style)
         grid.add_edge(left, bottom, R | U, style)
         grid.add_edge(right, bottom, L | U, style)
+
+        if box.node.preview is not None:
+            # the cell being typed into: its left wall becomes one solid column, in the
+            # colour the cell wears rather than in reversed video
+            colour = style.replace(" reverse", "").strip()
+            for y in range(top, bottom + 1):
+                grid.edited[(left, y)] = colour
 
     inner = box.w - 2 if walls else box.w
     # the row carries its own padding, so the run starts at the first inner column
