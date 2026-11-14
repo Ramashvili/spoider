@@ -251,6 +251,6 @@ See [AGENTS.md](AGENTS.md) for the codebase layout and design notes.
 - [h-m-m](https://github.com/nadrad/h-m-m): a keyboard-first mind map that lives in the terminal.
 - [Minder](https://github.com/phase1geo/Minder): a small, quiet mind-mapping app for the desktop.
 
-## Licence
+## Oi, You Got A Loicense For That, Mate?
 
 MIT, see [LICENSE](LICENSE).
