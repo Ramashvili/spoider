@@ -1193,6 +1193,22 @@ async def test_a_rebound_direction_reaches_the_keyboard(tmp_path: Path):
         assert app.focus == here, "the arrow is off the line, so it is dead"
 
 
+def test_a_chord_is_written_in_the_order_the_terminal_reports_it():
+    """A terminal names the modifiers itself, `alt` before `ctrl`, so the same chord written the
+    other way round is a different string and would never match a key event."""
+    from spoider.keys import build_binding_keymap, shown
+
+    # the orders below are what Textual's terminal parser reports for the same presses
+    assert shown("ctrl+alt+e") == "alt+ctrl+e"
+    assert shown("ctrl+shift+z") == "ctrl+shift+z"
+    assert shown("shift+ctrl+z") == "ctrl+shift+z"
+    assert shown("shift+alt+ctrl+e") == "alt+ctrl+shift+e"
+    assert shown("ctrl+alt+shift+e") == "alt+ctrl+shift+e"
+    assert shown("alt+e") == "alt+e"
+    assert shown("e") == "e"
+    assert build_binding_keymap({"copy": "ctrl+alt+e"})["copy"] == "alt+ctrl+e"
+
+
 async def test_a_chord_no_keyboard_can_send_is_left_out_and_said(tmp_path: Path):
     """`e+r` is two keys with nothing holding them together and `r+alt` puts the modifier where
     the key belongs; neither can ever fire, so the line loses that chord, keeps the rest, and the
@@ -1209,7 +1225,7 @@ async def test_a_chord_no_keyboard_can_send_is_left_out_and_said(tmp_path: Path)
 
         assert app.keymap["mark"] == "w", "the rest of the line stands"
         assert app.keymap["fold"] == "t", "nothing left on the line, so its default stands"
-        assert app.keymap["copy"] == "ctrl+alt+r", "two modifiers can be pressed"
+        assert app.keymap["copy"] == "alt+ctrl+r", "two modifiers, in the order a terminal reports"
 
 
 async def test_two_actions_on_one_chord_are_named_in_red(tmp_path: Path):

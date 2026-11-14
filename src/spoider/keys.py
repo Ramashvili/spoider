@@ -111,9 +111,29 @@ PRESSED = {"comma": ",", "full_stop": ".", "question_mark": "?", "equals_sign": 
 WANTED = {value: name for name, value in PRESSED.items()}
 
 
+#: The order a terminal names a chord's modifiers in, read off Textual's own terminal parser:
+#: `ctrl+alt+shift+e` arrives as `alt+ctrl+shift+e`. A config line written the other way is a
+#: different string and can never match a key event, so chords are put in this order when read.
+MODIFIER_ORDER = ("alt", "ctrl", "shift", "super", "hyper", "meta")
+
+
+def ordered(chord: str) -> str:
+    """A chord with its modifiers in the order the terminal will report them."""
+    *modifiers, key = chord.split("+")
+    if not modifiers:
+        return chord
+    ranked = sorted(
+        modifiers,
+        key=lambda word: MODIFIER_ORDER.index(word)
+        if word in MODIFIER_ORDER
+        else len(MODIFIER_ORDER),
+    )
+    return "+".join([*ranked, key])
+
+
 def shown(chord: str) -> str:
-    """A chord as a person would write it: `,` rather than `comma`."""
-    return PRESSED.get(chord, chord)
+    """A chord as a person would write it: `,` rather than `comma`, modifiers in their order."""
+    return ordered(PRESSED.get(chord, chord))
 
 
 #: The words that name a modifier rather than a key.
@@ -167,7 +187,7 @@ def resolve(
         chords.setdefault(binding.action, []).extend(keys)
     for ident, value in (overrides or {}).items():
         action = action_of.get(ident)
-        listed = [part for part in (value or "").split() if part]
+        listed = [shown(part) for part in (value or "").split() if part]
         if action is not None and listed:
             chords[action] = listed
 
