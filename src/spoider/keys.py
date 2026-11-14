@@ -16,7 +16,7 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+a", "select_all", show=False, id="select_all"),
     Binding("enter", "add_sibling", "sib", id="add_sibling"),
     Binding("ctrl+j", "justify", "justify", id="justify"),
-    Binding("alt+6", "copy", "copy", show=False, id="copy"),
+    Binding("alt+6", "copy", "copy", id="copy"),
     # Seven of these have earned a bare key: they are reached for constantly and
     # collide with nothing, since h/j/k/l are the only bare letters spoken for. The
     # stack is `p` because ^I is Tab on a terminal without the kitty protocol.
@@ -84,7 +84,7 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+o,f12", "write", "write", id="write"),
     Binding("ctrl+x,f10", "quit", "quit", id="quit"),
     Binding("ctrl+z,f3", "undo", "undo", id="undo"),
-    Binding("ctrl+y", "redo", "redo", show=False, id="redo"),
+    Binding("ctrl+r,ctrl+y", "redo", "redo", id="redo"),
     # Last on purpose: the bar drops its tail on a narrow terminal, and a shape
     # toggle matters less than saving or quitting. Help still lists it.
     Binding("ctrl+l", "layout", "layout", id="layout"),

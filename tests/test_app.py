@@ -3580,7 +3580,7 @@ async def test_a_copy_says_what_it_took_and_where_it_went(tmp_path: Path):
         await pilot.pause()
 
         notice = _notice(app)
-        assert notice.message == "copied cell text to the terminal clipboard"
+        assert notice.message == "cell text copied"
         assert app._text_clip == alpha.text, "and the buffer inside spoider holds it"
         assert "green" in notice.style
 
@@ -3906,7 +3906,9 @@ async def test_the_bar_switches_to_the_panel_keys(tmp_path: Path):
         assert bar.index("^U paste") < bar.index("p hide stack"), "it keeps its place"
         assert "^K cut" in bar and "e edit" in bar and "^J justify" in bar
         assert "p show stack" not in bar, "one ^I per bar"
-        for word in ("^X quit", "^S save", "^Z undo", "^F search", "t fold"):
+        # the bar is the top of a ranked list, and two hints arrived; the panel's own row is
+        # fuller than the map's, so the rarest of the map's hints gives way
+        for word in ("^X quit", "^S save", "^Z undo", "^R redo", "M-6 copy", "^F search"):
             assert word in bar, f"the panel keeps {word}"
 
         await pilot.press("p")
