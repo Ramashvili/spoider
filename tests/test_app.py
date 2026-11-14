@@ -1107,7 +1107,7 @@ async def test_the_mark_key_cycles_the_configured_marks(tmp_path: Path):
         assert seen == ["🔴", "🟢", None, "🔴"]
 
 
-async def test_prompt_supports_undo_and_redo(tmp_path: Path):
+async def test_prompt_undoes_redoes_and_selects_like_a_cell(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+w")
@@ -1125,9 +1125,24 @@ async def test_prompt_supports_undo_and_redo(tmp_path: Path):
         await pilot.pause()
         assert field.value == " ".join(app.marks) + " ", "the offered value, space included"
 
+        await pilot.press("ctrl+r")
+        await pilot.pause()
+        assert field.value.startswith("abc"), "and ^R puts the run back in one step, as redo does"
+
+        # a run is taken the way a cell takes one: shift with the move keys
+        await pilot.press("shift+left", "shift+left")
+        await pilot.pause()
+        assert field.buffer.selection() is not None, "shift+left selects where the caret goes"
+        await pilot.press("Z")
+        await pilot.pause()
+        assert field.value.startswith("aZ"), f"typing replaces the run, and the value is {field.value!r}"
+
+        # and ^Y still redoes, for a hand used to it
+        await pilot.press("ctrl+z")
+        await pilot.pause()
         await pilot.press("ctrl+y")
         await pilot.pause()
-        assert field.value.startswith("abc"), "and redo puts the run back in one step"
+        assert field.value.startswith("aZ")
 
 
 def test_config_can_rebind_every_chord(tmp_path: Path):

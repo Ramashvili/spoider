@@ -171,7 +171,7 @@ class PromptBar(Drawer):
         elif key == "ctrl+z":
             if buffer.undo():
                 self._changed()
-        elif key == "ctrl+y":
+        elif key in ("ctrl+r", "ctrl+y"):
             if buffer.redo():
                 self._changed()
         elif key in ("backspace", "alt+backspace"):
@@ -190,6 +190,18 @@ class PromptBar(Drawer):
             buffer.left()
         elif key in ("right", "ctrl+f"):
             buffer.right()
+        elif key.startswith("shift+"):
+            # taking a run of the line, the way a cell does: the move keys, held with shift
+            move = {
+                "left": buffer.left,
+                "right": buffer.right,
+                "ctrl+left": buffer.word_left,
+                "ctrl+right": buffer.word_right,
+                "home": buffer.home,
+                "end": buffer.end,
+            }.get(key.removeprefix("shift+"))
+            if move is not None:
+                move(extend=True)
         elif key == "ctrl+left":
             buffer.word_left()
         elif key == "ctrl+right":

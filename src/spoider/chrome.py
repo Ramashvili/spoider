@@ -282,6 +282,8 @@ def prompt_chunks(verb: str) -> list[Text]:
         entry("⏎", verb, literal=True),
         entry("esc/^C", "cancel", literal=True),
         entry("^Z", "undo", literal=True),
+        entry("^R", "redo", literal=True),
+        entry("shift+←→", "select", literal=True),
     ]
 
 
