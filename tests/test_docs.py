@@ -117,3 +117,20 @@ def test_the_readme_shows_how_to_write_every_format() -> None:
     section = text.split("### Exporting a map", 1)[1].split("\n### ", 1)[0]
     missing = [name for name in EXPORT_FORMATS if f"--export {name}" not in section]
     assert not missing, f"the README shows no way to write: {missing}"
+
+
+def test_every_map_that_ships_loads():
+    """The maps in the repository are documents a reader opens: the manual, the example, and the
+    planning map this project uses. A broken one is a broken screen on first run."""
+    from spoider.model import MindMap
+
+    root = Path(__file__).resolve().parent.parent
+    maps = [
+        path
+        for folder in (root, root / "examples", root / "src" / "spoider" / "data")
+        for path in sorted(folder.glob("*.spoider"))
+    ]
+    assert maps, "the repository carries maps"
+    for path in maps:
+        mm = MindMap.load(path)
+        assert mm.count() >= 1, f"{path.name} has no cells"

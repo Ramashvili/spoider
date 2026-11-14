@@ -9,6 +9,8 @@ build/
 *.spoider
 !examples/*.spoider
 !src/spoider/data/*.spoider
+# the map this project plans itself with: a document, kept with the code it is about
+!issues-and-plans.spoider
 # takes are delivered as an attachment, not committed
 *.mp4
 # same: a video belongs in the release or the attachment

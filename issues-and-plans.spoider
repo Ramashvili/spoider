@@ -1,0 +1,501 @@
+{
+  "version": 1,
+  "spacing": -1,
+  "layout": "branch",
+  "colours": "family",
+  "marks": [
+    "⭐",
+    "💡",
+    "❓",
+    "✅",
+    "⚠️",
+    "📌",
+    "⌛",
+    "🤡"
+  ],
+  "justify": 40,
+  "cursor": "8cd6f26420fe",
+  "root": {
+    "id": "08048bdbb41d",
+    "text": "spoider development",
+    "collapsed": false,
+    "mark": null,
+    "children": [
+      {
+        "id": "e58cc8120b6d",
+        "text": "bugs to fix",
+        "collapsed": false,
+        "mark": null,
+        "children": []
+      },
+      {
+        "id": "cc3cf4dce67c",
+        "text": "performance",
+        "collapsed": false,
+        "mark": null,
+        "children": []
+      },
+      {
+        "id": "c7fada474760",
+        "text": "behavior improvements",
+        "collapsed": false,
+        "mark": null,
+        "children": []
+      },
+      {
+        "id": "0756737968d6",
+        "text": "UI improvement",
+        "collapsed": false,
+        "mark": null,
+        "children": [
+          {
+            "id": "1fb7934a9531",
+            "text": "footer could be 2 lines maximum",
+            "collapsed": false,
+            "mark": "❓",
+            "children": []
+          },
+          {
+            "id": "a720169c9876",
+            "text": "cell edit highlight",
+            "collapsed": false,
+            "mark": "❓",
+            "children": [
+              {
+                "id": "c796a0e94cbf",
+                "text": "cell which we are editing will get its leftmost cell wall reversed",
+                "collapsed": false,
+                "mark": "❓",
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "f5103208ce96",
+        "text": "features to add",
+        "collapsed": false,
+        "mark": null,
+        "children": [
+          {
+            "id": "8cd6f26420fe",
+            "text": "implement export options into UI",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
+          {
+            "id": "0d9f355649a8",
+            "text": "bring back mouse support",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "12a106e7c43e",
+        "text": "README",
+        "collapsed": false,
+        "mark": null,
+        "children": []
+      },
+      {
+        "id": "fbccd14539f2",
+        "text": "to test",
+        "collapsed": false,
+        "mark": null,
+        "children": []
+      }
+    ]
+  },
+  "cut": [
+    {
+      "id": "3c03a940618c",
+      "text": "say .desktop and xdg gets created",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "be020f2e040c",
+      "text": "config",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "6c75456c3746",
+          "text": "write into config which version of spoider created it",
+          "collapsed": false,
+          "mark": null,
+          "children": [
+            {
+              "id": "5867e892cdca",
+              "text": "this would be useful if later there is a migration\nof configs after update",
+              "collapsed": false,
+              "mark": null,
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c30185527a4c",
+      "text": "some vertical lines connecting cells draw over\ncell's text, while in pyramid or bush, when\nspacing is -3, -4, or -5",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "47f016eb545f",
+      "text": "cell that is taller than cousins may cover their\nconnecting lines due to smart stacking. Lines\nshall be respected and never drawn over by another\ncell. This happens in pyramid and bush",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "34c686732e94",
+      "text": "make prompt with path pre-fill the whole path always",
+      "collapsed": false,
+      "mark": "⚠️",
+      "children": []
+    },
+    {
+      "id": "6769ca7710eb",
+      "text": "make marks render in the middle of the cell\nheight. Whole cell content should get offset\ntogether, not only first line like it is now",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "5af6d4530519",
+      "text": "remove layout name item from top right corner of the screen",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "9a3a76e72154",
+      "text": "copy cell text with alt+6 should notify that cell\ntext waas copied and where",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "12acf1a28989",
+      "text": "notification relocate down",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "3f7187228dec",
+          "text": "do not start with capital letters",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "9db54fc3c3ad",
+      "text": "cell editor",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "52f3c1fc72e6",
+          "text": "unify code of prompt field inside the app. ^O and\nsimilar fields should have basic navigation and\nfuctions like text editor - that which we already\nmade for cells. Example: ctrl+left jump a word to\nthe left; home and end keys etc.",
+          "collapsed": false,
+          "mark": "✅",
+          "children": []
+        },
+        {
+          "id": "417d2e7271f6",
+          "text": "consider characters like , . / \\ ' \" ` : ; ? ! # and other\nspecial ones when jumping words with ctrl+left etc.",
+          "collapsed": false,
+          "mark": "✅",
+          "children": [
+            {
+              "id": "677fce39204b",
+              "text": "all these are also considered when\ndeleting with alt+backspace",
+              "collapsed": false,
+              "mark": "✅",
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "76e9273d7f78",
+          "text": "make undo in cells revert the whole words sequence\nof character deletions instead of returning each\ncharacter one by one - like other text editors",
+          "collapsed": false,
+          "mark": "✅",
+          "children": []
+        },
+        {
+          "id": "ca8a082c248a",
+          "text": "make justify respect paragraphs",
+          "collapsed": false,
+          "mark": "✅",
+          "children": [
+            {
+              "id": "88eb2de0ff92",
+              "text": "\\n \\n",
+              "collapsed": false,
+              "mark": null,
+              "children": [
+                {
+                  "id": "9a3cf051becc",
+                  "text": "many new lines will shrink into two \\n",
+                  "collapsed": false,
+                  "mark": null,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "11f5d76dc3de",
+      "text": "set_mark prompt and save prompt does not allow paste from clipboard",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "41eb00838992",
+      "text": "infinite notifications overwritten",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "9918de83547e",
+      "text": "check if some code that handles rendering is not\ndoing wild calculations that would eat cpu\nunnecesarily - for example when pane moves and is\nre-rendered",
+      "collapsed": false,
+      "mark": "⌛",
+      "children": [
+        {
+          "id": "a3f26bda2c1a",
+          "text": "textual rerenders things, but improvemments were made",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "7255a7b354d9",
+      "text": "try rewriting all rendering from scratch and better",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "b28643ce06fd",
+      "text": "try it with caret as a standalone widget to see if\nwe get improved performance",
+      "collapsed": false,
+      "mark": "💡",
+      "children": []
+    },
+    {
+      "id": "4c0626f0700e",
+      "text": "lifo view does not render beyond edge when lifo stack page reaches maxximum width",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "fcd22cd6842a",
+          "text": "allow shifting of view - same as main pane",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "74c295c8235a",
+      "text": "footer needs to be at the bottom of the screen when we are in ?help",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "80973c594ce8",
+      "text": "allow for navigation in lifo with pgdown, pgup\netc. like we have with the main pane",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "e296ef7aaccf",
+      "text": "also allow for navigation with arrows which is\npossitional, like we have on main pane, and not\nstrictly hierarchical",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "f8567bec41b1",
+          "text": "difference is that items the do not have a main\nnode, however the logic is similar",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "953dfc7ac73c",
+      "text": "cell streches by one when opened",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "0316e010500e",
+      "text": "change: esc in cell ought to save it\nlike enter, because if user wants to\nrevert, he can ctrl+z",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "e831d4e87003",
+      "text": "redo should be in the footer",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "6b9dc4d1b84d",
+          "text": "after undo",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "1d06f34d78b1",
+      "text": "copy text should be in footer",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "51f26f5468a2",
+          "text": "give info about what happened via a\nnotification (green): Cell text copied",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "759a73bcb134",
+          "text": "this creates problem when pasting on top of a cell\nwill want to paste from stack, not coppied text -\nlogical, but maybe unintuitive - but it is okay.",
+          "collapsed": false,
+          "mark": "💡",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "730f8153dd93",
+      "text": "when selecting multiple sibligs,\nselection should be totaly reversed,\nexcept the one on which cursor lays now - that one has only walls reversed like it is now. In that case we can get rid of the underline.",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "a9c54efa73c4",
+      "text": "make default redo a ctrl+r",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "c2e8cb9da41c",
+      "text": "invalid combination of keys for chord should anounce config error",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "dc0425bdc6df",
+          "text": "such as e+r; r+alt, ctrl+alt+r",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "7117c7db71d0",
+      "text": "shift select should work in prompts",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "0f947979a43c",
+          "text": "this shows in footer as hint",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "759bc2f25e90",
+      "text": "redo should work in prompts like undo does",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "ef6a11c2484f",
+      "text": "show editor modes in debug. This reffers to places\nwhere user's cursor can be",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "ae5aad282563",
+          "text": "cell edit",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "4e2685d9320a",
+          "text": "in prompt",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "6e0af8047ceb",
+          "text": "in stack",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "54c7369351ea",
+          "text": "main pane",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "5d73eef75e9b",
+          "text": "help page",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "e57470f0c9f6",
+          "text": "whichever other mode there is",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    }
+  ]
+}
