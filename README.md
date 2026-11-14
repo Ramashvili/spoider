@@ -123,7 +123,8 @@ is read, and a line the program cannot read is left out rather than guessed at.
 | `Alt+F` / `Alt+B` | the next or previous hit; the stack panel opens for a cut |
 | `^L` / `c` | cycle the layout shape, switch colour mode |
 | `=` / `-` | loosen or tighten the spacing |
-| `^Z` `F3` / `^Y` | undo, redo |
+| `^Z` `F3` | undo |
+| `^R` | redo |
 | `^S` `F2` / `^O` `F12` / `^X` `F10` | save, save as, quit |
 | `.` `F9` / `?` `F1` | your settings in your editor, the full key list |
 

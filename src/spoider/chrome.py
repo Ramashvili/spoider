@@ -279,18 +279,19 @@ def search_chunks() -> list[Text]:
     return [entry(key, label, literal=True) for key, label in SEARCH_HINTS]
 
 
-def prompt_chunks(verb: str, undo: str = "ctrl+z", redo: str = "ctrl+r") -> list[Text]:
+def prompt_chunks(verb: str, undo: str = "", redo: str = "") -> list[Text]:
     """The keys of a one-line prompt: answer it, back out, take a run, undo the typing.
 
-    Undo and redo are the chords the keymap gives them, so a rebound key is what the line says.
+    Undo and redo come from the keymap, which is the one place either chord is written: a chord
+    that arrives empty is unbound, and an action with no key gets no cap rather than a guess.
     """
-    return [
+    keys = [
         entry("⏎", verb, literal=True),
         entry("esc/^C", "cancel", literal=True),
-        entry(undo, "undo"),
-        entry(redo, "redo"),
-        entry("shift+←→", "select", literal=True),
     ]
+    keys += [entry(chord, name) for chord, name in ((undo, "undo"), (redo, "redo")) if chord]
+    keys.append(entry("shift+←→", "select", literal=True))
+    return keys
 
 
 def ask_chunks(affirm: str = "save", deny: str = "discard", cancel: str | None = "cancel") -> list[Text]:

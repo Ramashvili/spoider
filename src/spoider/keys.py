@@ -84,7 +84,7 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+o,f12", "write", "write", id="write"),
     Binding("ctrl+x,f10", "quit", "quit", id="quit"),
     Binding("ctrl+z,f3", "undo", "undo", id="undo"),
-    Binding("ctrl+r,ctrl+y", "redo", "redo", id="redo"),
+    Binding("ctrl+r", "redo", "redo", id="redo"),
     # Last on purpose: the bar drops its tail on a narrow terminal, and a shape
     # toggle matters less than saving or quitting. Help still lists it.
     Binding("ctrl+l", "layout", "layout", id="layout"),

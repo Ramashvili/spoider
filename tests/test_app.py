@@ -1183,6 +1183,32 @@ async def test_alt_delete_takes_the_word_ahead_in_a_cell_and_in_a_prompt(tmp_pat
         assert "two" in field.value, "and the rest of the line is still there"
 
 
+async def test_a_rebound_undo_is_the_only_undo_a_prompt_knows(tmp_path: Path):
+    """Undo is written once, in the binding table. A prompt reads it from the keymap, so a
+    rebound chord is what the bar names and what works, and the old chord does nothing."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("undo = ctrl+alt+z\n")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(140, 24)) as pilot:
+        await pilot.press("ctrl+w")
+        await pilot.pause()
+        bar = app.query_one("#footer").render().plain
+        assert "M-^Z undo" in bar, bar
+        assert " ^Z undo" not in bar, "the old chord is not named"
+
+        field = app.query_one(PromptBar)
+        await pilot.press("home")
+        await pilot.press("x", "y")
+        await pilot.pause()
+        typed = field.value
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert field.value == typed, "^Z is not undo any more"
+        await pilot.press("alt+ctrl+z")
+        await pilot.pause()
+        assert field.value != typed, "the chord the keymap names is the one that undoes"
+
+
 async def test_a_run_in_a_prompt_stands_out_of_the_band(tmp_path: Path):
     """A prompt is a reversed band, so a reversed selection would be invisible. The run it takes
     is drawn plain, which is the one style that shows against the band."""
@@ -1237,10 +1263,15 @@ async def test_prompt_undoes_redoes_and_selects_like_a_cell(tmp_path: Path):
         await pilot.pause()
         assert field.value.startswith("aZ"), f"typing replaces the run, and the value is {field.value!r}"
 
-        # and ^Y still redoes, for a hand used to it
+        # ^Y was redo's second chord and is not any more: the prompt reads the keymap, so an
+        # undo followed by ^Y stays undone, and ^R is what puts it back
         await pilot.press("ctrl+z")
         await pilot.pause()
+        undone = field.value
         await pilot.press("ctrl+y")
+        await pilot.pause()
+        assert field.value == undone, "^Y is not a redo chord any more"
+        await pilot.press("ctrl+r")
         await pilot.pause()
         assert field.value.startswith("aZ")
 
@@ -4344,7 +4375,7 @@ async def test_redo_works_inside_the_stack_view(tmp_path: Path):
         await pilot.pause()
         assert app.mm.cut_stack
 
-        await pilot.press("ctrl+y")  # redo the drop
+        await pilot.press("ctrl+r")  # redo the drop
         await pilot.pause()
         assert app.mm.cut_stack == []
 
@@ -4571,7 +4602,7 @@ async def test_undo_and_redo_work_inside_the_cell(tmp_path: Path):
         await pilot.pause()
         assert app._buffer.text == "abc", "the run of typing came off in one step"
 
-        await pilot.press("ctrl+y")
+        await pilot.press("ctrl+r")
         await pilot.pause()
         assert app._buffer.text == "abcxyz"
 

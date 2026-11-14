@@ -1191,8 +1191,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             footer.mode = "custom"
             footer.custom = prompt_chunks(
                 "save" if mode == "marks" else mode,
-                self.keymap.get("undo", "ctrl+z") or "ctrl+z",
-                self.keymap.get("redo", "ctrl+r") or "ctrl+r",
+                self.keymap.get("undo", ""),
+                self.keymap.get("redo", ""),
             )
         elif mode == "ask":
             footer.mode = "custom"
