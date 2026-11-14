@@ -41,8 +41,9 @@ def values_match(value: str, recall: list[str]) -> bool:
     return bool(recall) and value == recall[0]
 
 
-def _shown_value(value: str, caret: int, room: int) -> tuple[str, int]:
-    """What the prompt draws of its value, and where the caret sits in what it draws.
+def _shown_value(value: str, caret: int, room: int) -> tuple[str, int, int, int]:
+    """What the prompt draws of its value, where the caret sits in it, and where the drawn text
+    starts and stops in the value, so a selection can be placed in the window.
 
     A value that fits is drawn whole. A longer one is drawn from its end, which is the useful
     half of a path, and the window moves with the caret: walking left, or pressing Home, brings
@@ -50,9 +51,9 @@ def _shown_value(value: str, caret: int, room: int) -> tuple[str, int]:
     end that has text hidden behind it.
     """
     if room <= 0:
-        return "", 0
+        return "", 0, 0, 0
     if cell_len(value) <= room:
-        return value, caret
+        return value, caret, 0, len(value)
 
     # the end of the value, with a column kept for the head's ellipsis
     tail_start = max(0, len(value) - (room - 1))
@@ -70,7 +71,9 @@ def _shown_value(value: str, caret: int, room: int) -> tuple[str, int]:
         index -= 1
         used -= cell_len(value[index])
     drawn = head + value[start:index] + ("…" if tail else "")
-    return drawn, cell_len(head + value[start:caret])
+    caret_at = len(head) + max(0, min(caret, index) - start)
+    # the window's own bounds come back with it, so a selection can be drawn where it lies
+    return drawn, caret_at, start, index
 
 
 class PromptBar(Drawer):
@@ -168,10 +171,10 @@ class PromptBar(Drawer):
             self._answer()
         elif key in ("escape", "ctrl+c"):
             self._cancel()
-        elif key == "ctrl+z":
+        elif self._action_for(key) == "undo":
             if buffer.undo():
                 self._changed()
-        elif key in ("ctrl+r", "ctrl+y"):
+        elif self._action_for(key) == "redo":
             if buffer.redo():
                 self._changed()
         elif key in ("backspace", "alt+backspace"):
@@ -224,6 +227,21 @@ class PromptBar(Drawer):
             self._capped()
             self._changed()
         self.refresh()
+
+    def _action_for(self, key: str) -> str | None:
+        """Which action a chord belongs to, according to the keymap in force.
+
+        Undo and redo are read this way, so a chord the reader rebound works in a prompt as it
+        does in a cell instead of only the chords this file happens to spell.
+        """
+        from .keys import action_chords, shown
+
+        app = cast("SpoiderApp", self.app)
+        pressed = shown(key)
+        for action, chords in action_chords(app.config.keys).items():
+            if pressed in chords:
+                return action
+        return None
 
     def on_paste(self, event: events.Paste) -> None:
         """Text the terminal pasted lands at the caret, on one line: a prompt is one row,
@@ -300,7 +318,7 @@ class PromptBar(Drawer):
         value = clean(self.value)
         caret = len(clean(self.value[: self.cursor]))
         room = max(1, width - cell_len(self.label) - 2)
-        value, caret = _shown_value(value, caret, room)
+        value, caret, first, last = _shown_value(value, caret, room)
         if caret >= len(value):
             value += " "  # past the last character the caret sits on a blank
         caret = max(0, min(caret, len(value) - 1))
@@ -316,6 +334,19 @@ class PromptBar(Drawer):
             offered = value.rstrip(" ")
             bar.append(offered)
             bar.append(value[len(offered) :], "reverse")
+        elif self.buffer.selection() is not None:
+            # a run of the line stands *out* of the band: the bar is reversed, so the plain
+            # text is what the eye picks out, and typing over it replaces it
+            head = 1 if first else 0
+            picked = self.buffer.selection()
+            assert picked is not None
+            low, high = picked
+            low = head + max(0, min(low, last) - first)
+            high = head + max(0, min(high, last) - first)
+            low, high = min(low, high), max(low, high)
+            bar.append(value[:low], "reverse")
+            bar.append(value[low:high])
+            bar.append(value[high:], "reverse")
         else:
             bar.append(value[:caret], "reverse")
             bar.append(value[caret : caret + 1])

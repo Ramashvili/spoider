@@ -628,12 +628,12 @@ def test_the_prompt_shows_the_end_of_a_value_and_walks_with_the_caret():
     value = "/tmp/some/quite/deep/place/notes.spoider"
     room = 16
 
-    at_end, caret = _shown_value(value, len(value), room)
+    at_end, caret, _first, _last = _shown_value(value, len(value), room)
     assert at_end.startswith("…") and at_end.endswith("notes.spoider")
     assert cell_len(at_end) <= room
     assert caret == len(at_end), "past the last character, where the prompt draws its blank"
 
-    at_start, caret = _shown_value(value, 0, room)
+    at_start, caret, _first, _last = _shown_value(value, 0, room)
     assert at_start.startswith("/tmp/some")
     assert at_start.endswith("…")
     assert cell_len(at_start) <= room
@@ -641,11 +641,11 @@ def test_the_prompt_shows_the_end_of_a_value_and_walks_with_the_caret():
 
     # somewhere in the middle: the caret's own character is always inside the window
     middle = value.index("deep")
-    shown, caret = _shown_value(value, middle, room)
+    shown, caret, _first, _last = _shown_value(value, middle, room)
     assert value[middle] == shown[caret]
 
     # a value that fits is drawn whole, with no ellipsis invented
-    assert _shown_value("/tmp/a.spoider", 3, room) == ("/tmp/a.spoider", 3)
+    assert _shown_value("/tmp/a.spoider", 3, room) == ("/tmp/a.spoider", 3, 0, 14)
 
 
 async def test_write_out_asks_for_a_name(tmp_path: Path):
@@ -1105,6 +1105,30 @@ async def test_the_mark_key_cycles_the_configured_marks(tmp_path: Path):
             await pilot.pause()
             seen.append(app.mm.find(node.id).mark)
         assert seen == ["🔴", "🟢", None, "🔴"]
+
+
+async def test_a_run_in_a_prompt_stands_out_of_the_band(tmp_path: Path):
+    """A prompt is a reversed band, so a reversed selection would be invisible. The run it takes
+    is drawn plain, which is the one style that shows against the band."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(120, 24)) as pilot:
+        await pilot.press("ctrl+w")
+        await pilot.pause()
+        field = app.query_one(PromptBar)
+        await pilot.press("home")
+        await pilot.press("a", "b", "c")
+        await pilot.press("shift+left", "shift+left")
+        await pilot.pause()
+
+        low, high = field.buffer.selection()
+        bar = field.render()
+        start = len(field.label)
+        for index in range(low, high):
+            style = str(bar.get_style_at_offset(app.console, start + index))
+            assert "reverse" not in style, f"the run is drawn in the band at {index}: {style}"
+        for index in (low - 1, high):
+            style = str(bar.get_style_at_offset(app.console, start + index))
+            assert "reverse" in style, f"the rest of the line is plain at {index}: {style}"
 
 
 async def test_prompt_undoes_redoes_and_selects_like_a_cell(tmp_path: Path):

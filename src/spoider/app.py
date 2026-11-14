@@ -1168,7 +1168,11 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             footer.mode = "search"
         elif mode in ("write", "marks", "justify"):
             footer.mode = "custom"
-            footer.custom = prompt_chunks("save" if mode == "marks" else mode)
+            footer.custom = prompt_chunks(
+                "save" if mode == "marks" else mode,
+                self.keymap.get("undo", "ctrl+z") or "ctrl+z",
+                self.keymap.get("redo", "ctrl+r") or "ctrl+r",
+            )
         elif mode == "ask":
             footer.mode = "custom"
             footer.custom = ask_chunks(*self._ask_words, cancel=self._ask_cancel)

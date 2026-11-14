@@ -138,10 +138,13 @@ def key_cap(key: str) -> str:
         return KEY_GLYPHS[key]
     if key in BAR_GLYPHS:
         return BAR_GLYPHS[key]
-    for prefix, glyph in BINDING_LEGEND.items():
+    # one modifier at a time, the longest name first, so a chord with two or three of them
+    # reads `M-^Z` instead of leaving the rest of the chord spelled out in capitals
+    for prefix, glyph in sorted(BINDING_LEGEND.items(), key=lambda pair: -len(pair[0])):
         if key.startswith(prefix):
-            body = key[len(prefix) :]
-            return glyph + ARROWS.get(body, body.upper())
+            rest = key[len(prefix) :]
+            # a single character behind a modifier is a capital: ^Z, M-x keeps its case
+            return glyph + (rest.upper() if len(rest) == 1 else key_cap(rest))
     if len(key) == 1 and key.isalpha():
         return key  # h/j/k/l are letters, not shifted capitals
     return ARROWS.get(key, key.upper())
@@ -276,13 +279,16 @@ def search_chunks() -> list[Text]:
     return [entry(key, label, literal=True) for key, label in SEARCH_HINTS]
 
 
-def prompt_chunks(verb: str) -> list[Text]:
-    """The keys of a one-line prompt: answer it, back out, or undo the typing."""
+def prompt_chunks(verb: str, undo: str = "ctrl+z", redo: str = "ctrl+r") -> list[Text]:
+    """The keys of a one-line prompt: answer it, back out, take a run, undo the typing.
+
+    Undo and redo are the chords the keymap gives them, so a rebound key is what the line says.
+    """
     return [
         entry("⏎", verb, literal=True),
         entry("esc/^C", "cancel", literal=True),
-        entry("^Z", "undo", literal=True),
-        entry("^R", "redo", literal=True),
+        entry(undo, "undo"),
+        entry(redo, "redo"),
         entry("shift+←→", "select", literal=True),
     ]
 
