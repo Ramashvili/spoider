@@ -1107,6 +1107,52 @@ async def test_the_mark_key_cycles_the_configured_marks(tmp_path: Path):
         assert seen == ["🔴", "🟢", None, "🔴"]
 
 
+async def test_the_debug_box_says_where_the_keys_are(tmp_path: Path):
+    """A screen of keys raises the question of which of them are listening, so the box names the
+    place: the map, a cell being typed into, a prompt, the cut stack, or the help page."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(140, 30)) as pilot:
+        node = app.mm.add_child(app.mm.root.id, "alpha")
+        app.view.refresh_map()
+        app.select(node.id)
+        await pilot.pause()
+
+        def said() -> str:
+            app.show_properties = True
+            app.view.refresh()
+            text = app.view.render().plain
+            app.show_properties = False
+            return text
+
+        assert "place" in said() and "main pane" in said(), "the map, by default"
+        assert app.place == "main pane"
+
+        await pilot.press("e")
+        await pilot.pause()
+        assert app.place == "cell edit"
+        await pilot.press("escape")
+        await pilot.pause()
+
+        await pilot.press("ctrl+w")
+        await pilot.pause()
+        assert app.place.startswith("prompt:"), app.place
+        await pilot.press("escape")
+        await pilot.pause()
+
+        await pilot.press("ctrl+k")
+        await pilot.press("p")
+        await pilot.pause()
+        assert app.place == "cut stack"
+
+        await pilot.press("?")
+        await pilot.pause()
+        assert app.place == "help page"
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.place in ("main pane", "cut stack")
+
+
 async def test_alt_delete_takes_the_word_ahead_in_a_cell_and_in_a_prompt(tmp_path: Path):
     """`alt+d` is the nano chord for the word ahead; `alt+delete` is the one a hand on the delete
     key reaches, and both editors take it."""

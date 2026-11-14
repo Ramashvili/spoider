@@ -74,12 +74,18 @@ def editor_rows(
     last_edited: str | None,
     *,
     autosave: bool,
+    place: str = "",
 ) -> list[tuple[str, str]]:
-    """Where this session is looking, and what it has touched."""
+    """Where this session is looking, and what it has touched.
+
+    `place` is the mode in words — the cell being typed into, a prompt, the stack, the map —
+    because a screen full of keys raises the question of which of them are listening.
+    """
+    rows: list[tuple[str, str]] = [("place", place)] if place else []
     cursor = f"{address_of(mm, selected)}  id {selected}"
     if run > 1:
         cursor += f"  run of {run}"
-    rows = [("cursor", cursor)]
+    rows.append(("cursor", cursor))
     node = mm.find(last_edited) if last_edited else None
     if node is None:
         rows.append(("edited", "-"))
@@ -99,8 +105,12 @@ def sections(
     *,
     dirty: bool,
     autosave: bool,
+    place: str = "",
 ) -> list[Section]:
     return [
         (FILE_TITLE, file_rows(mm, path, dirty=dirty)),
-        (EDITOR_TITLE, editor_rows(mm, selected, run, last_edited, autosave=autosave)),
+        (
+            EDITOR_TITLE,
+            editor_rows(mm, selected, run, last_edited, autosave=autosave, place=place),
+        ),
     ]

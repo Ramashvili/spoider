@@ -629,6 +629,27 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         return bool(said)
 
     @property
+    def place(self) -> str:
+        """Where the keys are, in words: the cell being typed into, a prompt, the stack, the map.
+
+        The debug box sits over a screen whose keys mean different things in different places, so
+        it says which place is listening. The first of these that is true wins.
+        """
+        if self._mode == "help":
+            return "help page"
+        if self._mode == "ask":
+            return "question"
+        if self._mode == "error":
+            return "error"
+        if self._mode != "keys":
+            return f"prompt: {self._mode}"
+        if self.editing:
+            return "cell edit"
+        if self.stack_open:
+            return "cut stack"
+        return "main pane"
+
+    @property
     def mode(self) -> str:
         """Who has the keys: the map, a cell being typed into, or a drawer."""
         if self._mode == "keys" and self.editing:
