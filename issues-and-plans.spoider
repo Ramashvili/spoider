@@ -13,8 +13,8 @@
     "⌛",
     "🤡"
   ],
-  "justify": 40,
-  "cursor": "8cd6f26420fe",
+  "justify": 50,
+  "cursor": "0756737968d6",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -62,11 +62,26 @@
             "mark": "❓",
             "children": [
               {
+                "id": "99a92f75886e",
+                "text": "the problem is that sometimes it is not obvious\nthat we are inside a cell because the caret, which\nis small, is the only indicator",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
                 "id": "c796a0e94cbf",
-                "text": "cell which we are editing will get its leftmost cell wall reversed",
+                "text": "current state:\ncell which we are editing will get its leftmost cell wall reversed",
                 "collapsed": false,
                 "mark": "❓",
-                "children": []
+                "children": [
+                  {
+                    "id": "293310571da6",
+                    "text": "not beautiful",
+                    "collapsed": false,
+                    "mark": null,
+                    "children": []
+                  }
+                ]
               }
             ]
           }
