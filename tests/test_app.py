@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 import time
 from pathlib import Path
 
@@ -68,7 +69,7 @@ def test_every_shortcut_uses_a_modifier():
 
 def test_footer_lists_the_visible_bindings_plus_the_pinned_cluster():
     line = compose_footer(160, hint_chunks(BINDINGS)).plain
-    assert "⇥ child" in line and "^X quit" in line
+    assert _hint(line, "⇥", "child") >= 0 and _hint(line, "^X", "quit") >= 0
     assert ". config" in line and "? help" in line
     assert "^Y" not in line  # redo stays out of the bar
     assert "^A" not in line  # the child alias stays off the bar
@@ -112,6 +113,24 @@ def test_pinned_cluster_survives_any_width():
         assert ". config" in line.plain
         # every row fills the width exactly, never overflows
         assert all(row.cell_len == width for row in line.split("\n"))
+
+
+def test_the_bar_lines_its_names_up_in_columns():
+    """Caps are different widths — `⇥`, `^X`, `M-6` — so a column is as wide as its widest cap and
+    its widest name, and the word after a cap starts in the same place as the word below it."""
+    from spoider.chrome import entry
+
+    caps = ("⇥", "M-6", "^X", "shift+up", "^S", "^O", "⇥ child")
+    names = ("child", "copy", "quit", "deeper", "save", "write", "loose")
+    hints = [entry(cap, name) for cap, name in zip(caps, names)]
+    text = compose_footer(60, hints)
+    rows = text.split("\n")
+    assert len(rows) == 2, "seven of these will not fit one row"
+
+    top, bottom = rows[0].plain, rows[1].plain
+    # the hints keep their order across the two rows: 0 and 1 on top, 2 and 3 under them
+    for above, below in (("child", "quit"), ("copy", "deeper")):
+        assert top.index(above) == bottom.index(below), f"{above} starts over {below}"
 
 
 def test_the_bar_takes_a_second_row_before_it_drops_a_hint():
@@ -2962,8 +2981,8 @@ def test_the_bar_ranks_its_hints_from_leaving_down_to_the_air():
     assert positions == sorted(positions), "the bar should read most to least important"
     # and a narrow bar keeps the inserts and quitting, and drops the spacing
     narrow = compose_footer(60, hint_chunks(BINDINGS)).plain
-    assert "⇥ child" in narrow and "⏎ sib" in narrow
-    assert "^X quit" in narrow
+    assert _hint(narrow, "⇥", "child") >= 0 and _hint(narrow, "⏎", "sib") >= 0
+    assert _hint(narrow, "^X", "quit") >= 0
     assert "tighter" not in narrow
 
 
@@ -3059,7 +3078,8 @@ async def test_the_bar_says_what_each_drawer_accepts(tmp_path: Path):
         await pilot.press("ctrl+o")  # a file name
         await pilot.pause()
         line = bar.render().plain
-        assert "⏎ write" in line and "esc/^C cancel" in line and "^Z undo" in line
+        assert _hint(line, "⏎", "write") >= 0 and "esc/^C cancel" in line
+        assert _hint(line, "^Z", "undo") >= 0
         await pilot.press("escape")
         await pilot.pause()
 
@@ -3732,6 +3752,13 @@ async def test_cut_of_a_run_lands_on_the_cell_that_closes_the_gap(tmp_path: Path
 # -- what the notice line says and where it says it -----------------------
 
 
+def _hint(bar: str, cap: str, name: str) -> int:
+    """Where a hint sits in the bar: caps are padded so the names line up, so the gap between a
+    cap and its name is one space or more."""
+    match = re.search(rf"{re.escape(cap)}\s+{re.escape(name)}", bar)
+    return match.start() if match else -1
+
+
 def _notice(app):
     """The one line above the bar of keys: what it is saying and in what colour."""
     from spoider.drawers import NoticeBar
@@ -4095,8 +4122,8 @@ async def test_the_bar_switches_to_the_panel_keys(tmp_path: Path):
 
         bar = app.query_one("#footer", FooterBar).render().plain
         # the panel is the map with one difference, so the bar is the map's bar
-        assert "p hide stack" in bar, "the panel says how to shut it"
-        assert bar.index("^U paste") < bar.index("p hide stack"), "it keeps its place"
+        assert _hint(bar, "p", "hide stack") >= 0, "the panel says how to shut it"
+        assert _hint(bar, "^U", "paste") < _hint(bar, "p", "hide stack"), "it keeps its place"
         assert "^K cut" in bar and "e edit" in bar and "^J justify" in bar
         assert "p show stack" not in bar, "one ^I per bar"
         # the bar is the top of a ranked list, and two hints arrived; the panel's own row is
@@ -4454,7 +4481,7 @@ async def test_the_colouring_shows_in_the_help_and_the_bar(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(240, 30)) as pilot:
         await pilot.pause()
-        assert "c colours" in str(app.query_one("#footer").render().plain)
+        assert _hint(str(app.query_one("#footer").render().plain), "c", "colours") >= 0
         assert "colour by depth, or by family" in help_text(app).plain
 
 

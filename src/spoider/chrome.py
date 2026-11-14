@@ -232,28 +232,95 @@ def pinned_bar(keymap: dict[str, str] | None = None) -> Text:
     return bar
 
 
-def footer_rows(width: int, hints: Sequence[Text]) -> list[list[Text]]:
-    """The hints split over one row or two, the second taking what did not fit the first.
+def _split(chunk: Text) -> tuple[Text, Text]:
+    """A hint split into its cap and its name: `entry` gives the cap a style of its own, so the
+    first span is the cap and the rest is the word after it."""
+    if not chunk.spans:
+        return chunk, Text("")
+    end = chunk.spans[0].end
+    return chunk[:end], chunk[end:]
 
-    The room a row has is the width less the pinned cluster, which keeps the bottom right of
-    the bar to itself in both shapes, so a hint never reaches over `, debug . config ? help`.
+
+def _aligned(chunk: Text, cap_width: int, label_width: int) -> Text:
+    """One hint with its cap widened to the column's and its name padded to the column's."""
+    cap, label = _split(chunk)
+    out = Text()
+    out.append_text(cap)
+    out.append(" " * max(0, cap_width - cap.cell_len))
+    out.append_text(label)
+    out.append(" " * max(0, label_width - label.cell_len))
+    return out
+
+
+def _column_widths(top: Sequence[Text], bottom: Sequence[Text]) -> list[tuple[int, int]]:
+    """Each column's cap width and name width: the widest of the two hints in it.
+
+    Aligning on the caps rather than on the hints is what lines the names up: a `⇥` and an `M-6`
+    are different widths, and the word after them should still start in one column.
+    """
+    widths: list[tuple[int, int]] = []
+    for index in range(max(len(top), len(bottom))):
+        caps: list[int] = []
+        labels: list[int] = []
+        for row in (top, bottom):
+            if index < len(row):
+                cap, label = _split(row[index])
+                caps.append(cap.cell_len)
+                labels.append(label.cell_len)
+        widths.append((max(caps), max(labels) + 1))
+    return widths
+
+
+def footer_layout(width: int, hints: Sequence[Text]) -> list[list[tuple[Text, int]]]:
+    """The hints as one row, or as two rows of columns when one will not hold them.
+
+    Packed from the left, never spread: the space a row does not need stays at its end. Two rows
+    are cut in pairs — the first p hints above the p under them — with the odd hint on the bottom,
+    and a column is as wide as its widest cap and its widest name, so the names line up under one
+    another. The visible hints are always the first ones.
     """
     pinned = pinned_bar()
     cluster_width = pinned.cell_len + len(DIVIDER) + 1
-    avail = max(1, width - cluster_width - 1)  # one blank column always separates the two
-    rows: list[list[Text]] = [[]]
-    used = 0
-    for chunk in hints:
-        if used + chunk.cell_len > avail:
-            if len(rows) == 2:
-                break
-            rows.append([])
-            used = 0
-            if chunk.cell_len > avail:
-                break
-        rows[-1].append(chunk)
-        used += chunk.cell_len
+    avail = max(1, width - cluster_width - 1)
+    if sum(chunk.cell_len for chunk in hints) <= avail:
+        return [[(chunk, chunk.cell_len) for chunk in hints]]
+
+    count = len(hints)
+    balance = count // 2
+    pairs = balance
+    widths: list[tuple[int, int]] = []
+    while pairs > 0:
+        top = list(hints[:pairs])
+        bottom = list(hints[pairs : 2 * pairs])
+        if pairs == balance and count % 2:
+            bottom.append(hints[-1])
+        widths = _column_widths(top, bottom)
+        if sum(sum(column) for column in widths) <= avail:
+            break
+        pairs -= 1
+    if pairs == 0:
+        # not even one pair fits: one hint, and that is the whole bar
+        kept = [chunk for chunk in hints if chunk.cell_len <= avail][:1]
+        return [[(chunk, chunk.cell_len) for chunk in kept]]
+
+    top = list(hints[:pairs])
+    bottom = list(hints[pairs : 2 * pairs])
+    if pairs == balance and count % 2:
+        bottom.append(hints[-1])
+    rows: list[list[tuple[Text, int]]] = []
+    for row in (top, bottom):
+        rows.append(
+            [
+                (_aligned(chunk, widths[index][0], widths[index][1]), sum(widths[index]))
+                for index, chunk in enumerate(row)
+            ]
+        )
     return rows
+
+
+def footer_rows(width: int, hints: Sequence[Text]) -> list[list[Text]]:
+    """Just the rows, for counting them."""
+    return [[chunk for chunk, _column in row] for row in footer_layout(width, hints)]
 
 
 def compose_footer(width: int, hints: Sequence[Text], pinned: Text | None = None) -> Text:
@@ -264,15 +331,19 @@ def compose_footer(width: int, hints: Sequence[Text], pinned: Text | None = None
     """
     pinned = pinned if pinned is not None else pinned_bar()
     cluster_width = pinned.cell_len + len(DIVIDER) + 1
-    rows = footer_rows(width, hints)
+    rows = footer_layout(width, hints)
     line = Text()
     for index, row in enumerate(rows):
         if index:
             line.append("\n")
         used = 0
-        for chunk in row:
+        for chunk, column in row:
             line.append_text(chunk)
             used += chunk.cell_len
+            pad = column - chunk.cell_len
+            if pad > 0:
+                line.append(" " * pad)
+                used += pad
         if index == len(rows) - 1:
             line.append(" " * max(1, width - cluster_width - used))
             line.append(f"{DIVIDER} ", style="dim")
