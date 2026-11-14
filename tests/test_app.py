@@ -1163,6 +1163,16 @@ async def test_the_debug_box_says_where_the_keys_are(tmp_path: Path):
         await pilot.press("escape")
         await pilot.pause()
 
+        # a find is a sub-state of the pane it runs in, not a place of its own
+        await pilot.press("ctrl+f", "a", "l", "p", "h", "a", "enter")
+        await pilot.pause()
+        assert app.place == "main pane · find", app.place
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.place == "main pane", "esc leaves the find"
+        await pilot.press("escape")
+        await pilot.pause()
+
         await pilot.press("ctrl+k")
         await pilot.press("p")
         await pilot.pause()

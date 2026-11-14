@@ -651,9 +651,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             return f"prompt: {self._mode}"
         if self.editing:
             return "cell edit"
-        if self.stack_open:
-            return "cut stack"
-        return "main pane"
+        where = "cut stack" if self.stack_open else "main pane"
+        # a find is a sub-state of the pane it runs in, not a place of its own
+        return f"{where} · find" if self._find_mode else where
 
     @property
     def mode(self) -> str:
