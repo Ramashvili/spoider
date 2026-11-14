@@ -332,7 +332,9 @@ async def test_new_node_is_typed_into_directly(tmp_path: Path):
         assert not path.exists()  # nothing is written until ^S/^O
 
 
-async def test_escape_cancels_a_new_node(tmp_path: Path):
+async def test_escape_keeps_what_was_typed_into_a_new_node(tmp_path: Path):
+    """esc finishes a cell the way enter does, so what was typed is the cell's text. The way
+    back is undo, not a key that throws the typing away."""
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         await pilot.press("tab")
@@ -342,12 +344,15 @@ async def test_escape_cancels_a_new_node(tmp_path: Path):
         await pilot.pause()
 
         assert app.editing is False
-        assert app.mm.root.children == []  # an abandoned node never happened
-        assert app.selected == app.mm.root.id
+        assert [child.text for child in app.mm.root.children] == ["x"], "esc kept the text"
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app.mm.root.children == [], "and ^Z is how it goes away"
 
 
 async def test_an_empty_cell_stays_where_it_was_made(tmp_path: Path):
-    """Committing nothing leaves a cell; abandoning it, above, does not."""
+    """Enter on an empty new cell leaves the cell; `^C` is the key that takes it back."""
     from spoider.layout import lines_of
 
     app = SpoiderApp(tmp_path / "map.json", demo=False)

@@ -127,7 +127,14 @@ class EditActions:
             buffer.insert("\t")
             self._sync_preview()
             return True
-        if key in ("escape", "ctrl+c"):
+        if key == "escape":
+            # esc finishes the cell the way enter does: the text is what you typed, and ^Z is
+            # the way back if it was not what you meant. A new cell nobody typed into is the one
+            # exception: there is nothing to keep, so it goes as it always did.
+            typed = (buffer.text or "").strip()
+            self.finish_edit(commit=bool(typed) or not self._edit_fresh)
+            return True
+        if key == "ctrl+c":
             self.finish_edit(commit=False)
             return True
 
