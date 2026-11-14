@@ -4,17 +4,15 @@
   "layout": "branch",
   "colours": "family",
   "marks": [
-    "⭐",
+    "📌",
     "💡",
     "❓",
     "✅",
-    "⚠️",
-    "📌",
-    "⌛",
-    "🤡"
+    "❌",
+    "💤"
   ],
   "justify": 50,
-  "cursor": "1fb7934a9531",
+  "cursor": "f5103208ce96",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -24,6 +22,51 @@
       {
         "id": "e58cc8120b6d",
         "text": "bugs to fix",
+        "collapsed": false,
+        "mark": null,
+        "children": [
+          {
+            "id": "cc893f986aac",
+            "text": "when a cell is longer that the entire width of\npane, the cursor is not followed by the view",
+            "collapsed": false,
+            "mark": null,
+            "children": [
+              {
+                "id": "fd66a7d3ecd2",
+                "text": "it is more broken in lifo",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "a63ddde50791",
+                "text": "less broken in main pane",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "9bd828267b7d",
+            "text": "after undo in lifo stack view, focus returns on\nfirst (top) cell",
+            "collapsed": false,
+            "mark": null,
+            "children": [
+              {
+                "id": "11947bdbaeb5",
+                "text": "it should stay on the one which was undone",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "fbccd14539f2",
+        "text": "to test",
         "collapsed": false,
         "mark": null,
         "children": []
@@ -40,37 +83,7 @@
         "text": "behavior improvements",
         "collapsed": false,
         "mark": null,
-        "children": [
-          {
-            "id": "4218709522ea",
-            "text": "regarding ctrl+f find:",
-            "collapsed": false,
-            "mark": "📌",
-            "children": [
-              {
-                "id": "646f331fc11d",
-                "text": "when find is not desired anymore, esc key should\ncancel it, thus highlighted items unhighlight",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "2443f2d55816",
-                "text": "after find prompt is confirmed with enter, find\ncounter stays until we escape from this mode. Find\ncounter is highligted always (yellow color - same\nas cut stack when we are in it)",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "1a40097b9dce",
-                "text": "for that duration find alt+b Previous and alt+f Next apears in the footer",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
-          }
-        ]
+        "children": []
       },
       {
         "id": "0756737968d6",
@@ -78,21 +91,6 @@
         "collapsed": false,
         "mark": null,
         "children": [
-          {
-            "id": "1fb7934a9531",
-            "text": "footer could be 2 lines tall, if items do not fit on one line",
-            "collapsed": false,
-            "mark": "📌",
-            "children": [
-              {
-                "id": "bf631efd3ae4",
-                "text": "those two line stay equaly long, and do not reach over the bottom right special items of the footer (debug, config, help).",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
-          },
           {
             "id": "a720169c9876",
             "text": "cell edit highlight",
@@ -150,13 +148,6 @@
       {
         "id": "12a106e7c43e",
         "text": "README",
-        "collapsed": false,
-        "mark": null,
-        "children": []
-      },
-      {
-        "id": "fbccd14539f2",
-        "text": "to test",
         "collapsed": false,
         "mark": null,
         "children": []
@@ -471,7 +462,7 @@
       "children": [
         {
           "id": "dc0425bdc6df",
-          "text": "such as e+r; r+alt, ctrl+alt+r",
+          "text": "such as e+r; r+alt, ctrl+alt+r eeeeeeeeeeeeeeeeee eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
           "collapsed": false,
           "mark": null,
           "children": []
@@ -544,6 +535,50 @@
         {
           "id": "e57470f0c9f6",
           "text": "whichever other mode there is",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "4218709522ea",
+      "text": "regarding ctrl+f find:",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "646f331fc11d",
+          "text": "when find is not desired anymore, esc key should\ncancel it, thus highlighted items unhighlight",
+          "collapsed": false,
+          "mark": "✅",
+          "children": []
+        },
+        {
+          "id": "2443f2d55816",
+          "text": "after find prompt is confirmed with enter, find\ncounter stays until we escape from this mode. Find\ncounter is highligted always (yellow color - same\nas cut stack when we are in it)",
+          "collapsed": false,
+          "mark": "✅",
+          "children": []
+        },
+        {
+          "id": "1a40097b9dce",
+          "text": "for that duration find alt+b Previous and alt+f Next apears in the footer",
+          "collapsed": false,
+          "mark": "✅",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "1fb7934a9531",
+      "text": "footer could be 2 lines tall, if items do not fit on one line",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "bf631efd3ae4",
+          "text": "those two line stay equaly long, and do dnot reach\nover the bottom right special items of the footer\n(debug, config, help)",
           "collapsed": false,
           "mark": null,
           "children": []
