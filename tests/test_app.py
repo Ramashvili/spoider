@@ -1107,6 +1107,36 @@ async def test_the_mark_key_cycles_the_configured_marks(tmp_path: Path):
         assert seen == ["🔴", "🟢", None, "🔴"]
 
 
+async def test_alt_delete_takes_the_word_ahead_in_a_cell_and_in_a_prompt(tmp_path: Path):
+    """`alt+d` is the nano chord for the word ahead; `alt+delete` is the one a hand on the delete
+    key reaches, and both editors take it."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(120, 24)) as pilot:
+        node = app.mm.add_child(app.mm.root.id, "one two three")
+        app.view.refresh_map()
+        app.select(node.id)
+        await pilot.pause()
+        await pilot.press("e")
+        await pilot.pause()
+        await pilot.press("home")
+        await pilot.press("alt+delete")
+        await pilot.pause()
+        assert app._buffer.text.strip() == "two three", f"the cell holds {app._buffer.text!r}"
+        await pilot.press("escape")
+        await pilot.pause()
+
+        await pilot.press("ctrl+w")
+        await pilot.pause()
+        field = app.query_one(PromptBar)
+        await pilot.press("home")
+        await pilot.press("o", "n", "e", "space", "t", "w", "o")
+        await pilot.press("home")
+        await pilot.press("alt+delete")
+        await pilot.pause()
+        assert not field.value.startswith("one"), f"the prompt holds {field.value!r}"
+        assert "two" in field.value, "and the rest of the line is still there"
+
+
 async def test_a_run_in_a_prompt_stands_out_of_the_band(tmp_path: Path):
     """A prompt is a reversed band, so a reversed selection would be invisible. The run it takes
     is drawn plain, which is the one style that shows against the band."""

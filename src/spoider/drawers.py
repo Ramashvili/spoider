@@ -183,7 +183,7 @@ class PromptBar(Drawer):
             else:
                 buffer.delete_word_before()
             self._changed()
-        elif key in ("delete", "alt+d"):
+        elif key in ("delete", "alt+d", "alt+delete"):
             if key == "delete":
                 buffer.delete()
             else:

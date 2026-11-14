@@ -165,7 +165,7 @@ class EditActions:
             buffer.delete()
         elif key in ("alt+backspace", "ctrl+w"):
             buffer.delete_word_before()
-        elif key == "alt+d":
+        elif key in ("alt+d", "alt+delete"):
             buffer.delete_word_after()
         elif self._action_for(key) == "select_all":
             buffer.select_all()
