@@ -55,6 +55,7 @@ def compose_top_bar(
     dirty: bool = False,
     extra: str = "",
     extra_active: bool = False,
+    stat_active: bool = False,
 ) -> Text:
     """One line: name+version left, location centred, statistics right.
 
@@ -72,7 +73,7 @@ def compose_top_bar(
     def fits(candidate: str) -> bool:
         return width >= cell_len(candidate) + 6  # the name, and a gap either side
 
-    segments: list[tuple[str, str]] = [(stat, STAT_STYLE)]
+    segments: list[tuple[str, str]] = [(stat, STAT_ACTIVE_STYLE if stat_active else STAT_STYLE)]
     joined = stat
     if extra:
         candidate = f"{joined}{GAP}{extra}"
@@ -159,6 +160,7 @@ class TopBar(Widget):
             app.dirty,
             extra=app.cut_stat(),
             extra_active=app.stack_open,
+            stat_active=app.finding,
         )
 
 

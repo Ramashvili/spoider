@@ -30,6 +30,7 @@ from .chrome import (
     FooterBar,
     ask_chunks,
     error_chunks,
+    find_chunks,
     help_chunks,
     prompt_chunks,
 )
@@ -337,8 +338,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._ask_words: tuple[str, str] = ("save", "discard")
         #: None when the escape answers what no answers, so the bar names them together.
         self._ask_cancel: str | None = "cancel"
-        self._show_matches = False  # the count sits in the bar only for a while
-        self._count_timer = None
+        self._show_matches = False  # the count sits in the bar while a find is open
+        self._find_mode = False
         self._undo: list[dict] = []
         self._redo: list[dict] = []
         self._edit_id: str | None = None
@@ -629,6 +630,11 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         return bool(said)
 
     @property
+    def finding(self) -> bool:
+        """True while a find is open: the match count wears the colour of a mode."""
+        return self._find_mode
+
+    @property
     def place(self) -> str:
         """Where the keys are, in words: the cell being typed into, a prompt, the stack, the map.
 
@@ -792,9 +798,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         except OSError as exc:
             self.notify(f"could not write config: {exc}", severity="error", timeout=FAILURE)
 
-    #: How long the match count stays up after a search is taken, in seconds.
-    MATCH_COUNT_SECONDS = 2.0
-
     def cut_stat(self) -> str:
         """How many cuts are waiting, always shown: an empty stack is a fact about
         the document too, and a count that appears and disappears is harder to
@@ -817,7 +820,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         if self._mode not in ("keys", "edit"):
             return
         self._show_matches = True
-        self._stop_count_timer()
         offered = self._search_history[0] if self._search_history else ""
         self._show_prompt(
             "search",
@@ -842,7 +844,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._refresh_matches()
         self._close_drawers()
         if not self.matches:
-            self._settle_count()
+            self._leave_find()
             self.notify(
                 f"no match for {query!r}" if query else "nothing to find",
                 severity="warning",
@@ -850,9 +852,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             )
             return
         self._jump_to_match(include_current=not repeat)
-        # the count has made its point: back to the cell count shortly
-        self._stop_count_timer()
-        self._count_timer = self.set_timer(self.MATCH_COUNT_SECONDS, self._settle_count)
+        self._enter_find()
 
     def action_next_match(self) -> None:
         """^N — the next cell the last search found, wrapping at the end."""
@@ -870,28 +870,35 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         if not self.matches:
             self.notify(f"no match for {self.search_query!r}", severity="warning", timeout=NOTE)
             return
-        self._show_matches = True
         self._jump_to_match(direction=direction)
-        self._stop_count_timer()
-        self._count_timer = self.set_timer(self.MATCH_COUNT_SECONDS, self._settle_count)
+        self._enter_find()
 
-    def _settle_count(self) -> None:
-        self._count_timer = None
-        if self._mode != "search":
-            self._show_matches = False
+    def _enter_find(self) -> None:
+        """A search that found something is a place to stay in: the count keeps the bar, in the
+        colour of a mode, and `alt+b` / `alt+f` walk the matches until `esc` says enough."""
+        self._find_mode = True
+        self._show_matches = True
         self._refresh_chrome()
+        self._sync_footer()
 
-    def _stop_count_timer(self) -> None:
-        if self._count_timer is not None:
-            self._count_timer.stop()
-            self._count_timer = None
+    def _leave_find(self) -> None:
+        """Leave a find and forget it: an escaped search is not one you keep for later."""
+        if not self._find_mode and not self.search_query:
+            return
+        self._find_mode = False
+        self._show_matches = False
+        self._last_query = ""
+        self.search_query = ""
+        self._refresh_matches()
+        self._refresh_chrome()
+        self._sync_footer()
 
     def _search_cancelled(self) -> None:
         self.search_query = ""
         self._last_query = ""
         self.matches = []
         self._show_matches = False
-        self._stop_count_timer()
+        self._find_mode = False
         self._close_drawers()
         self.view.refresh_map()
         self._refresh_chrome()
@@ -992,8 +999,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         if not self.is_mounted:
             return
         row = self.size.height - 1
-        if self.query_one("#footer", FooterBar).display:
-            row -= 1
+        footer = self.query_one("#footer", FooterBar)
+        if footer.display:
+            # a bar that had to take two rows pushes the one-row bars up with it
+            row -= max(1, footer.rows_needed)
         for selector in ("#ask", "#prompt", "#error"):
             for bar in self.query(selector):
                 bar.styles.offset = (0, max(0, row))
@@ -1177,8 +1186,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     def _sync_footer(self) -> None:
         """The bar never leaves; it swaps to the keys of whatever has them now."""
         footer = self.query_one("#footer", FooterBar)
+        footer.fit()
         mode = self._mode
-        if mode in ("keys", "edit"):
+        if mode in ("keys", "edit") and self._find_mode and not self.editing:
+            footer.mode = "custom"
+            footer.custom = find_chunks(
+                self.keymap.get("next_match", ""), self.keymap.get("previous_match", "")
+            )
+        elif mode in ("keys", "edit"):
             if self.editing:
                 footer.mode = "edit"
             elif self.stack_open:

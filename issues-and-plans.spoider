@@ -14,7 +14,7 @@
     "🤡"
   ],
   "justify": 50,
-  "cursor": "0756737968d6",
+  "cursor": "1fb7934a9531",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -40,7 +40,37 @@
         "text": "behavior improvements",
         "collapsed": false,
         "mark": null,
-        "children": []
+        "children": [
+          {
+            "id": "4218709522ea",
+            "text": "regarding ctrl+f find:",
+            "collapsed": false,
+            "mark": "📌",
+            "children": [
+              {
+                "id": "646f331fc11d",
+                "text": "when find is not desired anymore, esc key should\ncancel it, thus highlighted items unhighlight",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "2443f2d55816",
+                "text": "after find prompt is confirmed with enter, find\ncounter stays until we escape from this mode. Find\ncounter is highligted always (yellow color - same\nas cut stack when we are in it)",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "1a40097b9dce",
+                "text": "for that duration find alt+b Previous and alt+f Next apears in the footer",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          }
+        ]
       },
       {
         "id": "0756737968d6",
@@ -50,10 +80,18 @@
         "children": [
           {
             "id": "1fb7934a9531",
-            "text": "footer could be 2 lines maximum",
+            "text": "footer could be 2 lines tall, if items do not fit on one line",
             "collapsed": false,
-            "mark": "❓",
-            "children": []
+            "mark": "📌",
+            "children": [
+              {
+                "id": "bf631efd3ae4",
+                "text": "those two line stay equaly long, and do not reach over the bottom right special items of the footer (debug, config, help).",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
           },
           {
             "id": "a720169c9876",

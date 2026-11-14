@@ -11,6 +11,7 @@ from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, cast
 
 from rich.text import Text
+from textual import events
 from textual.binding import Binding
 from textual.widget import Widget
 
@@ -231,21 +232,53 @@ def pinned_bar(keymap: dict[str, str] | None = None) -> Text:
     return bar
 
 
-def compose_footer(width: int, hints: Sequence[Text], pinned: Text | None = None) -> Text:
-    """Left hints first, then the pinned cluster hard against the right edge."""
-    pinned = pinned if pinned is not None else pinned_bar()
+def footer_rows(width: int, hints: Sequence[Text]) -> list[list[Text]]:
+    """The hints split over one row or two, the second taking what did not fit the first.
+
+    The room a row has is the width less the pinned cluster, which keeps the bottom right of
+    the bar to itself in both shapes, so a hint never reaches over `, debug . config ? help`.
+    """
+    pinned = pinned_bar()
     cluster_width = pinned.cell_len + len(DIVIDER) + 1
-    avail = width - cluster_width - 1  # one blank column always separates the two
-    line = Text()
+    avail = max(1, width - cluster_width - 1)  # one blank column always separates the two
+    rows: list[list[Text]] = [[]]
     used = 0
     for chunk in hints:
         if used + chunk.cell_len > avail:
-            break
-        line.append_text(chunk)
+            if len(rows) == 2:
+                break
+            rows.append([])
+            used = 0
+            if chunk.cell_len > avail:
+                break
+        rows[-1].append(chunk)
         used += chunk.cell_len
-    line.append(" " * max(1, width - cluster_width - used))
-    line.append(f"{DIVIDER} ", style="dim")
-    line.append_text(pinned)
+    return rows
+
+
+def compose_footer(width: int, hints: Sequence[Text], pinned: Text | None = None) -> Text:
+    """Left hints first, then the pinned cluster hard against the right edge.
+
+    When the hints do not fit one row they take two, both padded to the same length, and the
+    cluster keeps the bottom right corner of the second.
+    """
+    pinned = pinned if pinned is not None else pinned_bar()
+    cluster_width = pinned.cell_len + len(DIVIDER) + 1
+    rows = footer_rows(width, hints)
+    line = Text()
+    for index, row in enumerate(rows):
+        if index:
+            line.append("\n")
+        used = 0
+        for chunk in row:
+            line.append_text(chunk)
+            used += chunk.cell_len
+        if index == len(rows) - 1:
+            line.append(" " * max(1, width - cluster_width - used))
+            line.append(f"{DIVIDER} ", style="dim")
+            line.append_text(pinned)
+        else:
+            line.append(" " * max(0, width - used))
     return line
 
 
@@ -309,6 +342,17 @@ def ask_chunks(affirm: str = "save", deny: str = "discard", cancel: str | None =
     return keys
 
 
+def find_chunks(next_chord: str = "", previous_chord: str = "") -> list[Text]:
+    """The keys of an open find: walk the matches, or leave and forget them."""
+    keys = [
+        entry(chord, name)
+        for chord, name in ((next_chord, "next"), (previous_chord, "prev"))
+        if chord
+    ]
+    keys.append(entry("esc", "done", literal=True))
+    return keys
+
+
 def error_chunks() -> list[Text]:
     """The bar while an error is up: one way out, and nothing else to press."""
     return [entry("⏎/esc", "close", literal=True)]
@@ -349,6 +393,8 @@ class FooterBar(Widget):
         self.mode = "keys"
         #: hints for the drawer modes, which know their own keys
         self.custom: list[Text] = []
+        #: the rows the bar asked for, kept where placement can read it before layout runs
+        self.rows_needed = 1
 
     def render(self) -> Text:
         width = self.size.width
@@ -371,3 +417,27 @@ class FooterBar(Widget):
         # the pinned cluster is two keys the user may have rebound: it reads the
         # same keymap the hints do, in every mode
         return compose_footer(width, hints, pinned_bar(spoider.keymap))
+
+    def needed_rows(self) -> int:
+        """How many rows the bar takes: the map's own keys decide, in every mode.
+
+        A prompt's keys are shorter than the map's, and a bar that shrank when a drawer opened
+        would resize the map under it. So the bar is as tall as the map needs it, and a shorter
+        mode simply draws in fewer rows of it.
+        """
+        width = self.size.width
+        if width <= 0:
+            return 1
+        skip = frozenset({"save"}) if getattr(self.app, "autosave", False) else frozenset()
+        spoider = cast("SpoiderApp", self.app)
+        return len(footer_rows(width, hint_chunks(BINDINGS, skip, spoider.keymap)))
+
+    def fit(self) -> None:
+        """Ask for the rows the bar needs; the map gives up what the bar takes."""
+        wanted = self.needed_rows()
+        self.rows_needed = wanted
+        if self.styles.height != wanted:
+            self.styles.height = wanted
+
+    def on_resize(self, event: events.Resize) -> None:
+        self.fit()

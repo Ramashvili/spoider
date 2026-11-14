@@ -110,16 +110,21 @@ def test_pinned_cluster_survives_any_width():
         line = compose_footer(width, hint_chunks(BINDINGS))
         assert line.plain.rstrip().endswith("? help")
         assert ". config" in line.plain
-        assert line.cell_len == width  # fills the row exactly, never overflows
+        # every row fills the width exactly, never overflows
+        assert all(row.cell_len == width for row in line.split("\n"))
 
 
-def test_hints_are_dropped_before_the_pinned_cluster():
-    wide = compose_footer(200, hint_chunks(BINDINGS)).plain
-    narrow = compose_footer(60, hint_chunks(BINDINGS)).plain
-    assert "^Z undo" in wide and "^Z undo" not in narrow
-    assert "? help" in wide and "? help" in narrow
-    # whole entries only: no half-drawn cap at the edge
-    assert "loose" not in narrow.split("│")[0] or "looser" in narrow
+def test_the_bar_takes_a_second_row_before_it_drops_a_hint():
+    """One row when the hints fit. When they do not, a second row rather than a lost key, and
+    the pinned cluster keeps the bottom right corner of it."""
+    wide = compose_footer(400, hint_chunks(BINDINGS))
+    narrow = compose_footer(60, hint_chunks(BINDINGS))
+    assert wide.plain.count("\n") == 0, "one row when it fits"
+    assert narrow.plain.count("\n") == 1, "two rows when it does not"
+    rows = narrow.split("\n")
+    assert all(row.cell_len == 60 for row in rows), "the rows are equally long"
+    assert rows[-1].plain.rstrip().endswith("? help"), "the cluster keeps the bottom right"
+    assert "│" not in rows[0].plain, "the first row leaves the cluster alone"
 
 
 def test_help_documents_every_binding():
@@ -1867,8 +1872,8 @@ async def test_the_help_page_leaves_the_keys_on_the_last_row(tmp_path: Path, siz
 
         page = app.query_one(PanelBar)
         bar = app.query_one("#footer")
-        assert bar.region.y == app.size.height - 1, (
-            f"at {width}x{height} the keys sit on row {bar.region.y}"
+        assert bar.region.bottom - 1 == app.size.height - 1, (
+            f"at {width}x{height} the keys end on row {bar.region.bottom - 1}"
         )
         assert page.region.bottom == bar.region.y, (
             "the page does not fill the rows between the top line and the keys"
@@ -2847,7 +2852,7 @@ async def test_enter_jumps_to_the_first_match_and_a_repeat_moves_on(tmp_path: Pa
 
         assert app.selected == app.matches[0]
         assert app.query_one(PromptBar).display is False
-        assert app.query_one(FooterBar).mode == "keys"
+        assert app.query_one(FooterBar).mode == "custom", "the bar names the find's keys"
 
         await pilot.press("ctrl+f", "enter")  # the prompt offers the last search
         await pilot.pause()
@@ -2972,20 +2977,41 @@ def test_every_visible_binding_has_a_place_in_the_ranking():
     assert len(BAR_ORDER) == len(set(BAR_ORDER))
 
 
-async def test_the_match_count_lets_go_after_a_moment(tmp_path: Path, monkeypatch):
-    monkeypatch.setattr(SpoiderApp, "MATCH_COUNT_SECONDS", 0.5)
+async def test_a_find_stays_open_until_esc_and_esc_forgets_it(tmp_path: Path):
+    """A search that found something opens a place you stay in: the count keeps the bar in the
+    colour of a mode, the bar names how to walk it, and esc leaves and forgets the query."""
+    from spoider.widgets import STAT_ACTIVE_STYLE
+
     app = SpoiderApp(tmp_path / "map.json", demo=False)
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(140, 26)) as pilot:
         _poem(app)
         await pilot.press("ctrl+f", "o", "n", "e", "enter")
         await pilot.pause()
-        assert app.stat_text() == "2 matches"
-        assert "2 matches" in app.query_one(TopBar).render().plain
 
-        await pilot.pause(0.8)
-        assert app.stat_text() == "4 cells total", "the count gives the bar back"
-        assert app.search_query == "one", "but the search and its marks stay"
-        assert len(app.matches) == 2
+        assert app.finding is True
+        assert app.stat_text() == "2 matches"
+        await pilot.pause(2.2)  # a moment later it is still there: no timer takes it away
+        assert app.stat_text() == "2 matches"
+        bar = app.query_one(TopBar).render()
+        stat = next(span for span in bar.spans if "match" in bar.plain[span.start : span.end])
+        assert str(stat.style) == STAT_ACTIVE_STYLE, "the count wears the colour of a mode"
+
+        footer = app.query_one(FooterBar).render().plain
+        assert "next" in footer and "prev" in footer and "done" in footer, footer
+
+        first = app.selected
+        await pilot.press("alt+f")
+        await pilot.pause()
+        assert app.selected != first, "alt+f walks the matches"
+        assert app.finding is True
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.finding is False
+        assert app.stat_text() == "4 cells total", "the bar goes back to counting cells"
+        assert app.search_query == "", "and the query is forgotten"
+        assert app.matches == [], "so the marks go with it"
+        assert app.query_one(FooterBar).mode == "keys"
 
 
 # -- the drawers: dialogs at the bottom, one bar --------------------------
@@ -3725,7 +3751,9 @@ async def test_a_cut_says_so_in_green_above_the_bar(tmp_path: Path):
         assert "cut onto the stack" in notice.message
         assert "alpha" not in notice.message, "a notice says what happened, not what was in the cell"
         assert "green" in notice.style and "reverse" in notice.style, "green, reversed"
-        assert notice.region.y == app.size.height - 2, "one row above the bar of keys"
+        assert (
+            notice.region.y == app.query_one(FooterBar).region.y - 1
+        ), "one row above the bar of keys"
         assert notice.region.width == cell_len(notice.message) + 2, "the sentence and its air"
         assert abs(notice.region.x - (app.size.width - notice.region.width) // 2) <= 1, "centred"
         assert notice.render().plain == f" {notice.message} "
@@ -3792,7 +3820,8 @@ async def test_a_notice_takes_no_row_from_the_map(tmp_path: Path):
         await pilot.pause()
 
         assert (view.region, app.query_one("#footer").region) == before, "nothing moved"
-        assert _notice(app).region.y == app.size.height - 2, "the row above the bar of keys"
+        keys = app.query_one("#footer").region
+        assert _notice(app).region.y == keys.y - 1, "the row above the bar of keys"
 
 
 async def test_a_prompt_takes_no_row_from_the_map(tmp_path: Path):
@@ -3811,7 +3840,7 @@ async def test_a_prompt_takes_no_row_from_the_map(tmp_path: Path):
 
         assert app.query_one("#prompt").display is True
         assert view.region == before, "the map keeps its rows while a prompt is open"
-        assert app.query_one("#prompt").region.y == app.size.height - 2
+        assert app.query_one("#prompt").region.y == app.query_one("#footer").region.y - 1
 
 
 async def test_a_prompt_takes_the_line_and_the_notice_goes(tmp_path: Path):
@@ -3826,7 +3855,9 @@ async def test_a_prompt_takes_the_line_and_the_notice_goes(tmp_path: Path):
 
         assert _notice(app).display is False, "a question outranks a notice"
         assert app.query_one("#prompt").display is True
-        assert app.query_one("#prompt").region.y == app.size.height - 2, "the same row"
+        assert (
+            app.query_one("#prompt").region.y == app.query_one("#footer").region.y - 1
+        ), "the same row"
 
 
 async def test_a_paste_toasts_in_green_too(tmp_path: Path):
@@ -4976,7 +5007,7 @@ async def test_a_window_of_thirty_rows_spends_every_row_on_the_map(tmp_path: Pat
 
         assert view.y == top.bottom
         assert view.bottom == foot.y
-        assert view.height == 28, "all the rows the two bars left"
+        assert view.height == 30 - 1 - foot.height, "all the rows the two bars left"
 
 
 async def test_the_air_comes_back_at_thirty_one_rows(tmp_path: Path):
@@ -6272,7 +6303,9 @@ async def test_the_error_line_sits_above_the_bar_of_keys(tmp_path: Path):
         bar = app.query_one(ErrorBar)
         footer = app.query_one(FooterBar)
         assert bar.region.height == 1
-        assert footer.region.y == app.screen.size.height - 1, "the keys keep the last row"
+        assert (
+            footer.region.bottom - 1 == app.screen.size.height - 1
+        ), "the keys keep the last row"
         assert bar.region.y == footer.region.y - 1, "and the red line is the row above"
 
 

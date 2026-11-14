@@ -284,7 +284,14 @@ class MapActions:
         self.selected = order[-1]
         self.view.refresh()
     def action_clear_selection(self) -> None:
-        """esc — back to one cell without moving it."""
+        """esc — leave a find first, then go back to one cell without moving it.
+
+        A find is a place you are in, and esc is how you leave a place: the count goes back to
+        cells, the marks go with the query, and a second esc clears the run as it always did.
+        """
+        if self._find_mode:
+            self._leave_find()
+            return
         if self.anchor is None:
             return
         self.anchor = None
