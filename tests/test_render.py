@@ -164,6 +164,26 @@ def test_only_the_selected_box_frame_is_reversed():
         assert "reverse" not in plain.cells[(box.x + 1, box.y + 1)][1]
 
 
+def test_a_run_of_selected_cells_is_filled_but_the_cursors_own_cell_is_not():
+    """The run reads as one block, and the cell the cursor is on keeps the walls-only look it
+    has when it is alone, so the cursor needs no mark inside the block."""
+    mm = MindMap(Node("root"))
+    kids = [mm.add_child(mm.root.id, name) for name in ("one", "two", "three")]
+    layout = compute(mm.root, 0)
+    grid = build_grid(layout, tuple(kid.id for kid in kids), lead=kids[1].id)
+
+    def inside(kid) -> str:
+        box = layout.boxes[kid.id]
+        row = box.y + 1
+        return grid.cells[(box.x + 1 + PAD, row)][1]
+
+    assert "reverse" in inside(kids[0]) and "reverse" in inside(kids[2]), "the run is filled"
+    assert "reverse" not in inside(kids[1]), "the cursor's cell keeps its text plain"
+    for kid in kids:
+        assert "reverse" in grid.cells[(layout.boxes[kid.id].x, layout.boxes[kid.id].y)][1]
+    assert not any("underline" in style for _glyph, style in grid.cells.values())
+
+
 def _stacked(spacing: int, first: str = "one", second: str = "two") -> str:
     mm = MindMap(Node("root"), spacing=spacing)
     branch = mm.add_child(mm.root.id, "branch")

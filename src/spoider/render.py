@@ -194,7 +194,7 @@ def cell_colour(mode: str, depth: int, family: int) -> str | None:
     return DEPTH_COLORS[(depth - 1) % len(DEPTH_COLORS)]
 
 
-def node_style(colour: str | None, selected: bool, lead: bool = False) -> str:
+def node_style(colour: str | None, selected: bool) -> str:
     """ANSI colour names only — the terminal palette decides the actual colour.
 
     `colour` is None for the root, which keeps the terminal's default foreground;
@@ -206,10 +206,6 @@ def node_style(colour: str | None, selected: bool, lead: bool = False) -> str:
     parts: list[str] = [] if colour is None else [colour]
     if selected:
         parts.append("reverse")
-        if lead:
-            # inside a run of selected cells the cursor needs its own mark: the
-            # underline survives the inversion and does not touch the colour
-            parts.append("underline")
     return " ".join(parts)
 
 
@@ -224,8 +220,10 @@ def build_grid(
     window: tuple[int, int, int, int] | None = None,
 ) -> Grid:
     """`selected` is one id or a whole run of them; `lead` is the one the cursor
-    is on, which is only worth marking when the run is longer than one."""
+    is on. One selected cell is its own cursor, so a single selection needs no lead."""
     chosen = {selected} if isinstance(selected, str) else set(selected)
+    if lead is None and len(chosen) == 1:
+        lead = next(iter(chosen))
     grid = Grid(width=layout.width, height=layout.height, window=window)
     for box in sorted(layout.boxes.values(), key=lambda placed: (placed.y, placed.x)):
         # a box the window cannot reach is not drawn at all: skipping its text is the whole
@@ -239,12 +237,18 @@ def build_grid(
             colours, box.depth + depth_shift, layout.families.get(box.node.id, -1)
         )
         chosen_here = box.node.id in chosen and not editing
-        frame = node_style(colour, chosen_here, lead=box.node.id == lead)
+        lead_here = box.node.id == lead
+        frame = node_style(colour, chosen_here)
         # Selection is a block around the cell, never over its text: inverting the
         # letters fights the terminal's own colours, and an emoji mark comes out as a
         # block of reversed picture instead of a star. With the walls gone there is no
         # block left to draw, so the cursor's cell inverts and nothing else does.
-        inside = node_style(colour, chosen_here if not layout.walls else False)
+        # A run of selected cells is filled in, all but the one the cursor is on: that one
+        # keeps the walls reversed and its text plain, which is how a single cell looks, so
+        # the cursor needs no mark of its own inside the block.
+        inside = node_style(
+            colour, chosen_here if not layout.walls else chosen_here and not lead_here
+        )
         _draw_box(grid, box, frame, inside, query, walls=layout.walls)
     # One vertical spine per parent per side, shared by all its children. Drawing a
     # separate line from the parent down to each child in turn costs n(n+1)/2 cells
