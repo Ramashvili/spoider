@@ -1188,6 +1188,25 @@ async def test_a_rebound_direction_reaches_the_keyboard(tmp_path: Path):
         assert app.focus == here, "the arrow is off the line, so it is dead"
 
 
+async def test_a_chord_no_keyboard_can_send_is_left_out_and_said(tmp_path: Path):
+    """`e+r` is two keys with nothing holding them together and `r+alt` puts the modifier where
+    the key belongs; neither can ever fire, so the line loses that chord, keeps the rest, and the
+    reader is told instead of a key quietly going dead."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("mark = e+r w\nfold = r+alt\ncopy = ctrl+alt+r\n")
+
+    app = SpoiderApp(demo=True, config_path=config_path)
+    async with app.run_test(notifications=True) as pilot:
+        await pilot.pause()
+        said = _notice(app).message
+        assert "e+r cannot be pressed" in said
+        assert "r+alt cannot be pressed" in said
+
+        assert app.keymap["mark"] == "w", "the rest of the line stands"
+        assert app.keymap["fold"] == "t", "nothing left on the line, so its default stands"
+        assert app.keymap["copy"] == "ctrl+alt+r", "two modifiers can be pressed"
+
+
 async def test_two_actions_on_one_chord_are_named_in_red(tmp_path: Path):
     """The second claim on a key is refused, and both actions are named.
 

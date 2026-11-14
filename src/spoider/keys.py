@@ -116,6 +116,24 @@ def shown(chord: str) -> str:
     return PRESSED.get(chord, chord)
 
 
+#: The words that name a modifier rather than a key.
+MODIFIERS = ("ctrl", "shift", "alt", "meta")
+
+
+def pressable(chord: str) -> bool:
+    """True when a chord is a shape a terminal can actually send.
+
+    Modifiers first, then exactly one key: `ctrl+alt+r` is fine, `e+r` is two keys with
+    nothing holding them together, and `r+alt` puts the modifier where the key belongs.
+    Both of those are stored happily by the parser and can never match a key event, so a
+    line that carries one silently loses a key. This is where they are caught.
+    """
+    parts = chord.split("+")
+    if not all(parts) or parts[-1] in MODIFIERS:
+        return False
+    return all(part in MODIFIERS for part in parts[:-1])
+
+
 def action_chords(overrides: dict[str, str] | None = None) -> dict[str, list[str]]:
     """Every chord each action answers to, in the order the bindings list them.
 

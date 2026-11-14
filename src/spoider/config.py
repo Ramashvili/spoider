@@ -108,6 +108,9 @@ class Config:
     #: Lines that said the same thing twice. The last one stands, as in any rc file,
     #: and each of these is said out loud rather than silently swallowed.
     repeated: tuple[str, ...] = ()
+    #: (action, chord) pairs whose chord could never be pressed, so the line lost it.
+    #: Kept so the app can say so instead of dropping a key in silence.
+    bad: tuple[tuple[str, str], ...] = ()
 
 
 def config_dir() -> Path:
@@ -161,6 +164,7 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
     config = Config()
     seen: set[str] = set()
     repeated: list[str] = []
+    bad: list[tuple[str, str]] = []
     for raw in text.splitlines():
         line = _without_comment(raw)
         if not line or "=" not in line:
@@ -205,10 +209,16 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
         elif value and (known is None or name in known):
             # a line lists every chord for that action, separated by spaces; one
             # that is not a key at all is dropped rather than read as a chord
-            chords = [token for token in value.split() if is_chord(token)]
+            chords = []
+            for token in value.split():
+                if is_chord(token):
+                    chords.append(token)
+                else:
+                    bad.append((name, token))
             if chords:
                 config.keys[name] = " ".join(chords)
     config.repeated = tuple(repeated)
+    config.bad = tuple(bad)
     return config
 
 

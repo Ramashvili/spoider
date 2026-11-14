@@ -603,6 +603,12 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             f"{WARNING}{name} is set twice, the first line is ignored."
             for name in self.config.repeated
         ]
+        # A chord that no keyboard can send is left out of its line, and the action keeps
+        # what it had. Saying so is the point: the file looks right and the key is gone.
+        said += [
+            f"{WARNING}{name}: {chord} cannot be pressed, so it was left out."
+            for name, chord in self.config.bad
+        ]
         # A chord Textual answers to itself is one spoider cannot hand to you: the
         # widget or the app takes it first. Only for chords the defaults do not use,
         # so the keys spoider already owns (tab, escape) are not called a problem.
