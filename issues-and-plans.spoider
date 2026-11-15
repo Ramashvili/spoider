@@ -12,7 +12,7 @@
     "💤"
   ],
   "justify": 50,
-  "cursor": "f5103208ce96",
+  "cursor": "aca35ba02784",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -21,7 +21,7 @@
     "children": [
       {
         "id": "e58cc8120b6d",
-        "text": "bugs to fix",
+        "text": "fix bugs",
         "collapsed": false,
         "mark": null,
         "children": [
@@ -55,7 +55,7 @@
             "children": [
               {
                 "id": "11947bdbaeb5",
-                "text": "it should stay on the one which was undone",
+                "text": "it should stay on (or near) the one which was undone",
                 "collapsed": false,
                 "mark": null,
                 "children": []
@@ -65,29 +65,8 @@
         ]
       },
       {
-        "id": "fbccd14539f2",
-        "text": "to test",
-        "collapsed": false,
-        "mark": null,
-        "children": []
-      },
-      {
-        "id": "cc3cf4dce67c",
-        "text": "performance",
-        "collapsed": false,
-        "mark": null,
-        "children": []
-      },
-      {
-        "id": "c7fada474760",
-        "text": "behavior improvements",
-        "collapsed": false,
-        "mark": null,
-        "children": []
-      },
-      {
         "id": "0756737968d6",
-        "text": "UI improvement",
+        "text": "improve UI",
         "collapsed": false,
         "mark": null,
         "children": [
@@ -99,7 +78,7 @@
             "children": [
               {
                 "id": "99a92f75886e",
-                "text": "the problem is that sometimes it is not obvious\nthat we are inside a cell because the caret, which\nis small, is the only indicator",
+                "text": "the problem is that sometimes it is not obvious\nthat we are inside a cell because the caret, which\nis small, is the only indicator - easily missed",
                 "collapsed": false,
                 "mark": null,
                 "children": []
@@ -120,15 +99,51 @@
                 ]
               }
             ]
+          },
+          {
+            "id": "aca35ba02784",
+            "text": "show editor mode in top bar",
+            "collapsed": false,
+            "mark": null,
+            "children": []
           }
         ]
       },
       {
         "id": "f5103208ce96",
-        "text": "features to add",
+        "text": "add features",
         "collapsed": false,
         "mark": null,
         "children": [
+          {
+            "id": "e5972e53d567",
+            "text": "export to ascii",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
+          {
+            "id": "01a564085b44",
+            "text": "CLI",
+            "collapsed": false,
+            "mark": null,
+            "children": [
+              {
+                "id": "aedd375142e6",
+                "text": "--version",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "61d8b868cb45",
+                "text": "ability to stdout an exported map instead of -o",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          },
           {
             "id": "8cd6f26420fe",
             "text": "implement export options into UI",
@@ -142,8 +157,82 @@
             "collapsed": false,
             "mark": null,
             "children": []
+          },
+          {
+            "id": "a8e1cd4eea83",
+            "text": "minimalistic file manager for opening files",
+            "collapsed": false,
+            "mark": "❓",
+            "children": [
+              {
+                "id": "e95d9343230c",
+                "text": "this may be bloat",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
           }
         ]
+      },
+      {
+        "id": "c7fada474760",
+        "text": "behavior improvements",
+        "collapsed": false,
+        "mark": null,
+        "children": [
+          {
+            "id": "cdd3135d925e",
+            "text": "allow shift+arrow to sellect also cousins",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
+          {
+            "id": "17b574f088e2",
+            "text": "consider saving undo history for each cell separately",
+            "collapsed": false,
+            "mark": "❓",
+            "children": [
+              {
+                "id": "6a517c240e4f",
+                "text": "a entire undo history of a cell would be sub-items\nof the main history, as if arrays inside array",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "720dbd712035",
+        "text": "security",
+        "collapsed": false,
+        "mark": null,
+        "children": [
+          {
+            "id": "4d87f98a1997",
+            "text": "do one more audit after everything is finished",
+            "collapsed": false,
+            "mark": "💤",
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "fbccd14539f2",
+        "text": "to test",
+        "collapsed": false,
+        "mark": null,
+        "children": []
+      },
+      {
+        "id": "cc3cf4dce67c",
+        "text": "performance",
+        "collapsed": false,
+        "mark": null,
+        "children": []
       },
       {
         "id": "12a106e7c43e",
