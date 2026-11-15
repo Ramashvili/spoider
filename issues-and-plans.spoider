@@ -11,8 +11,8 @@
     "❌",
     "💤"
   ],
-  "justify": 50,
-  "cursor": "aca35ba02784",
+  "justify": 40,
+  "cursor": "6ed906580032",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -56,6 +56,21 @@
               {
                 "id": "11947bdbaeb5",
                 "text": "it should stay on (or near) the one which was undone",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "543aafb87543",
+            "text": "binds stop working when caps lock is on",
+            "collapsed": false,
+            "mark": null,
+            "children": [
+              {
+                "id": "6249b80d1f43",
+                "text": "caps lock should be ignored when user is not writing",
                 "collapsed": false,
                 "mark": null,
                 "children": []
@@ -106,6 +121,42 @@
             "collapsed": false,
             "mark": null,
             "children": []
+          },
+          {
+            "id": "f4b6d72700bc",
+            "text": "show a little bit of LIFO stack even when we are not in it",
+            "collapsed": false,
+            "mark": null,
+            "children": [
+              {
+                "id": "9275bddad6f7",
+                "text": "only when there is enough space on the screen",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "0e94dd9354a1",
+                "text": "maximum characters = about 30",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "07f98fc96cb4",
+                "text": "gray color only",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "bb5093cd7594",
+                "text": "option to turn that off in conf",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
           }
         ]
       },
@@ -159,14 +210,58 @@
             "children": []
           },
           {
-            "id": "a8e1cd4eea83",
-            "text": "minimalistic file manager for opening files",
+            "id": "7b2d92fa3776",
+            "text": "ability to link to other files like in wiki",
             "collapsed": false,
-            "mark": "❓",
+            "mark": null,
             "children": [
               {
-                "id": "e95d9343230c",
-                "text": "this may be bloat",
+                "id": "430ad524544e",
+                "text": "this would open a new instance",
+                "collapsed": false,
+                "mark": null,
+                "children": [
+                  {
+                    "id": "7d1c6da2fe94",
+                    "text": "ideally on kitty tab, or a new termianl\nwindow, or whatever else is needed",
+                    "collapsed": false,
+                    "mark": null,
+                    "children": []
+                  },
+                  {
+                    "id": "6ed906580032",
+                    "text": "I do not want to make tabs in spoider when that\nfunction can be done by kitty or window manager",
+                    "collapsed": false,
+                    "mark": null,
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "c2f2b7433369",
+                "text": "syntax same as in markdown",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "2b322eb5611d",
+            "text": "add vertical layout",
+            "collapsed": false,
+            "mark": null,
+            "children": [
+              {
+                "id": "b6b6652cf65a",
+                "text": "rule: children are always bellow and a little to the right from their parent",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "ba6be234566e",
+                "text": "this will end up looking like a output of `tree` command",
                 "collapsed": false,
                 "mark": null,
                 "children": []
@@ -668,6 +763,21 @@
         {
           "id": "bf631efd3ae4",
           "text": "those two line stay equaly long, and do dnot reach\nover the bottom right special items of the footer\n(debug, config, help)",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "a8e1cd4eea83",
+      "text": "minimalistic file manager for opening files",
+      "collapsed": false,
+      "mark": "❌",
+      "children": [
+        {
+          "id": "e95d9343230c",
+          "text": "this is bloat",
           "collapsed": false,
           "mark": null,
           "children": []
