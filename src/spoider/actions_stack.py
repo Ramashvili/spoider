@@ -131,17 +131,40 @@ class StackActions:
         """Write the panel's state back and let the document know."""
         self._mark_dirty()
         self.view.refresh()
+    def _stack_remember(self) -> None:
+        """Which entry the cursor is in, before the document is swapped for another.
+
+        Undo replaces the whole document, and a cut entry's cells are in the stack rather than the
+        map, so the cursor that was standing on one is a cell the new document does not have. The
+        place it was in does exist, though, so it is remembered here and put back afterwards.
+        """
+        chosen = self.selected
+        for index, entry in enumerate(self._stack_entries()):
+            if any(node.id == chosen for node in entry.walk()):
+                self._stack_was = (entry.id, index)
+                return
+        self._stack_was = (None, None)
+
     def _stack_after_history(self) -> None:
         """Undo and redo swap the whole document, so the panel's cursor has to be
-        put somewhere that still exists — and the panel closed if the stack the
-        restored document carries is empty."""
+        put back where it was — the entry it was in when that entry survived, and the same place
+        in the stack when it did not — and the panel closed if the restored document's stack is
+        empty."""
+        entry_id, index = self._stack_was
+        self._stack_was = (None, None)
         entries = self._stack_entries()
         if not entries:
             self.stack_open_or_close_after_undo()
             return
         known = {node.id for entry in entries for node in entry.walk()}
         if self.selected not in known:
-            self.selected, self.anchor = entries[0].id, None  # the top of the stack
+            if entry_id is not None and any(entry.id == entry_id for entry in entries):
+                self.selected = entry_id
+            else:
+                # the entry is gone: the one that took its place is the nearest thing to it
+                at = 0 if index is None else min(index, len(entries) - 1)
+                self.selected = entries[at].id
+            self.anchor = None
         self.view.refresh()
     def _stack_select(self, doc: MindMap, node_id: str) -> None:
         if node_id != doc.root.id:  # the invisible root is not a cell you can be on
@@ -231,9 +254,11 @@ class StackActions:
         elif action == "spacing_less":
             self._set_spacing(self.mm.spacing - 1)
         elif action == "undo":
+            self._stack_remember()
             self.action_undo()
             self._stack_after_history()
         elif action == "redo":
+            self._stack_remember()
             self.action_redo()
             self._stack_after_history()
         else:

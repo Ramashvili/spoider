@@ -325,6 +325,7 @@ class MindMapView(Widget, can_focus=True):
     def camera(self, width: int, height: int) -> tuple[int, int]:
         layout = self.layout_
         focus = layout.box(self.spoider.selected)
+        across: int | None = None
         if focus is not None:
             across = self.caret_column(layout, focus)
             x = (across if across is not None else focus.cx) - width // 2
@@ -334,10 +335,14 @@ class MindMapView(Widget, can_focus=True):
             x = layout.width // 2 - width // 2
             y = layout.height // 2 - height // 2
 
+        # A caret at the very edge of the map is a caret at the very edge of the window, with
+        # nothing after it: the window is allowed to run past the map by a third, so the line
+        # being typed into comes to rest in the middle of the screen instead of against the frame.
+        room = width // 3 if focus is not None and across is not None else 0
         if layout.width <= width:
             x = -((width - layout.width) // 2)
         else:
-            x = min(max(x, 0), layout.width - width)
+            x = min(max(x, 0), layout.width - width + room)
         if layout.height <= height:
             y = -((height - layout.height) // 2)
         else:
@@ -472,8 +477,14 @@ class MindMapView(Widget, can_focus=True):
         shift = 0
         chosen = self.spoider.selected
         focus = panel.box(chosen) if chosen else None
-        if focus is not None and focus.y + BOX_H + 2 > height - 1:
-            shift = focus.y + BOX_H + 2 - (height - 1)
+        if focus is not None:
+            # the page follows the line being typed into, and the bottom of the entry when
+            # nothing is: an entry taller than the screen must not take the caret with it
+            at = caret_cell(focus, panel.walls) if focus.node.preview is not None else None
+            bottom = focus.y + (at[1] if at is not None else BOX_H)
+            # two rows of air under the line, so a caret that keeps typing down does not crawl
+            # along the last row of the screen
+            shift = max(0, bottom + 2 - (height - 3))
         return wall + 2 - self._panel_shift(panel, width), 2 - shift
 
     def _panel_shift(self, panel: Layout, width: int) -> int:
@@ -491,8 +502,11 @@ class MindMapView(Widget, can_focus=True):
         if focus.w <= inner:
             return max(0, focus.x + focus.w - inner)
         at = caret_cell(focus, panel.walls) if focus.node.preview is not None else None
-        x = at[0] if at is not None else focus.x
-        return max(0, x - inner)
+        if at is None:
+            return max(0, focus.x)
+        # the caret keeps a third of the column ahead of it, so the words coming next are on the
+        # screen rather than the entry's tail hanging off the wall
+        return max(0, at[0] - inner + max(1, inner // 3))
 
     def _caret_here(self, layout) -> tuple[int, int, bool] | None:
         """Where the caret hangs now, in grid coordinates, or None when nothing is being typed.

@@ -319,6 +319,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         #: Whether the cut stack has the keys, and where the map's cursor waits
         #: while it does: the cursor itself is `selected`/`anchor` in both places.
         self._stack_open = False
+        #: The entry the cursor was in when the document was last swapped by undo: (its id, its
+        #: place in the stack). A cut's cells live in the stack, not the map, so the cursor has to
+        #: be put back by hand after the whole document has been replaced.
+        self._stack_was: tuple[str | None, int | None] = (None, None)
         self._map_cursor: tuple[str | None, str | None] | None = None
         self.dirty = False
         #: What was typed into the search prompt; empty means no search is on.

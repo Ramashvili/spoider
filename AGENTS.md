@@ -572,8 +572,10 @@ The picture is the part we can make smaller:
 
 - a picture is built only for the cells the camera can reach (`build_grid(..., window=...)`),
   so its cost is the screen rather than the document: 50 ms becomes 3.4 on 541 cells;
-- the window is the screen rounded out to 32 by 4 cells, because typing creeps the camera
-  sideways a column at a time and navigation moves it twenty rows at once. Tall blocks cost
+- the window is the screen rounded out to 32 by 4 cells, because typing creeps the caret
+  sideways a column at a time and navigation moves it twenty rows at once. The camera itself
+  stays where it is while the caret has a column and a row to spare, and may run a third of the
+  window past the map, so the caret is never left standing against the frame; Tall blocks cost
   1.1 ms a rebuild (6.25 against 5.15 at 120x40) and are never hit;
 - the caret is a style applied while the window is assembled (`Grid.caret`), not a cell in the
   picture, so moving it repaints instead of rebuilding;

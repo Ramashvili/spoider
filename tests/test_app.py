@@ -4092,6 +4092,117 @@ async def test_the_panel_is_drawn_in_the_top_right_of_the_map(tmp_path: Path):
         assert lines[row].index("alpha") > 40, "and from the right"
 
 
+async def test_a_cell_wider_than_the_screen_keeps_the_caret_in_view(tmp_path: Path):
+    """A caret at the last column of the window is a caret with nothing after it: the view follows
+    the line, so the words coming next are on the screen too."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        branch = app.mm.add_child(app.mm.root.id, "short")
+        wide = app.mm.add_child(branch.id, "word " * 40)
+        app.view.refresh_map()
+        app.select(wide.id)
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.press("end")
+        await pilot.pause()
+
+        view = app.view
+        assert view._caret is not None
+        across = view._caret[0] - view._offset_x
+        assert 0 < across < view.size.width - view.size.width // 4, (
+            f"the caret ended at column {across} of {view.size.width}"
+        )
+        assert "word word" in view.render().plain, "and the line it is in is drawn"
+
+
+async def test_a_stack_entry_wider_than_its_column_keeps_the_caret_in_view(tmp_path: Path):
+    """The panel's column is at most half the screen, so an entry can be far wider than the space
+    it is drawn in: the page moves with the caret instead of leaving it against the wall."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        wide = app.mm.add_child(app.mm.root.id, "word " * 40)
+        app.view.refresh_map()
+        app.select(wide.id)
+        await pilot.pause()
+        app.action_cut()
+        await pilot.pause()
+        app.action_toggle_stack()
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.press("end")
+        await pilot.pause()
+
+        view = app.view
+        assert view._caret is not None
+        across = view._caret[0] - view._offset_x
+        wall = 100 - stack_column(app.stack_layout(), 100)
+        assert wall < across < view.size.width - 4, (
+            f"the caret is at column {across}, outside the column that starts at {wall}"
+        )
+
+
+async def test_an_entry_taller_than_the_screen_keeps_the_caret_in_view(tmp_path: Path):
+    """The page followed the bottom of the entry, so typing on its twentieth line put the caret
+    above the top of the window."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        tall = app.mm.add_child(app.mm.root.id, "\n".join(f"line {n}" for n in range(30)))
+        app.view.refresh_map()
+        app.select(tall.id)
+        await pilot.pause()
+        app.action_cut()
+        await pilot.pause()
+        app.action_toggle_stack()
+        await pilot.pause()
+
+        await pilot.press("e")
+        for _ in range(20):
+            await pilot.press("down")
+        await pilot.pause()
+
+        view = app.view
+        assert view._caret is not None
+        down = view._caret[1] - view._offset_y
+        assert 0 < down < view.size.height - 2, f"the caret is on row {down} of {view.size.height}"
+        assert "line 20" in view.render().plain
+
+
+async def test_undo_in_the_panel_keeps_the_cursor_on_the_entry_it_was_in(tmp_path: Path):
+    """An undo replaces the whole document, and a cut entry is not in the map, so its id is one the
+    new document does not have: the panel used to fall back to the top of the stack."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        for name in ("a", "b", "c"):
+            node = app.mm.add_child(app.mm.root.id, name)
+            app.view.refresh_map()
+            app.select(node.id)
+            await pilot.pause()
+            app.action_cut()
+            await pilot.pause()
+        app.action_toggle_stack()
+        await pilot.pause()
+
+        app.select(app._stack_entries()[2].id)
+        await pilot.pause()
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+
+        assert [entry.text for entry in app._stack_entries()] == ["b", "a"]
+        standing = app._stack_doc().find(app.selected)
+        assert standing is not None and standing.text == "a", "the cursor did not stay where it was"
+
+
 async def test_navigation_inside_the_panel_walks_the_stack(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(110, 24)) as pilot:
