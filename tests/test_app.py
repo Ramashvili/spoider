@@ -1215,6 +1215,43 @@ async def test_a_shift_chord_works_in_either_spelling(tmp_path: Path):
             assert app.mode == "marks", f"{chord!r} opened {app.mode!r}"
 
 
+async def test_a_run_walks_past_its_siblings_into_its_cousins(tmp_path: Path):
+    """A run is a level, not one parent's row of children: past the last sibling, shift and an
+    arrow carries on into the next branch's children, which sit at the same depth."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(120, 30)) as pilot:
+        left = app.mm.add_child(app.mm.root.id, "A")
+        app.mm.add_child(left.id, "a1")
+        app.mm.add_child(left.id, "a2")
+        right = app.mm.add_child(app.mm.root.id, "B")
+        app.mm.add_child(right.id, "b1")
+        app.mm.add_child(right.id, "b2")
+        app.view.refresh_map()
+        app.select(app.mm.find(left.id).children[0].id)
+        await pilot.pause()
+
+        def run() -> list[str]:
+            return [app.mm.find(node_id).text for node_id in app.selected_ids]
+
+        await pilot.press("shift+down")
+        await pilot.pause()
+        assert run() == ["a1", "a2"], run()
+
+        await pilot.press("shift+down")
+        await pilot.pause()
+        assert run() == ["a1", "a2", "b1"], f"the run crossed into a cousin: {run()}"
+
+        await pilot.press("shift+down")
+        await pilot.pause()
+        assert run() == ["a1", "a2", "b1", "b2"], run()
+
+        await pilot.press("shift+up")
+        await pilot.pause()
+        assert run() == ["a1", "a2", "b1"], "and it comes back the same way"
+
+
 async def test_alt_delete_takes_the_word_ahead_in_a_cell_and_in_a_prompt(tmp_path: Path):
     """`alt+d` is the nano chord for the word ahead; `alt+delete` is the one a hand on the delete
     key reaches, and both editors take it."""

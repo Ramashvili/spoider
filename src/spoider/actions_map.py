@@ -253,14 +253,15 @@ class MapActions:
     def action_extend_right(self) -> None:
         self._extend("go_down" if self.siblings_are_sideways else None)
     def _extend(self, kind: str | None) -> None:
-        """Grow or shrink the run by one sibling. Arrows that do not walk between
-        siblings in this shape do nothing rather than jump somewhere else."""
+        """Grow or shrink the run by one cell along its level.
+
+        A level is the run's row: the cell's own siblings, then the children of the next branch
+        along, which are cousins at the same depth. Arrows that do not walk a level in this
+        shape do nothing rather than jump somewhere else.
+        """
         if kind not in ("go_up", "go_down"):
             return
-        parent = self.document.parent(self.selected)
-        if parent is None:
-            return
-        order = [child.id for child in parent.children]
+        order = self.document.level(self.selected)
         target = order.index(self.selected) + (-1 if kind == "go_up" else +1)
         if not 0 <= target < len(order):
             return

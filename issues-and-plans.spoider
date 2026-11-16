@@ -26,13 +26,6 @@
         "mark": null,
         "children": [
           {
-            "id": "666cc3cfba31",
-            "text": "shift+w binds do not work. shift+alt+w still does",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          },
-          {
             "id": "cc893f986aac",
             "text": "when a cell is longer that the entire width of\npane, the cursor is not followed by the view",
             "collapsed": false,
@@ -811,6 +804,13 @@
           "children": []
         }
       ]
+    },
+    {
+      "id": "666cc3cfba31",
+      "text": "shift+w binds do not work. shift+alt+w still does",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
     }
   ]
 }

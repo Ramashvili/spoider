@@ -381,17 +381,34 @@ class MindMap:
         node.mark = self.next_mark(node_id, marks)
         return node.mark
 
+    def level(self, node_id: str) -> list[str]:
+        """Every cell at the depth of this one, in the order the map reads.
+
+        A level is the row a run walks: its own siblings first, and when they run out, the
+        children of the next branch along, which are cousins at the same depth.
+        """
+        target = self.depth(node_id)
+        found: list[str] = []
+
+        def walk(node: Node, depth: int) -> None:
+            if depth == target:
+                found.append(node.id)
+                return
+            for child in node.children:
+                walk(child, depth + 1)
+
+        walk(self.root, 0)
+        return found
+
     def range_between(self, first: str, last: str) -> list[str]:
-        """The run of siblings from one cell to another, endpoints included, in
+        """The run from one cell to another along their level, endpoints included, in
         document order whichever way it was dragged out.
 
-        Only siblings may be selected together; anything else is just the cell
-        you are standing on.
+        A run is a level, not a parent's row of children: siblings and cousins at one depth
+        are contiguous in the map's order, so dragging past the last sibling carries on into
+        the next branch. A cell with no level to share is just itself.
         """
-        parent = self.parent(last)
-        if parent is None:
-            return [last]
-        order = [child.id for child in parent.children]
+        order = self.level(last)
         try:
             a, b = order.index(first), order.index(last)
         except ValueError:
