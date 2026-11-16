@@ -3785,6 +3785,64 @@ async def test_undo_after_a_paste_puts_the_cut_back_on_the_stack(tmp_path: Path)
         assert [cell.text for cell in app.mm.cut_stack] == ["alpha"], "and the cut is back"
 
 
+async def test_a_delete_in_the_panel_stands_on_the_entry_beside_it(tmp_path: Path):
+    """Deleting an entry used to send the cursor to the top of the stack, however far down it was
+    deleted from."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        for name in ("a", "b", "c", "d"):
+            node = app.mm.add_child(app.mm.root.id, name)
+            app.view.refresh_map()
+            app.select(node.id)
+            await pilot.pause()
+            app.action_cut()
+            await pilot.pause()
+        app.action_toggle_stack()
+        await pilot.pause()
+
+        def standing() -> str | None:
+            node = app._stack_doc().find(app.selected)
+            return node.text if node is not None else None
+
+        assert [entry.text for entry in app._stack_entries()] == ["d", "c", "b", "a"]
+        app.select(app._stack_entries()[1].id)  # c, second from the top
+        await pilot.pause()
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+        assert [entry.text for entry in app._stack_entries()] == ["d", "b", "a"]
+        assert standing() == "b", "the entry that took its place, not the end of the stack"
+
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+        assert standing() == "a", "and the next one down again"
+
+
+async def test_a_delete_of_a_cut_child_stands_on_the_entry_it_hung_from(tmp_path: Path):
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        branch = app.mm.add_child(app.mm.root.id, "branch")
+        leaf = app.mm.add_child(branch.id, "leaf")
+        app.view.refresh_map()
+        app.select(branch.id)
+        await pilot.pause()
+        app.action_cut()
+        await pilot.pause()
+        app.action_toggle_stack()
+        await pilot.pause()
+
+        app.select(leaf.id)
+        await pilot.pause()
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+
+        standing = app._stack_doc().find(app.selected)
+        assert standing is not None and standing.text == "branch", "the entry it hung from"
+
+
 async def test_redo_of_a_paste_lands_on_the_cell_it_pasted(tmp_path: Path):
     """A paste keeps the cursor where it was, so several can be run off it. A redo is not another
     paste: it puts one cell back, and the reader wants to be on it."""

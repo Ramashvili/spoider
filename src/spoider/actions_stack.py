@@ -369,6 +369,13 @@ class StackActions:
         if parent is None:
             return
         self._push_undo()  # every stack change is one step, like a map change
+        # where the cursor will stand, worked out while the cells are still there: the sibling
+        # that takes their place, the one before them, or the cell they hung from
+        place = 0
+        for position, child in enumerate(parent.children):
+            if child.id == ids[0]:
+                place = position
+                break
         taken: list[Node] = []
         for node_id in ids:
             holder = doc.parent(node_id)
@@ -382,7 +389,6 @@ class StackActions:
         if node is None:
             self._undo.pop()
             return
-        index = 0
         if not discard:
             # the panel reads newest first, so the top of the stack is its index 0
             for cell in reversed(taken):
@@ -394,6 +400,25 @@ class StackActions:
             self.stack_open_or_close_after_undo()
             return
         self.anchor = None
-        self.selected = node.id if not discard else entries[min(index, len(entries) - 1)].id
+        if not discard:
+            self.selected = node.id
+        else:
+            self.selected = self._standing_in(doc, parent, place, entries).id
         self.view.refresh()
+
+    def _standing_in(self, doc: MindMap, parent: Node, place: int, entries: list[Node]) -> Node:
+        """Which cell to stand on after some have left a place: the sibling that took their place,
+        the one before them, and the cell they hung from when there is neither.
+
+        At the top of the stack there is no cell above the entries, so a deleted entry gives way to
+        its neighbours in the panel and nothing else.
+        """
+        siblings = parent.children
+        if place < len(siblings):
+            return siblings[place]
+        if place:
+            return siblings[place - 1]
+        if parent is not doc.root:
+            return parent
+        return entries[0]
 
