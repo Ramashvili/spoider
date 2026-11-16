@@ -4092,6 +4092,61 @@ async def test_the_panel_is_drawn_in_the_top_right_of_the_map(tmp_path: Path):
         assert lines[row].index("alpha") > 40, "and from the right"
 
 
+async def test_undo_and_redo_land_on_the_cell_that_moved(tmp_path: Path):
+    """A cell that comes back is where the cursor belongs; a cell that goes gives way to the
+    sibling that took its place, and to its parent when it had none."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        alpha = app.mm.add_child(app.mm.root.id, "alpha")
+        beta = app.mm.add_child(alpha.id, "beta")
+        gamma = app.mm.add_child(alpha.id, "gamma")
+        elsewhere = app.mm.add_child(app.mm.root.id, "elsewhere")
+        app.view.refresh_map()
+        await pilot.pause()
+
+        def standing() -> str | None:
+            node = app.mm.find(app.selected)
+            return node.text if node is not None else None
+
+        app.select(gamma.id)
+        await pilot.press("ctrl+d")
+        await pilot.pause()
+        assert standing() == "beta", "a delete stands on the next sibling"
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert standing() == "gamma", "the undo puts the cursor on the cell that came back"
+
+        await pilot.press("ctrl+r")
+        await pilot.pause()
+        assert standing() == "beta", "and the redo takes it away again"
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        app.action_cut()
+        await pilot.pause()
+        app.select(elsewhere.id)
+        await pilot.pause()
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert standing() == "gamma", "an undo of the cut lands on the cell it restored"
+
+        app.select(beta.id)
+        await pilot.pause()
+        await pilot.press("e")
+        app._buffer.insert(" and more")
+        await pilot.pause()
+        await pilot.press("escape")
+        await pilot.pause()
+        app.select(elsewhere.id)
+        await pilot.pause()
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert standing() == "beta", "an undo of an edit lands on the cell it changed"
+
+
 async def test_a_cell_wider_than_the_screen_keeps_the_caret_in_view(tmp_path: Path):
     """A caret at the last column of the window is a caret with nothing after it: the view follows
     the line, so the words coming next are on the screen too."""

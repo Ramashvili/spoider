@@ -293,3 +293,76 @@ def test_the_cursor_sits_with_the_properties_not_after_the_trees(tmp_path: Path)
     keys = list(json.loads(path.read_text(encoding="utf-8")))
     assert keys[:3] == ["version", "spacing", "layout"]
     assert keys.index("cursor") < keys.index("root") < keys.index("cut"), keys
+
+
+def test_an_undo_that_brings_a_cell_back_lands_on_it():
+    before = MindMap(Node("root"))
+    before.add_child(before.root.id, "alpha")
+    after = MindMap.from_dict(before.to_dict())
+    back = after.add_child(after.root.id, "beta")  # the cell the undo put back
+
+    assert after.landing_from(before) == back.id
+
+
+def test_a_cell_that_is_gone_gives_way_to_its_next_sibling():
+    before = MindMap(Node("root"))
+    alpha = before.add_child(before.root.id, "alpha")
+    beta = before.add_child(before.root.id, "beta")
+    after = MindMap.from_dict(before.to_dict())
+    after.delete(alpha.id)
+
+    assert after.landing_from(before) == beta.id
+
+
+def test_the_last_sibling_gives_way_to_the_one_before_it():
+    before = MindMap(Node("root"))
+    alpha = before.add_child(before.root.id, "alpha")
+    beta = before.add_child(before.root.id, "beta")
+    after = MindMap.from_dict(before.to_dict())
+    after.delete(beta.id)
+
+    assert after.landing_from(before) == alpha.id
+
+
+def test_the_only_child_gives_way_to_its_parent():
+    before = MindMap(Node("root"))
+    alpha = before.add_child(before.root.id, "alpha")
+    beta = before.add_child(alpha.id, "beta")
+    after = MindMap.from_dict(before.to_dict())
+    after.delete(beta.id)
+
+    assert after.landing_from(before) == alpha.id
+
+
+def test_a_cell_whose_words_changed_is_the_one_to_land_on():
+    before = MindMap(Node("root"))
+    alpha = before.add_child(before.root.id, "alpha")
+    before.add_child(before.root.id, "beta")
+    after = MindMap.from_dict(before.to_dict())
+    node = after.find(alpha.id)
+    assert node is not None
+    node.text = "alpha again"
+
+    assert after.landing_from(before) == alpha.id
+
+
+def test_a_cell_that_went_back_to_the_stack_leaves_the_cursor_in_its_hole():
+    before = MindMap(Node("root"))
+    alpha = before.add_child(before.root.id, "alpha")
+    beta = before.add_child(alpha.id, "beta")
+    gamma = before.add_child(alpha.id, "gamma")
+    after = MindMap.from_dict(before.to_dict())
+    cut = after.find(gamma.id)
+    assert cut is not None
+    after.parent(gamma.id).children.remove(cut)  # type: ignore[union-attr]
+    after.cut_stack.append(cut)
+
+    assert after.landing_from(before) == beta.id, "the sibling that took its place"
+
+
+def test_a_document_that_says_the_same_thing_moves_nothing():
+    before = MindMap(Node("root"))
+    before.add_child(before.root.id, "alpha")
+    after = MindMap.from_dict(before.to_dict())
+
+    assert after.landing_from(before) is None

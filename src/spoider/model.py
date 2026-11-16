@@ -182,6 +182,28 @@ class Node:
         return node
 
 
+def _places(mm: MindMap) -> tuple[dict[str, tuple[str | None, int, tuple, tuple[str, ...]]], tuple[str, ...]]:
+    """Every cell of a document by id: its parent, its place among its siblings, what it says
+    itself, and the cells under it. The cut stack is a second top level, so its entries have no
+    parent and are siblings of one another."""
+    found: dict[str, tuple[str | None, int, tuple, tuple[str, ...]]] = {}
+
+    def walk(node: Node, parent: str | None, index: int) -> None:
+        found[node.id] = (
+            parent,
+            index,
+            (node.text, node.collapsed, node.mark),
+            tuple(child.id for child in node.children),
+        )
+        for at, child in enumerate(node.children):
+            walk(child, node.id, at)
+
+    walk(mm.root, None, 0)
+    for at, entry in enumerate(mm.cut_stack):
+        walk(entry, None, at)
+    return found, tuple(entry.id for entry in mm.cut_stack)
+
+
 class MindMap:
     """The whole document. Mutations are by node id so the UI can stay stateless."""
 
@@ -361,6 +383,65 @@ class MindMap:
         else:
             successor = parent
         return removed, successor.id
+
+    def landing_from(self, was: MindMap) -> str | None:
+        """The cell the cursor belongs on, now that this document has replaced `was`.
+
+        An undo or a redo moves a few cells: one may have come back, one may be gone, or a cell
+        may say what it said before the change. The reader wants to stand on the piece that moved:
+        the cell that came back or whose own words changed, and, when a cell left a place, the
+        sibling that took its place, the one before it, or the parent it hung from.
+
+        None means nothing moved in a way worth following, and the cursor stays where it is.
+        """
+        now, now_stack = _places(self)
+        before, _before_stack = _places(was)
+
+        for node_id, (parent, _index, _own, _under) in now.items():
+            # a cell that came back to the map; one that only went back to the stack is not a
+            # place the cursor can stand unless the panel is the thing that has the keys
+            if node_id not in before and parent is not None:
+                return node_id
+        for node_id, (parent, index, _own, _under) in before.items():
+            if node_id in now:
+                continue
+            while parent is not None and parent not in now:
+                parent = before[parent][0] if parent in before else None
+            return self._stand_where(parent, index, now, now_stack)
+        for node_id, (parent, _index, own, _under) in now.items():
+            old = before.get(node_id)
+            if old is None:
+                continue
+            if old[2] != own:
+                return node_id  # its words went back
+            if old[0] != parent:
+                if parent is None:
+                    # it left the map for the cut stack: stand where it used to stand
+                    return self._stand_where(old[0], old[1], now, now_stack)
+                return node_id  # it came back out of the stack
+        return None
+
+    def _stand_where(
+        self,
+        parent: str | None,
+        index: int,
+        now: dict[str, tuple[str | None, int, tuple, tuple[str, ...]]],
+        stack: tuple[str, ...],
+    ) -> str | None:
+        """The cell to stand on when one has gone from a place: the sibling that took its place,
+        the one before it, and the parent it hung from when it had neither."""
+        if parent is None:
+            if index < len(stack):
+                return stack[index]
+            return stack[index - 1] if index else None
+        if parent not in now:
+            return None
+        siblings = now[parent][3]
+        if index < len(siblings):
+            return siblings[index]
+        if index:
+            return siblings[index - 1]
+        return parent
 
     def next_mark(self, node_id: str, marks: Sequence[str] = MARKS) -> str | None:
         """What the cycle would move this cell to, without moving it — so a run of

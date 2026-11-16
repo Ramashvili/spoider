@@ -1158,12 +1158,18 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self.exit()
 
     def _restore(self, snapshot: dict) -> None:
+        was = self.mm
         try:
             self.mm = MindMap.from_dict(snapshot, marks=self.mm.marks)
         except MapFileError as exc:  # only reachable if a snapshot were corrupt
             self.notify(f"cannot restore that state: {exc}", severity="error", timeout=FAILURE)
             return
-        if self.mm.find(self.selected) is None:
+        # the cursor goes to the cell the change touched, which the new document works out by
+        # comparing itself with the one it replaced
+        landing = self.mm.landing_from(was)
+        if landing is not None:
+            self.selected = landing
+        elif self.mm.find(self.selected) is None:
             self.selected = self.mm.root.id
         # the anchor belongs to the document we just replaced
         self.anchor = None
