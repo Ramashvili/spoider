@@ -11,8 +11,8 @@
     "❌",
     "💤"
   ],
-  "justify": 40,
-  "cursor": "fcf8505746a8",
+  "justify": 45,
+  "cursor": "17b574f088e2",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -24,52 +24,7 @@
         "text": "fix bugs",
         "collapsed": false,
         "mark": null,
-        "children": [
-          {
-            "id": "710dc666e8c6",
-            "text": "during mermaid export, lets ignore newlines in cells, unless there are two or more in succession - in that case turn successive new lines into two new lines",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          },
-          {
-            "id": "cc893f986aac",
-            "text": "when a cell is longer that the entire width of\npane, the cursor is not followed by the view",
-            "collapsed": false,
-            "mark": null,
-            "children": [
-              {
-                "id": "fd66a7d3ecd2",
-                "text": "it is more broken in lifo",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "a63ddde50791",
-                "text": "less broken in main pane",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
-          },
-          {
-            "id": "9bd828267b7d",
-            "text": "after undo in lifo stack view, focus returns on\nfirst (top) cell",
-            "collapsed": false,
-            "mark": null,
-            "children": [
-              {
-                "id": "11947bdbaeb5",
-                "text": "it should stay on (or near) the one which was undone",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
-          }
-        ]
+        "children": []
       },
       {
         "id": "0756737968d6",
@@ -78,47 +33,32 @@
         "mark": null,
         "children": [
           {
-            "id": "a720169c9876",
-            "text": "cell edit highlight",
+            "id": "a7a88c7aa881",
+            "text": "have total cell count highlighted yellow\n(like stack count is) when we are on the main\npane",
             "collapsed": false,
-            "mark": "❓",
+            "mark": null,
             "children": [
               {
-                "id": "99a92f75886e",
-                "text": "the problem is that sometimes it is not obvious\nthat we are inside a cell because the caret, which\nis small, is the only indicator - easily missed",
+                "id": "b219d4a57bff",
+                "text": "keep it up even if we are in find mode ->\nfind will then be a third item on the top bar",
                 "collapsed": false,
                 "mark": null,
                 "children": []
               },
               {
-                "id": "c796a0e94cbf",
-                "text": "current state:\ncell which we are editing will get its leftmost cell wall reversed",
+                "id": "5ed877aa2ca9",
+                "text": "make it say \"$number cells\" - it is not total (lifo not included)",
                 "collapsed": false,
-                "mark": "❓",
-                "children": [
-                  {
-                    "id": "293310571da6",
-                    "text": "not beautiful",
-                    "collapsed": false,
-                    "mark": null,
-                    "children": []
-                  }
-                ]
+                "mark": null,
+                "children": []
               }
             ]
-          },
-          {
-            "id": "aca35ba02784",
-            "text": "show editor mode in top bar",
-            "collapsed": false,
-            "mark": null,
-            "children": []
           },
           {
             "id": "f4b6d72700bc",
             "text": "show a little bit of LIFO stack even when we are not in it",
             "collapsed": true,
-            "mark": null,
+            "mark": "❓",
             "children": [
               {
                 "id": "9275bddad6f7",
@@ -149,6 +89,73 @@
                 "children": []
               }
             ]
+          },
+          {
+            "id": "a720169c9876",
+            "text": "cell edit highlight",
+            "collapsed": false,
+            "mark": "❓",
+            "children": [
+              {
+                "id": "99a92f75886e",
+                "text": "the problem is that sometimes it is not obvious\nthat we are inside a cell because the caret, which\nis small, is the only indicator - easily missed",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "c796a0e94cbf",
+                "text": "current state:\ncell which we are editing will get its leftmost cell wall reversed",
+                "collapsed": false,
+                "mark": "❓",
+                "children": [
+                  {
+                    "id": "293310571da6",
+                    "text": "not beautiful",
+                    "collapsed": false,
+                    "mark": null,
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "c7fada474760",
+        "text": "behavior improvements",
+        "collapsed": false,
+        "mark": null,
+        "children": [
+          {
+            "id": "17b574f088e2",
+            "text": "Keep history of each cell edit\nsaved after we leave the cell",
+            "collapsed": false,
+            "mark": null,
+            "children": [
+              {
+                "id": "c9d37ae11a1b",
+                "text": "we would have to keep track of how that\nrelates to the global history and ditch it,\nif we undo from the overview",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "6a517c240e4f",
+                "text": "a entire undo history of a cell would be sub-items\nof the main history, as if arrays inside array",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "a7b2c0f1b6fd",
+                "text": "the logic of this needs to be thought through",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
           }
         ]
       },
@@ -158,28 +165,6 @@
         "collapsed": false,
         "mark": null,
         "children": [
-          {
-            "id": "01a564085b44",
-            "text": "CLI",
-            "collapsed": false,
-            "mark": null,
-            "children": [
-              {
-                "id": "aedd375142e6",
-                "text": "--version",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "61d8b868cb45",
-                "text": "ability to stdout an exported map instead of -o",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
-          },
           {
             "id": "e5972e53d567",
             "text": "export to ascii",
@@ -270,29 +255,6 @@
         ]
       },
       {
-        "id": "c7fada474760",
-        "text": "behavior improvements",
-        "collapsed": false,
-        "mark": null,
-        "children": [
-          {
-            "id": "17b574f088e2",
-            "text": "consider saving undo history for each cell separately",
-            "collapsed": false,
-            "mark": "❓",
-            "children": [
-              {
-                "id": "6a517c240e4f",
-                "text": "a entire undo history of a cell would be sub-items\nof the main history, as if arrays inside array",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
-          }
-        ]
-      },
-      {
         "id": "720dbd712035",
         "text": "security",
         "collapsed": false,
@@ -314,11 +276,86 @@
         "mark": null,
         "children": [
           {
-            "id": "fcf8505746a8",
-            "text": "kasjgs akjghd sakjhd ksajh kj\n\nlsakj dslkslka lsjkad\n\n\nsalkjdsalkjdsalkdsjalk\nlaskjdsalkdslakjdlskaj",
-            "collapsed": false,
-            "mark": null,
-            "children": []
+            "id": "67e2b9415218",
+            "text": "improve undo algorithm - keeping whole maps\nas a backup for each step is bad",
+            "collapsed": true,
+            "mark": "💡",
+            "children": [
+              {
+                "id": "893a8fd5eaf2",
+                "text": "either compress",
+                "collapsed": false,
+                "mark": "✅",
+                "children": [
+                  {
+                    "id": "034fa17dea17",
+                    "text": "we chose this for simplicity\n\nhistory of a big map with 200 changes takes about 1MB",
+                    "collapsed": false,
+                    "mark": null,
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "0b94f6f56653",
+                "text": "or implement diff hunks",
+                "collapsed": false,
+                "mark": "❌",
+                "children": [
+                  {
+                    "id": "4977083cb013",
+                    "text": "hunks by key ID",
+                    "collapsed": false,
+                    "mark": "💡",
+                    "children": [
+                      {
+                        "id": "628c858f3690",
+                        "text": "better",
+                        "collapsed": false,
+                        "mark": null,
+                        "children": []
+                      },
+                      {
+                        "id": "7908afe93309",
+                        "text": "still a possibility",
+                        "collapsed": false,
+                        "mark": null,
+                        "children": []
+                      },
+                      {
+                        "id": "d5d3d5a12b3b",
+                        "text": "this would be more efficient but requires new code",
+                        "collapsed": false,
+                        "mark": null,
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "f863a0fe4021",
+                    "text": "hunks by line",
+                    "collapsed": true,
+                    "mark": "❌",
+                    "children": [
+                      {
+                        "id": "177ee0144c30",
+                        "text": "\"Doable, but it is a second representation of the document that must never drift.\"",
+                        "collapsed": false,
+                        "mark": null,
+                        "children": []
+                      },
+                      {
+                        "id": "5d60b50328c6",
+                        "text": "worse in some cases",
+                        "collapsed": false,
+                        "mark": null,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
@@ -334,7 +371,37 @@
         "text": "README",
         "collapsed": false,
         "mark": null,
-        "children": []
+        "children": [
+          {
+            "id": "d9a14aecc4cd",
+            "text": "serve a textual-web version for testing",
+            "collapsed": true,
+            "mark": "❓",
+            "children": [
+              {
+                "id": "7f8b6d105b07",
+                "text": "seems too complicated",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "e59af42930e4",
+                "text": "run on server with textual-serve",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "cff927f97429",
+                "text": "or ship whole app into browser which would\nneed to be compiled with textual-wasm",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          }
+        ]
       }
     ]
   },
@@ -526,8 +593,16 @@
       "id": "b28643ce06fd",
       "text": "try it with caret as a standalone widget to see if\nwe get improved performance",
       "collapsed": false,
-      "mark": "💡",
-      "children": []
+      "mark": "❌",
+      "children": [
+        {
+          "id": "2f3e7735e34a",
+          "text": "having screen redrawn by line ended up being\nthe best solution",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
     },
     {
       "id": "4c0626f0700e",
@@ -823,6 +898,108 @@
     {
       "id": "88e22f56777c",
       "text": "add third level headings for markdown exports",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "710dc666e8c6",
+      "text": "during mermaid export, lets ignore newlines in cells, unless there are two or more in succession - in that case turn successive new lines into two new lines",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "01a564085b44",
+      "text": "CLI",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "aedd375142e6",
+          "text": "--version",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "61d8b868cb45",
+          "text": "ability to stdout an exported map instead of -o",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "cc893f986aac",
+      "text": "when a cell is longer than the entire width of\npane, the cursor is not followed by the view",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "fd66a7d3ecd2",
+          "text": "it is more broken in lifo",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "a63ddde50791",
+          "text": "less broken in main pane",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "12750907f1fc",
+      "text": "after undo in lifo stack view, focus returns on\nfirst (top) cell",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "0eb218683176",
+          "text": "it should stay on (or near) the one which was undone",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "6cd2d14804a0",
+          "text": "undo and redo and delete should also behave reasonably",
+          "collapsed": false,
+          "mark": "✅",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "d41edaff16d1",
+      "text": "when I open a cell and click enter again to save it, it couts as an\naction for undo, even though nothing has changed in the\ncell.",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "23f393f65769",
+          "text": "An action that leaves the thing identical should\nnot count as a step for undo/redo",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "bdf5e809b235",
+      "text": "whole map undo history should respect MAX_UNDO",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "88e578d32bad",
+      "text": "view of lifo stack is one line too low. Top\ncell always gets clipped when lifo opens",
       "collapsed": false,
       "mark": "✅",
       "children": []
