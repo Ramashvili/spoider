@@ -3785,6 +3785,29 @@ async def test_undo_after_a_paste_puts_the_cut_back_on_the_stack(tmp_path: Path)
         assert [cell.text for cell in app.mm.cut_stack] == ["alpha"], "and the cut is back"
 
 
+async def test_redo_of_a_paste_lands_on_the_cell_it_pasted(tmp_path: Path):
+    """A paste keeps the cursor where it was, so several can be run off it. A redo is not another
+    paste: it puts one cell back, and the reader wants to be on it."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        alpha, beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+        app.select(beta.id)
+        await pilot.press("ctrl+u")
+        await pilot.pause()
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+
+        await pilot.press("ctrl+r")
+        await pilot.pause()
+
+        pasted = app.mm.find(beta.id).children
+        assert [child.text for child in pasted] == ["alpha"]
+        assert app.selected == pasted[0].id, "the redo stands on what it pasted"
+
+
 async def test_cut_lands_on_the_sibling_before_it_at_the_end_of_a_branch(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
