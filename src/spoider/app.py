@@ -17,6 +17,7 @@ from textual.binding import Binding, BindingType
 from textual.notifications import SeverityLevel
 from textual.screen import Screen
 
+from . import __version__
 from .actions_edit import EditActions
 from .actions_map import MapActions
 from .actions_stack import StackActions
@@ -45,7 +46,7 @@ from .desktop import desktop_available, install_desktop
 from .drawers import AskBar, ErrorBar, NoticeBar, PanelBar, PromptBar
 from .editing import Buffer
 from .files import SUFFIX
-from .formats import EXPORT_FORMATS
+from .formats import EXPORT_FORMATS, TEXT_FORMATS
 from .keys import (
     BINDINGS,
     action_chords,
@@ -1436,7 +1437,8 @@ def main(argv: list[str] | None = None) -> None:
             '--font "JetBrainsMono Nerd Font"\n'
             "  spoider notes.spoider --export markdown -o notes.md\n"
             "  spoider notes.spoider --export text -o notes.txt\n"
-            "  spoider notes.spoider --export mermaid -o notes.mmd"
+            "  spoider notes.spoider --export mermaid -o notes.mmd\n"
+            "  spoider notes.spoider --export markdown > notes.md"
         ),
         formatter_class=_Help,
     )
@@ -1511,6 +1513,12 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     parser.add_argument(
+        "--version",
+        action="version",
+        version=f"spoider {__version__}",
+        help="print the version and exit",
+    )
+    parser.add_argument(
         "--install-desktop",
         action="store_true",
         help="register .spoider files with the desktop, then exit",
@@ -1524,13 +1532,13 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("choose --position or --id, not both")
     if args.output is not None and not args.export:
         parser.error("-o names where a map is written; use it with --export svg")
-    if args.export and args.output is None:
-        parser.error("--export needs -o/--output to name the file")
+    if args.export and args.output is None and args.export not in TEXT_FORMATS:
+        parser.error(f"{args.export} is a picture: name the file with -o/--output")
     if args.install_desktop:
         raise SystemExit(install_desktop())
     path = Path(args.path).expanduser() if args.path else None
     if args.export:
-        from .formats import TEXT_FORMATS, ExportError
+        from .formats import ExportError
 
         if args.export in TEXT_FORMATS and (args.palette or args.font):
             # a document has no colours and no face; naming them would only mislead
@@ -1539,7 +1547,16 @@ def main(argv: list[str] | None = None) -> None:
             )
         if path is None:
             parser.error("--export needs a map to read")
-        assert args.output is not None, "--export is refused without -o above"
+        if args.output is None:
+            # a document piped somewhere: what it holds goes to stderr, so a pipe stays the
+            # document and nothing else
+            from .outline import document_of
+
+            body, summary = document_of(path, form=args.export, with_stack=not args.no_stack)
+            sys.stdout.write(body)
+            sys.stdout.flush()
+            print(f"spoider: {summary}", file=sys.stderr)
+            raise SystemExit(0)
         target = Path(args.output).expanduser()
         try:
             if args.export == "svg":

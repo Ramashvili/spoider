@@ -12,7 +12,7 @@
     "💤"
   ],
   "justify": 40,
-  "cursor": "cc893f986aac",
+  "cursor": "a720169c9876",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -152,13 +152,6 @@
         "mark": null,
         "children": [
           {
-            "id": "e5972e53d567",
-            "text": "export to ascii",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          },
-          {
             "id": "01a564085b44",
             "text": "CLI",
             "collapsed": false,
@@ -181,15 +174,37 @@
             ]
           },
           {
-            "id": "8cd6f26420fe",
-            "text": "implement export options into UI",
+            "id": "e5972e53d567",
+            "text": "export to ascii",
             "collapsed": false,
             "mark": null,
             "children": []
           },
           {
-            "id": "0d9f355649a8",
-            "text": "bring back mouse support",
+            "id": "2b322eb5611d",
+            "text": "add vertical layout",
+            "collapsed": true,
+            "mark": null,
+            "children": [
+              {
+                "id": "b6b6652cf65a",
+                "text": "rule: children are always bellow and a little to the right from their parent",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "ba6be234566e",
+                "text": "this will end up looking like a output of `tree` command",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "8cd6f26420fe",
+            "text": "implement export options into UI",
             "collapsed": false,
             "mark": null,
             "children": []
@@ -239,26 +254,11 @@
             ]
           },
           {
-            "id": "2b322eb5611d",
-            "text": "add vertical layout",
-            "collapsed": true,
+            "id": "0d9f355649a8",
+            "text": "bring back mouse support",
+            "collapsed": false,
             "mark": null,
-            "children": [
-              {
-                "id": "b6b6652cf65a",
-                "text": "rule: children are always bellow and a little to the right from their parent",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "ba6be234566e",
-                "text": "this will end up looking like a output of `tree` command",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
+            "children": []
           }
         ]
       },
@@ -282,13 +282,6 @@
                 "children": []
               }
             ]
-          },
-          {
-            "id": "88e22f56777c",
-            "text": "add third level headings for markdown exports",
-            "collapsed": false,
-            "mark": null,
-            "children": []
           }
         ]
       },
@@ -808,6 +801,13 @@
     {
       "id": "cdd3135d925e",
       "text": "allow shift+arrow to sellect also cousins",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "88e22f56777c",
+      "text": "add third level headings for markdown exports",
       "collapsed": false,
       "mark": "✅",
       "children": []

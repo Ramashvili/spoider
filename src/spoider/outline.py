@@ -180,19 +180,13 @@ def mermaid(document: MindMap) -> str:
     return _document(lines)
 
 
-def export_document(
-    path: Path,
-    *,
-    form: str,
-    output: Path,
-    overwrite: bool = False,
-    with_stack: bool = True,
-) -> tuple[Path, str]:
-    """Read a map and write it as `form` (`markdown` or `text`), saying what it holds.
+def document_of(
+    path: Path, *, form: str, with_stack: bool = True
+) -> tuple[str, str]:
+    """The map as a document, and a line saying what it holds, for a caller writing it out.
 
-    The care the picture gets, for the same reasons: the folder has to exist, an existing
-    file is not replaced unless asked by name, and the map is never written over by its own
-    export. The write is atomic, so an interrupted export leaves the old file whole.
+    One place decides what a form looks like, so a document written to a file and one written to
+    a pipe cannot differ.
     """
     try:
         document = MindMap.load(path)
@@ -208,6 +202,28 @@ def export_document(
     else:
         raise ExportError(f"no such form: {form}; there is {', '.join(EXPORT_FORMATS)}")
 
+    summary = f"{document.count()} cells"
+    if form != "mermaid" and with_stack and document.cut_stack:
+        summary += f", {len(document.cut_stack)} cuts"
+    return body, summary
+
+
+def export_document(
+    path: Path,
+    *,
+    form: str,
+    output: Path,
+    overwrite: bool = False,
+    with_stack: bool = True,
+) -> tuple[Path, str]:
+    """Read a map and write it as `form` (`markdown` or `text`), saying what it holds.
+
+    The care the picture gets, for the same reasons: the folder has to exist, an existing
+    file is not replaced unless asked by name, and the map is never written over by its own
+    export. The write is atomic, so an interrupted export leaves the old file whole.
+    """
+    body, summary = document_of(path, form=form, with_stack=with_stack)
+
     target = output.expanduser()
     if target.exists() and target.resolve() == Path(path).expanduser().resolve():
         raise ExportError(f"{target} is the map itself; choose another name")
@@ -217,8 +233,4 @@ def export_document(
     if target.exists() and not overwrite:
         raise ExportError(f"{target} already exists; use --force to allow replace")
     write_atomic(target, body)
-
-    summary = f"{document.count()} cells"
-    if form != "mermaid" and with_stack and document.cut_stack:
-        summary += f", {len(document.cut_stack)} cuts"
     return target, summary

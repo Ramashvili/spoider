@@ -209,6 +209,8 @@ spoider notes.spoider --export text -o notes.txt
 spoider notes.spoider --export mermaid -o notes.mmd
 ```
 
+Without `-o` a document goes to standard output, so `spoider notes.spoider --export markdown > notes.md` works and the line about what the map holds goes to stderr, out of the way of a pipe. A picture still needs a file: `svg` is written with `-o`.
+
 `markdown` makes the map's first three levels headings — `#` for the root, `##` for its children,
 `###` for theirs — and everything below them a nested list, with the cut stack under a heading of
 its own at the end of the file. `text` is that same tree
@@ -222,6 +224,7 @@ says what it says on the screen.
 
 | flag | what it takes |
 |---|---|
+| `--version` | print the version and exit |
 | `--export` | `svg`, `markdown`, `text` or `mermaid` |
 | `-o`, `--output` | the file to write; required with `--export` |
 | `--palette` | `paper` (the default), `coloured-paper`, `coloured-ink` or `ink`; `svg` only |

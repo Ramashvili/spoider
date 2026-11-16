@@ -112,7 +112,8 @@ def test_the_help_ends_with_an_example_of_each_format(monkeypatch, capsys):
     assert examples[2] == "spoider notes.spoider --export markdown -o notes.md"
     assert examples[3] == "spoider notes.spoider --export text -o notes.txt"
     assert examples[4] == "spoider notes.spoider --export mermaid -o notes.mmd"
-    assert len(examples) == 5, "and nothing after them"
+    assert examples[5] == "spoider notes.spoider --export markdown > notes.md"
+    assert len(examples) == 6, "and nothing after them"
 
 
 def test_the_demo_flag_is_what_asks_for_the_demo_map(monkeypatch):
@@ -144,6 +145,52 @@ def test_an_empty_id_is_refused(capsys):
     else:
         raise AssertionError("an empty id should be refused")
     assert "--id needs a cell id" in capsys.readouterr().err
+
+
+def test_the_version_flag_names_the_build(capsys):
+    from spoider import __version__
+
+    try:
+        module.main(["--version"])
+    except SystemExit as exit_code:
+        assert exit_code.code == 0
+    else:
+        raise AssertionError("--version should print and leave")
+    assert capsys.readouterr().out.strip() == f"spoider {__version__}"
+
+
+def test_a_document_can_be_written_to_a_pipe(tmp_path, capsys):
+    """No -o means stdout is the document: the note about what it holds goes to stderr, so a
+    pipe carries the document and nothing else."""
+    path = tmp_path / "map.spoider"
+    document = MindMap(Node("root"))
+    document.add_child(document.root.id, "alpha")
+    document.save(path)
+
+    try:
+        module.main([str(path), "--export", "markdown"])
+    except SystemExit as exit_code:
+        assert exit_code.code == 0
+    else:
+        raise AssertionError("an export to stdout should leave")
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith("# root"), captured.out
+    assert "## alpha" in captured.out
+    assert "wrote" not in captured.out, "the note about the file is not part of the document"
+    assert "cells" in captured.err, "and what it holds goes to stderr"
+
+
+def test_a_picture_still_needs_a_file(tmp_path, capsys):
+    path = tmp_path / "map.spoider"
+    MindMap(Node("root")).save(path)
+    try:
+        module.main([str(path), "--export", "svg"])
+    except SystemExit as exit_code:
+        assert exit_code.code == 2
+    else:
+        raise AssertionError("svg without -o should be refused")
+    assert "name the file" in capsys.readouterr().err
 
 
 def test_position_and_id_together_are_refused(tmp_path, capsys):
@@ -321,7 +368,7 @@ def test_the_format_and_the_file_are_two_flags(tmp_path: Path, capsys):
     with pytest.raises(SystemExit) as without_file:
         main([str(source), "--export", "svg"])
     assert without_file.value.code == 2
-    assert "--export needs -o/--output to name the file" in capsys.readouterr().err
+    assert "name the file with -o" in capsys.readouterr().err
 
     with pytest.raises(SystemExit) as without_format:
         main([str(source), "-o", str(tmp_path / "x.svg")])
