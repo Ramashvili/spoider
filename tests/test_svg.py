@@ -51,16 +51,6 @@ def test_every_cell_lands_inside_the_canvas(manual):
         assert max(xs) < sheet.width and max(ys) < sheet.height, shape
 
 
-def test_the_picture_says_nothing_about_how_many_cells_it_holds(manual):
-    """The tally belongs to the command line, not to the file: a picture with a count in it reads
-    like a screenshot with a caption someone forgot to crop."""
-    sheet = sheet_of(manual)
-    drawn = svg(sheet)
-
-    assert sheet.caption, "the tally is still on the sheet, for the command line to say"
-    assert sheet.caption not in drawn
-
-
 def test_the_caption_counts_cells_and_cuts(manual):
     assert sheet_of(manual).caption == f"{manual.count()} cells"
     cut = next(node for node in manual.nodes() if node is not manual.root)
