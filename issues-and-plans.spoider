@@ -269,13 +269,6 @@
         "mark": null,
         "children": [
           {
-            "id": "cdd3135d925e",
-            "text": "allow shift+arrow to sellect also cousins",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          },
-          {
             "id": "17b574f088e2",
             "text": "consider saving undo history for each cell separately",
             "collapsed": false,
@@ -808,6 +801,13 @@
     {
       "id": "666cc3cfba31",
       "text": "shift+w binds do not work. shift+alt+w still does",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "cdd3135d925e",
+      "text": "allow shift+arrow to sellect also cousins",
       "collapsed": false,
       "mark": "✅",
       "children": []

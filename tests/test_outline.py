@@ -31,15 +31,19 @@ EXPECTED_MARKDOWN = """\
 
 ## Ingredients
 
-- beef
-- beans
+### beef
+
+### beans
 
 ## Method
 
-- brown the beef
-  - in a wide pan
-- add the beans
-- simmer
+### brown the beef
+
+- in a wide pan
+
+### add the beans
+
+### simmer
 
 # Cut stack
 
@@ -77,7 +81,7 @@ def test_an_empty_cell_leaves_a_bare_marker():
     assert "##" in text.splitlines()
 
 
-def test_markdown_is_a_heading_for_two_levels_then_lists():
+def test_markdown_is_a_heading_for_three_levels_then_lists():
     assert markdown(_dish()) == EXPECTED_MARKDOWN
 
 
@@ -89,7 +93,7 @@ def test_the_stack_can_be_left_out():
     without = markdown(_dish(), with_stack=False)
     assert "Cut stack" not in without
     assert "paprika" not in without
-    assert without.endswith("- simmer\n")
+    assert without.rstrip().endswith("### simmer")
     assert "paprika" not in plain(_dish(), with_stack=False)
 
 
@@ -112,7 +116,7 @@ def test_a_folded_branch_is_still_exported():
     """The file is the map, not the screen: collapsing a branch hides it, not loses it."""
     document = _dish()
     document.root.children[0].collapsed = True
-    assert "- beef" in markdown(document)
+    assert "### beef" in markdown(document)
     assert "\t\tbeef" in plain(document)
 
 
@@ -151,7 +155,7 @@ def test_a_mark_with_no_text_is_the_whole_cell():
     branch.children = [Node("", mark="!")]
     root = Node("root")
     root.children = [branch]
-    assert "- !" in markdown(MindMap(root)), "a list item that is only a mark"
+    assert "### !" in markdown(MindMap(root)), "a heading that is only a mark"
     assert "\t\t!" in plain(MindMap(root))
 
 

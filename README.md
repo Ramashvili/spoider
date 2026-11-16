@@ -209,8 +209,9 @@ spoider notes.spoider --export text -o notes.txt
 spoider notes.spoider --export mermaid -o notes.mmd
 ```
 
-`markdown` makes the root and its children headings and everything below them a nested list,
-with the cut stack under a heading of its own at the end of the file. `text` is that same tree
+`markdown` makes the map's first three levels headings — `#` for the root, `##` for its children,
+`###` for theirs — and everything below them a nested list, with the cut stack under a heading of
+its own at the end of the file. `text` is that same tree
 with no headings and no dashes, one tab for every level down, which is the shape to paste into a
 note, a message or a comment. `mermaid` writes a Mermaid mind map, for a page that renders
 Mermaid.

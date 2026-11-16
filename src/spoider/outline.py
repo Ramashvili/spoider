@@ -4,8 +4,8 @@ The saved JSON is already the document; these two functions decide only how a le
 on a page. Nothing here knows about the screen, the palette or the typeface, which is why a
 text export cannot come out looking wrong on another machine.
 
-Markdown: the root is `#`, its children are `##`, and everything below them is a list with
-a dash, one level of nesting per step down. Plain text: the same tree with no headings and
+Markdown: the root is `#`, its children are `##`, their children `###`, and everything below
+them is a list with a dash, one level of nesting per step down. Plain text: the same tree with no headings and
 no dashes, one tab for every level, because the point of that format is that a person can
 paste it anywhere and see the shape without counting spaces.
 
@@ -96,17 +96,22 @@ def _document(lines: list[str]) -> str:
 
 
 def markdown(document: MindMap, *, with_stack: bool = True) -> str:
-    """The map as markdown: a heading for the root and its children, lists below."""
+    """The map as markdown: a heading down to the grandchildren, lists below."""
     root = document.root
     lines = [f"# {_label(root)}".rstrip(), ""]
     for child in root.children:
         lines.append(f"## {_label(child)}".rstrip())
         lines.append("")
-        lines.extend(
-            f"{STEP * depth}- {_label(node)}".rstrip()
-            for node, depth in _forest(child.children)
-        )
-        lines.append("")
+        for grandchild in child.children:
+            lines.append(f"### {_label(grandchild)}".rstrip())
+            lines.append("")
+            lines.extend(
+                f"{STEP * depth}- {_label(node)}".rstrip()
+                for node, depth in _forest(grandchild.children)
+            )
+            lines.append("")
+        if not child.children:
+            lines.append("")
     if with_stack and document.cut_stack:
         lines.append(f"# {STACK_HEADING}")
         lines.append("")
