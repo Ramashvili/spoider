@@ -4173,6 +4173,31 @@ async def test_the_panel_is_drawn_in_the_top_right_of_the_map(tmp_path: Path):
         assert lines[row].index("alpha") > 40, "and from the right"
 
 
+async def test_the_document_history_keeps_the_last_two_hundred_steps(tmp_path: Path):
+    """A step is a whole document, so the history is bounded by steps the way a buffer's is."""
+    from spoider.editing import MAX_UNDO
+
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        cell = app.mm.add_child(app.mm.root.id, "alpha")
+        app.view.refresh_map()
+        app.select(cell.id)
+        await pilot.pause()
+
+        for _ in range(MAX_UNDO + 40):
+            app.action_mark()
+        await pilot.pause()
+        assert len(app._undo) == MAX_UNDO, f"{len(app._undo)} steps held"
+
+        for _ in range(MAX_UNDO):
+            await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app._undo == [], "the oldest step is gone, and ^Z stops there"
+        assert app._redo, "and every step it walked back can be redone"
+
+
 async def test_a_cell_opened_and_closed_again_is_not_a_step_in_the_history(tmp_path: Path):
     """Opening a cell quietly and pressing enter changed nothing, but took a snapshot anyway, so
     one ^Z was spent on a step that did nothing at all."""

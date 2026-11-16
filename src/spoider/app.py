@@ -44,7 +44,7 @@ from .config import (
 )
 from .desktop import desktop_available, install_desktop
 from .drawers import AskBar, ErrorBar, NoticeBar, PanelBar, PromptBar
-from .editing import Buffer
+from .editing import MAX_UNDO, Buffer
 from .files import SUFFIX
 from .formats import EXPORT_FORMATS, TEXT_FORMATS
 from .keys import (
@@ -986,7 +986,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.view.refresh_selection(was)
 
     def _push_undo(self) -> None:
+        """Remember the document as it is, before a change goes into it.
+
+        A step is a whole document, so the history is bounded by steps rather than by the session,
+        the way a buffer's history is: the oldest step goes when the oldest of `MAX_UNDO` is
+        reached, and ^Z can walk back that far and no further.
+        """
         self._undo.append(self.mm.to_dict())
+        del self._undo[: max(0, len(self._undo) - MAX_UNDO)]
         self._redo.clear()
 
     def _refresh_chrome(self) -> None:
