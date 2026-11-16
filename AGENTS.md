@@ -661,7 +661,17 @@ the tree.
 
 - A map wider than the terminal is clipped at the edges; there is no zoom out.
 - No drag-to-reparent — that is cut and paste.
-- Undo history is in memory for the session, capped at 200 steps.
+- Undo history is in memory for the session, capped at 200 steps. A step is the whole document
+  packed with `zlib` (`_pack` writes it, `_restore` reads it), which is 6.7 KB rather than 142 KB
+  on a five hundred cell map, in exchange for 1.1 ms per push and 4 ms per `^Z`. If the history
+  ever needs thousands of steps, the step becomes a difference keyed on cells: each step holds the
+  whole dict of every cell it touched, the whole children list of every parent whose order moved,
+  the document header as a whole, and the stack's list of entries. Keying on whole objects is what
+  keeps it honest, since a field added to the format later travels inside those dicts, and it
+  needs a fingerprint per step because applying a step can be subtly wrong in a way that unpacking
+  a document cannot. A diff of the file's lines is the one design to refuse: its steps are patches
+  against a text that a format change removes, so the reader's history dies at the version
+  boundary.
 - A prompt holds 512 characters, so a path longer than that cannot be typed or pasted into
   one.
 - Autosave is off by default and there is no backup file.

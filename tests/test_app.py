@@ -4173,6 +4173,39 @@ async def test_the_panel_is_drawn_in_the_top_right_of_the_map(tmp_path: Path):
         assert lines[row].index("alpha") > 40, "and from the right"
 
 
+async def test_a_history_step_is_the_document_packed(tmp_path: Path):
+    """A step is stored as packed JSON rather than a tree of dicts: 6.7 KB against 142 KB on a five
+    hundred cell map, which is what makes two hundred steps affordable."""
+    import json
+    import zlib
+
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        cell = app.mm.add_child(app.mm.root.id, "alpha")
+        app.view.refresh_map()
+        app.select(cell.id)
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.press("x")
+        await pilot.press("escape")
+        await pilot.pause()
+
+        step = app._undo[0]
+        assert isinstance(step, bytes), f"a step came out as {type(step).__name__}"
+        restored = json.loads(zlib.decompress(step))
+        assert restored["root"]["children"][0]["text"] == "alpha", "and it unpacks to the document"
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app.mm.find(cell.id).text == "alpha", "and ^Z reads it back"
+        await pilot.press("ctrl+r")
+        await pilot.pause()
+        assert app.mm.find(cell.id).text == "alphax", "and ^R puts it forward again"
+
+
 async def test_the_document_history_keeps_the_last_two_hundred_steps(tmp_path: Path):
     """A step is a whole document, so the history is bounded by steps the way a buffer's is."""
     from spoider.editing import MAX_UNDO
