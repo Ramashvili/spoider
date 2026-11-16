@@ -323,6 +323,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         #: place in the stack). A cut's cells live in the stack, not the map, so the cursor has to
         #: be put back by hand after the whole document has been replaced.
         self._stack_was: tuple[str | None, int | None] = (None, None)
+        #: What a cell said when it was opened for typing, and whether this edit has written to
+        #: the history yet: an edit that ends where it started is not a step.
+        self._edit_was: str | None = None
+        self._edit_pushed = False
         self._map_cursor: tuple[str | None, str | None] | None = None
         self.dirty = False
         #: What was typed into the search prompt; empty means no search is on.

@@ -4173,6 +4173,89 @@ async def test_the_panel_is_drawn_in_the_top_right_of_the_map(tmp_path: Path):
         assert lines[row].index("alpha") > 40, "and from the right"
 
 
+async def test_a_cell_opened_and_closed_again_is_not_a_step_in_the_history(tmp_path: Path):
+    """Opening a cell quietly and pressing enter changed nothing, but took a snapshot anyway, so
+    one ^Z was spent on a step that did nothing at all."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        alpha = app.mm.add_child(app.mm.root.id, "alpha")
+        app.mm.add_child(app.mm.root.id, "beta")
+        app.view.refresh_map()
+        app.select(alpha.id)
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.press("x")
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        assert len(app._undo) == 1, "one real edit, one step"
+
+        app.select(alpha.id)
+        await pilot.press("e")
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.mm.find(alpha.id).text == "alphax"
+        assert len(app._undo) == 1, "opening a cell and leaving it alone is not a step"
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app.mm.find(alpha.id).text == "alpha", "and ^Z still undoes the edit"
+
+
+async def test_a_cell_made_and_abandoned_is_not_a_step_either(tmp_path: Path):
+    """A new cell that is thrown away again leaves the map exactly as it was, so ^Z should not be
+    spent on it."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        alpha = app.mm.add_child(app.mm.root.id, "alpha")
+        app.view.refresh_map()
+        app.select(alpha.id)
+        await pilot.pause()
+
+        await pilot.press("enter")  # a new sibling, left with nothing typed into it
+        await pilot.press("ctrl+c")
+        await pilot.pause()
+
+        assert [child.text for child in app.mm.find(app.mm.root.id).children] == ["alpha"]
+        assert len(app._undo) == 0, "the map is as it was, and so is the history"
+
+
+async def test_a_cell_opened_and_closed_again_keeps_the_redo(tmp_path: Path):
+    """A step that changes nothing also threw the redo stack away, so a redo the reader had was
+    lost by opening a cell and leaving it."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        alpha = app.mm.add_child(app.mm.root.id, "alpha")
+        app.mm.add_child(app.mm.root.id, "beta")
+        app.view.refresh_map()
+        app.select(alpha.id)
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.press("x")
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app.mm.find(alpha.id).text == "alpha"
+
+        app.select(alpha.id)
+        await pilot.press("e")
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.press("ctrl+r")
+        await pilot.pause()
+        assert app.mm.find(alpha.id).text == "alphax", "the redo was still there"
+
+
 async def test_undo_and_redo_land_on_the_cell_that_moved(tmp_path: Path):
     """A cell that comes back is where the cursor belongs; a cell that goes gives way to the
     sibling that took its place, and to its parent when it had none."""
@@ -4217,10 +4300,11 @@ async def test_undo_and_redo_land_on_the_cell_that_moved(tmp_path: Path):
         app.select(beta.id)
         await pilot.pause()
         await pilot.press("e")
-        app._buffer.insert(" and more")
+        await pilot.press("x")
         await pilot.pause()
         await pilot.press("escape")
         await pilot.pause()
+        assert app.mm.find(beta.id).text == "betax", "the cell was really edited"
         app.select(elsewhere.id)
         await pilot.pause()
         await pilot.press("ctrl+z")

@@ -51,10 +51,13 @@ class EditActions:
         node = self._live_node(node_id)
         if node is None:
             return
-        if not fresh:
-            self._push_undo()
         self._edit_id = node_id
         self._edit_fresh = fresh
+        # Nothing goes into the history yet: a cell opened and closed again changes nothing, and a
+        # step that changes nothing also throws away the redo stack. The snapshot is taken at the
+        # first keystroke that really changes the cell.
+        self._edit_was = "" if fresh else (node.text or "")
+        self._edit_pushed = fresh  # making the cell was already a step of its own
         self._buffer = Buffer("" if fresh else (node.text or ""))
         self._buffer.PAGE_LINES = self.config.page_lines
         # the picture is new to this cell, so the first synchronisation must rebuild it
@@ -68,6 +71,9 @@ class EditActions:
             return
         if self._buffer is None:
             return
+        if not self._edit_pushed and self._buffer.text != self._edit_was:
+            self._push_undo()
+            self._edit_pushed = True
         node.preview = self._buffer.text
         node.caret = self._buffer.caret
         node.overwrite = self._buffer.overwrite
@@ -303,6 +309,7 @@ class EditActions:
             node.overwrite = False
             node.sel = None
         self._buffer = None
+        self._edit_was, self._edit_pushed = None, False
 
         if node is None or not commit:
             # An abandoned new node was only ever a promise; take it away again. An empty
@@ -314,6 +321,9 @@ class EditActions:
                     self._commit_stack(doc)
                 if result is not None:
                     self.selected = result[1]
+                if self._undo:
+                    # the cell is gone again, so making it is not a step either
+                    self._undo.pop()
                 if self.stack_open:
                     self._stack_changed()
             self._sync_footer()
