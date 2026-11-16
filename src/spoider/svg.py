@@ -1,8 +1,8 @@
 """Write a map as an SVG: the picture the renderer already drew, as a file.
 
 Nothing here decides layout, colour or wording. `compose` takes the cells the renderer
-produced, gives the cut stack a column of its own when asked, adds a caption, and moves the
-origin to zero so a left branch is inside the picture rather than hanging off it. `svg` turns
+produced, gives the cut stack a column of its own when asked, and moves the origin to zero so a
+left branch is inside the picture rather than hanging off it. `svg` turns
 that into text.
 """
 
@@ -112,10 +112,12 @@ def _count(number: int, word: str) -> str:
 
 
 def compose(*, document: MindMap, palette: Palette, font: Font, with_stack: bool = True) -> Sheet:
-    """The map, the stack beside it when asked for, and a caption counting what it holds.
+    """The map and, when asked for, the stack beside it.
 
-    There is no cursor and no search highlight: this is a picture of the document, so what a
-    person was doing when they asked for it leaves no trace in it.
+    The picture holds the cells and nothing else: no count of what it holds, which would be a
+    sentence about the file rather than part of it. The tally is on the `Sheet` so the command
+    line can say it, and there is no cursor and no search highlight, since what a person was
+    doing when they asked for the picture leaves no trace in it.
     """
     layout = compute(document.root, document.spacing, document.layout)
     main = _normalised(build_grid(layout, selected=(), colours=document.colours).finalize())
@@ -135,12 +137,11 @@ def compose(*, document: MindMap, palette: Palette, font: Font, with_stack: bool
     caption = _count(document.count(), "cell") + (
         f", {_count(len(entries), 'cut')}" if panel is not None else ""
     )
-    picture = Grid(width=width, height=main.height + MARGIN * 3)
+    picture = Grid(width=width, height=main.height + MARGIN * 2)
 
     _paste(picture, main, MARGIN, MARGIN)
     if panel is not None:
         _paste(picture, panel, MARGIN + main.width + GAP, MARGIN)
-    picture.put_text(MARGIN, MARGIN + main.height + MARGIN, caption, "bright_black")
     picture.finalize()
     # the canvas is measured from the cells that are really there, not from the arithmetic
     # that placed them: a picture whose right edge touches a box is a picture that lost its
