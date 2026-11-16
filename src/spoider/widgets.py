@@ -407,12 +407,19 @@ class MindMapView(Widget, can_focus=True):
         # what is left of the screen instead of being centred underneath it.
         self._field = width - stack_column(panel, width) if panel is not None else width
         self._offset_x, self._offset_y = self.camera(self._field, height)
-        panel_page = self._panel_shift(panel, width) if panel is not None else 0
-        panel_top = self._panel_origin(panel, width, height)[1] if panel is not None else 0
+        # The page belongs to the panel, so it is only remembered while a panel is drawing: a zero
+        # written here with the panel shut reads as a page of its own and clips the first entry the
+        # next time the panel opens.
+        if panel is not None:
+            self._panel_page = self._panel_shift(panel, width)
+            self._panel_top = self._panel_origin(panel, width, height)[1]
         self._caret = self._caret_here(self.layout_)
-        self._panel_page = panel_page
-        self._panel_top = panel_top
         self._settled_for = key
+
+    def forget_panel_page(self) -> None:
+        """Put the stack's page back at its first entry, for a panel about to open on one."""
+        self._panel_page = 0
+        self._panel_top = 2
 
     def _chosen(self) -> tuple[str, ...]:
         """What wears the reverse: one thing at a time, and nothing while a bar has the keys."""

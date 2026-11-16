@@ -4158,6 +4158,31 @@ async def test_the_panel_says_nothing_when_the_stack_is_empty(tmp_path: Path):
         assert not app.stack_open
 
 
+async def test_the_newest_entry_of_the_stack_opens_whole(tmp_path: Path):
+    """The page of the stack was remembered as zero while the panel was shut, which read as a page
+    of its own the next time it opened and cut the top wall off the newest entry."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(80, 20)) as pilot:
+        for n in range(6):
+            node = app.mm.add_child(app.mm.root.id, f"entry {n}")
+            app.view.refresh_map()
+            app.select(node.id)
+            await pilot.pause()
+            app.action_cut()
+            await pilot.pause()
+        app.action_toggle_stack()
+        await pilot.pause()
+
+        rows = app.view.render().plain.split("\n")
+        walls = [index for index, row in enumerate(rows) if "╭" in row]
+        assert walls, f"no cell was drawn in the column: {rows[:5]}"
+        assert walls[0] == 2, f"the newest entry starts on row {walls[0]}, not under the title"
+        assert "entry 5" in rows[3], f"its words are on the next row: {rows[3]!r}"
+        assert "╰" in rows[4], "and its bottom wall closes the box"
+
+
 async def test_the_panel_is_drawn_in_the_top_right_of_the_map(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(110, 24)) as pilot:

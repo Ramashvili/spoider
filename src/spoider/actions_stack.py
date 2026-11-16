@@ -104,6 +104,7 @@ class StackActions:
             return
         self._map_cursor = (self.selected, self.anchor)  # where the map left off
         self._stack_open = True
+        self.view.forget_panel_page()  # the first entry sits at the top of the column, not mid-page
         self.selected, self.anchor = entries[0].id, None  # the newest cut
         self.view.refresh()
         self._sync_footer()
