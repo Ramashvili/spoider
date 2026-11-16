@@ -4175,6 +4175,104 @@ async def test_an_entry_taller_than_the_screen_keeps_the_caret_in_view(tmp_path:
         assert "line 20" in view.render().plain
 
 
+async def test_an_arrow_in_a_stack_entry_redraws_the_frame(tmp_path: Path):
+    """The caret moved inside a long entry, but the frame was cut for the page it was on before,
+    so nothing was drawn until a typed letter asked for a new picture."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        wide = app.mm.add_child(app.mm.root.id, "word " * 40)
+        app.view.refresh_map()
+        app.select(wide.id)
+        await pilot.pause()
+        app.action_cut()
+        await pilot.pause()
+        app.action_toggle_stack()
+        await pilot.pause()
+        await pilot.press("e")
+        await pilot.pause()
+
+        before = app.view.render().plain
+        await pilot.press("left")
+        await pilot.pause()
+        assert app.view.render().plain != before, "one arrow, one frame"
+
+        before = app.view.render().plain
+        for _ in range(30):
+            await pilot.press("left")
+        await pilot.pause()
+        assert app.view.render().plain != before, "and the page followed the caret back"
+
+
+async def test_a_tall_entry_deep_in_the_stack_is_shown_where_its_caret_is(tmp_path: Path):
+    """Entering the oldest entry of a long stack scrolled the page by the caret's row as if it were
+    a row of the window, and the column came out empty."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        tall = app.mm.add_child(app.mm.root.id, "\n".join(f"line {n}" for n in range(12)))
+        app.view.refresh_map()
+        app.select(tall.id)
+        await pilot.pause()
+        app.action_cut()
+        await pilot.pause()
+        for name in ("a", "b", "c", "d", "e", "f", "g", "h"):
+            node = app.mm.add_child(app.mm.root.id, name)
+            app.view.refresh_map()
+            app.select(node.id)
+            await pilot.pause()
+            app.action_cut()
+            await pilot.pause()
+        app.action_toggle_stack()
+        await pilot.pause()
+        for _ in range(8):
+            await pilot.press("down")
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.pause()
+
+        view = app.view
+        assert view._caret is not None
+        rows = view.render().plain.split("\n")
+        down = view._caret[1] - view._offset_y
+        assert 0 < down < view.size.height - 2, f"the caret is on row {down} of {view.size.height}"
+        assert "line 11" in rows[down], f"the caret's own line is drawn: {rows[down]!r}"
+
+
+async def test_the_page_holds_while_the_caret_walks_up_a_tall_entry(tmp_path: Path):
+    """Pinning the caret's line to the bottom of the column every time scrolled the text under it
+    as it walked up; the page waits until the line reaches the top."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        tall = app.mm.add_child(app.mm.root.id, "\n".join(f"line {n}" for n in range(12)))
+        app.view.refresh_map()
+        app.select(tall.id)
+        await pilot.pause()
+        app.action_cut()
+        await pilot.pause()
+        app.action_toggle_stack()
+        await pilot.pause()
+        await pilot.press("e")
+        await pilot.pause()
+
+        view = app.view
+        page = view._panel_top
+        assert view._caret is not None
+        start = view._caret[1] - view._offset_y
+        for _ in range(5):
+            await pilot.press("up")
+        await pilot.pause()
+
+        assert view._caret is not None
+        assert view._caret[1] - view._offset_y == start - 5, "the caret walked up the text"
+        assert view._panel_top == page, "and the page stayed where it was"
+
+
 async def test_undo_in_the_panel_keeps_the_cursor_on_the_entry_it_was_in(tmp_path: Path):
     """An undo replaces the whole document, and a cut entry is not in the map, so its id is one the
     new document does not have: the panel used to fall back to the top of the stack."""

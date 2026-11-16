@@ -184,6 +184,10 @@ class MindMapView(Widget, can_focus=True):
         self._settled_for: tuple | None = None
         self._offset_x = 0
         self._offset_y = 0
+        #: How far the stack's page was moved left when the frame was cut: a caret that asks for
+        #: another page is a frame to build again, not a row to repaint.
+        self._panel_page = 0
+        self._panel_top = 2
         self._field = 0
         #: The caret's place in the grid, when a cell is being typed into.
         self._caret: tuple[int, int, bool] | None = None
@@ -220,16 +224,45 @@ class MindMapView(Widget, can_focus=True):
         self._touch([node for node in (was, self.spoider.selected) if node])
 
     def refresh_caret(self) -> None:
-        """Only the caret moved: the row it left and the row it reached, and no picture rebuilt."""
+        """Only the caret moved: the row it left and the row it reached, and no picture rebuilt.
+
+        Unless the caret walked out of the window, or out of the place the stack's page was left
+        at: the camera and the page follow the caret, and a frame cut for the old one would draw
+        the caret nowhere. Then the frame is worked out again, since the picture is what moved.
+        """
         before = self._caret
         # the rows of the frame are drawn without the caret, so only its place is worked out again
         self._caret = self._caret_here(self.layout_)
+        if self._caret_walks_off():
+            self._forget()
+            self.refresh()
+            return
         rows = {
             row
             for row in (self._row_on_screen(before), self._row_on_screen(self._caret))
             if row is not None
         }
         self._mark(rows)
+
+    def _caret_walks_off(self) -> bool:
+        """Whether the caret has left the window, or the page the stack's picture was cut at.
+
+        This is the one thing a repaint cannot show: the camera and the panel's page move with the
+        caret, and both are worked out once per frame.
+        """
+        caret = self._caret
+        if caret is None:
+            return False
+        width, height = self.size
+        across, down = caret[0] - self._offset_x, caret[1] - self._offset_y
+        if not (0 < across < width - 2 and 1 < down < height - 2):
+            return True
+        panel = self.spoider.stack_layout()
+        if panel is None:
+            return False
+        if self._panel_shift(panel, width) != self._panel_page:
+            return True
+        return self._panel_origin(panel, width, height)[1] != self._panel_top
 
     def _forget(self) -> None:
         """Everything worked out for the last frame is out of date."""
@@ -374,7 +407,11 @@ class MindMapView(Widget, can_focus=True):
         # what is left of the screen instead of being centred underneath it.
         self._field = width - stack_column(panel, width) if panel is not None else width
         self._offset_x, self._offset_y = self.camera(self._field, height)
+        panel_page = self._panel_shift(panel, width) if panel is not None else 0
+        panel_top = self._panel_origin(panel, width, height)[1] if panel is not None else 0
         self._caret = self._caret_here(self.layout_)
+        self._panel_page = panel_page
+        self._panel_top = panel_top
         self._settled_for = key
 
     def _chosen(self) -> tuple[str, ...]:
@@ -474,18 +511,21 @@ class MindMapView(Widget, can_focus=True):
         """
         column = stack_column(panel, width)
         wall = width - column
-        shift = 0
         chosen = self.spoider.selected
         focus = panel.box(chosen) if chosen else None
+        top = 2
         if focus is not None:
-            # the page follows the line being typed into, and the bottom of the entry when
-            # nothing is: an entry taller than the screen must not take the caret with it
+            # The page follows the line being typed into, and the top of the entry when nothing is.
+            # While that line is inside the window the page stays where it is, so a caret walking
+            # up or down a tall entry moves against still text instead of dragging it along; when
+            # the line leaves the window the page catches up, two rows short of the edge.
             at = caret_cell(focus, panel.walls) if focus.node.preview is not None else None
-            bottom = focus.y + (at[1] if at is not None else BOX_H)
-            # two rows of air under the line, so a caret that keeps typing down does not crawl
-            # along the last row of the screen
-            shift = max(0, bottom + 2 - (height - 3))
-        return wall + 2 - self._panel_shift(panel, width), 2 - shift
+            row = at[1] if at is not None else focus.y + BOX_H
+            if not 2 <= self._panel_top + row <= height - 3:
+                top = 2 - max(0, row + 2 - (height - 3))
+            else:
+                top = self._panel_top
+        return wall + 2 - self._panel_shift(panel, width), top
 
     def _panel_shift(self, panel: Layout, width: int) -> int:
         """How far the stack's page is moved left, so that the chosen entry is in the column.
