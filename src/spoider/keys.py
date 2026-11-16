@@ -154,6 +154,31 @@ def pressable(chord: str) -> bool:
     return all(part in MODIFIERS for part in parts[:-1])
 
 
+def spellings(chord: str) -> list[str]:
+    """The ways a terminal may name one chord.
+
+    Shift with a letter is one event with two spellings: a terminal speaking the kitty protocol
+    says `shift+w`, and one that does not says the capital, `W`. Both are the same key, so a
+    binding answers to either.
+    """
+    if chord.startswith("shift+") and len(chord.removeprefix("shift+")) == 1:
+        letter = chord.removeprefix("shift+")
+        if letter.isalpha():
+            return [chord, letter.upper()]
+    if len(chord) == 1 and chord.isalpha() and chord.isupper():
+        return [chord, f"shift+{chord.lower()}"]
+    return [chord]
+
+
+def action_for(chords: dict[str, list[str]], key: str) -> str | None:
+    """Which action a pressed chord belongs to, in whatever spelling the terminal used."""
+    wanted = set(spellings(shown(key)))
+    for action, listed in chords.items():
+        if wanted & {spelling for chord in listed for spelling in spellings(chord)}:
+            return action
+    return None
+
+
 def action_chords(overrides: dict[str, str] | None = None) -> dict[str, list[str]]:
     """Every chord each action answers to, in the order the bindings list them.
 
@@ -239,7 +264,15 @@ def build_binding_keymap(overrides: dict[str, str] | None = None) -> dict[str, s
         # an action that lost every chord is bound to a string no key can spell, so
         # Textual lets go of the key it was born with instead of keeping it silently
         keymap[binding.id] = (
-            ",".join(WANTED.get(chord, chord) for chord in listed) if listed else UNBOUND
+            ",".join(
+                spelling
+                for chord in listed
+                for spelling in (
+                    WANTED.get(part, part) for part in spellings(chord)
+                )
+            )
+            if listed
+            else UNBOUND
         )
     return keymap
 def default_keymap() -> dict[str, str]:

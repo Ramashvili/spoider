@@ -1187,6 +1187,34 @@ async def test_the_debug_box_says_where_the_keys_are(tmp_path: Path):
         assert app.place in ("main pane", "cut stack")
 
 
+def test_a_shift_and_a_letter_have_two_spellings():
+    """A terminal that does not speak the kitty protocol sends shift+w as `W`: one character,
+    no modifier. A chord names both spellings, so the binding answers to either."""
+    from spoider.keys import build_binding_keymap, spellings
+
+    assert spellings("shift+w") == ["shift+w", "W"]
+    assert spellings("W") == ["W", "shift+w"]
+    assert spellings("shift+up") == ["shift+up"], "a named key has one spelling"
+    assert spellings("ctrl+w") == ["ctrl+w"]
+    assert build_binding_keymap({"set_marks": "shift+w"})["set_marks"] == "shift+w,W"
+
+
+async def test_a_shift_chord_works_in_either_spelling(tmp_path: Path):
+    """Both what a protocol terminal sends and what a plain one sends open the marks prompt."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("set_marks = shift+w\n")
+    for chord in ("shift+w", "W"):
+        app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+        async with app.run_test(size=(120, 24)) as pilot:
+            node = app.mm.add_child(app.mm.root.id, "alpha")
+            app.view.refresh_map()
+            app.select(node.id)
+            await pilot.pause()
+            await pilot.press(chord)
+            await pilot.pause()
+            assert app.mode == "marks", f"{chord!r} opened {app.mode!r}"
+
+
 async def test_alt_delete_takes_the_word_ahead_in_a_cell_and_in_a_prompt(tmp_path: Path):
     """`alt+d` is the nano chord for the word ahead; `alt+delete` is the one a hand on the delete
     key reaches, and both editors take it."""

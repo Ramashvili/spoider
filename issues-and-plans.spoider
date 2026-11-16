@@ -12,7 +12,7 @@
     "💤"
   ],
   "justify": 40,
-  "cursor": "6ed906580032",
+  "cursor": "cc893f986aac",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -25,6 +25,13 @@
         "collapsed": false,
         "mark": null,
         "children": [
+          {
+            "id": "666cc3cfba31",
+            "text": "shift+w binds do not work. shift+alt+w still does",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
           {
             "id": "cc893f986aac",
             "text": "when a cell is longer that the entire width of\npane, the cursor is not followed by the view",
@@ -56,21 +63,6 @@
               {
                 "id": "11947bdbaeb5",
                 "text": "it should stay on (or near) the one which was undone",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
-          },
-          {
-            "id": "543aafb87543",
-            "text": "binds stop working when caps lock is on",
-            "collapsed": false,
-            "mark": null,
-            "children": [
-              {
-                "id": "6249b80d1f43",
-                "text": "caps lock should be ignored when user is not writing",
                 "collapsed": false,
                 "mark": null,
                 "children": []
@@ -125,7 +117,7 @@
           {
             "id": "f4b6d72700bc",
             "text": "show a little bit of LIFO stack even when we are not in it",
-            "collapsed": false,
+            "collapsed": true,
             "mark": null,
             "children": [
               {
@@ -211,10 +203,24 @@
           },
           {
             "id": "7b2d92fa3776",
-            "text": "ability to link to other files like in wiki",
-            "collapsed": false,
+            "text": "ability to have links in cells",
+            "collapsed": true,
             "mark": null,
             "children": [
+              {
+                "id": "b5da18e44484",
+                "text": "to files and even websites",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "c2f2b7433369",
+                "text": "syntax same as in markdown",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
               {
                 "id": "430ad524544e",
                 "text": "this would open a new instance",
@@ -236,20 +242,13 @@
                     "children": []
                   }
                 ]
-              },
-              {
-                "id": "c2f2b7433369",
-                "text": "syntax same as in markdown",
-                "collapsed": false,
-                "mark": null,
-                "children": []
               }
             ]
           },
           {
             "id": "2b322eb5611d",
             "text": "add vertical layout",
-            "collapsed": false,
+            "collapsed": true,
             "mark": null,
             "children": [
               {
@@ -297,6 +296,13 @@
                 "children": []
               }
             ]
+          },
+          {
+            "id": "88e22f56777c",
+            "text": "add third level headings for markdown exports",
+            "collapsed": false,
+            "mark": null,
+            "children": []
           }
         ]
       },
@@ -780,6 +786,28 @@
           "text": "this is bloat",
           "collapsed": false,
           "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "543aafb87543",
+      "text": "binds stop working when caps lock is on",
+      "collapsed": false,
+      "mark": "❌",
+      "children": [
+        {
+          "id": "06d08c64152f",
+          "text": "we keep this. it is like vim. Turn you caps off dude",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "6249b80d1f43",
+          "text": "caps lock should be ignored when user is not writing",
+          "collapsed": false,
+          "mark": "❌",
           "children": []
         }
       ]

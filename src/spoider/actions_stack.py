@@ -11,7 +11,7 @@ from . import nav
 from .chrome import NOTE
 from .keys import (
     action_chords,
-    shown,
+    action_for,
 )
 from .layout import compute_stack
 from .model import MindMap, Node
@@ -152,11 +152,7 @@ class StackActions:
         The stack panel reads keys through this instead of matching strings, so a
         chord the reader has rebound works there too.
         """
-        pressed = shown(key)  # Textual says "comma"; the keymap says ","
-        for action, chords in action_chords(self.config.keys).items():
-            if pressed in chords:
-                return action
-        return None
+        return action_for(action_chords(self.config.keys), key)
     def handle_stack_key(self, key: str, character: str | None) -> bool:
         """Every key while the stack panel is open.
 

@@ -234,14 +234,10 @@ class PromptBar(Drawer):
         Undo and redo are read this way, so a chord the reader rebound works in a prompt as it
         does in a cell instead of only the chords this file happens to spell.
         """
-        from .keys import action_chords, shown
+        from .keys import action_chords, action_for
 
         app = cast("SpoiderApp", self.app)
-        pressed = shown(key)
-        for action, chords in action_chords(app.config.keys).items():
-            if pressed in chords:
-                return action
-        return None
+        return action_for(action_chords(app.config.keys), key)
 
     def on_paste(self, event: events.Paste) -> None:
         """Text the terminal pasted lands at the caret, on one line: a prompt is one row,
