@@ -203,11 +203,20 @@ def test_mermaid_carries_the_colour_mode_it_was_saved_with():
     assert "colorBy" not in mermaid(family), "a branch at a time is Mermaid's own default"
 
 
-def test_mermaid_breaks_lines_with_br():
-    map_ = MindMap(Node("two\nlines\n\nand a blank one"))
-    text = mermaid(map_)
+def test_mermaid_folds_one_break_to_a_space_and_keeps_two_as_a_paragraph():
+    """A wrapped line is one sentence, so its break reads as a space; a blank line is a
+    paragraph, and Mermaid spells that `<br/><br/>`. Any run of two or more is one blank line."""
+    folded = mermaid(MindMap(Node("two\nlines")))
+    assert 'root(("two lines"))' in folded, folded
 
-    assert 'root(("two<br/>lines<br/>and a blank one"))' in text
+    paragraph = mermaid(MindMap(Node("two lines\n\nand a paragraph")))
+    assert 'root(("two lines<br/><br/>and a paragraph"))' in paragraph, paragraph
+
+    run = mermaid(MindMap(Node("two lines\n\n\n\nand a paragraph")))
+    assert 'root(("two lines<br/><br/>and a paragraph"))' in run, "three breaks are one blank line"
+
+    edge = mermaid(MindMap(Node("\ntwo lines\n")))
+    assert 'root(("two lines"))' in edge, "a break at either end is not a paragraph"
 
 
 def test_mermaid_quotes_a_label_that_would_end_the_line():

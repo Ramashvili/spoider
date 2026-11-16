@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import errno
 import os
+import re
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -137,14 +138,25 @@ def plain(document: MindMap, *, with_stack: bool = True) -> str:
     return _document(lines)
 
 
-def _mermaid_label(node: Node) -> str:
-    """A cell as one Mermaid label: its mark, a space, the text, lines broken by `<br/>`.
+def _mermaid_paragraphs(text: str) -> str:
+    """A cell's text as one Mermaid label: a line break inside a paragraph is a space, and a
+    blank line stays a blank line, which Mermaid spells `<br/><br/>`.
 
-    Mermaid has no second line inside a label, so a paragraph becomes `<br/>` breaks; blank
-    lines go, as they do in the other two documents.
+    A wrapped line is one sentence and reads as one, so its break is not worth a row of its own;
+    two breaks are a paragraph and are. Three or more are the same paragraph break, so a run of
+    them comes out as two.
     """
-    text = "<br/>".join(part.strip() for part in (node.text or "").splitlines() if part.strip())
-    mark = " ".join(part.strip() for part in (node.mark or "").splitlines() if part.strip())
+    return "<br/><br/>".join(
+        " ".join(part.strip() for part in block.splitlines() if part.strip())
+        for block in re.split(r"\n{2,}", text)
+        if block.strip()
+    )
+
+
+def _mermaid_label(node: Node) -> str:
+    """A cell as one Mermaid label: its mark, a space, then its text."""
+    text = _mermaid_paragraphs(node.text or "")
+    mark = _mermaid_paragraphs(node.mark or "")
     return f"{mark} {text}".strip() if mark else text
 
 

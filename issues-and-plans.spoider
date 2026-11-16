@@ -12,7 +12,7 @@
     "💤"
   ],
   "justify": 40,
-  "cursor": "a720169c9876",
+  "cursor": "fcf8505746a8",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -25,6 +25,13 @@
         "collapsed": false,
         "mark": null,
         "children": [
+          {
+            "id": "710dc666e8c6",
+            "text": "during mermaid export, lets ignore newlines in cells, unless there are two or more in succession - in that case turn successive new lines into two new lines",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
           {
             "id": "cc893f986aac",
             "text": "when a cell is longer that the entire width of\npane, the cursor is not followed by the view",
@@ -305,7 +312,15 @@
         "text": "to test",
         "collapsed": false,
         "mark": null,
-        "children": []
+        "children": [
+          {
+            "id": "fcf8505746a8",
+            "text": "kasjgs akjghd sakjhd ksajh kj\n\nlsakj dslkslka lsjkad\n\n\nsalkjdsalkjdsalkdsjalk\nlaskjdsalkdslakjdlskaj",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          }
+        ]
       },
       {
         "id": "cc3cf4dce67c",
