@@ -70,7 +70,13 @@ PALETTES: tuple[Palette, ...] = (
 
 
 def by_name(name: str) -> Palette | None:
-    return next((palette for palette in PALETTES if palette.name == name), None)
+    """The palette a name means, or None when no palette is called that.
+
+    The American spelling is answered and never listed: `colored-paper` finds `coloured-paper`, so
+    a reader who types their own spelling is not sent back to the list to check it.
+    """
+    wanted = name.replace("colored", "coloured")
+    return next((palette for palette in PALETTES if palette.name == wanted), None)
 
 
 @dataclass(frozen=True)

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from spoider.palettes import by_name, fonts, is_truetype
+from spoider.palettes import PALETTES, by_name, fonts, is_truetype
 from spoider.svg import GAP, MARGIN, ExportError, compose, export_map, svg
 
 SVG = {"s": "http://www.w3.org/2000/svg"}
@@ -19,6 +19,19 @@ def palette(name: str = "paper"):
     found = by_name(name)
     assert found is not None
     return found
+
+
+def test_the_american_spelling_of_a_palette_is_answered_and_never_listed():
+    """A reader who spells it colored is not sent back to the list to check their spelling, and the
+    list keeps saying coloured, which is the spelling the palettes are named with."""
+    assert by_name("colored-paper") is not None
+    assert by_name("colored-paper").name == "coloured-paper"
+    assert by_name("colored-ink").name == "coloured-ink"
+    assert by_name("colour") is None, "only the names there are, in either spelling"
+
+    names = [palette.name for palette in PALETTES]
+    assert "colored-paper" not in names, "the alias stays silent"
+    assert all("colored" not in name for name in names)
 
 
 def a_font():
