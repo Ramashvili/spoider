@@ -12,7 +12,7 @@
     "💤"
   ],
   "justify": 45,
-  "cursor": "17b574f088e2",
+  "cursor": "0b5865bb809a",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -24,7 +24,23 @@
         "text": "fix bugs",
         "collapsed": false,
         "mark": null,
-        "children": []
+        "children": [
+          {
+            "id": "6595b551ac7b",
+            "text": "check if we are rendering svgs in such a way,\nthat text of some lines gets centered on the\ncell. There seems do be a discrepancy. We\nwant the text aligned to the left - fill the\nrest with empty spaces if necessary. Glyph\ngrid shall reflect the original",
+            "collapsed": false,
+            "mark": "💤",
+            "children": [
+              {
+                "id": "7c21e36aa250",
+                "text": "this is only aparent in some svg viewers",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          }
+        ]
       },
       {
         "id": "0756737968d6",
@@ -32,28 +48,6 @@
         "collapsed": false,
         "mark": null,
         "children": [
-          {
-            "id": "a7a88c7aa881",
-            "text": "have total cell count highlighted yellow\n(like stack count is) when we are on the main\npane",
-            "collapsed": false,
-            "mark": null,
-            "children": [
-              {
-                "id": "b219d4a57bff",
-                "text": "keep it up even if we are in find mode ->\nfind will then be a third item on the top bar",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "5ed877aa2ca9",
-                "text": "make it say \"$number cells\" - it is not total (lifo not included)",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
-          },
           {
             "id": "f4b6d72700bc",
             "text": "show a little bit of LIFO stack even when we are not in it",
@@ -119,6 +113,13 @@
                 ]
               }
             ]
+          },
+          {
+            "id": "aca0b7de39d5",
+            "text": "resolve dependabot's pull request to allow new version textual",
+            "collapsed": false,
+            "mark": null,
+            "children": []
           }
         ]
       },
@@ -160,17 +161,76 @@
         ]
       },
       {
+        "id": "12a106e7c43e",
+        "text": "README",
+        "collapsed": false,
+        "mark": null,
+        "children": [
+          {
+            "id": "d9a14aecc4cd",
+            "text": "serve a textual-web version for testing",
+            "collapsed": true,
+            "mark": "❓",
+            "children": [
+              {
+                "id": "7f8b6d105b07",
+                "text": "seems too complicated",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "e59af42930e4",
+                "text": "run on server with textual-serve",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "cff927f97429",
+                "text": "or ship whole app into browser which would\nneed to be compiled with textual-wasm",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "7a902a791464",
+            "text": "mention the specifying font embeds it in svg.\nElse there is a risk that it will not be\ndrawn nicely",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          }
+        ]
+      },
+      {
         "id": "f5103208ce96",
         "text": "add features",
         "collapsed": false,
         "mark": null,
         "children": [
           {
-            "id": "e5972e53d567",
-            "text": "export to ascii",
-            "collapsed": false,
+            "id": "0b5865bb809a",
+            "text": "export as characters",
+            "collapsed": true,
             "mark": null,
-            "children": []
+            "children": [
+              {
+                "id": "91bb9e91bef0",
+                "text": "rich",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "9733986f8272",
+                "text": "ascii",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
           },
           {
             "id": "2b322eb5611d",
@@ -251,6 +311,28 @@
             "collapsed": false,
             "mark": null,
             "children": []
+          },
+          {
+            "id": "234f58a9a2b4",
+            "text": "allow to pipe svgs into other linux commands",
+            "collapsed": false,
+            "mark": null,
+            "children": [
+              {
+                "id": "eab3b8faa091",
+                "text": "why not",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "6527e4edd2f5",
+            "text": "allow to export svg with transparent background",
+            "collapsed": false,
+            "mark": null,
+            "children": []
           }
         ]
       },
@@ -276,19 +358,19 @@
         "mark": null,
         "children": [
           {
-            "id": "67e2b9415218",
+            "id": "b7f8851c7c70",
             "text": "improve undo algorithm - keeping whole maps\nas a backup for each step is bad",
             "collapsed": true,
-            "mark": "💡",
+            "mark": "💤",
             "children": [
               {
-                "id": "893a8fd5eaf2",
+                "id": "6e9a2be7b0ca",
                 "text": "either compress",
                 "collapsed": false,
                 "mark": "✅",
                 "children": [
                   {
-                    "id": "034fa17dea17",
+                    "id": "4ed4ba42b132",
                     "text": "we chose this for simplicity\n\nhistory of a big map with 200 changes takes about 1MB",
                     "collapsed": false,
                     "mark": null,
@@ -297,33 +379,33 @@
                 ]
               },
               {
-                "id": "0b94f6f56653",
+                "id": "d4e22aba40b2",
                 "text": "or implement diff hunks",
                 "collapsed": false,
                 "mark": "❌",
                 "children": [
                   {
-                    "id": "4977083cb013",
+                    "id": "f1d49d3d5cc6",
                     "text": "hunks by key ID",
                     "collapsed": false,
                     "mark": "💡",
                     "children": [
                       {
-                        "id": "628c858f3690",
+                        "id": "8b7b0deb2db1",
                         "text": "better",
                         "collapsed": false,
                         "mark": null,
                         "children": []
                       },
                       {
-                        "id": "7908afe93309",
+                        "id": "1b0c722c2fff",
                         "text": "still a possibility",
                         "collapsed": false,
                         "mark": null,
                         "children": []
                       },
                       {
-                        "id": "d5d3d5a12b3b",
+                        "id": "be9876a23481",
                         "text": "this would be more efficient but requires new code",
                         "collapsed": false,
                         "mark": null,
@@ -332,20 +414,20 @@
                     ]
                   },
                   {
-                    "id": "f863a0fe4021",
+                    "id": "b19dd283a051",
                     "text": "hunks by line",
                     "collapsed": true,
                     "mark": "❌",
                     "children": [
                       {
-                        "id": "177ee0144c30",
+                        "id": "1e0979f44795",
                         "text": "\"Doable, but it is a second representation of the document that must never drift.\"",
                         "collapsed": false,
                         "mark": null,
                         "children": []
                       },
                       {
-                        "id": "5d60b50328c6",
+                        "id": "7a99abbf5f9d",
                         "text": "worse in some cases",
                         "collapsed": false,
                         "mark": null,
@@ -360,48 +442,18 @@
         ]
       },
       {
-        "id": "cc3cf4dce67c",
-        "text": "performance",
+        "id": "8a49611a965a",
+        "text": "tangential",
         "collapsed": false,
         "mark": null,
         "children": []
       },
       {
-        "id": "12a106e7c43e",
-        "text": "README",
+        "id": "cc3cf4dce67c",
+        "text": "performance",
         "collapsed": false,
         "mark": null,
-        "children": [
-          {
-            "id": "d9a14aecc4cd",
-            "text": "serve a textual-web version for testing",
-            "collapsed": true,
-            "mark": "❓",
-            "children": [
-              {
-                "id": "7f8b6d105b07",
-                "text": "seems too complicated",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "e59af42930e4",
-                "text": "run on server with textual-serve",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "cff927f97429",
-                "text": "or ship whole app into browser which would\nneed to be compiled with textual-wasm",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
-          }
-        ]
+        "children": []
       }
     ]
   },
@@ -1003,6 +1055,65 @@
       "collapsed": false,
       "mark": "✅",
       "children": []
+    },
+    {
+      "id": "cacdf68ec338",
+      "text": "test conversion of svg to pdf with\nrsvg-convert",
+      "collapsed": false,
+      "mark": "❌",
+      "children": [
+        {
+          "id": "04a387ce4968",
+          "text": "it is bad",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "b8fbfb449287",
+      "text": "make it so that when in `cut stac - find' mode firs esc leaves find and second leaves cut stack view",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "9394da63648f",
+      "text": "have total cell count highlighted yellow\n(like stack count is) when we are on the main\npane",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "f81795488958",
+          "text": "keep it up even if we are in find mode ->\nfind will then be a third item on the top bar",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "261ccc5671af",
+          "text": "make it say \"$number cells\" - it is not total (lifo not included)",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "743649d9ef27",
+      "text": "--palette coloured can be misspelled as colored (american)",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "615c5191b207",
+          "text": "make both work (american is left as a silent alias)",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
     }
   ]
 }
