@@ -819,12 +819,22 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         return "1 cut in stack" if count == 1 else f"{count} cuts in stack"
 
     def stat_text(self) -> str:
-        """What the top bar counts: the matches just after a search, else cells."""
-        if self._show_matches and self.search_query.strip():
-            found = len(self.matches)
-            return f"{found} match" if found == 1 else f"{found} matches"
+        """How many cells the document has. The stack's entries are counted beside it, on their own."""
         cells = self.mm.count()
-        return "1 cell total" if cells == 1 else f"{cells} cells total"
+        return "1 cell" if cells == 1 else f"{cells} cells"
+
+    def find_stat(self) -> str:
+        """How many cells a search found, or nothing when no search is running."""
+        if not (self._show_matches and self.search_query.strip()):
+            return ""
+        found = len(self.matches)
+        return "1 match" if found == 1 else f"{found} matches"
+
+    @property
+    def in_main_pane(self) -> bool:
+        """True while the map has the keys: on a cell, typing into one, or finding in it."""
+        place = self.place
+        return place.startswith("main pane") or place == "cell edit"
 
     # -- search ---------------------------------------------------------
 

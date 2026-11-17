@@ -56,15 +56,19 @@ def compose_top_bar(
     extra: str = "",
     extra_active: bool = False,
     stat_active: bool = False,
+    find: str = "",
+    find_active: bool = False,
 ) -> Text:
     """One line: name+version left, location centred, statistics right.
 
-    `stat` is whatever the app wants counted — cells, or the matches of a search —
-    and `extra` rides beside it (the cuts waiting on the stack). They degrade in
-    stages as the terminal narrows: the cuts, then the centre, then the location is
-    truncated from the left (a path's tail is the useful half), then the name. The
-    unsaved marker rides on the location, because a window title is not something
-    everyone can see — tiling window managers have no title bar at all.
+    `stat` counts the cells, `extra` counts the cuts waiting on the stack, and `find` counts the
+    matches of a search that is running. Each wears the yellow while its own place has the keys:
+    the cells while the map does, the cuts while the panel does, the matches while the find does.
+    They degrade in stages as the terminal narrows: the matches go first, since they last only as
+    long as a search, then the cuts, then the centre, then the location is truncated from the left
+    (a path's tail is the useful half), then the name. The unsaved marker rides on the location,
+    because a window title is not something everyone can see — tiling window managers have no
+    title bar at all.
     """
     name = f"spoider {version}"
     if width <= 0:
@@ -73,14 +77,19 @@ def compose_top_bar(
     def fits(candidate: str) -> bool:
         return width >= cell_len(candidate) + 6  # the name, and a gap either side
 
-    segments: list[tuple[str, str]] = [(stat, STAT_ACTIVE_STYLE if stat_active else STAT_STYLE)]
-    joined = stat
+    items: list[tuple[str, bool]] = [(stat, stat_active)]
     if extra:
-        candidate = f"{joined}{GAP}{extra}"
-        if fits(candidate):
-            style = STAT_ACTIVE_STYLE if extra_active else STAT_STYLE
-            segments.append((extra, style))
-            joined = candidate
+        items.append((extra, extra_active))
+    if find:
+        items.append((find, find_active))
+    # The cells stay, since every other count is a fact about them. The matches leave first, because
+    # they last only as long as a search, and the cuts leave after them.
+    while len(items) > 1 and not fits(GAP.join(text for text, _active in items)):
+        items.pop()
+    segments: list[tuple[str, str]] = [
+        (text, STAT_ACTIVE_STYLE if active else STAT_STYLE) for text, active in items
+    ]
+    joined = GAP.join(text for text, _active in items)
     right_width = cell_len(joined)
     if width < right_width + 2:
         return Text(clip_head(joined, width), style=STAT_STYLE)
@@ -160,7 +169,9 @@ class TopBar(Widget):
             app.dirty,
             extra=app.cut_stat(),
             extra_active=app.stack_open,
-            stat_active=app.finding,
+            stat_active=app.in_main_pane,
+            find=app.find_stat(),
+            find_active=app.finding,
         )
 
 

@@ -2931,9 +2931,10 @@ async def test_ctrl_f_opens_a_prompt_and_counts_matches(tmp_path: Path):
         await pilot.pause()
         assert app.search_query == "one"
         assert len(app.matches) == 2
-        # the top bar reports the matches in place of the cell count
-        assert app.stat_text() == "2 matches"
+        # the top bar counts the matches beside the cells, not in place of them
+        assert app.find_stat() == "2 matches"
         assert "2 matches" in app.query_one(TopBar).render().plain
+        assert app.stat_text() == "4 cells", "and the cells are still counted"
 
 
 async def test_enter_jumps_to_the_first_match_and_a_repeat_moves_on(tmp_path: Path):
@@ -2988,19 +2989,20 @@ async def test_up_arrow_recalls_an_earlier_search(tmp_path: Path):
         assert app.search_query == "two", "the count follows the recalled word"
 
 
-async def test_escape_puts_the_cell_count_back(tmp_path: Path):
+async def test_escape_puts_the_matches_away(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         _poem(app)
         await pilot.press("ctrl+f", "o", "n", "e")
         await pilot.pause()
-        assert app.stat_text() == "2 matches"
+        assert app.find_stat() == "2 matches"
 
         await pilot.press("escape")
         await pilot.pause()
         assert app.search_query == ""
         assert app.matches == []
-        assert app.stat_text() == "4 cells total"
+        assert app.find_stat() == "", "the bar stops counting matches"
+        assert app.stat_text() == "4 cells"
         assert app.query_one(FooterBar).display is True
 
 
@@ -3083,9 +3085,9 @@ async def test_a_find_stays_open_until_esc_and_esc_forgets_it(tmp_path: Path):
         await pilot.pause()
 
         assert app.finding is True
-        assert app.stat_text() == "2 matches"
+        assert app.find_stat() == "2 matches"
         await pilot.pause(2.2)  # a moment later it is still there: no timer takes it away
-        assert app.stat_text() == "2 matches"
+        assert app.find_stat() == "2 matches"
         bar = app.query_one(TopBar).render()
         stat = next(span for span in bar.spans if "match" in bar.plain[span.start : span.end])
         assert str(stat.style) == STAT_ACTIVE_STYLE, "the count wears the colour of a mode"
@@ -3102,7 +3104,8 @@ async def test_a_find_stays_open_until_esc_and_esc_forgets_it(tmp_path: Path):
         await pilot.press("escape")
         await pilot.pause()
         assert app.finding is False
-        assert app.stat_text() == "4 cells total", "the bar goes back to counting cells"
+        assert app.find_stat() == "", "the bar stops counting matches"
+        assert app.stat_text() == "4 cells"
         assert app.search_query == "", "and the query is forgotten"
         assert app.matches == [], "so the marks go with it"
         assert app.query_one(FooterBar).mode == "keys"
@@ -4723,12 +4726,58 @@ async def test_the_bar_switches_to_the_panel_keys(tmp_path: Path):
         assert "p hide stack" not in app.query_one("#footer", FooterBar).render().plain
 
 
+async def test_the_cell_count_is_marked_while_the_map_has_the_keys(tmp_path: Path):
+    """The yellow says which place is listening, so it sits on the cells while the map has the keys
+    and moves to the cuts when the panel takes them."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(120, 26)) as pilot:
+        alpha, _beta = _branch_map(app)
+        app.select(alpha.id)
+        await pilot.pause()
+
+        def marked() -> set[str]:
+            bar = app.query_one(TopBar).render()
+            return {
+                bar.plain[span.start : span.end]
+                for span in bar.spans
+                if "on yellow" in str(span.style)
+            }
+
+        cells = app.stat_text()
+        assert marked() == {cells}, f"the cells wear the colour: {marked()}"
+
+        await pilot.press("ctrl+k")
+        await pilot.press("p")
+        await pilot.pause()
+        assert marked() == {"1 cut in stack"}, "and the cuts take it when the panel opens"
+        # the cut took two cells out of the map, and the count follows them
+        assert app.stat_text() == "2 cells"
+        assert "2 cells" in app.query_one(TopBar).render().plain, "while the cells stay counted"
+
+
+def test_the_matches_are_the_first_count_to_leave_a_narrow_bar():
+    """A search lasts a moment, the cuts last a session, and the cells are what the others count."""
+    from spoider.widgets import compose_top_bar
+
+    def bar(width: int) -> str:
+        return compose_top_bar(
+            width, "0.1.0", "/tmp/m.json", "5 cells", False, "2 cuts in stack", False,
+            False, "1 match", True,
+        ).plain
+
+    assert "1 match" in bar(40) and "2 cuts in stack" in bar(40)
+    assert "1 match" not in bar(30), "the matches go first"
+    assert "2 cuts in stack" in bar(30)
+    assert "2 cuts in stack" not in bar(20), "then the cuts"
+    assert "5 cells" in bar(20), "and the cells stay"
+
+
 def test_the_cut_count_is_marked_when_the_panel_is_open():
     from spoider.widgets import compose_top_bar
 
-    closed = compose_top_bar(120, "0.1.0", "/tmp/m.json", "5 cells total", False, "2 cuts in stack")
+    closed = compose_top_bar(120, "0.1.0", "/tmp/m.json", "5 cells", False, "2 cuts in stack")
     opened = compose_top_bar(
-        120, "0.1.0", "/tmp/m.json", "5 cells total", False, "2 cuts in stack", True
+        120, "0.1.0", "/tmp/m.json", "5 cells", False, "2 cuts in stack", True
     )
     assert "2 cuts in stack" in closed.plain and "2 cuts in stack" in opened.plain
     # only the live one goes yellow, and only while the panel is open
@@ -4736,7 +4785,7 @@ def test_the_cut_count_is_marked_when_the_panel_is_open():
     assert yellow, "the stack count is marked"
     assert not [span for span in closed.spans if "on yellow" in str(span.style)]
     # one space between the items, not a run of them
-    assert "5 cells total  2 cuts in stack" in closed.plain
+    assert "5 cells  2 cuts in stack" in closed.plain
     # the counts are plain: reverse is reserved for the place that has the keys
     assert not [span for span in closed.spans if "reverse" in str(span.style)]
     assert not [span for span in closed.spans if "bold" in str(span.style)]
