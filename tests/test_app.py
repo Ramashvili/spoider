@@ -2989,6 +2989,38 @@ async def test_up_arrow_recalls_an_earlier_search(tmp_path: Path):
         assert app.search_query == "two", "the count follows the recalled word"
 
 
+async def test_backing_out_of_a_find_in_the_panel_leaves_the_panel_for_later(tmp_path: Path):
+    """A find runs inside the panel, so the first escape ends the search and the second closes the
+    column, which is the order the two states were entered in."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(120, 26)) as pilot:
+        alpha = app.mm.add_child(app.mm.root.id, "alpha")
+        app.mm.add_child(alpha.id, "beta words")
+        app.view.refresh_map()
+        app.select(alpha.id)
+        await pilot.pause()
+        await pilot.press("ctrl+k")
+        await pilot.press("p")
+        await pilot.press("ctrl+f")
+        for char in "beta":
+            await pilot.press(char)
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.finding and app.stack_open
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.finding is False, "the search ends first"
+        assert app.stack_open is True, "and the panel stays"
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.stack_open is False, "the second escape closes the column"
+        assert app.place == "main pane"
+
+
 async def test_escape_puts_the_matches_away(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:

@@ -193,8 +193,15 @@ class StackActions:
 
         if action is None and key not in ("escape", "ctrl+c"):
             return False
-        if action == "toggle_stack" or key in ("escape", "ctrl+c"):
+        if action == "toggle_stack":
             self.action_toggle_stack()
+        elif key in ("escape", "ctrl+c"):
+            if self.finding:
+                # a find runs inside the panel, so backing out of it comes before backing out of the
+                # panel: the first escape ends the search, the second one closes the column
+                self._leave_find()
+            else:
+                self.action_toggle_stack()
         elif action in _ARROWS:
             self._stack_go(doc, selected, action)
         elif action == "go_home":
