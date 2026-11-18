@@ -12,6 +12,8 @@ from spoider.app import BINDINGS, SpoiderApp
 from spoider.chrome import DIVIDER, FooterBar, compose_footer, hint_chunks
 from spoider.config import load_config
 from spoider.drawers import AskBar, ErrorBar, NoticeBar, PanelBar, PromptBar
+from spoider.editing import MAX_UNDO
+from spoider.history import Step
 from spoider.layout import compute
 from spoider.model import LAYOUTS, MindMap, Node
 from spoider.screens import HELP, help_text, keys_for
@@ -4499,8 +4501,8 @@ async def test_a_history_step_is_the_document_packed(tmp_path: Path):
         await pilot.pause()
 
         step = app._undo[0]
-        assert isinstance(step, bytes), f"a step came out as {type(step).__name__}"
-        restored = json.loads(zlib.decompress(step))
+        assert isinstance(step, Step), f"a step came out as {type(step).__name__}"
+        restored = json.loads(zlib.decompress(step.document))
         assert restored["root"]["children"][0]["text"] == "alpha", "and it unpacks to the document"
 
         await pilot.press("ctrl+z")
@@ -4509,6 +4511,231 @@ async def test_a_history_step_is_the_document_packed(tmp_path: Path):
         await pilot.press("ctrl+r")
         await pilot.pause()
         assert app.mm.find(cell.id).text == "alphax", "and ^R puts it forward again"
+
+
+async def test_a_cells_fine_history_survives_leaving_it(tmp_path: Path):
+    """A cell keeps its own steps after the visit ends, so ^Z on a later visit walks both."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        cell = app.mm.add_child(app.mm.root.id, "alpha")
+        app.view.refresh_map()
+        app.select(cell.id)
+        await pilot.pause()
+
+        for chunk in (" one", " two"):
+            await pilot.press("e")
+            for char in chunk:
+                await pilot.press("space" if char == " " else char)
+            await pilot.press("enter")
+            await pilot.pause()
+        assert app.mm.find(cell.id).text == "alpha one two"
+        assert len(app._undo) == 2, "each visit is one step of the document's history"
+
+        await pilot.press("e")
+        await pilot.pause()
+        assert app._buffer.text == "alpha one two", "the visit starts from the document's words"
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app._buffer.text == "alpha one", "the last visit's step"
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app._buffer.text == "alpha", "and the visit before it"
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app._buffer.text == "alpha", "the history of the cell ends where its words began"
+
+
+async def test_a_global_undo_takes_the_visit_out_of_the_cells_history(tmp_path: Path):
+    """The coarse step and the fine steps describe the same words, so undoing one drops the other."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        cell = app.mm.add_child(app.mm.root.id, "alpha")
+        app.view.refresh_map()
+        app.select(cell.id)
+        await pilot.pause()
+
+        for chunk in (" one", " two"):
+            await pilot.press("e")
+            for char in chunk:
+                await pilot.press("space" if char == " " else char)
+            await pilot.press("enter")
+            await pilot.pause()
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app.mm.find(cell.id).text == "alpha one", "the document goes back one visit"
+
+        app.select(cell.id)
+        await pilot.press("e")
+        await pilot.pause()
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app._buffer.text == "alpha", (
+            "and the cell's history no longer offers the visit that was undone"
+        )
+
+
+async def test_a_global_redo_puts_the_visit_back_into_the_cells_history(tmp_path: Path):
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        cell = app.mm.add_child(app.mm.root.id, "alpha")
+        app.view.refresh_map()
+        app.select(cell.id)
+        await pilot.pause()
+
+        for chunk in (" one", " two"):
+            await pilot.press("e")
+            for char in chunk:
+                await pilot.press("space" if char == " " else char)
+            await pilot.press("enter")
+            await pilot.pause()
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        await pilot.press("ctrl+r")
+        await pilot.pause()
+        assert app.mm.find(cell.id).text == "alpha one two"
+
+        app.select(cell.id)
+        await pilot.press("e")
+        await pilot.pause()
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app._buffer.text == "alpha one", "the redone visit's step is back"
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app._buffer.text == "alpha", "and so is the one before it"
+
+
+async def test_a_cell_that_comes_back_finds_its_history(tmp_path: Path):
+    """A delete and the undo that brings the cell back leave its fine history where it was."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        cell = app.mm.add_child(app.mm.root.id, "alpha")
+        app.mm.add_child(app.mm.root.id, "beta")
+        app.view.refresh_map()
+        app.select(cell.id)
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.press("x")
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.mm.find(cell.id).text == "alphax"
+
+        app.action_delete()
+        await pilot.pause()
+        assert app.mm.find(cell.id) is None
+
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app.mm.find(cell.id).text == "alphax"
+
+        app.select(cell.id)
+        await pilot.press("e")
+        await pilot.pause()
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app._buffer.text == "alpha", "the history of the cell came back with it"
+
+
+async def test_an_abandoned_visit_leaves_the_cells_history_alone(tmp_path: Path):
+    """Escape puts the words back, so the steps of the visit go with them."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        cell = app.mm.add_child(app.mm.root.id, "alpha")
+        app.view.refresh_map()
+        app.select(cell.id)
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.press("x")
+        await pilot.press("enter")
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.press("y")
+        await pilot.press("y")
+        await pilot.press("ctrl+c")
+        await pilot.pause()
+        assert app.mm.find(cell.id).text == "alphax", "the abandoned words are gone"
+
+        app.select(cell.id)
+        await pilot.press("e")
+        await pilot.pause()
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app._buffer.text == "alpha", "and so are the steps that made them"
+
+
+async def test_the_history_of_a_cell_keeps_two_hundred_steps_over_its_visits(tmp_path: Path):
+    """The ceiling is the cell's, not the visit's: two hundred steps however many visits made them."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        cell = app.mm.add_child(app.mm.root.id, "alpha")
+        app.view.refresh_map()
+        app.select(cell.id)
+        await pilot.pause()
+
+        for visit in range(2):
+            await pilot.press("e")
+            await pilot.pause()
+            for step in range(150):
+                # a change, then its reverse, so every one of them is a step of its own
+                app._buffer.insert("x")
+                app._buffer.backspace()
+            await pilot.press("enter")
+            await pilot.pause()
+
+        filed = app._filed[cell.id]
+        undo, _redo = filed.stacks()
+        assert len(undo) == MAX_UNDO, f"{len(undo)} steps kept, not {MAX_UNDO}"
+
+
+async def test_a_cell_edited_in_the_panel_keeps_its_history_too(tmp_path: Path):
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test(size=(110, 26)) as pilot:
+        cell = app.mm.add_child(app.mm.root.id, "alpha")
+        app.view.refresh_map()
+        app.select(cell.id)
+        await pilot.pause()
+
+        await pilot.press("ctrl+k")  # cut it, so the entry is in the stack
+        await pilot.pause()
+        await pilot.press("p")  # open the panel
+        await pilot.pause()
+        assert app.stack_open
+
+        await pilot.press("e")
+        await pilot.press("x")
+        await pilot.press("enter")
+        await pilot.pause()
+        edited = app.mm.cut_stack[0].text
+        assert edited != "alpha", "the entry was changed"
+
+        await pilot.press("p")  # shut the panel, then open it again
+        await pilot.pause()
+        await pilot.press("p")
+        await pilot.pause()
+        await pilot.press("e")
+        await pilot.pause()
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app._buffer.text == "alpha", "the entry kept the step that changed it"
 
 
 async def test_the_document_history_keeps_the_last_two_hundred_steps(tmp_path: Path):

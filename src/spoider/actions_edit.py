@@ -58,8 +58,22 @@ class EditActions:
         # first keystroke that really changes the cell.
         self._edit_was = "" if fresh else (node.text or "")
         self._edit_pushed = fresh  # making the cell was already a step of its own
-        self._buffer = Buffer("" if fresh else (node.text or ""))
+        # A cell that has been visited before brings its fine history back, so ^Z here walks the
+        # steps of the earlier visits as well; the document's words are the ones it comes back to.
+        filed = None if fresh else self._filed.get(node_id)
+        buffer = filed if filed is not None else Buffer("" if fresh else (node.text or ""))
+        buffer.text = node.text or ""
+        buffer.caret = min(buffer.caret, len(buffer.text))
+        buffer.anchor = None
+        buffer.break_run()
+        self._buffer = buffer
         self._buffer.PAGE_LINES = self.config.page_lines
+        self._edit_before = buffer.stacks()
+        self._edit_delta = None
+        if fresh:
+            # making the cell was a step, so the typing inside it belongs to that step and an undo
+            # of the step takes the typing with it
+            self._edit_delta = self._attach_cell_steps(node_id, self._edit_before)
         # the picture is new to this cell, so the first synchronisation must rebuild it
         self._picture_key = None
         self._state_key = None
@@ -74,6 +88,8 @@ class EditActions:
         if not self._edit_pushed and self._buffer.text != self._edit_was:
             self._push_undo()
             self._edit_pushed = True
+            # the step this keystroke makes is the one that carries the visit's fine steps
+            self._edit_delta = self._attach_cell_steps(self._edit_id or "", self._edit_before)
         node.preview = self._buffer.text
         node.caret = self._buffer.caret
         node.overwrite = self._buffer.overwrite
@@ -308,6 +324,23 @@ class EditActions:
             node.caret = None
             node.overwrite = False
             node.sel = None
+        if self._buffer is not None:
+            if commit and node is not None and node_id is not None:
+                # the visit is over: the steps it made are what the step of the document carries,
+                # and the buffer files itself away for the next visit to that cell
+                if self._edit_delta is not None:
+                    undo, redo = self._buffer.stacks()
+                    self._edit_delta.undo_after = undo
+                    self._edit_delta.redo_after = redo
+                    self._edit_delta.complete = True
+                self._file_buffer(node_id, self._buffer)
+            else:
+                # nothing of the visit happened, so its steps go back with its words
+                self._buffer.set_stacks(*self._edit_before)
+                self._buffer.text = (node.text or "") if node is not None else ""
+                self._buffer.caret = min(self._buffer.caret, len(self._buffer.text))
+                self._forget_cell_steps(self._edit_delta)
+        self._edit_delta = None
         self._buffer = None
         self._edit_was, self._edit_pushed = None, False
 

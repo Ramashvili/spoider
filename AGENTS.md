@@ -657,6 +657,25 @@ Run the check before recording, and read the map it prints: a fold on a leaf, a 
 landed a level too high or a missing cell are all invisible in a thumbnail and obvious in
 the tree.
 
+## Two histories, coarse and fine
+
+The document's history is coarse: one step per edit, the whole document packed with `zlib`, two
+hundred of them. A cell's history is fine: one step per burst of typing, held in a `Buffer`, and it
+outlives the visit that made it. When a visit ends the buffer is filed under the cell's id
+(`_file_buffer`), and opening the cell again adopts that same buffer (`begin_edit`), so `^Z` walks
+the steps of every earlier visit, up to the same two hundred, which count visits together. A visit
+begins with `break_run`, or its first keystroke would coalesce into the burst that ended the last
+one.
+
+The two describe the same words, so they move together. Every step carries a `CellSteps` record
+(`history.py`) for each cell it touched: the cell's undo and redo stacks as they stood before the
+edit and after it, captured whole rather than as a difference, which costs a list copy and needs no
+bookkeeping while the reader types. `action_undo` reads the record backwards and `action_redo`
+forwards, and the cell's text is set from the restored document, so a history can never describe a
+text the cell is not showing. Abandoning a visit (`^C`) puts the stacks back and takes the record
+off the step, since nothing of that visit happened. A cell deleted and brought back by an undo finds
+its history still filed under the id: ids are random and never reused.
+
 ## Known limits
 
 - A map wider than the terminal is clipped at the edges; there is no zoom out.

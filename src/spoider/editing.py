@@ -127,6 +127,33 @@ class Buffer:
         self._redo.clear()
         self._run = run
 
+    def break_run(self) -> None:
+        """End the burst in progress, so the next change is a step of its own.
+
+        A visit that starts in a cell is not the continuation of the one that ended there, or the
+        typing of a whole visit would merge into the step before it.
+        """
+        self._run = None
+
+    def stacks(self) -> tuple[tuple[tuple[str, int], ...], tuple[tuple[str, int], ...]]:
+        """Both histories as they stand, for a step of the document's to carry."""
+        return tuple(self._undo), tuple(self._redo)
+
+    def set_stacks(
+        self,
+        undo: tuple[tuple[str, int], ...],
+        redo: tuple[tuple[str, int], ...],
+    ) -> None:
+        """Put both histories back, which is what an undo or a redo of the document does to a cell.
+
+        The text is left alone: the document has already been restored, and the caller sets the
+        text from it, so the last step of a history and the words in the cell agree.
+        """
+        self._undo = list(undo)
+        self._redo = list(redo)
+        self.anchor = None
+        self._run = None
+
     def undo(self) -> bool:
         if not self._undo:
             return False

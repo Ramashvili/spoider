@@ -50,6 +50,7 @@ from .drawers import AskBar, ErrorBar, NoticeBar, PanelBar, PromptBar
 from .editing import MAX_UNDO, Buffer
 from .files import SUFFIX
 from .formats import EXPORT_FORMATS, TEXT_FORMATS
+from .history import CellSteps, Step
 from .keys import (
     BINDINGS,
     action_chords,
@@ -357,10 +358,22 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._ask_cancel: str | None = "cancel"
         self._show_matches = False  # the count sits in the bar while a find is open
         self._find_mode = False
-        #: History steps: the document as packed JSON, so a step costs kilobytes rather than a
-        #: tree of dicts. `_pack` writes one, `_restore` reads one.
-        self._undo: list[bytes] = []
-        self._redo: list[bytes] = []
+        #: History steps: the document as packed JSON, and what each step did to the fine
+        #: histories of cells, so a step costs kilobytes rather than a tree of dicts. `_pack`
+        #: writes one, `_restore` reads one.
+        self._undo: list[Step] = []
+        self._redo: list[Step] = []
+        #: The fine history of every cell whose visit has ended, filed under the id it comes back
+        #: with. A step of the document's history carries what it did to these, so the coarse and
+        #: the fine histories can never disagree about the words in a cell.
+        self._filed: dict[str, Buffer] = {}
+        #: The stacks a cell had when its visit began, and the record of what the visit does to
+        #: them, which the step of the document's history that opened the visit carries.
+        self._edit_before: tuple[tuple[tuple[str, int], ...], tuple[tuple[str, int], ...]] = (
+            (),
+            (),
+        )
+        self._edit_delta: CellSteps | None = None
         self._edit_id: str | None = None
         self._buffer: Buffer | None = None
         #: Text cut or copied out of a cell. Kept here as well as pushed to the
@@ -1005,16 +1018,73 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.selected = node_id
         self.view.refresh_selection(was)
 
-    def _push_undo(self) -> None:
+    def _push_undo(self, cells: tuple[CellSteps, ...] = ()) -> None:
         """Remember the document as it is, before a change goes into it.
 
         A step is a whole document, packed, so the history is bounded by steps rather than by the
         session, the way a buffer's history is: the oldest step goes when the `MAX_UNDO`th is
         reached, and ^Z can walk back that far and no further.
         """
-        self._undo.append(self._pack())
+        self._undo.append(Step(self._pack(), cells))
         del self._undo[: max(0, len(self._undo) - MAX_UNDO)]
         self._redo.clear()
+
+    def _attach_cell_steps(
+        self,
+        node_id: str,
+        before: tuple[tuple[tuple[str, int], ...], tuple[tuple[str, int], ...]],
+    ) -> CellSteps | None:
+        """Hang this cell's fine history on the newest step, which is the step the visit makes.
+
+        Nothing is attached when there is no step to hang it on, since an edit that changes no words
+        makes no step, and the returned record is completed when the visit ends.
+        """
+        if not self._undo:
+            return None
+        cell = CellSteps(cell=node_id, undo_before=before[0], redo_before=before[1])
+        step = self._undo[-1]
+        self._undo[-1] = Step(step.document, (*step.cells, cell))
+        return cell
+
+    def _forget_cell_steps(self, cell: CellSteps | None) -> None:
+        """Take a cell's record back off the step holding it: nothing of that visit happened."""
+        if cell is None:
+            return
+        for index in range(len(self._undo) - 1, -1, -1):
+            step = self._undo[index]
+            if any(entry is cell for entry in step.cells):
+                rest = tuple(entry for entry in step.cells if entry is not cell)
+                self._undo[index] = Step(step.document, rest)
+                return
+
+    def _file_buffer(self, node_id: str, buffer: Buffer) -> None:
+        """Keep a cell's fine history after its visit, under the id the cell comes back with.
+
+        A buffer with no steps is nothing to keep: the history of a cell nobody typed in is empty.
+        """
+        undo, redo = buffer.stacks()
+        if not undo and not redo:
+            return
+        self._filed.pop(node_id, None)
+        self._filed[node_id] = buffer
+
+    def _move_cell_histories(self, cells: tuple[CellSteps, ...], *, forward: bool) -> None:
+        """Carry the fine histories of cells with the document, so the two agree afterwards.
+
+        A cell may be open, in which case its buffer is the one in hand, or filed when a visit
+        ended. Its words come from the document, since a history that described a text the cell is
+        not showing would be a history of a place that does not exist.
+        """
+        for cell in cells:
+            buffer = self._buffer if cell.cell == self._edit_id else self._filed.get(cell.cell)
+            if buffer is None:
+                continue
+            undo, redo = cell.forwards() if forward else cell.backwards()
+            buffer.set_stacks(undo, redo)
+            node = self.document.find(cell.cell)
+            if node is not None:
+                buffer.text = node.text or ""
+                buffer.caret = min(buffer.caret, len(buffer.text))
 
     def _pack(self) -> bytes:
         """The document as one step of history: packed JSON rather than a tree of dicts.
@@ -1273,10 +1343,12 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         """
         return self.mm.find(node_id) is not None or self.stack_open
 
-    def _restore(self, step: bytes) -> None:
+    def _restore(self, step: Step, *, forward: bool) -> None:
         was = self.mm
         try:
-            self.mm = MindMap.from_dict(json.loads(zlib.decompress(step)), marks=self.mm.marks)
+            self.mm = MindMap.from_dict(
+                json.loads(zlib.decompress(step.document)), marks=self.mm.marks
+            )
         except MapFileError as exc:  # only reachable if a snapshot were corrupt
             self.notify(f"cannot restore that state: {exc}", severity="error", timeout=FAILURE)
             return
@@ -1290,6 +1362,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self.selected = self.mm.root.id
         # the anchor belongs to the document we just replaced
         self.anchor = None
+        self._move_cell_histories(step.cells, forward=forward)
         self._mark_dirty()
 
     # -- inline editing -------------------------------------------------
@@ -1495,15 +1568,18 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         if not self._undo:
             self.notify("nothing to undo", severity="warning", timeout=QUICK)
             return
-        self._redo.append(self._pack())
-        self._restore(self._undo.pop())
+        step = self._undo.pop()
+        # what a redo puts back is where we are now, carrying the same cell records read forwards
+        self._redo.append(Step(self._pack(), step.cells))
+        self._restore(step, forward=False)
 
     def action_redo(self) -> None:
         if not self._redo:
             self.notify("nothing to redo", severity="warning", timeout=QUICK)
             return
-        self._undo.append(self._pack())
-        self._restore(self._redo.pop())
+        step = self._redo.pop()
+        self._undo.append(Step(self._pack(), step.cells))
+        self._restore(step, forward=True)
 
     def action_save(self) -> None:
         """^S — write straight back to the current file. A new buffer has no file
