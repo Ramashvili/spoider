@@ -1974,9 +1974,9 @@ async def test_the_help_page_leaves_the_keys_on_the_last_row(tmp_path: Path, siz
         )
 
 
-def test_the_stack_column_may_take_two_thirds_of_the_screen():
-    """The column is as wide as its widest entry needs, up to two thirds: the map keeps the rest,
-    since the map is what is being worked on."""
+def test_the_stack_column_may_take_62_in_a_hundred_of_the_screen():
+    """The column is as wide as its widest entry needs, up to 62 in a hundred: the map keeps the
+    rest, since the map is what is being worked on."""
     from spoider.layout import compute_stack
     from spoider.model import Node
 
@@ -1984,8 +1984,9 @@ def test_the_stack_column_may_take_two_thirds_of_the_screen():
     wide = compute_stack([Node("wide " * 40)], 0)
 
     assert stack_column(narrow, 120) < 40, "a small entry takes its own width"
-    assert stack_column(wide, 120) == 120 * 2 // 3, "a wide one stops at two thirds"
-    assert 120 - stack_column(wide, 120) == 40, "and the map keeps a third"
+    assert stack_column(wide, 120) == 74, "a wide one stops just under three quarters"
+    assert stack_column(wide, 120) < 120 * 0.62, "and stays under the share it is given"
+    assert 120 - stack_column(wide, 120) == 46, "the map keeps the rest"
 
 
 async def test_a_stack_entry_wider_than_its_column_shifts_into_view(tmp_path: Path):
