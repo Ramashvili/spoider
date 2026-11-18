@@ -11,8 +11,8 @@
     "❌",
     "💤"
   ],
-  "justify": 45,
-  "cursor": "0b5865bb809a",
+  "justify": 50,
+  "cursor": "8a49611a965a",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -27,7 +27,7 @@
         "children": [
           {
             "id": "6595b551ac7b",
-            "text": "check if we are rendering svgs in such a way,\nthat text of some lines gets centered on the\ncell. There seems do be a discrepancy. We\nwant the text aligned to the left - fill the\nrest with empty spaces if necessary. Glyph\ngrid shall reflect the original",
+            "text": "check if we are rendering svgs in such a way,\nthat text of some lines gets centered on the\ncell. There seems do be a discrepancy. We\nwant the text aligned to the left of a cell - fill the\nrest with empty spaces if necessary. Glyph\ngrid shall reflect the original",
             "collapsed": false,
             "mark": "💤",
             "children": [
@@ -36,6 +36,35 @@
                 "text": "this is only aparent in some svg viewers",
                 "collapsed": false,
                 "mark": null,
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "a72f659b6e4e",
+            "text": "app opened from desktop launcher\nautomatically saves files directly to home\nfolder without saying it",
+            "collapsed": false,
+            "mark": "❓",
+            "children": [
+              {
+                "id": "3118ae02735e",
+                "text": "some minimal file manager-like function for\nthose who launch it as an app from desktop\nlauncher",
+                "collapsed": false,
+                "mark": "❌",
+                "children": []
+              },
+              {
+                "id": "f3b3a36e2071",
+                "text": "or make it spawn systems file browser",
+                "collapsed": false,
+                "mark": "❌",
+                "children": []
+              },
+              {
+                "id": "9b55dd70956b",
+                "text": "or just have the full path prefilled in save prompt",
+                "collapsed": false,
+                "mark": "❓",
                 "children": []
               }
             ]
@@ -48,6 +77,20 @@
         "collapsed": false,
         "mark": null,
         "children": [
+          {
+            "id": "6e129ecd5e24",
+            "text": "make a better icon for installed spoider app",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
+          {
+            "id": "aca0b7de39d5",
+            "text": "resolve dependabot's pull request to allow new version textual",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
           {
             "id": "f4b6d72700bc",
             "text": "show a little bit of LIFO stack even when we are not in it",
@@ -87,7 +130,7 @@
           {
             "id": "a720169c9876",
             "text": "cell edit highlight",
-            "collapsed": false,
+            "collapsed": true,
             "mark": "❓",
             "children": [
               {
@@ -111,50 +154,6 @@
                     "children": []
                   }
                 ]
-              }
-            ]
-          },
-          {
-            "id": "aca0b7de39d5",
-            "text": "resolve dependabot's pull request to allow new version textual",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          }
-        ]
-      },
-      {
-        "id": "c7fada474760",
-        "text": "behavior improvements",
-        "collapsed": false,
-        "mark": null,
-        "children": [
-          {
-            "id": "17b574f088e2",
-            "text": "Keep history of each cell edit\nsaved after we leave the cell",
-            "collapsed": false,
-            "mark": null,
-            "children": [
-              {
-                "id": "c9d37ae11a1b",
-                "text": "we would have to keep track of how that\nrelates to the global history and ditch it,\nif we undo from the overview",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "6a517c240e4f",
-                "text": "a entire undo history of a cell would be sub-items\nof the main history, as if arrays inside array",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "a7b2c0f1b6fd",
-                "text": "the logic of this needs to be thought through",
-                "collapsed": false,
-                "mark": null,
-                "children": []
               }
             ]
           }
@@ -313,28 +312,43 @@
             "children": []
           },
           {
-            "id": "234f58a9a2b4",
-            "text": "allow to pipe svgs into other linux commands",
+            "id": "cabbbbf12362",
+            "text": "low priority:",
             "collapsed": false,
             "mark": null,
             "children": [
               {
-                "id": "eab3b8faa091",
-                "text": "why not",
+                "id": "5695f141e4d9",
+                "text": "allow to pipe svgs into other linux commands",
+                "collapsed": false,
+                "mark": null,
+                "children": [
+                  {
+                    "id": "414a70ee3bc6",
+                    "text": "why not",
+                    "collapsed": false,
+                    "mark": null,
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "7ee46a7a4ade",
+                "text": "allow to export svg with transparent background",
                 "collapsed": false,
                 "mark": null,
                 "children": []
               }
             ]
-          },
-          {
-            "id": "6527e4edd2f5",
-            "text": "allow to export svg with transparent background",
-            "collapsed": false,
-            "mark": null,
-            "children": []
           }
         ]
+      },
+      {
+        "id": "c7fada474760",
+        "text": "behavior improvements",
+        "collapsed": false,
+        "mark": null,
+        "children": []
       },
       {
         "id": "720dbd712035",
@@ -773,7 +787,7 @@
       "children": [
         {
           "id": "dc0425bdc6df",
-          "text": "such as e+r; r+alt, ctrl+alt+r eeeeeeeeeeeeeeeeee eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "text": "such as e+r; r+alt, ctrl+alt+r",
           "collapsed": false,
           "mark": null,
           "children": []
@@ -956,7 +970,7 @@
     },
     {
       "id": "710dc666e8c6",
-      "text": "during mermaid export, lets ignore newlines in cells, unless there are two or more in succession - in that case turn successive new lines into two new lines",
+      "text": "during mermaid export, lets ignore newlines in cells, unless there are\ntwo or more in succession - in that case turn successive new lines\ninto two new lines",
       "collapsed": false,
       "mark": "✅",
       "children": []
@@ -1112,6 +1126,88 @@
           "collapsed": false,
           "mark": null,
           "children": []
+        }
+      ]
+    },
+    {
+      "id": "ec801bc58a56",
+      "text": "when saving file make it so that we check if\nthe file has been altered in the meantime\n(since we saved last time or since it was\nopened). If yes, say it and demand additional\nconfirmation before file gets overwritten.\nThis will work line nano editor does it.",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "88e2894bb6fa",
+          "text": "also check the same when autosave tries to do it",
+          "collapsed": false,
+          "mark": null,
+          "children": [
+            {
+              "id": "26deedc36fec",
+              "text": "in that case there should be anouncement that\nthe autosave failed: file has been altered by\nanother instance; then we demand that user\nsaves it manually before closing app",
+              "collapsed": false,
+              "mark": null,
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "61a774c7d460",
+      "text": "when undo puts cell into stack, cursor follows it\nbut stack is closed. That makes the cursor\ndisapear from the POV if the user and creates a\nsituation where he is stuck. The bug seems to\nocure only sometimes. Perhaps only when undo is\ndone twice in a row - not sure.",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "aee00860579d",
+          "text": "desired state: whe undo or redo puts something in\nthe stack, we do not want to follow it. It cases\nwhen we want to follow it, the lifo stack must\nopen",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "17b574f088e2",
+      "text": "Keep history of each cell edit\nsaved after we leave the cell",
+      "collapsed": false,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "c9d37ae11a1b",
+          "text": "we would have to keep track of how that\nrelates to the global history and ditch it,\nif we undo from the overview",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "a7b2c0f1b6fd",
+          "text": "the logic of this needs to be thought through.\nThis is how I imagine it:",
+          "collapsed": false,
+          "mark": null,
+          "children": [
+            {
+              "id": "91c0d527311c",
+              "text": "each cell's history is kept in memory even after we leave the cell",
+              "collapsed": false,
+              "mark": null,
+              "children": []
+            },
+            {
+              "id": "354a1fffc4a0",
+              "text": "undoing a cell change from the global history reverts all coresponting\nsteps from the cell's history. That can be a big chunk. Redo does the same in the oposite direction",
+              "collapsed": false,
+              "mark": null,
+              "children": []
+            },
+            {
+              "id": "e7cd94a780af",
+              "text": "so the result will be the global undo makes larger steps, while the cell's individual undo goes by smaller steps",
+              "collapsed": false,
+              "mark": null,
+              "children": []
+            }
+          ]
         }
       ]
     }
