@@ -314,15 +314,13 @@ async def test_the_save_key_returns_while_autosave_cannot_write(tmp_path: Path):
         assert "^S save" not in bar(), "and leaves again once the file is ours"
 
 
-async def test_quitting_after_a_refused_autosave_keeps_the_buffer_and_says_why(
-    tmp_path: Path, monkeypatch
-):
-    """The reader is asked to save by hand rather than losing the buffer to a silent exit."""
+async def test_quitting_after_a_refused_autosave_asks_and_then_lets_go(tmp_path: Path):
+    """Autosave could not write, so the reader walks out through the questions: save, overwrite,
+    gone. Refusing the quit would leave them trapped in a buffer they want to leave."""
     path = tmp_path / "map.spoider"
     MindMap(Node("root")).save(path)
     app = SpoiderApp(path, config_path=_asking_for_autosave(tmp_path), demo=False)
-    said: list[str] = []
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(120, 24)) as pilot:
         theirs = MindMap(Node("root"))
         theirs.add_child(theirs.root.id, "theirs")
         theirs.save(path)
@@ -330,15 +328,29 @@ async def test_quitting_after_a_refused_autosave_keeps_the_buffer_and_says_why(
         app._mark_dirty()
         await pilot.pause()
 
-        said.clear()
-        monkeypatch.setattr(app, "notify", lambda message, **_kwargs: said.append(message))
         await pilot.press("ctrl+x")
         await pilot.pause()
+        assert app.mode == "ask", "the quit asks before it goes anywhere"
+        assert "Save modified buffer?" in app.query_one(AskBar).render().plain
 
-        assert app.is_running, "the screen stays: the buffer is not on disk"
-        assert "theirs" in path.read_text(), "and their file is still theirs"
-        assert len(said) == 1, f"one line for one press: {said}"
-        assert "not quitting" in said[0] and "altered by another instance" in said[0], said
+        await pilot.press("y")
+        await pilot.pause()
+        assert "changed on disk" in app.query_one(AskBar).render().plain, "then the overwrite question"
+
+        await pilot.press("n")
+        await pilot.pause()
+        assert app.is_running is True, "declining the overwrite keeps the buffer"
+        assert "theirs" in path.read_text(), "and their file is untouched"
+
+        await pilot.press("ctrl+x")
+        await pilot.pause()
+        await pilot.press("y")
+        await pilot.pause()
+        await pilot.press("y")
+        await pilot.pause()
+        assert app.is_running is False, "agreeing to both leaves"
+        assert "mine" in path.read_text(), "with the work written"
+
 
 
 async def test_autosave_refuses_a_file_another_instance_wrote(tmp_path: Path, monkeypatch):

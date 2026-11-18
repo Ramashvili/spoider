@@ -1515,14 +1515,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         """^X — nano's Exit: never throw away a modified buffer silently."""
         if self.autosave and self.path is not None:
             if self.dirty and not self._autosave(quiet=True):
-                # the write did not happen, so leaving would lose the buffer. One line, and it names
-                # the reason the write was refused when there is one.
-                why = (
-                    "the file has been altered by another instance"
-                    if self._disk_changed()
-                    else "this buffer is not saved"
-                )
-                self.notify(f"not quitting: {why}, ^S writes it", severity="error", timeout=NOTE)
+                # autosave could not write, so the reader is asked rather than held here: the
+                # question, then the overwrite question, then the way out
+                self._ask_to_save()
                 return
             self.exit()
             return
@@ -1537,6 +1532,12 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         if choice == "no":
             self.exit()
         elif choice == "yes":
+            if self.path is not None and self._disk_changed():
+                # the file under the buffer belongs to someone else now, so the overwrite is its own
+                # question, asked after the save and before the exit
+                self._write_then_quit = True
+                self._ask_stale()
+                return
             self._ask_where_to_write(then_quit=True)
 
 
