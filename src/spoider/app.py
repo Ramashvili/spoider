@@ -286,8 +286,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.theme = "textual-ansi"
         # No file named means a new buffer: spoider never guesses at one. The
         # default location is only *offered* when you first write it out.
-        #: sha256 of the file as this buffer last read or wrote it. Another instance writing in the
-        #: meantime shows up as a mismatch, and a save that would bury that work asks first.
+        #: sha1 of the file as this buffer last read or wrote it. Another instance writing in the
+        #: meantime shows up as a mismatch, and a save that would bury that work asks first. A short
+        #: hash on purpose: this compares one file with itself, and no one is forging collisions.
         self._seen: str | None = None
         #: Whether the autosave failure of that mismatch has been announced already.
         self._stale_said = False
@@ -1103,7 +1104,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         if self.path is None:
             return
         try:
-            self._seen = hashlib.sha256(self.path.read_bytes()).hexdigest()
+            self._seen = hashlib.sha1(self.path.read_bytes()).hexdigest()
         except OSError:  # no file, or one that cannot be read: nothing to compare against
             self._seen = None
 
@@ -1116,7 +1117,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         if self.path is None or self._seen is None:
             return False
         try:
-            return hashlib.sha256(self.path.read_bytes()).hexdigest() != self._seen
+            return hashlib.sha1(self.path.read_bytes()).hexdigest() != self._seen
         except OSError:
             return True
 
