@@ -264,6 +264,56 @@ async def test_a_save_of_our_own_write_does_not_ask(tmp_path: Path):
         assert not app.query_one(AskBar).display, "and neither is the next one"
 
 
+async def test_a_refused_autosave_is_a_red_line(tmp_path: Path):
+    """A write that did not happen is an error, and the band says so in red, every time it is tried."""
+    path = tmp_path / "map.spoider"
+    MindMap(Node("root")).save(path)
+    app = SpoiderApp(path, config_path=_asking_for_autosave(tmp_path), demo=False)
+    async with app.run_test() as pilot:
+        theirs = MindMap(Node("root"))
+        theirs.add_child(theirs.root.id, "theirs")
+        theirs.save(path)
+
+        for attempt in range(2):
+            app.mm.add_child(app.mm.root.id, f"mine {attempt}")
+            app._mark_dirty()
+            await pilot.pause()
+            band = app.query_one(NoticeBar).render()
+            assert "altered by another instance" in band.plain, band.plain
+            assert any("bright_red" in str(span.style) for span in band.spans), [
+                str(span.style) for span in band.spans
+            ]
+
+
+async def test_the_save_key_returns_while_autosave_cannot_write(tmp_path: Path):
+    """The reader is told to save by hand, so the key that does it has to be on the bar."""
+    path = tmp_path / "map.spoider"
+    MindMap(Node("root")).save(path)
+    app = SpoiderApp(path, config_path=_asking_for_autosave(tmp_path), demo=False)
+    async with app.run_test(size=(120, 24)) as pilot:
+
+        def bar() -> str:
+            return app.query_one(FooterBar).render().plain
+
+        assert "^S save" not in bar(), "autosave writes, so the key stays away"
+
+        theirs = MindMap(Node("root"))
+        theirs.add_child(theirs.root.id, "theirs")
+        theirs.save(path)
+        app.mm.add_child(app.mm.root.id, "mine")
+        app._mark_dirty()
+        await pilot.pause()
+        assert app.needs_manual_save is True
+        assert "^S save" in bar(), "and comes back when it cannot"
+
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        await pilot.press("y")
+        await pilot.pause()
+        assert app.needs_manual_save is False
+        assert "^S save" not in bar(), "and leaves again once the file is ours"
+
+
 async def test_quitting_after_a_refused_autosave_keeps_the_buffer_and_says_why(
     tmp_path: Path, monkeypatch
 ):
@@ -280,13 +330,15 @@ async def test_quitting_after_a_refused_autosave_keeps_the_buffer_and_says_why(
         app._mark_dirty()
         await pilot.pause()
 
+        said.clear()
         monkeypatch.setattr(app, "notify", lambda message, **_kwargs: said.append(message))
         await pilot.press("ctrl+x")
         await pilot.pause()
 
         assert app.is_running, "the screen stays: the buffer is not on disk"
         assert "theirs" in path.read_text(), "and their file is still theirs"
-        assert said and "not saved" in said[0], said
+        assert len(said) == 1, f"one line for one press: {said}"
+        assert "not quitting" in said[0] and "altered by another instance" in said[0], said
 
 
 async def test_autosave_refuses_a_file_another_instance_wrote(tmp_path: Path, monkeypatch):
@@ -315,7 +367,7 @@ async def test_autosave_refuses_a_file_another_instance_wrote(tmp_path: Path, mo
         app.mm.add_child(app.mm.root.id, "more")
         app._mark_dirty()
         await pilot.pause()
-        assert said == [], "and the same condition is not announced again"
+        assert said, "and the next change tells the reader again"
 
 
 async def test_top_bar_never_shows_the_star_under_autosave(tmp_path: Path):

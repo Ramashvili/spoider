@@ -398,6 +398,19 @@ def prompt_chunks(verb: str, undo: str = "", redo: str = "") -> list[Text]:
     return keys
 
 
+#: The one action autosave takes off the bar, for as long as it can be trusted to write.
+SAVE_IS_REDUNDANT = frozenset({"save"})
+
+
+def save_is_redundant(app) -> bool:
+    """Whether ^S can leave the bar: autosave writes for the reader until it cannot.
+
+    The bar has to keep the key while a buffer holds work autosave refused, since the reader is
+    told to save it by hand and then has to be able to see where.
+    """
+    return bool(getattr(app, "autosave", False)) and not getattr(app, "needs_manual_save", False)
+
+
 def ask_chunks(affirm: str = "save", deny: str = "discard", cancel: str | None = "cancel") -> list[Text]:
     """The keys a yes/no question accepts, worded the way that question asked it.
 
@@ -482,8 +495,7 @@ class FooterBar(Widget):
         elif self.mode == "custom":
             hints = self.custom
         else:
-            # autosave makes ^S redundant, so it leaves the bar with it on
-            skip = frozenset({"save"}) if getattr(self.app, "autosave", False) else frozenset()
+            skip = SAVE_IS_REDUNDANT if save_is_redundant(spoider) else frozenset()
             hints = hint_chunks(BINDINGS, skip, spoider.keymap)
         # the pinned cluster is two keys the user may have rebound: it reads the
         # same keymap the hints do, in every mode
@@ -499,8 +511,8 @@ class FooterBar(Widget):
         width = self.size.width
         if width <= 0:
             return 1
-        skip = frozenset({"save"}) if getattr(self.app, "autosave", False) else frozenset()
         spoider = cast("SpoiderApp", self.app)
+        skip = SAVE_IS_REDUNDANT if save_is_redundant(spoider) else frozenset()
         return len(footer_rows(width, hint_chunks(BINDINGS, skip, spoider.keymap)))
 
     def fit(self) -> None:

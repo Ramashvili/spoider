@@ -290,8 +290,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         #: meantime shows up as a mismatch, and a save that would bury that work asks first. A short
         #: hash on purpose: this compares one file with itself, and no one is forging collisions.
         self._seen: str | None = None
-        #: Whether the autosave failure of that mismatch has been announced already.
-        self._stale_said = False
         self.path: Path | None = Path(path) if path is not None else None
         self.has_file = self.path is not None and self.path.exists()
         self.load_error: str | None = None
@@ -1058,17 +1056,29 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             band = min(self.size.width, notice.band)  # type: ignore[attr-defined]
             notice.styles.offset = (max(0, (self.size.width - band) // 2), max(0, row))
 
-    def _autosave(self) -> bool:
+    @property
+    def needs_manual_save(self) -> bool:
+        """True when autosave cannot be trusted to write this buffer, so ^S is the way out.
+
+        A file another instance changed is not one autosave will touch, and the bar says so by
+        keeping the save key in view while it holds the reader's work.
+        """
+        return self.autosave and self.dirty and self._disk_changed()
+
+    def _autosave(self, *, quiet: bool = False) -> bool:
         """Write silently to the current path. False when the write failed, which
-        matters to ^X: quitting after a failed autosave would lose the buffer."""
+        matters to ^X: quitting after a failed autosave would lose the buffer.
+
+        `quiet` is for a caller that has its own sentence to say about the same failure, so the
+        reader gets one line rather than two that replace each other.
+        """
         if self.path is None:  # a new buffer has nowhere to go yet
             return False
         if self._disk_changed():
             # the file is not the one this buffer has been editing, so a silent write would bury it.
-            # Said once: autosave runs after every change, and the same sentence on every keystroke
-            # is noise over a condition that stays true until the reader deals with it.
-            if not self._stale_said:
-                self._stale_said = True
+            # Said every time it is tried: the reader is told on each change they make, not once and
+            # then left to wonder why the buffer stays modified.
+            if not quiet:
                 self.notify(
                     "autosave failed: the file has been altered by another instance, save it yourself",
                     severity="error",
@@ -1099,7 +1109,6 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     def _remember_disk(self) -> None:
         """Remember what the file holds, so a save that would bury another instance is seen."""
-        self._stale_said = False
         self._seen = None
         if self.path is None:
             return
@@ -1505,13 +1514,15 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     async def action_quit(self) -> None:
         """^X — nano's Exit: never throw away a modified buffer silently."""
         if self.autosave and self.path is not None:
-            if self.dirty and not self._autosave():
-                # the write did not happen, so leaving would lose the buffer; the press gets an
-                # answer rather than a screen that ignores it
-                self.notify(
-                    "not quitting: this buffer is not saved, ^S writes it", severity="warning",
-                    timeout=NOTE,
+            if self.dirty and not self._autosave(quiet=True):
+                # the write did not happen, so leaving would lose the buffer. One line, and it names
+                # the reason the write was refused when there is one.
+                why = (
+                    "the file has been altered by another instance"
+                    if self._disk_changed()
+                    else "this buffer is not saved"
                 )
+                self.notify(f"not quitting: {why}, ^S writes it", severity="error", timeout=NOTE)
                 return
             self.exit()
             return
