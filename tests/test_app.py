@@ -1984,8 +1984,9 @@ def test_the_stack_column_may_take_62_in_a_hundred_of_the_screen():
     wide = compute_stack([Node("wide " * 40)], 0)
 
     assert stack_column(narrow, 120) < 40, "a small entry takes its own width"
-    assert stack_column(wide, 120) == 74, "a wide one stops just under three quarters"
-    assert stack_column(wide, 120) < 120 * 0.62, "and stays under the share it is given"
+    assert stack_column(wide, 120) == 74, "a wide one stops at 74 of 120"
+    for width in (40, 60, 80, 90, 100, 120, 160, 200):
+        assert stack_column(wide, width) < width * 0.62, f"stays under 62% at {width} columns"
     assert 120 - stack_column(wide, 120) == 46, "the map keeps the rest"
 
 

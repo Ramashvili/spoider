@@ -150,7 +150,9 @@ def stack_column(panel: Layout | None, width: int) -> int:
     if panel is None:
         return 0
     wanted = max(panel.width + 3, len(STACK_TITLE) + 3)
-    return min(wanted, max(1, width * STACK_SHARE // 100))
+    # one column short of the share, so the column stays under it rather than sitting on it
+    share = max(1, (width * STACK_SHARE - 1) // 100)
+    return min(wanted, share)
 
 
 class TopBar(Widget):
