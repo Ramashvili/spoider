@@ -168,6 +168,10 @@ on the stack are saved inside the `.spoider` file itself, along with the cell yo
 were last on. Opening the same file on another machine gives you the exact same view,
 with the cursor where you left it.
 
+If another program writes the file while you have it open, spoider notices. `^S` asks before
+overwriting that version, and autosave refuses and says so, which leaves the buffer modified until
+you save it by hand.
+
 Editor preferences like autosave, the tab width and custom keybindings live in
 `~/.config/spoider/spoider.conf`. `.` opens that file in your editor and reloads it when you
 come back, so changing a setting is changing a line.

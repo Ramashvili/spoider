@@ -675,4 +675,6 @@ the tree.
 - A prompt holds 512 characters, so a path longer than that cannot be typed or pasted into
   one.
 - Autosave is off by default and there is no backup file.
-- No file locking: two editors on one map, last save wins.
+- No file locking, but no silent burying either: `_seen` holds the sha256 of the file as the buffer
+  last read or wrote it, so a ^S over a file another instance wrote asks before overwriting, and an
+  autosave over one refuses and says so. Two editors can still take turns; the second one is told.

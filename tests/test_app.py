@@ -205,6 +205,119 @@ async def test_top_bar_star_appears_and_clears_with_the_edit(tmp_path: Path):
         assert "*" not in bar.render().plain
 
 
+async def test_a_save_asks_before_burying_a_file_changed_on_disk(tmp_path: Path):
+    """Another instance writing between our load and our ^S is work we would otherwise bury."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    path = tmp_path / "map.spoider"
+    MindMap(Node("root")).save(path)
+    app = SpoiderApp(path, config_path=config_path, demo=False)
+    async with app.run_test() as pilot:
+        app.mm.add_child(app.mm.root.id, "mine")
+        app._mark_dirty()
+        await pilot.pause()
+
+        theirs = MindMap(Node("root"))
+        theirs.add_child(theirs.root.id, "theirs")
+        theirs.save(path)
+
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        ask = app.query_one(AskBar)
+        assert ask.display, "the save asks first"
+        assert "changed on disk" in ask.render().plain, ask.render().plain
+
+        await pilot.press("n")
+        await pilot.pause()
+        assert "theirs" in path.read_text(), "their file is left alone"
+        assert "mine" not in path.read_text()
+        assert app.dirty, "and our work is still here to save"
+
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        await pilot.press("y")
+        await pilot.pause()
+        assert "mine" in path.read_text(), "the overwrite was agreed to"
+        assert app.dirty is False
+
+
+async def test_a_save_of_our_own_write_does_not_ask(tmp_path: Path):
+    """The file this buffer last wrote is the one it expects to find."""
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    path = tmp_path / "map.spoider"
+    MindMap(Node("root")).save(path)
+    app = SpoiderApp(path, config_path=config_path, demo=False)
+    async with app.run_test() as pilot:
+        app.mm.add_child(app.mm.root.id, "mine")
+        app._mark_dirty()
+        await pilot.pause()
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        assert not app.query_one(AskBar).display, "our own write is not a stranger"
+
+        app.mm.add_child(app.mm.root.id, "again")
+        app._mark_dirty()
+        await pilot.pause()
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        assert not app.query_one(AskBar).display, "and neither is the next one"
+
+
+async def test_quitting_after_a_refused_autosave_keeps_the_buffer_and_says_why(
+    tmp_path: Path, monkeypatch
+):
+    """The reader is asked to save by hand rather than losing the buffer to a silent exit."""
+    path = tmp_path / "map.spoider"
+    MindMap(Node("root")).save(path)
+    app = SpoiderApp(path, config_path=_asking_for_autosave(tmp_path), demo=False)
+    said: list[str] = []
+    async with app.run_test() as pilot:
+        theirs = MindMap(Node("root"))
+        theirs.add_child(theirs.root.id, "theirs")
+        theirs.save(path)
+        app.mm.add_child(app.mm.root.id, "mine")
+        app._mark_dirty()
+        await pilot.pause()
+
+        monkeypatch.setattr(app, "notify", lambda message, **_kwargs: said.append(message))
+        await pilot.press("ctrl+x")
+        await pilot.pause()
+
+        assert app.is_running, "the screen stays: the buffer is not on disk"
+        assert "theirs" in path.read_text(), "and their file is still theirs"
+        assert said and "not saved" in said[0], said
+
+
+async def test_autosave_refuses_a_file_another_instance_wrote(tmp_path: Path, monkeypatch):
+    """Autosave writes without a word, so a file it does not recognise has to refuse loudly."""
+    path = tmp_path / "map.spoider"
+    MindMap(Node("root")).save(path)
+    app = SpoiderApp(path, config_path=_asking_for_autosave(tmp_path), demo=False)
+    said: list[str] = []
+    async with app.run_test() as pilot:
+        monkeypatch.setattr(app, "notify", lambda message, **_kwargs: said.append(message))
+        theirs = MindMap(Node("root"))
+        theirs.add_child(theirs.root.id, "theirs")
+        theirs.save(path)
+
+        app.mm.add_child(app.mm.root.id, "mine")
+        app._mark_dirty()
+        await pilot.pause()
+
+        assert "theirs" in path.read_text(), "nothing was written over their file"
+        assert "mine" not in path.read_text()
+        assert said, "the refusal is announced"
+        assert "altered by another instance" in said[0], said
+        assert app.dirty, "so the buffer keeps the work, and ^X will ask about it"
+
+        said.clear()
+        app.mm.add_child(app.mm.root.id, "more")
+        app._mark_dirty()
+        await pilot.pause()
+        assert said == [], "and the same condition is not announced again"
+
+
 async def test_top_bar_never_shows_the_star_under_autosave(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False, config_path=_asking_for_autosave(tmp_path))
     async with app.run_test() as pilot:

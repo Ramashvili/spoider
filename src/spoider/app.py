@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shlex
@@ -285,6 +286,11 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.theme = "textual-ansi"
         # No file named means a new buffer: spoider never guesses at one. The
         # default location is only *offered* when you first write it out.
+        #: sha256 of the file as this buffer last read or wrote it. Another instance writing in the
+        #: meantime shows up as a mismatch, and a save that would bury that work asks first.
+        self._seen: str | None = None
+        #: Whether the autosave failure of that mismatch has been announced already.
+        self._stale_said = False
         self.path: Path | None = Path(path) if path is not None else None
         self.has_file = self.path is not None and self.path.exists()
         self.load_error: str | None = None
@@ -301,6 +307,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
                 self.load_error = str(exc)
         else:
             self.mm = MindMap.demo() if demo else MindMap(marks=self.config.marks_default)
+        self._remember_disk()
         self.selected: str = self.mm.root.id
         #: Where `--position` asked the cursor to start; resolved once the screen exists.
         self.start_position = position
@@ -1055,6 +1062,18 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         matters to ^X: quitting after a failed autosave would lose the buffer."""
         if self.path is None:  # a new buffer has nowhere to go yet
             return False
+        if self._disk_changed():
+            # the file is not the one this buffer has been editing, so a silent write would bury it.
+            # Said once: autosave runs after every change, and the same sentence on every keystroke
+            # is noise over a condition that stays true until the reader deals with it.
+            if not self._stale_said:
+                self._stale_said = True
+                self.notify(
+                    "autosave failed: the file has been altered by another instance, save it yourself",
+                    severity="error",
+                    timeout=FAILURE,
+                )
+            return False
         try:
             self.mm.save(self.path)
         except OSError as exc:
@@ -1062,6 +1081,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             return False
         self.dirty = False
         self.has_file = True
+        self._remember_disk()
         self._set_terminal_title()
         self._refresh_chrome()
         return True
@@ -1075,6 +1095,30 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._refresh_chrome()
         if self.autosave:
             self._autosave()  # one write per change, after the screen agrees
+
+    def _remember_disk(self) -> None:
+        """Remember what the file holds, so a save that would bury another instance is seen."""
+        self._stale_said = False
+        self._seen = None
+        if self.path is None:
+            return
+        try:
+            self._seen = hashlib.sha256(self.path.read_bytes()).hexdigest()
+        except OSError:  # no file, or one that cannot be read: nothing to compare against
+            self._seen = None
+
+    def _disk_changed(self) -> bool:
+        """Whether the file under this buffer is not the one it last read or wrote.
+
+        A file that went away counts: something else has been at it. A buffer that never had a file
+        of its own has nothing to compare, and never asks.
+        """
+        if self.path is None or self._seen is None:
+            return False
+        try:
+            return hashlib.sha256(self.path.read_bytes()).hexdigest() != self._seen
+        except OSError:
+            return True
 
     def _write(self, path: Path) -> bool:
         """Write the map, refusing to bury a file that is not one."""
@@ -1099,6 +1143,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self.path = path
         self.has_file = True
         self.dirty = False
+        self._remember_disk()
         self._set_terminal_title()
         self._refresh_chrome()
         self.notify(f"wrote {self.mm.count()} nodes to {clean(path.name)}", timeout=NOTE)
@@ -1186,6 +1231,25 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self.notify("nothing written", severity="warning", timeout=NOTE)
             return
         self._finish_write(target)
+
+    def _ask_stale(self) -> None:
+        """The file under this buffer changed while it was open, so writing would bury that."""
+        self._ask_words = ("overwrite", "cancel")
+        self._ask_cancel = None  # nothing written either way
+        self._mode = "ask"
+        self._hide_drawers(AskBar)
+        name = clean(self.path.name) if self.path is not None else "the file"
+        self.query_one(AskBar).ask(f"{name} has changed on disk: overwrite it?", self._stale_answered)
+        self._sync_footer()
+
+    def _stale_answered(self, choice: str | None) -> None:
+        self._close_drawers()
+        if choice != "yes" or self.path is None:
+            # the buffer stays dirty, so a later ^S asks again rather than losing the work quietly
+            self._write_then_quit = False
+            self.notify("nothing written", severity="warning", timeout=NOTE)
+            return
+        self._finish_write(self.path)
 
     def _finish_write(self, target: Path) -> None:
         if self._write(target) and self._write_then_quit:
@@ -1428,6 +1492,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         if self.path is None:
             self._ask_where_to_write()
             return
+        if self._disk_changed():
+            self._ask_stale()
+            return
         self._write(self.path)
 
     def action_write(self) -> None:
@@ -1438,7 +1505,13 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         """^X — nano's Exit: never throw away a modified buffer silently."""
         if self.autosave and self.path is not None:
             if self.dirty and not self._autosave():
-                return  # the write failed; keep the buffer and stay
+                # the write did not happen, so leaving would lose the buffer; the press gets an
+                # answer rather than a screen that ignores it
+                self.notify(
+                    "not quitting: this buffer is not saved, ^S writes it", severity="warning",
+                    timeout=NOTE,
+                )
+                return
             self.exit()
             return
         if not self.dirty:
