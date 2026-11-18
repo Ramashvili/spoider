@@ -137,12 +137,16 @@ STACK_TITLE = "LIFO cut/paste stack"
 
 
 def stack_column(panel: Layout | None, width: int) -> int:
-    """How many columns the stack takes: its own width, never more than half the
-    screen, and never so narrow that the title does not fit."""
+    """How many columns the stack takes: as many as its widest entry needs, up to two thirds of the
+    screen, and never so few that the title does not fit.
+
+    The map keeps the remaining third: the column is a look at the stack, and the map it was cut
+    from is still the thing being worked on.
+    """
     if panel is None:
         return 0
     wanted = max(panel.width + 3, len(STACK_TITLE) + 3)
-    return min(wanted, max(1, width // 2))
+    return min(wanted, max(1, width * 2 // 3))
 
 
 class TopBar(Widget):
@@ -548,8 +552,8 @@ class MindMapView(Widget, can_focus=True):
     def _panel_shift(self, panel: Layout, width: int) -> int:
         """How far the stack's page is moved left, so that the chosen entry is in the column.
 
-        The column is at most half the screen, so an entry wider than that cannot be shown
-        whole. The smallest shift that keeps it whole is the one taken; when it is too wide for
+        The column is at most two thirds of the screen, so an entry wider than that cannot be
+        shown whole. The smallest shift that keeps it whole is the one taken; when it is too wide for
         that, the shift follows the caret instead, and the left edge when nothing is being typed.
         """
         chosen = self.spoider.selected

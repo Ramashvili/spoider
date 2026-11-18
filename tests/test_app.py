@@ -1974,8 +1974,22 @@ async def test_the_help_page_leaves_the_keys_on_the_last_row(tmp_path: Path, siz
         )
 
 
+def test_the_stack_column_may_take_two_thirds_of_the_screen():
+    """The column is as wide as its widest entry needs, up to two thirds: the map keeps the rest,
+    since the map is what is being worked on."""
+    from spoider.layout import compute_stack
+    from spoider.model import Node
+
+    narrow = compute_stack([Node("a")], 0)
+    wide = compute_stack([Node("wide " * 40)], 0)
+
+    assert stack_column(narrow, 120) < 40, "a small entry takes its own width"
+    assert stack_column(wide, 120) == 120 * 2 // 3, "a wide one stops at two thirds"
+    assert 120 - stack_column(wide, 120) == 40, "and the map keeps a third"
+
+
 async def test_a_stack_entry_wider_than_its_column_shifts_into_view(tmp_path: Path):
-    """The stack takes half the screen at most, so a wide entry cannot be shown whole. The page
+    """The stack takes two thirds of the screen at most, so a wide entry cannot be shown whole. The page
     moves left as little as it takes to keep what is being typed into in the column, instead of
     drawing past the edge of the screen and losing the caret with it."""
     app = SpoiderApp(tmp_path / "map.json", demo=False)
@@ -4457,7 +4471,7 @@ async def test_a_cell_wider_than_the_screen_keeps_the_caret_in_view(tmp_path: Pa
 
 
 async def test_a_stack_entry_wider_than_its_column_keeps_the_caret_in_view(tmp_path: Path):
-    """The panel's column is at most half the screen, so an entry can be far wider than the space
+    """The panel's column is at most two thirds of the screen, so an entry can be far wider than the space
     it is drawn in: the page moves with the caret instead of leaving it against the wall."""
     config_path = tmp_path / "config.spoider"
     config_path.write_text("")
