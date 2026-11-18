@@ -205,6 +205,58 @@ async def test_top_bar_star_appears_and_clears_with_the_edit(tmp_path: Path):
         assert "*" not in bar.render().plain
 
 
+async def test_an_undo_never_leaves_the_cursor_where_nothing_draws_it(tmp_path: Path):
+    """An undo that follows a cell into the cut stack with the panel shut hides the cursor, and the
+    keys then work on something the reader cannot see. Walked at random with a fixed seed, since the
+    sequence that finds it takes a few dozen steps."""
+    import random
+
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    rng = random.Random(1)
+    async with app.run_test(size=(110, 26)) as pilot:
+        for index in range(6):
+            app.mm.add_child(app.mm.root.id, f"cell {index}")
+        app.mm.add_child(app.mm.root.children[1].id, "deep one")
+        app.view.refresh_map()
+        await pilot.pause()
+
+        for step in range(40):
+            in_map = [node.id for node in app.mm.root.walk()]
+            pick = rng.choice(in_map)
+            action = rng.choice(["cut", "paste", "delete", "mark", "fold", "undo", "redo", "edit"])
+            if action == "cut":
+                app.select(pick)
+                app.action_cut()
+            elif action == "paste":
+                app.select(pick)
+                app.action_paste()
+            elif action == "delete":
+                app.select(pick)
+                app.action_delete()
+            elif action == "mark":
+                app.select(pick)
+                app.action_mark()
+            elif action == "fold":
+                app.select(pick)
+                app.action_fold()
+            elif action == "undo":
+                app.action_undo()
+            elif action == "redo":
+                app.action_redo()
+            else:
+                app.select(pick)
+                await pilot.press("e")
+                await pilot.press("x")
+                await pilot.press("escape")
+            await pilot.pause()
+            drawn = app.mm.find(app.selected) is not None or app.stack_open
+            assert drawn, (
+                f"step {step} ({action}) left the cursor at {app.selected}, which no pane draws"
+            )
+
+
 async def test_a_save_asks_before_burying_a_file_changed_on_disk(tmp_path: Path):
     """Another instance writing between our load and our ^S is work we would otherwise bury."""
     config_path = tmp_path / "config.spoider"

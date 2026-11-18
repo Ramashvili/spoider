@@ -1265,6 +1265,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         if self._write(target) and self._write_then_quit:
             self.exit()
 
+    def _drawn(self, node_id: str) -> bool:
+        """Whether a pane draws this cell: the map always does, the cut stack while it is open.
+
+        An undo that leaves the cursor on a stack entry with the panel shut hides the cursor: no
+        pane draws it, and every key after that acts on something the reader cannot see.
+        """
+        return self.mm.find(node_id) is not None or self.stack_open
+
     def _restore(self, step: bytes) -> None:
         was = self.mm
         try:
@@ -1275,9 +1283,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         # the cursor goes to the cell the change touched, which the new document works out by
         # comparing itself with the one it replaced
         landing = self.mm.landing_from(was)
-        if landing is not None:
+        if landing is not None and self._drawn(landing):
             self.selected = landing
-        elif self.mm.find(self.selected) is None:
+        elif not self._drawn(self.selected):
+            # the cursor was on something no pane draws any more: the map's root is always drawn
             self.selected = self.mm.root.id
         # the anchor belongs to the document we just replaced
         self.anchor = None
