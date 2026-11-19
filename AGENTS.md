@@ -109,7 +109,10 @@ by the interpreter in `PYTHON` (3.14 by default) and only that minor version can
 every other version falls back to compiling the sources, which is about four times slower and
 still correct. Both archives are run with `--version` before the script reports sizes and
 hashes, and it warns when HEAD is not the tag the version names, and when the tree is dirty,
-and builds anyway.
+and builds anyway. Both archives are byte-identical from build to build: the install's `RECORD`
+and `direct_url.json` are dropped (they name the temp path), every file time is 1980-01-01,
+`compileall` strips the staging path out of `co_filename` and validates `.pyc` files by hash
+rather than by a timestamp, and shiv gets `--reproducible --build-id spoider-<version>`.
 
 ## Layout
 
