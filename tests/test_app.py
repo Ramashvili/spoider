@@ -6544,6 +6544,32 @@ def test_the_question_is_not_asked_where_answering_it_could_not_work(tmp_path: P
     assert config.desktop_asked is False, "the question stays owed for a machine that can answer it"
 
 
+def test_an_archive_copy_is_not_asked_about_the_desktop(tmp_path: Path, monkeypatch):
+    """A download is not an installation: answering yes could write a launcher that names nothing,
+    or a path the reader moves tomorrow, so the copy is asked nothing at all."""
+    from spoider.app import ask_desktop
+    from spoider.config import Config
+
+    monkeypatch.setattr("spoider.app.from_archive", lambda: True)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("spoider.app.desktop_available", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda prompt: pytest.fail("no question here"))
+
+    config = Config()
+    config_path = tmp_path / "config"
+    assert ask_desktop(config, config_path, []) is False
+    assert config.desktop_asked is False
+    assert not config_path.exists(), "nothing about the question was written either"
+
+
+def test_a_copy_that_is_not_an_archive_is_not_mistaken_for_one():
+    """The gate is the loader that imported this very module, so a checkout or an installed copy
+    answers no and keeps the question."""
+    from spoider.app import from_archive
+
+    assert from_archive() is False
+
+
 # -- where the cursor starts ----------------------------------------------
 
 

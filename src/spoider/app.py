@@ -13,6 +13,7 @@ import zlib
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import ClassVar, cast
+from zipimport import zipimporter
 
 from textual import events
 from textual.app import App, ComposeResult, SuspendNotSupported
@@ -221,6 +222,17 @@ def desktop_notes(config_path: Path) -> tuple[str, ...]:
     )
 
 
+def from_archive() -> bool:
+    """Whether this copy was loaded out of a .pyz rather than installed.
+
+    A download is not an installation: the reader saved one file and may move it tomorrow, so a
+    launcher naming a command would either point at nothing or at a stale path. The copy is asked
+    nothing, and `--install-desktop` still registers when someone wants it.
+    """
+    module = sys.modules.get("spoider.app")
+    return isinstance(getattr(module, "__loader__", None), zipimporter)
+
+
 def ask_desktop(config: Config, config_path: Path, key_entries: list[tuple[str, str, str]]) -> bool:
     """Ask, before the screen exists, whether to register .spoider with the desktop.
 
@@ -229,7 +241,7 @@ def ask_desktop(config: Config, config_path: Path, key_entries: list[tuple[str, 
     asked either, and only a question that was put is recorded, so the question comes back
     on a machine that gains them.
     """
-    if config.desktop_asked or not sys.stdin.isatty() or not desktop_available():
+    if config.desktop_asked or not sys.stdin.isatty() or not desktop_available() or from_archive():
         return False
     print("\n".join(desktop_notes(config_path)))
     try:
