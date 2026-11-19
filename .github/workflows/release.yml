@@ -1,0 +1,65 @@
+name: release
+
+# A tag is the whole trigger: the release is built from what the tag points at, and never from a
+# branch. Nothing here publishes: the release is created as a draft, so a copy can be checked
+# against a build of the same tag on another machine before anyone can download it.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write       # create the draft release, upload the archives into it
+  id-token: write       # the attestation is signed by this run's short-lived identity
+  attestations: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.14"
+    steps:
+      # pinned: setup-uv publishes no floating major tag, so both are pinned to the version they
+      # were tested with and dependabot moves them
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv python install 3.14
+
+      # a release named v0.5.12 that carries archives answering 0.5.11 is a mistake worth stopping
+      - name: the tag and the version have to agree
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -1)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+              echo "pyproject.toml says $version, the tag says $GITHUB_REF_NAME" >&2
+              exit 1
+          fi
+
+      - run: ./scripts/build-pyz
+      - name: checksums
+        run: cd dist && sha256sum spoider-*.pyz > SHA256SUMS
+
+      # says, in GitHub's own words and signed by the run rather than by a person, which workflow,
+      # which commit and which repository produced these bytes. `gh attestation verify <file>
+      # --repo Ramashvili/spoider` checks it without anyone needing a key of mine.
+      - uses: actions/attest-build-provenance@v4.2.2
+        with:
+          subject-path: |
+            dist/*.pyz
+            dist/SHA256SUMS
+
+      # the draft is the handover point: these hashes are what a build of the same tag on another
+      # machine is compared against, and the checksums file in here is replaced by the signed one
+      # before the draft is published.
+      - name: draft release with the archives and their hashes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+              echo "Built from $GITHUB_SHA by the release workflow."
+              echo
+              echo '```'
+              cat dist/SHA256SUMS
+              echo '```'
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" dist/spoider-*.pyz dist/SHA256SUMS \
+              --draft --verify-tag --title "spoider ${GITHUB_REF_NAME#v}" \
+              --notes-file "$RUNNER_TEMP/notes.md"

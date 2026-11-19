@@ -97,10 +97,16 @@ not by holding the tag back.
   that number, which is why the bump is the release act and not the first act. Two builds
   in one session cannot be told apart by the number; that is accepted.
 
-There are no GitHub Releases here, only tags, so the tags page is the whole history a
-visitor sees. That makes a tag placed before the checks agreed the one mistake that costs
-something: `v0.4.7` went out red on the runner, and `0.4.8` was spent repairing it instead
-of shipping anything.
+A tag push runs `.github/workflows/release.yml`: it builds the two archives from the tag, writes
+`SHA256SUMS`, attests both files with `actions/attest-build-provenance` and puts them in a **draft**
+release. Nothing publishes itself. A draft is the handover point, where a build of the same tag on
+another machine is compared against the printed hashes, and where the plain `SHA256SUMS` is replaced
+by the signed one before a person publishes. `gh attestation verify <file> --repo Ramashvili/spoider`
+checks the attestation without a key.
+
+That makes a tag placed before the checks agreed the one mistake that costs something, since it now
+also builds and attests: `v0.4.7` went out red on the runner, and `0.4.8` was spent repairing it
+instead of shipping anything.
 
 `scripts/build-pyz` builds the archives a release can hand out, from a wheel it builds first and the
 dependency set `uv.lock` names (`uv export --frozen`, installed with `--require-hashes`, so a build
