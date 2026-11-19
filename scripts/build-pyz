@@ -56,7 +56,12 @@ uv build --wheel --out-dir "$tmp/wheels" >/dev/null 2>&1
 wheel=$(ls "$tmp"/wheels/*.whl)
 
 uv venv --python "$python_version" "$tmp/venv" >/dev/null 2>&1
-uv pip install --python "$tmp/venv/bin/python" "$wheel" >/dev/null 2>&1
+# The dependency set comes from the lock, not from whatever resolves today: a hash in a release note
+# is worth something only if a build made months later carries the same versions, and a resolve at
+# build time quietly answers a different question each time it is asked.
+uv export --frozen --no-emit-project --no-dev --output-file "$tmp/reqs.txt" >/dev/null 2>&1
+uv pip install --python "$tmp/venv/bin/python" --no-deps "$wheel" >/dev/null 2>&1
+uv pip install --python "$tmp/venv/bin/python" --require-hashes -r "$tmp/reqs.txt" >/dev/null 2>&1
 site=$("$tmp/venv/bin/python" -c "import sysconfig; print(sysconfig.get_path('purelib'))")
 
 # The install's own notes name the temp directory it came from and when it was written, so a build
