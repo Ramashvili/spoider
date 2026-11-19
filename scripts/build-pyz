@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Build the two downloadable archives a release ships.
+#
+#   scripts/build-pyz                 writes dist/spoider-<version>.pyz and -pyc.pyz
+#   scripts/build-pyz -o /tmp/out     writes them somewhere other than dist/
+#   PYTHON=3.14 scripts/build-pyz     chooses the interpreter the .pyc files are made with
+#
+# The first archive is a shiv build: it unpacks itself into ~/.shiv on first run, and starts in
+# about a third of a second afterwards. The second carries the compiled .pyc files inside the zip,
+# so it never writes anywhere, and starts in about the same time on the Python it was built with.
+# Both carry every dependency, so a reader needs nothing but Python 3.11 or newer.
+set -euo pipefail
+
+out=dist
+python_version=${PYTHON:-3.14}
+
+while [ $# -gt 0 ]; do
+    case $1 in
+        -o|--out) out=$2; shift 2 ;;
+        -h|--help) sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        *) echo "build-pyz: unknown argument $1" >&2; exit 2 ;;
+    esac
+done
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -1)
+[ -n "$version" ] || { echo "build-pyz: no version in pyproject.toml" >&2; exit 1; }
+command -v uv >/dev/null || { echo "build-pyz: uv is not installed" >&2; exit 1; }
+
+# An archive is what a release hands out, so say when it is not being made from the tag it names.
+tag=$(git describe --tags --exact-match HEAD 2>/dev/null || true)
+if [ "$tag" != "v$version" ]; then
+    echo "build-pyz: warning: HEAD is not tagged v$version (it is ${tag:-untagged}); the archives" >&2
+    echo "build-pyz:          are built from the working tree as it stands." >&2
+fi
+if [ -n "$(git status --porcelain)" ]; then
+    echo "build-pyz: warning: the working tree has changes:" >&2
+    git status --short >&2
+fi
+
+mkdir -p "$out"
+out=$(cd "$out" && pwd)
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+echo "building spoider $version with python $python_version"
+uv build --wheel --out-dir "$tmp/wheels" >/dev/null 2>&1
+wheel=$(ls "$tmp"/wheels/*.whl)
+
+uv venv --python "$python_version" "$tmp/venv" >/dev/null 2>&1
+uv pip install --python "$tmp/venv/bin/python" "$wheel" >/dev/null 2>&1
+site=$("$tmp/venv/bin/python" -c "import sysconfig; print(sysconfig.get_path('purelib'))")
+
+# 1. The shiv archive: self-extracting, and the shebang is the reader's python, not this one.
+uv run --with shiv --python "$tmp/venv/bin/python" shiv -c spoider --site-packages "$site" \
+    -p "/usr/bin/env python3" -o "$out/spoider-$version.pyz" >/dev/null 2>&1
+
+# 2. The archive that carries its compiled code, so zipimport never has to compile anything.
+rm -rf "$tmp/app"
+mkdir -p "$tmp/app"
+cp -r "$site"/* "$tmp/app/"
+find "$tmp/app" -name __pycache__ -type d -prune -exec rm -rf {} +
+rm -rf "$tmp/app/bin"
+printf 'from spoider.app import main\n\nmain()\n' > "$tmp/app/__main__.py"
+"$tmp/venv/bin/python" -c "import compileall; compileall.compile_dir('$tmp/app', quiet=2, legacy=True, force=True, workers=8)"
+"$tmp/venv/bin/python" -m zipapp "$tmp/app" -p "/usr/bin/env python3" -c -o "$out/spoider-$version-pyc.pyz"
+chmod 755 "$out/spoider-$version.pyz" "$out/spoider-$version-pyc.pyz"
+
+# Every archive has to answer as the version it is named for, or it is not shippable.
+for file in "$out/spoider-$version.pyz" "$out/spoider-$version-pyc.pyz"; do
+    said=$("$file" --version)
+    if [ "$said" != "spoider $version" ]; then
+        echo "build-pyz: $file answered '$said', not 'spoider $version'" >&2
+        exit 1
+    fi
+done
+
+echo
+du -h "$out/spoider-$version.pyz" "$out/spoider-$version-pyc.pyz" | sed 's/\t/  /'
+(cd "$out" && sha256sum "spoider-$version.pyz" "spoider-$version-pyc.pyz")

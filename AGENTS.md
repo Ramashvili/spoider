@@ -102,6 +102,15 @@ visitor sees. That makes a tag placed before the checks agreed the one mistake t
 something: `v0.4.7` went out red on the runner, and `0.4.8` was spent repairing it instead
 of shipping anything.
 
+`scripts/build-pyz` builds the archives a release can hand out, from a wheel it builds first:
+a shiv build that unpacks itself into `~/.shiv` on first run, and one carrying legacy `.pyc`
+files so `zipimport` compiles nothing, which writes nowhere at all. The `.pyc` files are made
+by the interpreter in `PYTHON` (3.14 by default) and only that minor version can use them;
+every other version falls back to compiling the sources, which is about four times slower and
+still correct. Both archives are run with `--version` before the script reports sizes and
+hashes, and it warns when HEAD is not the tag the version names, and when the tree is dirty,
+and builds anyway.
+
 ## Layout
 
 | File | Role |
