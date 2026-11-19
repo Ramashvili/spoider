@@ -70,6 +70,59 @@ uvx --from git+https://github.com/Ramashvili/spoider spoider --demo
 
 `--demo` opens the built-in manual as a mind map you can explore and edit.
 
+## Download a single file
+
+Every release also carries two files you can run without installing anything, from
+[the releases page](https://github.com/Ramashvili/spoider/releases). Both need Python 3.11 or newer
+on your path, and both work offline once they are on your disk.
+
+`spoider-0.5.12.pyz` unpacks itself the first time it runs, into `~/.shiv`, about 17 MB, and
+starts from there after that. Delete that directory whenever you like, and the next run makes it
+again.
+
+`spoider-0.5.12-pyc.pyz` loads straight out of the file and leaves nothing behind on your disk. It
+is at its fastest on Python 3.14, whose compiled form it carries; on another version it compiles as
+it starts, which costs about a second.
+
+```bash
+python3 spoider-0.5.12.pyz map.spoider
+python3 spoider-0.5.12-pyc.pyz           # an empty buffer, the same as the installed command
+```
+
+On Windows the file is not executable on its own, so hand it to the interpreter: `py
+spoider-0.5.12-pyc.pyz`. Both read the same `~/.config/spoider/spoider.conf` as an installed copy,
+and a map does not care which of them opens it.
+
+To have `.spoider` files open in one from your file browser, the file first has to be reachable as a
+command named `spoider`:
+
+```bash
+ln -s ~/Downloads/spoider-0.5.12-pyc.pyz ~/.local/bin/spoider
+spoider --install-desktop
+```
+
+A downloaded copy never asks that question on its own, since a file in a download folder gets moved
+or replaced, and a launcher naming it would quietly stop working.
+
+## Checking a download
+
+Releases are signed, and every file is accompanied by a checksums file carrying the signature. The
+key is `2C0C9D7EC16A50D0E2130654B3125E08B4EF2741`, available from
+[github.com/Ramashvili.gpg](https://github.com/Ramashvili.gpg):
+
+```bash
+gpg --recv-keys 2C0C9D7EC16A50D0E2130654B3125E08B4EF2741
+gpg --verify SHA256SUMS.asc                      # who signed these numbers
+gpg --decrypt SHA256SUMS.asc | sha256sum -c -    # and do the files match them
+git tag -v v0.5.12                               # and is the tag the one that was signed
+```
+
+The archives are reproducible, so a build of the same tag on your own machine gives the same bytes:
+`scripts/build-pyz` in a clone, then `sha256sum` in `dist`, should answer the numbers the release
+carries. GitHub also records a build attestation for each file, which
+`gh attestation verify spoider-0.5.12.pyz --repo Ramashvili/spoider` checks without needing the key
+at all.
+
 ## Run
 
 ```bash

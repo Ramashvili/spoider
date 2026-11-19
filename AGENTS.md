@@ -696,6 +696,28 @@ text the cell is not showing. Abandoning a visit (`^C`) puts the stacks back and
 off the step, since nothing of that visit happened. A cell deleted and brought back by an undo finds
 its history still filed under the id: ids are random and never reused.
 
+## Cutting a release
+
+1. Bump `version` in `pyproject.toml`, `uv lock` (which moves the same number in `uv.lock`), commit
+   it. The workflow refuses a tag whose version and `pyproject.toml` disagree, and it does that
+   before it builds anything, so a mismatch costs a red run and nothing else.
+2. Tag it signed and push it: `git tag -s vX.Y.Z -m "spoider X.Y.Z"`, then `git push
+   --follow-tags`. No assistant pushes, and a tag that was pushed is not moved onto later work.
+3. The tag push runs `release.yml`: it builds both archives from the tag, writes `dist/SHA256SUMS`,
+   attests the files and puts them in a **draft** release. Nothing publishes itself.
+4. The draft is the handover. A build of the same tag elsewhere has to produce the same hashes
+   (that is what the reproducibility work is for), and the checksums file is then signed and
+   uploaded as `SHA256SUMS.asc`, with the unsigned `SHA256SUMS` removed, so two files with the same
+   numbers never sit side by side. Publishing is `gh release edit vX.Y.Z --draft=false`, done by
+   the maintainer.
+5. A reader verifies with `gpg --verify SHA256SUMS.asc`, `gpg --decrypt SHA256SUMS.asc | sha256sum
+   -c -`, `git tag -v vX.Y.Z` and `gh attestation verify <file> --repo Ramashvili/spoider`. The
+   README carries those four commands and the fingerprint, so they do not live only here.
+
+A copy running out of a `.pyz` is not an installation: `from_archive()` in `app.py` reads the loader
+that imported the module, and `ask_desktop` asks such a copy nothing, since a launcher would name a
+file the reader moves or replaces. `--install-desktop` still registers when asked by hand.
+
 ## Known limits
 
 - A map wider than the terminal is clipped at the edges; there is no zoom out.
