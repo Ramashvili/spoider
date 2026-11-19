@@ -100,4 +100,6 @@ done
 
 echo
 du -h "$out/spoider-$version.pyz" "$out/spoider-$version-pyc.pyz" | sed 's/\t/  /'
-(cd "$out" && sha256sum "spoider-$version.pyz" "spoider-$version-pyc.pyz")
+# The file that gets signed: written beside the archives, so a build always leaves something to
+# sign, and printed, so the numbers are in the log of the run that made them.
+(cd "$out" && sha256sum "spoider-$version.pyz" "spoider-$version-pyc.pyz" | tee SHA256SUMS)

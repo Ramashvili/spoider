@@ -33,9 +33,8 @@ jobs:
               exit 1
           fi
 
+      # writes the archives and dist/SHA256SUMS, the file that is signed before publishing
       - run: ./scripts/build-pyz
-      - name: checksums
-        run: cd dist && sha256sum spoider-*.pyz > SHA256SUMS
 
       # says, in GitHub's own words and signed by the run rather than by a person, which workflow,
       # which commit and which repository produced these bytes. `gh attestation verify <file>
