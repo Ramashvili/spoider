@@ -76,50 +76,58 @@ uvx --from git+https://github.com/Ramashvili/spoider spoider --demo
 
 ### From a single file
 
-Every release carries one file you can run without installing anything, from
-[the releases page](https://github.com/Ramashvili/spoider/releases). It needs Python 3.11 or newer on
+Every release carries one file you can run without installing anything. It needs Python 3.11 or newer on
 your path, and it works offline once it is on your disk.
+
+#### 1. Download release
+
+Download from [the releases page](https://github.com/Ramashvili/spoider/releases).
 
 `spoider-0.5.13-pyc.pyz` holds the whole program and every dependency, with the compiled form of each
 module inside, so it loads straight out of the file and leaves nothing behind on your disk. It is
 fastest on Python 3.14.
 
+#### 2. Verify the signature
+
+Each release signs the archive, so the signature sits beside it as
+`spoider-0.5.13-pyc.pyz.asc`. Fetch the public key and import to your keyring.
+
 ```bash
-python3 spoider-0.5.13-pyc.pyz map.spoider
-python3 spoider-0.5.13-pyc.pyz           # an empty buffer, the same as the installed command
+curl -fsSL https://github.com/Ramashvili.gpg | gpg --import      # download with curl and import
 ```
 
-To have `.spoider` files open in it from your file browser, the file first has to be reachable as a
-command named `spoider`:
+Check if the signature matches the file:
+
+```bash
+gpg --verify spoider-0.5.13-pyc.pyz.asc spoider-0.5.13-pyc.pyz
+```
+That command will say `Good signature`.
+It must display the fingerprint `2C0C9D7EC16A50D0E2130654B3125E08B4EF2741`.
+If both are true, then verification was successful.
+
+Note: The signature is the thing to trust, and it is the only thing here which says who made the file. A
+sha256 sum does not, because anyone can compute one, including whoever maliciously replaced the files.
+
+Note2: The archive build is reproducible: `scripts/build-pyz` in a clone of the tag, then
+`sha256sum` in `dist/`, should return the same sha256sum for the pyz archive.
+
+#### 3. Run it with python
+
+```bash
+python3 spoider-0.5.13-pyc.pyz
+```
+
+#### 4. (optional) Run it with `--install-desktop` flag
+
+To have `.spoider` files open by clicking in your file browser, the file first has to be reachable as a
+command named `spoider`; the flag then registers the MIME type and the launcher that starts it:
 
 ```bash
 ln -s ~/Downloads/spoider-0.5.13-pyc.pyz ~/.local/bin/spoider
 spoider --install-desktop
 ```
 
-#### Verify the signature
-
-Each release signs the archive itself, so the signature sits beside it as
-`spoider-0.5.13-pyc.pyz.asc`. Fetch the public key, check it is the right one, and verify:
-
-```bash
-curl -fsSL https://github.com/Ramashvili.gpg | gpg --import      # or download that URL in a browser
-gpg --fingerprint 2C0C9D7EC16A50D0E2130654B3125E08B4EF2741       # the key is this fingerprint
-gpg --verify spoider-0.5.13-pyc.pyz.asc spoider-0.5.13-pyc.pyz    # and this file was signed with it
-git tag -v v0.5.13                                                # as was the tag it was built from
-```
-
-The signature is the thing to trust, and it is the only thing here that says who made the file. A
-sha256 sum does not: anyone can compute one, including whoever replaced the file, so comparing a
-download against a number is a check that it arrived intact and nothing more. The number printed in
-the release notes is there so a builder can compare it with their own build; it is not a signature.
-
-For that comparison, the archive is reproducible: `scripts/build-pyz` in a clone of the tag, then
-`sha256sum` in `dist`, should answer the same number. GitHub also records a build attestation for the
-file, which `gh attestation verify spoider-0.5.13-pyc.pyz --repo Ramashvili/spoider` checks without
-needing the key at all.
-
-## Run
+## Run in the terminal
 
 ```bash
 spoider                                 # start a new buffer
@@ -296,6 +304,7 @@ export leaves the old file rather than half a new one, and the folder you name h
 git clone https://github.com/Ramashvili/spoider && cd spoider
 uv sync && uv run spoider
 uv run pytest
+./scripts/build-pyz         # build pyz archive (reproducible build)
 ```
 
 See [AGENTS.md](AGENTS.md) for the codebase layout and design notes.
