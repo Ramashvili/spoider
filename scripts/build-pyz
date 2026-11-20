@@ -20,6 +20,27 @@ set -euo pipefail
 # and a machine in CET wrote the same files with timestamps an hour apart, and every entry differed.
 export TZ=UTC
 
+# Anything that stops the build has to say what stopped it. A step whose output is hidden until it
+# fails is the difference between "the script failed" and "uv could not install the interpreter".
+die() {
+    printf 'build-pyz: %s\n' "$*" >&2
+    exit 1
+}
+
+step() {
+    local what=$1
+    shift
+    local log="$step_log"
+    if ! "$@" >"$log" 2>&1; then
+        printf 'build-pyz: %s failed\n' "$what" >&2
+        sed 's/^/    /' "$log" >&2
+        exit 1
+    fi
+}
+
+# A safety net for anything not run through step: name the command and where it stood.
+trap 'printf "build-pyz: stopped at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
+
 out=dist
 # the exact patch, not the minor: uv's own build of CPython carries its own zlib, so pinning it
 # keeps the compression library out of the differences between machines
@@ -39,7 +60,7 @@ root=$(git rev-parse --show-toplevel)
 cd "$root"
 version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -1)
 [ -n "$version" ] || { echo "build-pyz: no version in pyproject.toml" >&2; exit 1; }
-command -v uv >/dev/null || { echo "build-pyz: uv is not installed" >&2; exit 1; }
+command -v uv >/dev/null || die "uv is not installed; https://docs.astral.sh/uv/ installs it"
 
 # An archive is what a release hands out, so say when it is not being made from the tag it names.
 tag=$(git describe --tags --exact-match HEAD 2>/dev/null || true)
@@ -55,20 +76,26 @@ fi
 mkdir -p "$out"
 out=$(cd "$out" && pwd)
 tmp=$(mktemp -d)
+step_log="$tmp/step.log"
 trap 'rm -rf "$tmp"' EXIT
 
-echo "building spoider $version with python $python_version"
-uv build --wheel --out-dir "$tmp/wheels" >/dev/null 2>&1
+echo "building spoider $version with python $python_version, uv $(uv --version | awk '{print $2}')"
+step "building the wheel" uv build --wheel --out-dir "$tmp/wheels"
 wheel=$(ls "$tmp"/wheels/*.whl)
+[ -n "$wheel" ] || die "the wheel build produced no wheel in $tmp/wheels"
 
-uv python install "$python_version" >/dev/null 2>&1
-uv venv --python-preference only-managed --python "$python_version" "$tmp/venv" >/dev/null 2>&1
+step "installing python $python_version" uv python install "$python_version"
+step "creating the build environment" uv venv \
+    --python-preference only-managed --python "$python_version" "$tmp/venv"
 # The dependency set comes from the lock, not from whatever resolves today: a hash in a release note
 # is worth something only if a build made months later carries the same versions, and a resolve at
 # build time quietly answers a different question each time it is asked.
-uv export --frozen --no-emit-project --no-dev --output-file "$tmp/reqs.txt" >/dev/null 2>&1
-uv pip install --python "$tmp/venv/bin/python" --no-deps "$wheel" >/dev/null 2>&1
-uv pip install --python "$tmp/venv/bin/python" --require-hashes -r "$tmp/reqs.txt" >/dev/null 2>&1
+step "writing the dependency list from the lock" uv export \
+    --frozen --no-emit-project --no-dev --output-file "$tmp/reqs.txt"
+step "installing spoider into the build environment" uv pip install \
+    --python "$tmp/venv/bin/python" --no-deps "$wheel"
+step "installing the dependencies" uv pip install \
+    --python "$tmp/venv/bin/python" --require-hashes -r "$tmp/reqs.txt"
 site=$("$tmp/venv/bin/python" -c "import sysconfig; print(sysconfig.get_path('purelib'))")
 
 # The install's own notes name the temp directory it came from and when it was written, so a build
@@ -90,13 +117,13 @@ find "$tmp/app" -name __pycache__ -type d -prune -exec rm -rf {} +
 rm -rf "$tmp/app/bin"
 printf 'from spoider.app import main\n\nmain()\n' > "$tmp/app/__main__.py"
 # A hash in the .pyc header rather than a file time, or two builds would differ in every header.
-"$tmp/venv/bin/python" -c "import compileall, py_compile; compileall.compile_dir('$tmp/app', quiet=2, legacy=True, force=True, workers=8, stripdir='$tmp/app', invalidation_mode=py_compile.PycInvalidationMode.CHECKED_HASH)"
+step "compiling the modules" "$tmp/venv/bin/python" -c "import compileall, py_compile; compileall.compile_dir('$tmp/app', quiet=2, legacy=True, force=True, workers=8, stripdir='$tmp/app', invalidation_mode=py_compile.PycInvalidationMode.CHECKED_HASH)"
 find "$tmp/app" -exec touch -h -d "@$epoch" {} +
 find "$tmp/app" -type d -exec chmod 755 {} +
 find "$tmp/app" -type f -exec chmod 644 {} +
 
 archive="$out/spoider-$version-pyc.pyz"
-"$tmp/venv/bin/python" -m zipapp "$tmp/app" -p "/usr/bin/env python3" -c -o "$archive"
+step "packing the archive" "$tmp/venv/bin/python" -m zipapp "$tmp/app" -p "/usr/bin/env python3" -c -o "$archive"
 chmod 755 "$archive"
 
 # An archive that does not answer as the version it is named for is not shippable.
