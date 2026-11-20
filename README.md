@@ -8,7 +8,7 @@ We are aiming for a perfectly functioning, minimalistic editor. The best of its 
 Distinct features of spoider, as compared to other mind mapping editors:
 
 - keyboard-oriented navigation
-- a LIFO stack of parts cut out of the map, saved with the map
+- a LIFO stack carries parts of the map that were cut out
 - all aspects of the mind map are saved, so the map renders identically everywhere
 - the colour scheme is inherited from the terminal
 - five mind map layouts
@@ -26,7 +26,7 @@ A two-minute tour of spoider.
 
 Three ways to have it, from the one that installs a command to the one that is a single file.
 
-### With uv
+### Install with uv
 
 spoider needs [uv](https://docs.astral.sh/uv/), which also brings a matching Python. Install
 it from your package manager where it is packaged:
@@ -66,7 +66,7 @@ The arrangement is freedesktop's, so it works on Linux and on the BSDs that pack
 shared-mime-info. Where that tool is absent, macOS and Windows among them, the first launch
 leaves the question unasked and the flag says what is missing instead of writing files nothing reads.
 
-### With uvx, without installing
+### Try without installing with uvx
 
 ```bash
 uvx --from git+https://github.com/Ramashvili/spoider spoider --demo
@@ -96,9 +96,6 @@ command named `spoider`:
 ln -s ~/Downloads/spoider-0.5.13-pyc.pyz ~/.local/bin/spoider
 spoider --install-desktop
 ```
-
-A downloaded copy never asks that question on its own, since a file in a download folder gets moved
-or replaced, and a launcher naming it would quietly stop working.
 
 #### Verify the signature
 
