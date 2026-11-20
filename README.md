@@ -22,7 +22,11 @@ https://github.com/user-attachments/assets/a7252521-8837-4ac1-9f52-0b44ba86c570
 
 A two-minute tour of spoider.
 
-## Install
+## Get spoider
+
+Three ways to have it, from the one that installs a command to the one that is a single file.
+
+### With uv
 
 spoider needs [uv](https://docs.astral.sh/uv/), which also brings a matching Python. Install
 it from your package manager where it is packaged:
@@ -62,7 +66,7 @@ The arrangement is freedesktop's, so it works on Linux and on the BSDs that pack
 shared-mime-info. Where that tool is absent, macOS and Windows among them, the first launch
 leaves the question unasked and the flag says what is missing instead of writing files nothing reads.
 
-## Try it without installing
+### With uvx, without installing
 
 ```bash
 uvx --from git+https://github.com/Ramashvili/spoider spoider --demo
@@ -70,25 +74,20 @@ uvx --from git+https://github.com/Ramashvili/spoider spoider --demo
 
 `--demo` opens the built-in manual as a mind map you can explore and edit.
 
-## Download a single file
+### From a single file
 
 Every release carries one file you can run without installing anything, from
 [the releases page](https://github.com/Ramashvili/spoider/releases). It needs Python 3.11 or newer on
 your path, and it works offline once it is on your disk.
 
 `spoider-0.5.13-pyc.pyz` holds the whole program and every dependency, with the compiled form of each
-module inside, so it loads straight out of the file and leaves nothing behind on your disk. It is at
-its fastest on Python 3.14, whose compiled form it carries; on another version it compiles as it
-starts, which costs about a second.
+module inside, so it loads straight out of the file and leaves nothing behind on your disk. It is
+fastest on Python 3.14.
 
 ```bash
 python3 spoider-0.5.13-pyc.pyz map.spoider
 python3 spoider-0.5.13-pyc.pyz           # an empty buffer, the same as the installed command
 ```
-
-On Windows the file is not executable on its own, so hand it to the interpreter:
-`py spoider-0.5.13-pyc.pyz`. It reads the same `~/.config/spoider/spoider.conf` as an installed copy,
-and a map does not care which of them opens it.
 
 To have `.spoider` files open in it from your file browser, the file first has to be reachable as a
 command named `spoider`:
@@ -101,7 +100,7 @@ spoider --install-desktop
 A downloaded copy never asks that question on its own, since a file in a download folder gets moved
 or replaced, and a launcher naming it would quietly stop working.
 
-## Checking a download
+#### Verify the signature
 
 Each release signs the archive itself, so the signature sits beside it as
 `spoider-0.5.13-pyc.pyz.asc`. Fetch the public key, check it is the right one, and verify:
@@ -126,12 +125,12 @@ needing the key at all.
 ## Run
 
 ```bash
-spoider                             # start a new buffer
-spoider file.spoider                # open a map, or create one at that path
-spoider --demo                      # open the interactive manual
-spoider -p 7.4.3 file.spoider       # land the cursor on the 3rd child of the 4th child of the 7th
-spoider -p s2.1 file.spoider        # land on the 1st child of the 2nd cut; opens the stack
-spoider --id 9f2c1a8b file.spoider  # land on the cell with that id
+spoider                                 # start a new buffer
+spoider file.spoider                    # open a map, or create one at that path
+spoider --demo                          # open the interactive manual
+spoider --position 7.4.3 file.spoider   # land on the 3rd child of the 4th child of the 7th
+spoider --position s2.1 file.spoider    # land on the 1st child of the 2nd cut; opens the stack
+spoider --id 9f2c1a8b file.spoider      # land on the cell with that id
 ```
 
 `--id` refuses a cell the map does not hold, and exits with code 2, so a program that
