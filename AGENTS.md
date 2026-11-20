@@ -97,37 +97,42 @@ not by holding the tag back.
   that number, which is why the bump is the release act and not the first act. Two builds
   in one session cannot be told apart by the number; that is accepted.
 
-A tag push runs `.github/workflows/release.yml`: it builds the two archives from the tag, writes
-`SHA256SUMS`, attests both files with `actions/attest-build-provenance` and puts them in a **draft**
-release. Nothing publishes itself. A draft is the handover point, where a build of the same tag on
-another machine is compared against the printed hashes, and where the plain `SHA256SUMS` is replaced
-by the signed one before a person publishes. `gh attestation verify <file> --repo Ramashvili/spoider`
-checks the attestation without a key.
+A tag push runs `.github/workflows/release.yml`: it builds the one archive from the tag, attests it
+with `actions/attest-build-provenance` and puts it in a **draft** release with its sha256 in the
+notes. Nothing publishes itself. A draft is the handover point, where a build of the same tag on
+another machine is compared against that hash, and where the archive gains its detached signature
+before a person publishes. `gh attestation verify <file> --repo Ramashvili/spoider` checks the
+attestation without a key.
 
 That makes a tag placed before the checks agreed the one mistake that costs something, since it now
 also builds and attests: `v0.4.7` went out red on the runner, and `0.4.8` was spent repairing it
 instead of shipping anything.
 
-`scripts/build-pyz` builds the archives a release can hand out, from a wheel it builds first and the
-dependency set `uv.lock` names (`uv export --frozen`, installed with `--require-hashes`, so a build
-made months later carries the same versions as today's):
-a shiv build that unpacks itself into `~/.shiv` on first run, and one carrying legacy `.pyc`
-files so `zipimport` compiles nothing, which writes nowhere at all. The `.pyc` files are made
-by the interpreter in `PYTHON` (3.14.10 by default) and only that minor version can use them;
-every other version falls back to compiling the sources, which is about four times slower and
-still correct. Both archives are run with `--version` before the script reports sizes and
-hashes, and it warns when HEAD is not the tag the version names, and when the tree is dirty,
-and builds anyway. The interpreter is pinned to an exact patch (`PYTHON`, 3.14.10 by default) and
-taken from uv's own managed build, because that build carries its own zlib and the compression
-library is what otherwise differs between machines. Byte-identical means the same toolchain: two
-machines with different zlib pack the same files differently. When two hashes disagree, the question
-is whether the program or only the packing changed, and that is answered by comparing the contents:
-`diffoscope a.pyz b.pyz`, or unzip both and `diff -r`. Given one toolchain, the bytes repeat: the install's `RECORD`
-and `direct_url.json` are dropped (they name the temp path), every file time is 1980-01-01
-and the build runs with `TZ=UTC` because a zip stores a local time, which is how a runner in
-UTC and a machine in CET came to differ by an hour in every entry,
-`compileall` strips the staging path out of `co_filename` and validates `.pyc` files by hash
-rather than by a timestamp, and shiv gets `--reproducible --build-id spoider-<version>`.
+`scripts/build-pyz` builds the archive a release hands out: `dist/spoider-<version>-pyc.pyz`, a
+zipapp holding every dependency and the compiled form of every module, so `zipimport` compiles
+nothing at startup and nothing is written to disk. It builds a wheel first and installs it with
+`--no-deps`, then takes the dependencies from `uv export --frozen` with `--require-hashes`, so a
+build made months later carries the versions `uv.lock` names. The `.pyc` files are made by the
+interpreter in `PYTHON` (3.14.10 by default), taken from uv's own managed build because that build
+carries its own zlib inside it; only that minor version can use them, and every other version falls
+back to compiling the sources, four times slower and still correct. The archive is run with
+`--version` before the script reports its size and hash, and the script warns when HEAD is not the
+tag the version names, and when the tree is dirty, and builds anyway.
+
+Given one toolchain the bytes repeat, which was not free to arrange: the install's `RECORD` and
+`direct_url.json` are dropped (they name the temp path), every file time is 1980-01-01 in `TZ=UTC`
+(a zip stores a local time, which is how a runner in UTC and a machine in CET came to differ by an
+hour in every entry), file modes are fixed at 0755 and 0644 so a build does not remember the
+builder's umask, `compileall` strips the staging path out of `co_filename` and validates `.pyc`
+files by hash rather than by a timestamp, and `zipapp` sorts its entries. When two hashes disagree
+the question is whether the program or only the packing changed, answered by comparing contents:
+`diffoscope a.pyz b.pyz`, or unzip both and `diff -r`.
+
+The self-unpacking archive is gone. It was 2.6 MB against 7.3, and it started in 0.28 s on any
+Python, but the tool that made it wrote its entries in directory order, which belongs to the
+filesystem and not to the build, so two machines produced the same files in a different sequence and
+therefore different bytes. One artifact that can be checked seemed worth more than two where one
+could not.
 
 ## Layout
 
@@ -710,16 +715,16 @@ its history still filed under the id: ids are random and never reused.
    before it builds anything, so a mismatch costs a red run and nothing else.
 2. Tag it signed and push it: `git tag -s vX.Y.Z -m "spoider X.Y.Z"`, then `git push
    --follow-tags`. No assistant pushes, and a tag that was pushed is not moved onto later work.
-3. The tag push runs `release.yml`: it builds both archives from the tag, writes `dist/SHA256SUMS`,
-   attests the files and puts them in a **draft** release. Nothing publishes itself.
-4. The draft is the handover. A build of the same tag elsewhere has to produce the same hashes
-   (that is what the reproducibility work is for), and the checksums file is then signed and
-   uploaded as `SHA256SUMS.asc`, with the unsigned `SHA256SUMS` removed, so two files with the same
-   numbers never sit side by side. Publishing is `gh release edit vX.Y.Z --draft=false`, done by
-   the maintainer.
-5. A reader verifies with `gpg --verify SHA256SUMS.asc`, `gpg --decrypt SHA256SUMS.asc | sha256sum
-   -c -`, `git tag -v vX.Y.Z` and `gh attestation verify <file> --repo Ramashvili/spoider`. The
-   README carries those four commands and the fingerprint, so they do not live only here.
+3. The tag push runs `release.yml`: it builds the archive from the tag, attests it and puts it in a
+   **draft** release with its sha256 in the notes. Nothing publishes itself.
+4. The draft is the handover. A build of the same tag elsewhere has to produce the same hash (that
+   is what the reproducibility work is for), and the archive is then signed, the detached signature
+   uploaded as `spoider-X.Y.Z-pyc.pyz.asc`. Publishing is `gh release edit vX.Y.Z --draft=false`,
+   done by the maintainer.
+5. A reader verifies with `gpg --verify spoider-X.Y.Z-pyc.pyz.asc spoider-X.Y.Z-pyc.pyz`,
+   `git tag -v vX.Y.Z`, `sha256sum` against the release note, and `gh attestation verify <file>
+   --repo Ramashvili/spoider`. The README carries those commands and the fingerprint, so they do not
+   live only here.
 
 A copy running out of a `.pyz` is not an installation: `from_archive()` in `app.py` reads the loader
 that imported the module, and `ask_desktop` asks such a copy nothing, since a launcher would name a

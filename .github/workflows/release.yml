@@ -8,7 +8,7 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write       # create the draft release, upload the archives into it
+  contents: write       # create the draft release, upload the archive into it
   id-token: write       # the attestation is signed by this run's short-lived identity
   attestations: write
 
@@ -33,7 +33,7 @@ jobs:
               exit 1
           fi
 
-      # writes the archives and dist/SHA256SUMS, the file that is signed before publishing
+      # writes dist/spoider-<version>-pyc.pyz, the one file a release carries
       - run: ./scripts/build-pyz
 
       # says, in GitHub's own words and signed by the run rather than by a person, which workflow,
@@ -41,14 +41,12 @@ jobs:
       # --repo Ramashvili/spoider` checks it without anyone needing a key of mine.
       - uses: actions/attest-build-provenance@v4.2.2
         with:
-          subject-path: |
-            dist/*.pyz
-            dist/SHA256SUMS
+          subject-path: dist/spoider-*-pyc.pyz
 
-      # the draft is the handover point: these hashes are what a build of the same tag on another
-      # machine is compared against, and the checksums file in here is replaced by the signed one
-      # before the draft is published.
-      - name: draft release with the archives and their hashes
+      # the draft is the handover point: this hash is what a build of the same tag on another machine
+      # is compared against, and the archive in here gains its detached signature before the draft is
+      # published.
+      - name: draft release with the archive and its hash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -56,9 +54,9 @@ jobs:
               echo "Built from $GITHUB_SHA by the release workflow."
               echo
               echo '```'
-              cat dist/SHA256SUMS
+              (cd dist && sha256sum spoider-*-pyc.pyz)
               echo '```'
           } > "$RUNNER_TEMP/notes.md"
-          gh release create "$GITHUB_REF_NAME" dist/spoider-*.pyz dist/SHA256SUMS \
+          gh release create "$GITHUB_REF_NAME" dist/spoider-*-pyc.pyz \
               --draft --verify-tag --title "spoider ${GITHUB_REF_NAME#v}" \
               --notes-file "$RUNNER_TEMP/notes.md"
