@@ -16,6 +16,10 @@
 # timestamp, and shiv is told to write a reproducible archive.
 set -euo pipefail
 
+# A zip entry records a local time, so a build must not depend on the builder's zone: a runner in UTC
+# and a machine in CET wrote the same files with timestamps an hour apart, and every entry differed.
+export TZ=UTC
+
 out=dist
 # the exact patch, not the minor: uv's own build of CPython carries its own zlib, so pinning it
 # keeps the compression library out of the differences between machines

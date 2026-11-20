@@ -123,7 +123,9 @@ library is what otherwise differs between machines. Byte-identical means the sam
 machines with different zlib pack the same files differently. When two hashes disagree, the question
 is whether the program or only the packing changed, and that is answered by comparing the contents:
 `diffoscope a.pyz b.pyz`, or unzip both and `diff -r`. Given one toolchain, the bytes repeat: the install's `RECORD`
-and `direct_url.json` are dropped (they name the temp path), every file time is 1980-01-01,
+and `direct_url.json` are dropped (they name the temp path), every file time is 1980-01-01
+and the build runs with `TZ=UTC` because a zip stores a local time, which is how a runner in
+UTC and a machine in CET came to differ by an hour in every entry,
 `compileall` strips the staging path out of `co_filename` and validates `.pyc` files by hash
 rather than by a timestamp, and shiv gets `--reproducible --build-id spoider-<version>`.
 
