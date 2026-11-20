@@ -113,11 +113,16 @@ dependency set `uv.lock` names (`uv export --frozen`, installed with `--require-
 made months later carries the same versions as today's):
 a shiv build that unpacks itself into `~/.shiv` on first run, and one carrying legacy `.pyc`
 files so `zipimport` compiles nothing, which writes nowhere at all. The `.pyc` files are made
-by the interpreter in `PYTHON` (3.14 by default) and only that minor version can use them;
+by the interpreter in `PYTHON` (3.14.10 by default) and only that minor version can use them;
 every other version falls back to compiling the sources, which is about four times slower and
 still correct. Both archives are run with `--version` before the script reports sizes and
 hashes, and it warns when HEAD is not the tag the version names, and when the tree is dirty,
-and builds anyway. Both archives are byte-identical from build to build: the install's `RECORD`
+and builds anyway. The interpreter is pinned to an exact patch (`PYTHON`, 3.14.10 by default) and
+taken from uv's own managed build, because that build carries its own zlib and the compression
+library is what otherwise differs between machines. Byte-identical means the same toolchain: two
+machines with different zlib pack the same files differently, so the script also writes
+`MEMBERS.txt`, the CRC and size of every entry in both archives, which is the thing to diff when two
+builds disagree about the archive's own hash. Given one toolchain, the bytes repeat: the install's `RECORD`
 and `direct_url.json` are dropped (they name the temp path), every file time is 1980-01-01,
 `compileall` strips the staging path out of `co_filename` and validates `.pyc` files by hash
 rather than by a timestamp, and shiv gets `--reproducible --build-id spoider-<version>`.

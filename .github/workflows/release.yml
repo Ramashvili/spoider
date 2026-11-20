@@ -16,13 +16,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      UV_PYTHON: "3.14"
+      UV_PYTHON: "3.14.10"
     steps:
       # pinned: setup-uv publishes no floating major tag, so both are pinned to the version they
       # were tested with and dependabot moves them
       - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v10.3.3
-      - run: uv python install 3.14
+      - run: uv python install 3.14.10
 
       # a release named v0.5.12 that carries archives answering 0.5.11 is a mistake worth stopping
       - name: the tag and the version have to agree

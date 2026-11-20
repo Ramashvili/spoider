@@ -17,7 +17,9 @@
 set -euo pipefail
 
 out=dist
-python_version=${PYTHON:-3.14}
+# the exact patch, not the minor: uv's own build of CPython carries its own zlib, so pinning it
+# keeps the compression library out of the differences between machines
+python_version=${PYTHON:-3.14.10}
 #: The one moment every file in an archive claims: 1980-01-01, the oldest a zip can hold.
 epoch=${SOURCE_DATE_EPOCH:-315532800}
 
@@ -55,7 +57,8 @@ echo "building spoider $version with python $python_version"
 uv build --wheel --out-dir "$tmp/wheels" >/dev/null 2>&1
 wheel=$(ls "$tmp"/wheels/*.whl)
 
-uv venv --python "$python_version" "$tmp/venv" >/dev/null 2>&1
+uv python install "$python_version" >/dev/null 2>&1
+uv venv --python-preference only-managed --python "$python_version" "$tmp/venv" >/dev/null 2>&1
 # The dependency set comes from the lock, not from whatever resolves today: a hash in a release note
 # is worth something only if a build made months later carries the same versions, and a resolve at
 # build time quietly answers a different question each time it is asked.
@@ -71,6 +74,10 @@ site=$("$tmp/venv/bin/python" -c "import sysconfig; print(sysconfig.get_path('pu
 find "$site" -maxdepth 2 \
     \( -name direct_url.json -o -name uv_build.json -o -name uv_cache.json -o -name RECORD \) -delete
 find "$site" -exec touch -h -d "@$epoch" {} +
+# Modes travel into the archive, so a build must not remember the builder's umask: 0755 for the
+# directories and 0644 for the files, whoever ran it.
+find "$site" -type d -exec chmod 755 {} +
+find "$site" -type f -exec chmod 644 {} +
 
 # 1. The shiv archive: self-extracting, and the shebang is the reader's python, not this one.
 uv run --with shiv --python "$tmp/venv/bin/python" shiv -c spoider --site-packages "$site" \
@@ -86,6 +93,8 @@ rm -rf "$tmp/app/bin"
 printf 'from spoider.app import main\n\nmain()\n' > "$tmp/app/__main__.py"
 "$tmp/venv/bin/python" -c "import compileall, py_compile; compileall.compile_dir('$tmp/app', quiet=2, legacy=True, force=True, workers=8, stripdir='$tmp/app', invalidation_mode=py_compile.PycInvalidationMode.CHECKED_HASH)"
 find "$tmp/app" -exec touch -h -d "@$epoch" {} +
+find "$tmp/app" -type d -exec chmod 755 {} +
+find "$tmp/app" -type f -exec chmod 644 {} +
 "$tmp/venv/bin/python" -m zipapp "$tmp/app" -p "/usr/bin/env python3" -c -o "$out/spoider-$version-pyc.pyz"
 chmod 755 "$out/spoider-$version.pyz" "$out/spoider-$version-pyc.pyz"
 
@@ -103,3 +112,10 @@ du -h "$out/spoider-$version.pyz" "$out/spoider-$version-pyc.pyz" | sed 's/\t/  
 # The file that gets signed: written beside the archives, so a build always leaves something to
 # sign, and printed, so the numbers are in the log of the run that made them.
 (cd "$out" && sha256sum "spoider-$version.pyz" "spoider-$version-pyc.pyz" | tee SHA256SUMS)
+
+# What is inside each archive, entry by entry. The archive's own hash depends on the zlib that packed
+# it, which two machines can disagree about even when every file inside is the same, so this manifest
+# is what a second machine compares when it wants to know whether the build itself matched.
+(cd "$out" && for archive in "spoider-$version.pyz" "spoider-$version-pyc.pyz"; do
+    unzip -v "$archive" | awk -v name="$archive" 'NR > 3 && NF > 7 { print name, $1, $7, $8 }'
+done > MEMBERS.txt)
