@@ -12,7 +12,7 @@
     "💤"
   ],
   "justify": 50,
-  "cursor": "12a106e7c43e",
+  "cursor": "0756737968d6",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -20,33 +20,26 @@
     "mark": null,
     "children": [
       {
-        "id": "c7fada474760",
-        "text": "behavior improvements",
+        "id": "0756737968d6",
+        "text": "improve UI",
         "collapsed": false,
         "mark": null,
         "children": [
           {
-            "id": "eb2fd97a1d70",
-            "text": "chage mindmap data format to YAML or something\nbetter, to improve readablility and maybe reduce\nfile size. JSON seems bad for both.",
+            "id": "a720169c9876",
+            "text": "highlight cell better when in it",
             "collapsed": false,
             "mark": "📌",
-            "children": []
-          },
-          {
-            "id": "a341fac7f538",
-            "text": "improve undo algorithm - keeping whole maps\nas a backup for each step is bad",
-            "collapsed": true,
-            "mark": "💤",
             "children": [
               {
-                "id": "1cb078080b18",
-                "text": "either compress",
+                "id": "c796a0e94cbf",
+                "text": "current state:\ncell which we are editing will get its leftmost cell wall reversed",
                 "collapsed": false,
-                "mark": "✅",
+                "mark": null,
                 "children": [
                   {
-                    "id": "438380be1904",
-                    "text": "we chose this for simplicity\n\nhistory of a big map with 200 changes takes about 1MB",
+                    "id": "293310571da6",
+                    "text": "not the most beautiful",
                     "collapsed": false,
                     "mark": null,
                     "children": []
@@ -54,74 +47,22 @@
                 ]
               },
               {
-                "id": "76882176a9d7",
-                "text": "or implement diff hunks",
+                "id": "99a92f75886e",
+                "text": "the problem is that sometimes it is not obvious\nthat we are inside a cell because the caret, which\nis small, is the only indicator - easily missed",
                 "collapsed": false,
-                "mark": "❌",
+                "mark": "❓",
                 "children": [
                   {
-                    "id": "18cb6c2f5e32",
-                    "text": "hunks by key ID",
+                    "id": "a443cd79b1e0",
+                    "text": "maybe solved with blinking cursor?",
                     "collapsed": false,
                     "mark": "💡",
-                    "children": [
-                      {
-                        "id": "f8b2f2dcc892",
-                        "text": "better",
-                        "collapsed": false,
-                        "mark": null,
-                        "children": []
-                      },
-                      {
-                        "id": "0bff6ca77b7d",
-                        "text": "still a possibility",
-                        "collapsed": false,
-                        "mark": null,
-                        "children": []
-                      },
-                      {
-                        "id": "802e54c27c7b",
-                        "text": "this would be more efficient but requires new code",
-                        "collapsed": false,
-                        "mark": null,
-                        "children": []
-                      }
-                    ]
-                  },
-                  {
-                    "id": "6f1fde33f174",
-                    "text": "hunks by line",
-                    "collapsed": true,
-                    "mark": "❌",
-                    "children": [
-                      {
-                        "id": "764fb2608a9d",
-                        "text": "\"Doable, but it is a second representation of the document that must never drift.\"",
-                        "collapsed": false,
-                        "mark": null,
-                        "children": []
-                      },
-                      {
-                        "id": "4cbbf96c64ec",
-                        "text": "worse in some cases",
-                        "collapsed": false,
-                        "mark": null,
-                        "children": []
-                      }
-                    ]
+                    "children": []
                   }
                 ]
               }
             ]
-          }
-        ]
-      },
-      {
-        "id": "0756737968d6",
-        "text": "improve UI",
-        "collapsed": false,
-        "mark": null,
-        "children": [
+          },
           {
             "id": "6e129ecd5e24",
             "text": "make a better icon for installed spoider app",
@@ -171,36 +112,6 @@
                 "children": []
               }
             ]
-          },
-          {
-            "id": "a720169c9876",
-            "text": "cell edit highlight",
-            "collapsed": true,
-            "mark": "❓",
-            "children": [
-              {
-                "id": "99a92f75886e",
-                "text": "the problem is that sometimes it is not obvious\nthat we are inside a cell because the caret, which\nis small, is the only indicator - easily missed",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "c796a0e94cbf",
-                "text": "current state:\ncell which we are editing will get its leftmost cell wall reversed",
-                "collapsed": false,
-                "mark": "❓",
-                "children": [
-                  {
-                    "id": "293310571da6",
-                    "text": "not beautiful",
-                    "collapsed": false,
-                    "mark": null,
-                    "children": []
-                  }
-                ]
-              }
-            ]
           }
         ]
       },
@@ -216,35 +127,6 @@
             "collapsed": false,
             "mark": null,
             "children": []
-          },
-          {
-            "id": "d9a14aecc4cd",
-            "text": "serve a textual-web version for testing",
-            "collapsed": true,
-            "mark": "❓",
-            "children": [
-              {
-                "id": "7f8b6d105b07",
-                "text": "seems too complicated",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "e59af42930e4",
-                "text": "run on server with textual-serve",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "cff927f97429",
-                "text": "or ship whole app into browser which would\nneed to be compiled with textual-wasm",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
           }
         ]
       },
@@ -258,7 +140,7 @@
             "id": "6595b551ac7b",
             "text": "check if we are rendering svgs in such a way,\nthat text of some lines gets centered on the\ncell. There seems do be a discrepancy. We\nwant the text aligned to the left of a cell - fill the\nrest with empty spaces if necessary. Glyph\ngrid shall reflect the original",
             "collapsed": false,
-            "mark": "💤",
+            "mark": null,
             "children": [
               {
                 "id": "7c21e36aa250",
@@ -272,7 +154,7 @@
           {
             "id": "a72f659b6e4e",
             "text": "app opened from desktop launcher\nautomatically saves files directly to home\nfolder without saying it",
-            "collapsed": false,
+            "collapsed": true,
             "mark": "❓",
             "children": [
               {
@@ -433,13 +315,6 @@
         ]
       },
       {
-        "id": "fbccd14539f2",
-        "text": "to test",
-        "collapsed": false,
-        "mark": null,
-        "children": []
-      },
-      {
         "id": "720dbd712035",
         "text": "security",
         "collapsed": false,
@@ -453,6 +328,20 @@
             "children": []
           }
         ]
+      },
+      {
+        "id": "c7fada474760",
+        "text": "behavior improvements",
+        "collapsed": false,
+        "mark": null,
+        "children": []
+      },
+      {
+        "id": "fbccd14539f2",
+        "text": "to test",
+        "collapsed": false,
+        "mark": null,
+        "children": []
       },
       {
         "id": "8a49611a965a",
@@ -1169,7 +1058,7 @@
     {
       "id": "17b574f088e2",
       "text": "Keep history of each cell edit\nsaved after we leave the cell",
-      "collapsed": false,
+      "collapsed": true,
       "mark": "✅",
       "children": [
         {
@@ -1216,6 +1105,132 @@
       "collapsed": false,
       "mark": "✅",
       "children": []
+    },
+    {
+      "id": "eb2fd97a1d70",
+      "text": "chage mindmap data format to YAML or something\nbetter, to improve readablility and maybe reduce\nfile size. JSON seems bad for both.",
+      "collapsed": false,
+      "mark": "❌",
+      "children": [
+        {
+          "id": "31a38043ceca",
+          "text": "no need, it works just fine",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "a341fac7f538",
+      "text": "improve undo algorithm - keeping whole maps\nas a backup for each step is bad",
+      "collapsed": true,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "1cb078080b18",
+          "text": "either compress",
+          "collapsed": false,
+          "mark": "✅",
+          "children": [
+            {
+              "id": "438380be1904",
+              "text": "we chose this for simplicity\n\nhistory of a big map with 200 changes takes about 1MB",
+              "collapsed": false,
+              "mark": null,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "76882176a9d7",
+          "text": "or implement diff hunks",
+          "collapsed": false,
+          "mark": "❌",
+          "children": [
+            {
+              "id": "18cb6c2f5e32",
+              "text": "hunks by key ID",
+              "collapsed": false,
+              "mark": "💡",
+              "children": [
+                {
+                  "id": "f8b2f2dcc892",
+                  "text": "better",
+                  "collapsed": false,
+                  "mark": null,
+                  "children": []
+                },
+                {
+                  "id": "0bff6ca77b7d",
+                  "text": "still a possibility",
+                  "collapsed": false,
+                  "mark": null,
+                  "children": []
+                },
+                {
+                  "id": "802e54c27c7b",
+                  "text": "this would be more efficient but requires new code",
+                  "collapsed": false,
+                  "mark": null,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "6f1fde33f174",
+              "text": "hunks by line",
+              "collapsed": true,
+              "mark": "❌",
+              "children": [
+                {
+                  "id": "764fb2608a9d",
+                  "text": "\"Doable, but it is a second representation of the document that must never drift.\"",
+                  "collapsed": false,
+                  "mark": null,
+                  "children": []
+                },
+                {
+                  "id": "4cbbf96c64ec",
+                  "text": "worse in some cases",
+                  "collapsed": false,
+                  "mark": null,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d9a14aecc4cd",
+      "text": "serve a textual-web version for testing",
+      "collapsed": true,
+      "mark": "❌",
+      "children": [
+        {
+          "id": "7f8b6d105b07",
+          "text": "seems too complicated",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "e59af42930e4",
+          "text": "run on server with textual-serve",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "cff927f97429",
+          "text": "or ship whole app into browser which would\nneed to be compiled with textual-wasm",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
     }
   ]
 }
