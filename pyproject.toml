@@ -21,7 +21,9 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+# pinned: the backend's version is written into the wheel's WHEEL file, which travels into the
+# archive, so an unpinned backend is an input to the bytes of a release
+requires = ["hatchling==1.33.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

@@ -97,12 +97,18 @@ not by holding the tag back.
   that number, which is why the bump is the release act and not the first act. Two builds
   in one session cannot be told apart by the number; that is accepted.
 
-A tag push runs `.github/workflows/release.yml`: it builds the one archive from the tag, attests it
-with `actions/attest-build-provenance` and puts it in a **draft** release with its sha256 in the
-notes. Nothing publishes itself. A draft is the handover point, where a build of the same tag on
-another machine is compared against that hash, and where the archive gains its detached signature
-before a person publishes. `gh attestation verify <file> --repo Ramashvili/spoider` checks the
-attestation without a key.
+A tag push runs `.github/workflows/release.yml`, in two jobs. The first holds `contents: read`,
+`id-token: write` and `attestations: write`: it checks out the tag without persisting the token, builds
+the archive, attests it, and uploads it as an artifact, so the repository's own build script never runs
+next to a token that could write. The second holds `contents: write`, downloads the artifact and
+creates a **draft** release with the hash in the notes. Nothing publishes itself. Actions are pinned to
+commit hashes, not tags.
+
+A draft is the handover point: a build of the same tag on another machine is compared against that
+hash, and the archive gains its detached signature before a person publishes. The signature, not the
+hash, is what a reader is meant to trust: a checksum proves a download is intact and nothing about who
+made it. `gh attestation verify <file> --repo Ramashvili/spoider` checks the attestation without a
+key.
 
 That makes a tag placed before the checks agreed the one mistake that costs something, since it now
 also builds and attests: `v0.4.7` went out red on the runner, and `0.4.8` was spent repairing it
@@ -118,6 +124,10 @@ carries its own zlib inside it; only that minor version can use them, and every 
 back to compiling the sources, four times slower and still correct. The archive is run with
 `--version` before the script reports its size and hash, and the script warns when HEAD is not the
 tag the version names, and when the tree is dirty, and builds anyway.
+
+`[build-system] requires` pins hatchling by version, because the backend writes its own version into
+the wheel's `WHEEL` file, which travels into the archive: an unpinned backend would be a fifth input to
+the bytes.
 
 Given one toolchain the bytes repeat, which was not free to arrange: the install's `RECORD` and
 `direct_url.json` are dropped (they name the temp path), every file time is 1980-01-01 in `TZ=UTC`
@@ -721,10 +731,11 @@ its history still filed under the id: ids are random and never reused.
    is what the reproducibility work is for), and the archive is then signed, the detached signature
    uploaded as `spoider-X.Y.Z-pyc.pyz.asc`. Publishing is `gh release edit vX.Y.Z --draft=false`,
    done by the maintainer.
-5. A reader verifies with `gpg --verify spoider-X.Y.Z-pyc.pyz.asc spoider-X.Y.Z-pyc.pyz`,
-   `git tag -v vX.Y.Z`, `sha256sum` against the release note, and `gh attestation verify <file>
-   --repo Ramashvili/spoider`. The README carries those commands and the fingerprint, so they do not
-   live only here.
+5. A reader verifies with `curl -fsSL https://github.com/Ramashvili.gpg | gpg --import`, then
+   `gpg --fingerprint 2C0C9D7EC16A50D0E2130654B3125E08B4EF2741`, `gpg --verify
+   spoider-X.Y.Z-pyc.pyz.asc spoider-X.Y.Z-pyc.pyz` and `git tag -v vX.Y.Z`. The `sha256sum` in the
+   docs is for comparing with a build of one's own and is not part of the trust argument. The README
+   carries those commands and the fingerprint, so they do not live only here.
 
 A copy running out of a `.pyz` is not an installation: `from_archive()` in `app.py` reads the loader
 that imported the module, and `ask_desktop` asks such a copy nothing, since a launcher would name a

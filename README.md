@@ -104,21 +104,24 @@ or replaced, and a launcher naming it would quietly stop working.
 ## Checking a download
 
 Each release signs the archive itself, so the signature sits beside it as
-`spoider-0.5.13-pyc.pyz.asc`. The key is `2C0C9D7EC16A50D0E2130654B3125E08B4EF2741`, available from
-[github.com/Ramashvili.gpg](https://github.com/Ramashvili.gpg):
+`spoider-0.5.13-pyc.pyz.asc`. Fetch the public key, check it is the right one, and verify:
 
 ```bash
-gpg --recv-keys 2C0C9D7EC16A50D0E2130654B3125E08B4EF2741
-gpg --verify spoider-0.5.13-pyc.pyz.asc spoider-0.5.13-pyc.pyz   # who signed this file
-git tag -v v0.5.13                                               # and is the tag the one that was signed
-sha256sum spoider-0.5.13-pyc.pyz                                 # and does it match the release note
+curl -fsSL https://github.com/Ramashvili.gpg | gpg --import      # or download that URL in a browser
+gpg --fingerprint 2C0C9D7EC16A50D0E2130654B3125E08B4EF2741       # the key is this fingerprint
+gpg --verify spoider-0.5.13-pyc.pyz.asc spoider-0.5.13-pyc.pyz    # and this file was signed with it
+git tag -v v0.5.13                                                # as was the tag it was built from
 ```
 
-The archive is reproducible, so a build of the same tag on your own machine gives the same bytes:
-`scripts/build-pyz` in a clone, then `sha256sum` in `dist`, should answer the hash the release
-carries. GitHub also records a build attestation for the file, which
-`gh attestation verify spoider-0.5.13-pyc.pyz --repo Ramashvili/spoider` checks without needing the
-key at all.
+The signature is the thing to trust, and it is the only thing here that says who made the file. A
+sha256 sum does not: anyone can compute one, including whoever replaced the file, so comparing a
+download against a number is a check that it arrived intact and nothing more. The number printed in
+the release notes is there so a builder can compare it with their own build; it is not a signature.
+
+For that comparison, the archive is reproducible: `scripts/build-pyz` in a clone of the tag, then
+`sha256sum` in `dist`, should answer the same number. GitHub also records a build attestation for the
+file, which `gh attestation verify spoider-0.5.13-pyc.pyz --repo Ramashvili/spoider` checks without
+needing the key at all.
 
 ## Run
 

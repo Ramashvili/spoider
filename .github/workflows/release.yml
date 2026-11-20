@@ -7,24 +7,30 @@ on:
   push:
     tags: ["v*"]
 
-permissions:
-  contents: write       # create the draft release, upload the archive into it
-  id-token: write       # the attestation is signed by this run's short-lived identity
-  attestations: write
+# Nothing by default; each job asks for exactly what it needs. The job that runs the repository's own
+# build script therefore holds no key to the repository.
+permissions: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read        # read the tag, nothing more
+      id-token: write       # the attestation is signed by this run's short-lived identity
+      attestations: write
     env:
       UV_PYTHON: "3.14.10"
     steps:
-      # pinned: setup-uv publishes no floating major tag, so both are pinned to the version they
-      # were tested with and dependabot moves them
-      - uses: actions/checkout@v7.0.1
-      - uses: astral-sh/setup-uv@v10.3.3
+      # Actions are pinned to the commit a tag pointed at, because tags move and commits do not, and
+      # dependabot bumps them. The token is not left behind in .git/config for the build script to
+      # find: this job may read the repository and nothing else.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
       - run: uv python install 3.14.10
 
-      # a release named v0.5.12 that carries archives answering 0.5.11 is a mistake worth stopping
+      # a release named v0.5.13 that carries an archive answering 0.5.12 is a mistake worth stopping
       - name: the tag and the version have to agree
         run: |
           version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -1)
@@ -39,19 +45,39 @@ jobs:
       # says, in GitHub's own words and signed by the run rather than by a person, which workflow,
       # which commit and which repository produced these bytes. `gh attestation verify <file>
       # --repo Ramashvili/spoider` checks it without anyone needing a key of mine.
-      - uses: actions/attest-build-provenance@v4.2.2
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
         with:
           subject-path: dist/spoider-*-pyc.pyz
 
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: archive
+          path: dist/spoider-*-pyc.pyz
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # create the draft release and put the file in it
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          name: archive
+          path: dist
+
       # the draft is the handover point: this hash is what a build of the same tag on another machine
       # is compared against, and the archive in here gains its detached signature before the draft is
-      # published.
+      # published. The signature, not the hash, is what a reader is meant to trust.
       - name: draft release with the archive and its hash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           {
               echo "Built from $GITHUB_SHA by the release workflow."
+              echo
+              echo "The signature over this file is the claim. The hash below is for comparing with a"
+              echo "build of your own, and anyone can compute one."
               echo
               echo '```'
               (cd dist && sha256sum spoider-*-pyc.pyz)
