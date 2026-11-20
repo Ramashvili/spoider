@@ -112,10 +112,3 @@ du -h "$out/spoider-$version.pyz" "$out/spoider-$version-pyc.pyz" | sed 's/\t/  
 # The file that gets signed: written beside the archives, so a build always leaves something to
 # sign, and printed, so the numbers are in the log of the run that made them.
 (cd "$out" && sha256sum "spoider-$version.pyz" "spoider-$version-pyc.pyz" | tee SHA256SUMS)
-
-# What is inside each archive, entry by entry. The archive's own hash depends on the zlib that packed
-# it, which two machines can disagree about even when every file inside is the same, so this manifest
-# is what a second machine compares when it wants to know whether the build itself matched.
-(cd "$out" && for archive in "spoider-$version.pyz" "spoider-$version-pyc.pyz"; do
-    unzip -v "$archive" | awk -v name="$archive" 'NR > 3 && NF > 7 { print name, $1, $7, $8 }'
-done > MEMBERS.txt)

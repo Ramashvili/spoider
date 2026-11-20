@@ -120,9 +120,9 @@ hashes, and it warns when HEAD is not the tag the version names, and when the tr
 and builds anyway. The interpreter is pinned to an exact patch (`PYTHON`, 3.14.10 by default) and
 taken from uv's own managed build, because that build carries its own zlib and the compression
 library is what otherwise differs between machines. Byte-identical means the same toolchain: two
-machines with different zlib pack the same files differently, so the script also writes
-`MEMBERS.txt`, the CRC and size of every entry in both archives, which is the thing to diff when two
-builds disagree about the archive's own hash. Given one toolchain, the bytes repeat: the install's `RECORD`
+machines with different zlib pack the same files differently. When two hashes disagree, the question
+is whether the program or only the packing changed, and that is answered by comparing the contents:
+`diffoscope a.pyz b.pyz`, or unzip both and `diff -r`. Given one toolchain, the bytes repeat: the install's `RECORD`
 and `direct_url.json` are dropped (they name the temp path), every file time is 1980-01-01,
 `compileall` strips the staging path out of `co_filename` and validates `.pyc` files by hash
 rather than by a timestamp, and shiv gets `--reproducible --build-id spoider-<version>`.
