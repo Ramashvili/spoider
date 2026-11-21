@@ -70,9 +70,9 @@ if [ "$tag" != "v$version" ]; then
 fi
 # Only the parts a build is made of. A map lying in the working directory is the user's work and
 # must not warn on every build, the same reason `build.py` leaves it out of the dirty mark.
-if [ -n "$(git status --porcelain -- src pyproject.toml uv.lock)" ]; then
+if [ -n "$(git status --porcelain --untracked-files=normal -- src pyproject.toml uv.lock)" ]; then
     echo "build-pyz: warning: the source the build is made of has changes:" >&2
-    git status --short -- src pyproject.toml uv.lock >&2
+    git status --short --untracked-files=normal -- src pyproject.toml uv.lock >&2
 fi
 
 mkdir -p "$out"
@@ -122,7 +122,7 @@ printf 'from spoider.app import main\n\nmain()\n' > "$tmp/app/__main__.py"
 # inside it: the bar then prints the local version a bug report can quote back at us.
 commit=$(git rev-parse --short=7 HEAD)
 dirty=False
-if [ -n "$(git status --porcelain --untracked-files=no -- src pyproject.toml uv.lock)" ]; then
+if [ -n "$(git status --porcelain --untracked-files=normal -- src pyproject.toml uv.lock)" ]; then
     dirty=True
 fi
 printf 'COMMIT = "%s"\nDIRTY = %s\n' "$commit" "$dirty" > "$tmp/app/spoider/_commit.py"

@@ -87,7 +87,9 @@ def _checkout() -> tuple[str, bool] | None:
     commit = _git(root, "rev-parse", "--short=7", "HEAD")
     if not commit:
         return None
-    changes = _git(root, "status", "--porcelain", "--untracked-files=no", "--", *SOURCE_PATHS)
+    # Untracked files count: a module added but not committed is part of the build and no commit
+    # holds it. Ignored files (`__pycache__`, a build's own output) do not appear here at all.
+    changes = _git(root, "status", "--porcelain", "--untracked-files=normal", "--", *SOURCE_PATHS)
     return commit, bool(changes)
 
 
