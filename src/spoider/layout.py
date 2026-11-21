@@ -138,7 +138,9 @@ def fold_note(node: Node) -> str:
     One function so the row that draws it and the renderer that colours it cannot
     disagree about what it says.
     """
-    if node.preview is not None or not node.children or not node.collapsed:
+    # Editing the cell does not change the fact the count reports: a folded cell stays folded while
+    # its text is being typed into, so the count stays on the box too.
+    if not node.children or not node.collapsed:
         return ""
     return f"+{len(node.children)}"
 

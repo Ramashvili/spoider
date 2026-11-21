@@ -110,6 +110,31 @@ def test_a_selected_cell_keeps_its_text_and_mark_in_their_own_colours():
     assert drawn == quiet
 
 
+def test_a_highlighted_cell_carries_its_whole_perimeter_at_the_tight_spacings():
+    """At -2 the boxes of a level share their walls, so a selected cell's edge runs through cells
+    its neighbours also claim. Whoever claims a cell first keeps the style, so the cursor's box has
+    to be drawn first: otherwise the highlight stops wherever a neighbour was drawn before it."""
+    for layout_name in ("pyramid", "bush", "branch", "branch-left", "spider", "column"):
+        mm = MindMap(Node("root"))
+        for text in ("alpha", "beta", "gamma"):
+            mm.add_child(mm.root.id, text)
+        mm.layout = layout_name
+        layout = compute(mm.root, -2, layout_name)
+        beta = mm.root.children[1]
+        grid = build_grid(layout, beta.id)
+        box = layout.boxes[beta.id]
+
+        edge = [(x, box.y) for x in range(box.x, box.right + 1)]
+        edge += [(x, box.bottom) for x in range(box.x, box.right + 1)]
+        edge += [(box.x, y) for y in range(box.y, box.bottom + 1)]
+        edge += [(box.right, y) for y in range(box.y, box.bottom + 1)]
+        styles = {grid.cells[cell][1] for cell in edge}
+        assert len(styles) == 1, (layout_name, styles)
+        style = styles.pop()
+        assert "reverse" in style, f"{layout_name}: the highlight is broken on its own edge"
+        assert style.startswith("cyan"), f"{layout_name}: the edge is not the cursor's colour"
+
+
 def test_the_folded_count_stands_at_the_right_of_the_cell_in_the_link_colour():
     """The count is about the structure, so it reads in the grey the connectors use, and it stands
     at the far right of the box, on the row the mark would wear: the middle of the text."""

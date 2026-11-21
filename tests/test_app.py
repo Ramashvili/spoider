@@ -3061,6 +3061,27 @@ async def test_ctrl_l_cycles_the_shapes_and_marks_the_buffer_dirty(tmp_path: Pat
         assert app.dirty
 
 
+async def test_the_folded_count_stays_while_the_cell_is_edited(tmp_path: Path):
+    """A folded cell stays folded while its text is being typed into, so the count that says how
+    much is under it stays on the box too."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        cell = app.mm.add_child(app.mm.root.id, "folded")
+        for text in ("one", "two", "three"):
+            app.mm.add_child(cell.id, text)
+        cell.collapsed = True
+        app.view.refresh_map()
+        app.select(cell.id)
+        await pilot.pause()
+
+        await pilot.press("e")
+        await pilot.pause()
+
+        assert app.editing and cell.collapsed, "editing does not open it"
+        drawn = app.view.render().plain
+        assert "+3" in drawn, "the count is still there while the text is being typed"
+
+
 async def test_the_outline_walks_its_cells_by_position(tmp_path: Path):
     """In a column, down and up are the cells above and below on the page, not the tree: pressing
     down walks the whole map in the order it is drawn, whatever the branches do."""

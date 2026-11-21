@@ -226,7 +226,14 @@ def build_grid(
     if lead is None and len(chosen) == 1:
         lead = next(iter(chosen))
     grid = Grid(width=layout.width, height=layout.height, window=window)
-    for box in sorted(layout.boxes.values(), key=lambda placed: (placed.y, placed.x)):
+    # A wall two boxes share keeps the style of whoever claims the cell first, so the cells the
+    # cursor is on go first: at the tight spacings their walls run through their neighbours', and a
+    # highlighted cell has to carry its whole perimeter in its own colour rather than in whichever
+    # box happened to be drawn before it.
+    for box in sorted(
+        layout.boxes.values(),
+        key=lambda placed: (placed.node.id not in chosen, placed.y, placed.x),
+    ):
         # a box the window cannot reach is not drawn at all: skipping its text is the whole
         # saving, since a row is measured and cleaned character by character
         if window is not None and not _visible(box, window):
