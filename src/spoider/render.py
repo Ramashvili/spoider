@@ -399,7 +399,9 @@ def _draw_box(
             x = text_x + cell_len(row[:start])
             for offset, char in enumerate(note):
                 marked = mask[start + offset] if start + offset < len(mask) else False
-                grid.put(x, top + 1 + index, char, _marked(LINK_COLOR) if marked else LINK_COLOR)
+                # the row it belongs to, not the box: without walls those two are a row apart, and
+                # the count used to land under the cell it describes
+                grid.put(x, text_y + index, char, _marked(LINK_COLOR) if marked else LINK_COLOR)
                 x += cell_len(char)
     if box.node.mark:
         grid.put_text(

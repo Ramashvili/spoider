@@ -405,6 +405,29 @@ def test_a_pyramid_link_leaves_the_parent_edge_and_arrives_at_the_childs():
     assert "╰───┬" in drawn or "┬───╯" in drawn
 
 
+def test_a_folded_count_is_drawn_once_and_on_its_own_row():
+    """The count wears the link colour so it reads as a number about the structure. Without walls
+    the row a cell keeps it on is the box's first row, not the one under a border it does not have:
+    it used to be written a row below, so the same count appeared twice."""
+    from spoider.render import LINK_COLOR
+
+    for spacing in (0, -3):
+        mm = MindMap(Node("root"))
+        alpha = mm.add_child(mm.root.id, "alpha")
+        for text in ("one", "two", "three"):
+            mm.add_child(alpha.id, text)
+        alpha.collapsed = True
+        layout = compute(mm.root, spacing, "branch")
+        grid = build_grid(layout, mm.root.id)
+
+        marks = {pos: (char, style) for pos, (char, style) in grid.cells.items() if char in "+3"}
+        assert sorted(char for char, _style in marks.values()) == ["+", "3"], spacing
+        rows = {y for _x, y in marks}
+        box = layout.boxes[alpha.id]
+        assert rows == {box.y + 1 if layout.walls else box.y}, spacing
+        assert all(style == LINK_COLOR for _char, style in marks.values()), spacing
+
+
 def test_a_column_hangs_every_child_off_one_trunk():
     """The outline's link is `tree`'s: a trunk one column in from the parent's left edge, a stub
     into every child's wall, and the last one turning a corner."""
