@@ -11,7 +11,7 @@ Distinct features of spoider, as compared to other mind mapping editors:
 - a LIFO stack carries parts of the map that were cut out
 - all aspects of the mind map are saved, so the map renders identically everywhere
 - the colour scheme is inherited from the terminal
-- five mind map layouts
+- six mind map layouts
 - the positioning of cells is automatic
 - you can choose the spacing between cells
 - export to mermaid, SVG, markdown, plain text
@@ -169,7 +169,7 @@ is read, and a line the program cannot read is left out rather than guessed at.
 | `^D` | delete a branch |
 | `w` / `^W` | cycle a cell's mark, or choose which marks this map uses |
 | `t` | fold or unfold children |
-| `,` | the file's properties, drawn over the map |
+| `,` | the file's properties and where the cursor stands |
 | `Home` | the main cell of this tree |
 | `End` | the deepest cell below this one |
 | `PgUp` | the first sibling under the same parent |

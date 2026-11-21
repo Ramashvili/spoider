@@ -111,8 +111,8 @@ def test_the_demo_teaches_the_keys_this_build_has():
     assert any("^S" in text for text in texts), "and where the map goes"
     assert any("open the settings file" in text for text in texts) is False, "a screen, not a file"
     assert any("p shows the stack" in text for text in texts), "the stack key it has now"
-    # the arrows are intuitive, so the manual does not explain them; it does say that
-    # the chords are the reader's to change
+    # one line for the shape whose arrows are not obvious, and no algorithm anywhere: the
+    # manual says which way the column's arrows go, never how a cell is chosen
     assert not any("nearest" in text or "relative" in text for text in texts), "no algorithm"
     assert any("every chord can be changed" in text for text in texts)
 

@@ -111,6 +111,13 @@
         "mark": "",
         "children": [
           {
+            "id": "m903",
+            "text": "column: up and down walk the page",
+            "collapsed": false,
+            "mark": "",
+            "children": []
+          },
+          {
             "id": "m811",
             "text": "every chord can be changed",
             "collapsed": false,

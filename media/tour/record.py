@@ -226,9 +226,10 @@ def scene() -> list[Step]:
     key(0.7, CTRL_U, "^U")
     wait(3.0)
 
-    # -- the four shapes, late, so a dropped press cannot move an anchor ---------------
+    # -- every shape, once, late so a dropped press cannot move an anchor: six presses are a
+    # full turn, so the picture after this block is the one it was before --------------
     root()
-    for pause, after in ((0.8, 1.3), (0.8, 1.4), (0.8, 1.4), (0.8, 1.2)):
+    for pause, after in ((0.8, 1.3), (0.8, 1.3), (0.8, 1.3), (0.8, 1.3), (0.8, 1.3), (0.8, 1.4)):
         key(pause, CTRL_L, "^L")
         wait(after)
 

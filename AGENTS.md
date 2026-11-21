@@ -21,13 +21,21 @@ marks only the rows that changed dirty (`refresh(Region(0, row, width, 1))`): Te
 lines it holds and asks again only for those. A caret move is two rows, a cursor move is the rows of
 the two cells, a letter is the rows of the cells that moved.
 
-Two rules that cost time to learn:
+Four rules that cost time to learn:
 
 - a row is cut from a picture of the window, never drawn on its own. The connectors between two
   cells resolve from the rows above and below them, so a row built with a window one row tall
   breaks every junction and every corner;
 - the rows of a frame are drawn *without* the caret, and the caret is applied to one glyph when the
-  row is handed over. A caret move then costs a copied row rather than a rebuilt picture.
+  row is handed over. A caret move then costs a copied row rather than a rebuilt picture;
+- **a border cell keeps the style of whichever box claims it first**, so the cells the cursor is on
+  are drawn before the others (`build_grid` sorts on that, then on the row and column). At the tight
+  spacings their borders run through their neighbours', and a highlighted cell has to carry its
+  whole perimeter in its own colour rather than in whichever box happened to be drawn before it;
+- **a folded cell's count is a decoration of the box, not a word in its text.** `lines_of` returns
+  the text alone, `box_width` reserves the count's columns at the right, and the renderer writes it
+  once: right-aligned with one column of breath before the wall, on the row the mark wears, which is
+  the middle of the text. It stays while the cell is edited, because editing does not open it.
 
 What the numbers say, 541 cells at 200x50 in a terminal: a caret move 2.3 ms, an arrow on the map
 9.7 ms, a letter 19 ms. The letter is barely better than it was because a smooth camera pans one
@@ -212,8 +220,8 @@ to help.
   the config file (`hide_footer`); it returns whenever something is asking for keys —
   a prompt, a question, help, the stack panel, or a cell being typed into. No modal
   screens: prompts, questions, help and the stack are drawers or columns.
-  Panels keep one blank line above the bar. The one thing that floats is the `` ` ``
-  debug box in the top-left corner, drawn over cells: it is read-only and costs no
+  Panels keep one blank line above the bar. The one thing that floats is the `,`
+  info overlay in the top-left corner, drawn over cells: it is read-only and costs no
   space, where a drawer or a column would take the space it exists to describe.
 - **A notification's colour is its meaning.** Green when something worked, yellow for a
   neutral note (a cut, a paste, an empty stack), red when something did not: a refusal, a
@@ -444,7 +452,7 @@ and nothing else — the bug that made a rebind look applied and do nothing.
 one owner. A *line* competes only with another line: between two lines the earlier one
 wins — "the second line is refused" — and the loser keeps its other chords. A *default*
 is a placeholder and gives way to any line without a word, which is what makes `cut = ,`
-take the comma off the debug key quietly; complaining there would make the ordinary case
+take the comma off the info key quietly; complaining there would make the ordinary case
 noisy. The losing action keeps its other chords and loses that one, and
 `SpoiderApp._report_clashes` says which two actions were fighting, in red, on every
 reading of the file. Textual's own `handle_bindings_clash` is no use here: its body does
