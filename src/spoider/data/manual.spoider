@@ -39,7 +39,7 @@
           },
           {
             "id": "m004",
-            "text": "the map is a JSON file",
+            "text": "the map is a plain text file",
             "collapsed": false,
             "mark": "",
             "children": [
@@ -234,7 +234,7 @@
               },
               {
                 "id": "m030",
-                "text": "branch",
+                "text": "branch right",
                 "collapsed": false,
                 "mark": "",
                 "children": []
