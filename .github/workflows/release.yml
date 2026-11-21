@@ -61,20 +61,30 @@ jobs:
     permissions:
       contents: write       # create the draft release and put the file in it
     steps:
+      # the whole history, because the tag object is what carries the release notes; no credentials
+      # are left behind and no code from the repository runs in this job
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: archive
           path: dist
 
-      # the draft is the handover point: this hash is what a build of the same tag on another machine
-      # is compared against, and the archive in here gains its detached signature before the draft is
-      # published. The signature, not the hash, is what a reader is meant to trust.
-      - name: draft release with the archive and its hash
+      # The body is the tag's own annotation, so what a reader sees on the release page is what the
+      # person who signed the tag wrote there, once, instead of a second telling that can disagree
+      # with it. The hash follows it: that is what a build of the same tag elsewhere is compared
+      # against, and the archive gains its detached signature before the draft is published. The
+      # signature, not the hash, is what a reader is meant to trust.
+      - name: draft release with the tag's notes, the archive and its hash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           {
-              echo "Built from $GITHUB_SHA by the release workflow."
+              git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME"
+              echo
+              echo "Built from \`$GITHUB_SHA\` by the release workflow."
               echo
               echo "The signature over this file is the claim. The hash below is for comparing with a"
               echo "build of your own, and anyone can compute one."
@@ -83,6 +93,12 @@ jobs:
               (cd dist && sha256sum spoider-*-pyc.pyz)
               echo '```'
           } > "$RUNNER_TEMP/notes.md"
+          # a signed tag carries its signature after the message; the body should not include it, and
+          # a release page full of ASCII armour would say so loudly, so check rather than assume
+          if grep -q "BEGIN PGP SIGNATURE" "$RUNNER_TEMP/notes.md"; then
+              echo "the tag's signature reached the notes; write the notes from the body alone" >&2
+              exit 1
+          fi
           gh release create "$GITHUB_REF_NAME" dist/spoider-*-pyc.pyz \
               --draft --verify-tag --title "spoider ${GITHUB_REF_NAME#v}" \
               --notes-file "$RUNNER_TEMP/notes.md"

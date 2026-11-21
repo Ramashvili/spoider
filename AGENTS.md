@@ -94,9 +94,14 @@ not by holding the tag back.
   the docs, a test repaired to match the code. When such a change does need a number, it is a
   patch. While the major number is 0 the distinction promises nothing to anyone, so keep it
   simple and consistent rather than clever.
-- **The tag message says what changed**, not the date. The date is already on the commit,
-  and a tag that reads `v0.4.9 — 2026-11-09` says nothing a reader cannot get from the
-  commit below it.
+- **The tag message is the release notes.** The workflow reads the annotation
+  (`git tag -l --format='%(contents:body)'`, which leaves the signature out) and puts it
+  above the hash, so the page a reader lands on says exactly what the tagger wrote there,
+  once. That makes the message a published document: a first line naming the version, then
+  bullet points under headings (`Bug fixes`, `UI`, `Behavior`, and a heading of its own when
+  a batch wants one), written from what a user would notice rather than from commit
+  subjects. Never a date: the date is already on the commit below it, and a tag that reads
+  `v0.4.9 — 2026-11-09` gives a reader nothing a `git show` would not.
 - **`pyproject` names the last released version.** Unreleased work sits in the tree under
   that number, which is why the bump is the release act and not the first act. Two builds
   in one session cannot be told apart by the number; that is accepted.
@@ -105,7 +110,7 @@ A tag push runs `.github/workflows/release.yml`, in two jobs. The first holds `c
 `id-token: write` and `attestations: write`: it checks out the tag without persisting the token, builds
 the archive, attests it, and uploads it as an artifact, so the repository's own build script never runs
 next to a token that could write. The second holds `contents: write`, downloads the artifact and
-creates a **draft** release with the hash in the notes. Nothing publishes itself. Actions are pinned to
+creates a **draft** release whose body is the tag's annotation followed by the hash. Nothing publishes itself. Actions are pinned to
 commit hashes, not tags.
 
 A draft is the handover point: a build of the same tag on another machine is compared against that
