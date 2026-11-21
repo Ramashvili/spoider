@@ -340,6 +340,12 @@ class MapActions:
         parent = self.mm.parent(ids[0])
         if parent is None:
             return
+        if any(self.mm.parent(node_id) is not None and self.mm.parent(node_id).id != parent.id
+               for node_id in ids):
+            # a run is a level, so it can hold cousins; sliding one block between two rows has no
+            # meaning, and the cells keep the places they have
+            self.notify("a run that crosses branches cannot be moved", severity="warning", timeout=NOTE)
+            return
         order = [child.id for child in parent.children]
         if (delta < 0 and order.index(ids[0]) == 0) or (
             delta > 0 and order.index(ids[-1]) == len(order) - 1

@@ -4173,6 +4173,66 @@ async def test_cut_of_an_only_child_lands_on_the_parent(tmp_path: Path):
         assert app.selected == app.mm.root.id, "there is nothing else to stand on"
 
 
+async def test_cut_of_a_run_that_crosses_branches_takes_every_cousin(tmp_path: Path):
+    """A run is a level, so it can hold cells from two parents. Cutting them used to assume one row
+    and raise on the last cell, which is not a child of the first cell's parent."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        left = app.mm.add_child(app.mm.root.id, "A")
+        a1 = app.mm.add_child(left.id, "a1")
+        app.mm.add_child(left.id, "a2")
+        right = app.mm.add_child(app.mm.root.id, "B")
+        app.mm.add_child(right.id, "b1")
+        app.mm.add_child(right.id, "b2")
+        app.view.refresh_map()
+        app.select(a1.id)
+        await pilot.pause()
+        for _ in range(3):
+            await pilot.press("shift+down")
+            await pilot.pause()
+        assert [app.mm.find(node_id).text for node_id in app.selected_ids] == [
+            "a1",
+            "a2",
+            "b1",
+            "b2",
+        ], app.selected_ids
+
+        await pilot.press("ctrl+k")
+        await pilot.pause()
+
+        assert app.mm.find(a1.id) is None, "the cousins left the map"
+        assert app.mm.find(left.id).children == []
+        assert app.mm.find(right.id).children == []
+        assert len(app.mm.cut_stack) == 4, "each of them is an entry on the stack"
+        assert app.selected == left.id, "the gap the run began in, which is A's own cell now"
+
+
+async def test_a_run_that_crosses_branches_cannot_be_moved(tmp_path: Path):
+    """Same level, same problem: sliding a block that spans two rows has no meaning, so alt+down
+    says so instead of raising on the last cell."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        left = app.mm.add_child(app.mm.root.id, "A")
+        a1 = app.mm.add_child(left.id, "a1")
+        app.mm.add_child(left.id, "a2")
+        right = app.mm.add_child(app.mm.root.id, "B")
+        app.mm.add_child(right.id, "b1")
+        app.mm.add_child(right.id, "b2")
+        app.view.refresh_map()
+        app.select(a1.id)
+        await pilot.pause()
+        for _ in range(3):
+            await pilot.press("shift+down")
+            await pilot.pause()
+
+        await pilot.press("alt+down")
+        await pilot.pause()
+
+        assert [child.text for child in app.mm.root.children] == ["A", "B"]
+        assert [child.text for child in app.mm.find(left.id).children] == ["a1", "a2"]
+        assert [child.text for child in app.mm.find(right.id).children] == ["b1", "b2"]
+
+
 async def test_cut_of_a_run_lands_on_the_cell_that_closes_the_gap(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:

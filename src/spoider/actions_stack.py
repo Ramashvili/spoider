@@ -41,8 +41,10 @@ class StackActions:
         parent = self.mm.parent(ids[0])
         if parent is None:
             return
-        # the slot the run will leave behind, read before it is closed up
-        end = [child.id for child in parent.children].index(ids[-1])
+        # The place to stand afterwards is the gap the run leaves, read before it closes up. A run is
+        # a level, so the cells in it can come from several parents: the gap belongs to the first
+        # cell's own row, not to the last cell's.
+        place = [child.id for child in parent.children].index(ids[0])
         self._push_undo()
         taken: list[Node] = []
         for node_id in ids:
@@ -54,7 +56,7 @@ class StackActions:
             return
         self.mm.push_cut(taken)
         self.anchor = None
-        self.selected = _standing_after(parent, end)
+        self.selected = _standing_after(parent, place)
         self._mark_dirty()
         if len(taken) == 1:
             self.notify("cut onto the stack", timeout=NOTE)
