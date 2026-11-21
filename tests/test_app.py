@@ -81,8 +81,8 @@ def test_footer_lists_the_visible_bindings_plus_the_pinned_cluster():
     assert "^F search" in line
     assert "equals_sign" not in line and "COMMA" not in line
     # a comma is a key of its own, so its cap is the comma: a split on commas once
-    # ate it and the pinned cluster read "debug" with nothing in front of it
-    assert ", debug" in line
+    # ate it and the pinned cluster read "info" with nothing in front of it
+    assert ", info" in line
 
 
 def test_every_chord_the_table_can_produce_has_a_cap():
@@ -1362,7 +1362,7 @@ async def test_the_mark_key_cycles_the_configured_marks(tmp_path: Path):
         assert seen == ["🔴", "🟢", None, "🔴"]
 
 
-async def test_the_debug_box_says_where_the_keys_are(tmp_path: Path):
+async def test_the_info_box_says_where_the_keys_are(tmp_path: Path):
     """A screen of keys raises the question of which of them are listening, so the box names the
     place: the map, a cell being typed into, a prompt, the cut stack, or the help page."""
     app = SpoiderApp(tmp_path / "map.json", demo=False)
@@ -1733,7 +1733,7 @@ async def test_two_actions_on_one_chord_are_named_in_red(tmp_path: Path):
 
 
 async def test_a_default_gives_way_to_a_line_without_a_word(tmp_path: Path):
-    """`cut = ,` takes the comma off the debug key: the default was a placeholder.
+    """`cut = ,` takes the comma off the info key: the default was a placeholder.
 
     Only two lines fighting over one chord is a mistake; a default losing its key to a
     deliberate line is the reader's choice, and complaining about it would make the
@@ -1748,7 +1748,7 @@ async def test_a_default_gives_way_to_a_line_without_a_word(tmp_path: Path):
         assert [n.message for n in app._notifications] == [], "no complaint: nothing disagreed"
 
         assert app.keymap["cut"] == ","
-        assert app.keymap["toggle_properties"] == "`", "the debug key keeps what was left"
+        assert app.keymap["toggle_properties"] == "`", "the info key keeps what was left"
 
         await pilot.press("tab")  # a child to cut, so the comma has something to do
         await pilot.press("x", "enter")

@@ -108,7 +108,7 @@ BAR_GLYPHS = {
 #: the config moves the label with it: a pinned key that no longer exists is worse
 #: than no hint at all.
 PINNED: tuple[tuple[str, str, str], ...] = (
-    ("toggle_properties", ",", "debug"),
+    ("toggle_properties", ",", "info"),
     ("settings", ".", "config"),
     ("help", "?", "help"),
 )
@@ -132,7 +132,7 @@ def key_cap(key: str) -> str:
 
     It takes one chord and never a list: the keymap spells a chord the way it is
     pressed, so a comma in there is the key itself. Splitting it here emptied the cap
-    of the debug box and left the bar reading "debug" with nothing in front of it.
+    of the info box and left the bar reading "info" with nothing in front of it.
     `chord_of` is what picks the chord out of a binding.
     """
     if key in KEY_GLYPHS:

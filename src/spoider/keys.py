@@ -30,7 +30,9 @@ BINDINGS: list[Binding] = [
     Binding("ctrl+u", "paste", "paste", id="paste"),
     Binding("p", "toggle_stack", "show stack", id="toggle_stack"),
     Binding("ctrl+d,delete", "delete", "del", id="delete"),
-    Binding("comma,grave_accent", "toggle_properties", "debug", show=False,
+    # the label matches the help screen, which has always called this the file's properties:
+    # "debug" read as developer internals, and half of what it shows is where the cursor stands
+    Binding("comma,grave_accent", "toggle_properties", "info", show=False,
             id="toggle_properties"),
     Binding("t,ctrl+t", "fold", "fold", id="fold"),
     Binding("w", "mark", "mark", id="mark"),
@@ -219,7 +221,7 @@ def resolve(
     owner: dict[str, str] = {}
     clashes: list[tuple[str, str]] = []
     # A line competes with another line; a default is a placeholder that gives way.
-    # `cut = ,` takes the comma off the debug key without a word, because nothing in
+    # `cut = ,` takes the comma off the info key without a word, because nothing in
     # the file disagreed — the default did, and the file is the deliberate act. Two
     # lines claiming one chord is a real mistake, and that is what gets refused.
     from_file = [

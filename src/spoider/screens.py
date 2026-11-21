@@ -95,7 +95,7 @@ HELP: tuple[HelpSection, ...] = (
             (("spacing_less",), "less air, down to cells sharing a border row"),
             (("move_up",), "move the cell up among its siblings"),
             (("move_down",), "move it down"),
-            (("toggle_properties",), "the file's properties, drawn over the map"),
+            (("toggle_properties",), "the file's properties and where the cursor stands"),
         ),
     ),
     (
