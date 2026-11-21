@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Cut the release tag, with the working notes committed first.
+#
+#   scripts/tag notes.txt        commits issues-and-plans.spoider if it changed, then tags v<version>
+#
+# The tag message is the release page: the release job reads the annotation and puts it above the
+# hash. So the message file and the notes are both part of what a release says, and both belong in
+# history before the tag exists. Signing is the maintainer's, so this stops there.
+set -euo pipefail
+
+die() {
+    printf 'tag: %s\n' "$*" >&2
+    exit 1
+}
+
+[ $# -eq 1 ] || die "usage: scripts/tag <message file>"
+message=$1
+[ -s "$message" ] || die "$message is empty or missing"
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -1)
+[ -n "$version" ] || die "no version in pyproject.toml"
+tag="v$version"
+git rev-parse -q --verify "refs/tags/$tag" >/dev/null && die "$tag already exists"
+
+# The notes are the one file that is allowed to be uncommitted at this point, and only this script
+# commits it: it is the user's own document, so it is named here rather than swept in with `git add`.
+notes=issues-and-plans.spoider
+if [ -n "$(git status --porcelain -- "$notes")" ]; then
+    git add -- "$notes"
+    git commit -q -m "notes for $tag"
+    printf 'tag: committed %s\n' "$notes"
+fi
+
+# Anything else uncommitted is a tree the tag would not describe, so say what it is and stop. A
+# version built from half a working tree is the mistake the version's dirty mark exists to reveal.
+if [ -n "$(git status --porcelain)" ]; then
+    printf 'tag: the tree still has changes the tag would not describe:\n' >&2
+    git status --short >&2
+    exit 1
+fi
+
+git tag -s -F "$message" "$tag"
+printf 'tag: %s marks %s\n' "$tag" "$(git log --format='%h %s' -1 | cut -c1-60)"
+printf 'tag: push the commit and the tag together: git push --follow-tags\n'

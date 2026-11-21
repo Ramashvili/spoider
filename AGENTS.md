@@ -76,6 +76,13 @@ run here is green, and push the commit and its tag together:
 change → commit → checks green here → bump + tag → push --follow-tags
 ```
 
+`scripts/tag <message file>` is the tagging half of that: it commits `issues-and-plans.spoider` if
+it changed, refuses while anything else in the tree is uncommitted, and then makes the signed tag
+named after the version in `pyproject.toml`. Signing is the maintainer's, so the script ends by
+asking for it rather than doing it quietly. The notes file is the one document this commits without
+being asked, because a release and the notes about it belong in the same history; everything else
+has to be committed deliberately.
+
 The runner confirms after the fact rather than before: a red run is answered in the next commit,
 not by holding the tag back.
 
