@@ -5869,6 +5869,34 @@ async def test_undo_and_redo_work_inside_the_cell(tmp_path: Path):
         assert app.mm.find(node.id).text == "abcxyz"
 
 
+async def test_the_properties_overlay_follows_a_save(tmp_path: Path):
+    """The overlay is drawn by the map, so a save has to repaint the map: otherwise it keeps saying
+    "unsaved" and the moment of the previous write while the file on disk is the new one."""
+    path = tmp_path / "map.spoider"
+    app = SpoiderApp(path, demo=False)
+    async with app.run_test(size=(120, 30)) as pilot:
+        node = app.mm.add_child(app.mm.root.id, "alpha")
+        app.view.refresh_map()
+        app.select(node.id)
+        await pilot.pause()
+        await pilot.press("ctrl+s")  # a first write, so the file has a moment on disk
+        await pilot.pause()
+        await pilot.press("comma")   # the overlay
+        await pilot.pause()
+        await pilot.press("e")
+        await pilot.press("x")
+        await pilot.press("enter")
+        await pilot.pause()
+        assert "unsaved" in app.view.render().plain
+
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+
+        shown = app.view.render().plain
+        assert "saved" in shown, shown
+        assert "unsaved" not in shown, "the overlay still reports the state before the write"
+
+
 async def test_the_editor_bar_shows_its_own_keys(tmp_path: Path):
     """Enter and esc both keep the text and leave the cell, so they share one entry; ^C is the key
     that discards, and it stands alone. The bar once printed esc with ^C, which taught the opposite

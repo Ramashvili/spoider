@@ -1238,6 +1238,10 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._remember_disk()
         self._set_terminal_title()
         self._refresh_chrome()
+        if self.show_properties:
+            # the overlay is painted by the map, not by the chrome, and a save changes three of its
+            # lines: the state, the size and the moment the file was written
+            self.view.refresh_map()
         self.notify(f"wrote {self.mm.count()} nodes to {clean(path.name)}", timeout=NOTE)
         return True
 
