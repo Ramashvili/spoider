@@ -24,21 +24,22 @@ version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -1)
 tag="v$version"
 git rev-parse -q --verify "refs/tags/$tag" >/dev/null && die "$tag already exists"
 
-# The notes are the one file that is allowed to be uncommitted at this point, and only this script
-# commits it: it is the user's own document, so it is named here rather than swept in with `git add`.
+# The notes are the one file allowed to be uncommitted here. Check for everything else first: a tree
+# the tag would not describe is a reason to stop before anything is written, including the notes
+# commit, so a refused run leaves history exactly as it found it.
 notes=issues-and-plans.spoider
+stray=$(git status --porcelain | grep -v " $notes\$" || true)
+if [ -n "$stray" ]; then
+    printf 'tag: the tree has changes the tag would not describe:\n' >&2
+    printf '%s\n' "$stray" >&2
+    exit 1
+fi
+
+# Only this script commits the notes, and it names them rather than sweeping the tree with `git add`.
 if [ -n "$(git status --porcelain -- "$notes")" ]; then
     git add -- "$notes"
     git commit -q -m "notes for $tag"
     printf 'tag: committed %s\n' "$notes"
-fi
-
-# Anything else uncommitted is a tree the tag would not describe, so say what it is and stop. A
-# version built from half a working tree is the mistake the version's dirty mark exists to reveal.
-if [ -n "$(git status --porcelain)" ]; then
-    printf 'tag: the tree still has changes the tag would not describe:\n' >&2
-    git status --short >&2
-    exit 1
 fi
 
 git tag -s -F "$message" "$tag"
