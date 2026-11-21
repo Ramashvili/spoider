@@ -36,35 +36,6 @@
             "collapsed": false,
             "mark": "",
             "children": []
-          },
-          {
-            "id": "m004",
-            "text": "the map is a plain text file",
-            "collapsed": false,
-            "mark": "",
-            "children": [
-              {
-                "id": "m005",
-                "text": "read it",
-                "collapsed": false,
-                "mark": "",
-                "children": []
-              },
-              {
-                "id": "m006",
-                "text": "diff it",
-                "collapsed": false,
-                "mark": "",
-                "children": []
-              },
-              {
-                "id": "m007",
-                "text": "keep it in git",
-                "collapsed": false,
-                "mark": "",
-                "children": []
-              }
-            ]
           }
         ]
       },
