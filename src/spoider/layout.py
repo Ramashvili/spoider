@@ -133,23 +133,24 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
 
 
 def fold_note(node: Node) -> str:
-    """The children count a folded cell wears, `" +3"`, or nothing when it is open.
+    """The children count a folded cell wears, `"+3"`, or nothing when it is open.
 
     One function so the row that draws it and the renderer that colours it cannot
     disagree about what it says.
     """
     if node.preview is not None or not node.children or not node.collapsed:
         return ""
-    return f" +{len(node.children)}"
+    return f"+{len(node.children)}"
 
 
 def lines_of(node: Node) -> list[str]:
     """What the cell says, one entry per row, without the mark.
 
-    A cell may hold several lines, so the box grows downwards with them, and the folded
-    children count rides on the last. A tab in the text is expanded here, once, so the box is
-    drawn and measured against the same columns the reader sees. The mark is not part of this:
-    it stands beside the text, on the middle row, and `mark_cells` is the width it takes.
+    A cell may hold several lines, so the box grows downwards with them. A tab in the text is
+    expanded here, once, so the box is drawn and measured against the same columns the reader
+    sees. Two things are not part of this: the mark stands beside the text on its middle row
+    (`mark_cells` is the width it takes), and a folded cell's count stands at the far right of the
+    box on the same row (`fold_note`, and `box_width` reserves its columns).
     """
     if node.preview is not None:
         text = clean_text(node.preview)
@@ -158,7 +159,6 @@ def lines_of(node: Node) -> list[str]:
         # an empty cut on the stack always has. The placeholder is what the screen shows,
         # never what the file holds.
         text = clean_text(node.text or "").strip() or "(empty)"
-        text = f"{text}{fold_note(node)}"
     return expand_tabs(text).split("\n")
 
 
@@ -212,6 +212,11 @@ def box_width(node: Node, walls: bool = True) -> int:
     edge = 2 if walls else 0
     width = max((cell_len(line) for line in lines_of(node)), default=0) + 2 * PAD + edge
     width += mark_cells(node)
+    # the count keeps its columns at the right of the box, with the same breath before the wall that
+    # the text has, so a long cell never runs into it
+    note = fold_note(node)
+    if note:
+        width += cell_len(note) + PAD
     # No extra column for the caret: a cell being typed into is the same width as a settled
     # one, so entering it does not stretch it. At the end of the text the caret sits on the
     # right wall, which shows it without a column of its own.

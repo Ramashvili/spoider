@@ -391,18 +391,14 @@ def _draw_box(
             for column in range(start, min(start + (span[1] - span[0]), len(mask))):
                 mask[column] = True
         grid.put_text(text_x, text_y + index, row, inside, mask)
-        # the folded count wears the colour of the links, so it reads as a number about
-        # the structure rather than as part of the cell's own text
-        note = fold_note(box.node)
-        if note and index == len(lines) - 1:
-            start = PAD + shift + len(text) - len(note)
-            x = text_x + cell_len(row[:start])
-            for offset, char in enumerate(note):
-                marked = mask[start + offset] if start + offset < len(mask) else False
-                # the row it belongs to, not the box: without walls those two are a row apart, and
-                # the count used to land under the cell it describes
-                grid.put(x, text_y + index, char, _marked(LINK_COLOR) if marked else LINK_COLOR)
-                x += cell_len(char)
+    # The folded count stands at the far right of the box, on the row the mark would wear: the middle
+    # of the text, so a cell of three lines says it from its own centre. It wears the link colour,
+    # which is what makes it read as a number about the structure rather than part of the text.
+    note = fold_note(box.node)
+    if note:
+        grid.put_text(
+            text_x + inner - cell_len(note) - PAD, text_y + mark_row(box.node), note, LINK_COLOR
+        )
     if box.node.mark:
         grid.put_text(
             text_x + PAD,

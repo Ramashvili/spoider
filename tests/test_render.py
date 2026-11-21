@@ -110,21 +110,32 @@ def test_a_selected_cell_keeps_its_text_and_mark_in_their_own_colours():
     assert drawn == quiet
 
 
-def test_the_folded_count_wears_the_colour_of_the_links():
-    """The count is about the structure, so it reads in the grey the connectors use."""
+def test_the_folded_count_stands_at_the_right_of_the_cell_in_the_link_colour():
+    """The count is about the structure, so it reads in the grey the connectors use, and it stands
+    at the far right of the box, on the row the mark would wear: the middle of the text."""
+    from spoider.layout import mark_row
+
     mm = MindMap(Node("root"))
-    parent = mm.add_child(mm.root.id, "folded")
+    parent = mm.add_child(mm.root.id, "folded\nover two lines")
     for name in ("a", "b", "c"):
         mm.add_child(parent.id, name)
     parent.collapsed = True
     layout = compute(mm.root, 0)
     plain = build_grid(layout, "")
     box = layout.boxes[parent.id]
-    row = box.y + 1
-    note_x = box.x + 1 + PAD + cell_len("folded")
-    assert "".join(plain.cells[(note_x + i, row)][0] for i in range(3)) == " +3"
-    assert plain.cells[(note_x, row)][1] == LINK_COLOR
-    assert plain.cells[(box.x + 1 + PAD, row)][1] != LINK_COLOR, "the text keeps its colour"
+    row = box.y + 1 + mark_row(parent)
+    counts = [
+        (x, y, char, style)
+        for (x, y), (char, style) in plain.cells.items()
+        if char in "+3"
+    ]
+    assert sorted(char for _x, _y, char, _style in counts) == ["+", "3"], "once, and only once"
+    notes = {(x, y) for x, y, _char, _style in counts}
+    assert len(notes) == 2 and {y for _x, y in notes} == {row}, "both on the middle row"
+    assert all(style == LINK_COLOR for _x, _y, _char, style in counts)
+    left = min(x for x, _y in notes)
+    right = box.x + box.w - 1 - PAD  # the last column of the cell's own room
+    assert right - (left + 2) == 0, "the count ends where the padding begins"
 
 
 def test_the_cut_stack_starts_further_down_the_palette():
