@@ -496,16 +496,27 @@ def _draw_column_links(
     if not children:
         return
     trunk = parent.x + (1 if walls else 0)
+    top = parent.bottom + 1
     bottom = max(child.cy for child in children)
-    for row in range(parent.bottom + 1, bottom + 1):
-        bits = (U if row > parent.bottom + 1 else 0) | (D if row < bottom else 0)
+    # The trunk begins on the first row it owns. At the loose spacings that row is a blank one, so
+    # the line starts there and the parent's own edge points into it. When the rows touch, the trunk
+    # begins on the first child's row instead, and the cell above it is where the line came from, so
+    # that first cell has to turn rather than stand.
+    clearance = min(child.cy for child in children) - top
+    for row in range(top, bottom + 1):
+        bits = 0
+        if row > top or clearance <= 0:
+            bits |= U
+        if row < bottom:
+            bits |= D
         grid.add_link(trunk, row, bits)
     for child in children:
         if child.x - 1 > trunk:
             _horizontal(grid, trunk, child.x - 1, child.cy)
         if walls:
             grid.add_edge(child.x, child.cy, L, LINK_COLOR)
-    if walls:
+    if walls and clearance > 0:
+        # a shared row already carries the child's top wall; an edge there would bend it
         grid.add_edge(trunk, parent.bottom, D, LINK_COLOR)
 
 

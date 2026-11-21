@@ -193,12 +193,38 @@ class MapActions:
         self._go(0, +1)
 
     def _go(self, dx: int, dy: int) -> None:
+        if self.mm.layout == "column" and self.stack_layout() is None:
+            self._outline_step(dx, dy)
+            return
         target = self._hierarchy_target(dx, dy)
         node = self.node
         into_a_child = node is not None and any(child.id == target for child in node.children)
         if into_a_child and self._expand_if_collapsed():
             return
         self._travel_to(target, dx, dy)
+
+    def _outline_step(self, dx: int, dy: int) -> None:
+        """In the outline the arrows are positional, because every cell sits below the one before it.
+
+        Up and down walk the cells in the order they are drawn, which is reading order, so a
+        hundred presses of down visit the whole map once, top to bottom, whatever the shape of the
+        tree. Right goes into the first child and left comes back out to the parent, which is what
+        makes the two directions mean one thing each instead of asking the canvas for the nearest.
+        """
+        here = self.selected
+        if dy:
+            target = nav.by_row(self._nav_layout(), here, dy)
+        elif dx < 0:
+            target = nav.to_parent(self.document, here)
+        else:
+            target = nav.to_child(self.document, here)
+        if target == here:
+            return
+        node = self.node
+        if node is not None and any(child.id == target for child in node.children):
+            if self._expand_if_collapsed():
+                return
+        self.select(target)
 
     def _hierarchy_target(self, dx: int, dy: int) -> str:
         """What the shape's own rules say, before the canvas gets a say."""

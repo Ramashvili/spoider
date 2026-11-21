@@ -99,17 +99,23 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
     # rather than one hard on top of the other.
     tight_y = {-1: 0, -2: 0, -3: 1, -4: 0, -5: 0}
     if layout == "column":
-        # the indent, not a gap between two boxes: a step of one column reads as a staircase and
-        # a step of six as a different map, so it keeps its own scale
-        # one blank row is not negotiable: the trunk that joins a parent to its children needs a
-        # row of its own, and two boxes that touched would have no line between them
-        # Without walls the trunk stands in the parent's first column, so the indent has to clear
-        # it and the stub between them: two columns, or the child's text would touch the line.
-        return Gaps(
-            walls=spacing > BARE_SPACING,
-            x=max(2 if spacing <= BARE_SPACING else 1, COLUMN_STEP + spacing),
-            y=max(1, GAP_Y + spacing),
-        )
+        # The indent is the step a level takes to the right, not a gap between two boxes, so it has
+        # its own scale. From -3 up it steps one column further than the bare arithmetic puts it,
+        # which is what gives the trunk and its stub a column each to be read in.
+        bare = spacing <= BARE_SPACING
+        x = max(2 if bare else 1, COLUMN_STEP + spacing)
+        if spacing >= BARE_SPACING:
+            x += 1
+        if spacing >= -2:
+            # from here the cells stand apart instead of sharing a border row, so the step grows
+            # once more to keep the trunk and the stub apart from the walls
+            x += 1
+        # Rows are the shape's own ladder, because a trunk needs a row to stand in: -2 shares a
+        # border row between the cells of a level, as every other shape does at -2; -5 has no row
+        # to spare and lets the texts touch; -4 and -3 keep the one blank row the shape was drawn
+        # with.
+        y = {-5: 0, -4: 1, -3: 1, -2: -1}.get(spacing, max(-1, GAP_Y + spacing))
+        return Gaps(walls=not bare, x=x, y=y)
     if layout in ("spider", "branch", "branch-left"):
         x = tight.get(spacing, (max(1, GAP_X + spacing), 0))[0]
     elif spacing >= 0:

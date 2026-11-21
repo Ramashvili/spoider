@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .layout import Layout
 from .model import MindMap, Node
 
 
@@ -41,6 +42,24 @@ def to_sibling(mm: MindMap, node_id: str, delta: int) -> str:
         if 0 <= target < len(parent.children):
             return parent.children[target].id
         current = parent.id
+
+
+def by_row(layout: Layout, here: str, delta: int) -> str:
+    """The cell `delta` places away in the drawn order, which in an outline is reading order.
+
+    An outline stacks its cells one under the next, so "below" and "next in the document" are the
+    same question. Sorting on the box's own top-left corner answers it for any drawing: the order
+    is the order the rows were placed in, and a cell that is not drawn (folded away, or in another
+    pane) is simply not in the list.
+    """
+    order = sorted(layout.boxes.values(), key=lambda box: (box.y, box.x))
+    ids = [box.node.id for box in order]
+    if here not in ids:
+        return here
+    index = ids.index(here) + delta
+    if not 0 <= index < len(ids):
+        return here
+    return ids[index]
 
 
 def side(mm: MindMap, node_id: str, layout: str = "spider") -> int:

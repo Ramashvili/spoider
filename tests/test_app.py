@@ -3061,12 +3061,50 @@ async def test_ctrl_l_cycles_the_shapes_and_marks_the_buffer_dirty(tmp_path: Pat
         assert app.dirty
 
 
+async def test_the_outline_walks_its_cells_by_position(tmp_path: Path):
+    """In a column, down and up are the cells above and below on the page, not the tree: pressing
+    down walks the whole map in the order it is drawn, whatever the branches do."""
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(100, 40)) as pilot:
+        app.mm.layout = "column"
+        root = app.mm.root
+        alpha = app.mm.add_child(root.id, "alpha")
+        one = app.mm.add_child(alpha.id, "one")
+        deep = app.mm.add_child(one.id, "deep")
+        two = app.mm.add_child(alpha.id, "two")
+        beta = app.mm.add_child(root.id, "beta")
+        app.view.refresh_map()
+        app.select(root.id)
+        await pilot.pause()
+
+        walked: list[str] = []
+        for _ in range(5):
+            await pilot.press("down")
+            await pilot.pause()
+            walked.append(app.selected)
+        assert walked == [alpha.id, one.id, deep.id, two.id, beta.id], "reading order, one cell a press"
+
+        await pilot.press("up")
+        await pilot.pause()
+        assert app.selected == two.id, "up is the cell above it, not its parent"
+
+        app.select(root.id)
+        await pilot.pause()
+        await pilot.press("right")
+        await pilot.pause()
+        assert app.selected == alpha.id, "right enters the first child"
+        await pilot.press("left")
+        await pilot.pause()
+        assert app.selected == root.id, "and left comes back out to the parent"
+
+
 async def test_down_walks_into_a_column_and_up_comes_back(tmp_path: Path):
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test() as pilot:
         app.mm.layout = "column"
         parent = app.mm.add_child(app.mm.root.id, "parent")
         child = app.mm.add_child(parent.id, "child")
+        app.view.refresh_map()  # the arrows read the picture, so the picture has to be current
         app.select(parent.id)
         await pilot.pause()
 

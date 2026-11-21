@@ -204,7 +204,9 @@ automatically to match the drawing on screen:
 - **pyramid:** root at the top, children stacked below.
 - **bush:** root at the bottom, growing upwards.
 - **column:** what `tree` prints in a shell: every cell below its parent and one
-  indent further right, so a deep map reads as an indented outline.
+  indent further right, so a deep map reads as an indented outline. Its arrows are
+  positional rather than structural: `↓` and `↑` step through the cells in the order
+  they are drawn, `→` enters the first child, and `←` comes back out to the parent.
 
 Press `c` to colour either by family (one colour per main branch) or by depth
 (one colour per level).

@@ -689,8 +689,17 @@ a tree is easiest to build:
   a cell: all the cells of a level stand in the same column, so a trunk one column in from a
   parent's left edge cannot run over a cousin. Two consequences have to stay true. The indent is a
   fixed step rather than something measured from the parent's width, or a deep map walks off the
-  right of the screen. And a blank row is always kept between levels, because the trunk needs a row
-  to stand in; a box that touched its parent would have no line between them.
+  right of the screen. From `-2` up the step grows once more, because the cells no longer share a
+  border row and the trunk needs to clear the walls. And the rows follow the shape's own ladder: `-5`
+  lets the texts touch, `-4` and `-3` keep one blank row, `-2` shares a border row like every other
+  shape, and above that the blank rows grow with the spacing.
+- **The outline's arrows are positional, not structural.** `↓` and `↑` walk the cells in the order
+  they are drawn (`nav.by_row`, sorted on each box's corner, which in an outline is reading order),
+  `→` goes into the first child and `←` back out to the parent. That is the one shape where an arrow
+  does not consult the hierarchy, and the reason is that a cell's child and its next sibling sit the
+  same way up the page. It also means the walk reads the *drawn* layout: anything that changes the
+  map has to refresh the view before the arrows are asked, or they walk the picture from before the
+  change.
 - While a cell is being typed into, `Home` puts the caret at column 0, so `Home` then
   `BackSpace` clears nothing; send forward-delete (`\x1b[3~`) instead.
 

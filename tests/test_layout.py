@@ -1,5 +1,4 @@
 from spoider.layout import (
-    BARE_SPACING,
     BOX_H,
     MAX_SPACING,
     MIN_SPACING,
@@ -412,16 +411,33 @@ def test_a_column_outline_hangs_each_child_below_and_one_indent_right():
     assert layout.boxes[a2.id].y < layout.boxes[beta.id].y
 
 
-def test_a_column_keeps_a_row_between_levels_and_a_column_for_the_trunk():
-    """The link needs somewhere to travel: two boxes that touched would have no line between
-    them, and at the tight end the indent still has to clear the trunk."""
-    for spacing in range(MIN_SPACING, MAX_SPACING + 1):
-        gaps = gaps_for(spacing, "column")
-        assert gaps.y >= 1, spacing
-        assert gaps.x >= 1, spacing
-    # without walls the trunk stands in the parent's own column, so the indent clears it
-    bare = gaps_for(BARE_SPACING, "column")
-    assert bare.x >= 2 and not bare.walls
+def test_a_column_ladder_follows_the_other_shapes_down_to_the_floor():
+    """A trunk needs a row to stand in, but not at any price: -4 and -3 keep one blank row, -2
+    shares a border row with the cell below it the way every shape does at -2, and -5 has no row
+    to spare, so its texts touch."""
+    from spoider.layout import GAP_Y
+
+    assert gaps_for(-5, "column").y == 0, "the floor: texts on consecutive rows"
+    assert gaps_for(-4, "column").y == 1
+    assert gaps_for(-3, "column").y == 1
+    assert gaps_for(-2, "column").y == -1, "one shared border row"
+    assert gaps_for(-1, "column").y == 0
+    assert gaps_for(0, "column").y == GAP_Y
+    assert gaps_for(3, "column").y == GAP_Y + 3
+    assert not gaps_for(-5, "column").walls and gaps_for(-2, "column").walls
+
+
+def test_a_column_indent_steps_from_two_columns_to_one_more_than_the_arithmetic():
+    """The indent is the step a level takes right. The bare end keeps two columns so the trunk and
+    its stub fit; from -3 up it is one column more than `COLUMN_STEP + spacing` puts it."""
+    from spoider.layout import COLUMN_STEP
+
+    assert gaps_for(-5, "column").x == 2
+    assert gaps_for(-4, "column").x == 2
+    for spacing in range(-3, 4):
+        bare_floor = 2 if spacing <= -3 else 1
+        extra = 2 if spacing >= -2 else 1
+        assert gaps_for(spacing, "column").x == max(bare_floor, COLUMN_STEP + spacing) + extra, spacing
 
 
 def test_branch_hangs_every_child_to_the_right_of_its_parent():
