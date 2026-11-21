@@ -5869,6 +5869,80 @@ async def test_undo_and_redo_work_inside_the_cell(tmp_path: Path):
         assert app.mm.find(node.id).text == "abcxyz"
 
 
+async def test_the_caret_blinks_once_it_has_sat_still(tmp_path: Path):
+    """Solid while the cell is being typed in, then half a second on and half off. The two moments
+    are worked out from the clock, so the test can ask about them without waiting."""
+    from spoider.app import CARET_BLINK, CARET_IDLE
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "abc")
+        app.select(node.id)
+        await pilot.pause()
+        await pilot.press("e")
+        await pilot.pause()
+        moved = app._caret_moved_at
+
+        assert app._caret_should_show(moved) is True, "lit the moment it moves"
+        assert app._caret_should_show(moved + CARET_IDLE - 0.01) is True, "still solid"
+        assert app._caret_should_show(moved + CARET_IDLE + CARET_BLINK / 2) is True
+        assert app._caret_should_show(moved + CARET_IDLE + CARET_BLINK + 0.01) is False
+        assert app._caret_should_show(moved + CARET_IDLE + 2 * CARET_BLINK + 0.01) is True
+
+
+async def test_a_key_lights_the_caret_again(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "abc")
+        app.select(node.id)
+        await pilot.pause()
+        await pilot.press("e")
+        await pilot.pause()
+        app.view.caret_visible = False  # the dark half, as the timer would leave it
+
+        await pilot.press("x")
+        await pilot.pause()
+
+        assert app.view.caret_visible is True, "typing always shows where the caret is"
+
+
+async def test_the_caret_is_not_drawn_in_the_dark_half(tmp_path: Path):
+    from spoider.chrome import CARET_STYLE
+
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test(size=(120, 30)) as pilot:
+        node = app.mm.add_child(app.mm.root.id, "abc")
+        app.view.refresh_map()
+        app.select(node.id)
+        await pilot.pause()
+        await pilot.press("e")
+        await pilot.pause()
+
+        _x, y, _overwrite = app.view._caret
+        row = app.view._row_at(y - app.view._offset_y)
+        assert any(CARET_STYLE in style for _glyph, style in row), row
+
+        app.view.caret_visible = False
+        row = app.view._row_at(y - app.view._offset_y)
+        assert not any(CARET_STYLE in style for _glyph, style in row), "the dark half draws nothing"
+
+
+async def test_blinking_can_be_turned_off_in_the_config(tmp_path: Path):
+    config_path = tmp_path / "config.spoider"
+    config_path.write_text("blink_cursor = false\n")
+    app = SpoiderApp(tmp_path / "map.json", config_path=config_path, demo=False)
+    async with app.run_test() as pilot:
+        node = app.mm.add_child(app.mm.root.id, "abc")
+        app.select(node.id)
+        await pilot.pause()
+        await pilot.press("e")
+        await pilot.pause()
+        moved = app._caret_moved_at
+
+        assert app.config.blink_cursor is False
+        assert app._caret_should_show(moved + 100.0) is True, "the setting keeps it lit for good"
+
+
 async def test_the_properties_overlay_follows_a_save(tmp_path: Path):
     """The overlay is drawn by the map, so a save has to repaint the map: otherwise it keeps saying
     "unsaved" and the moment of the previous write while the file on disk is the new one."""

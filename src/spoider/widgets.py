@@ -212,6 +212,9 @@ class MindMapView(Widget, can_focus=True):
         self._field = 0
         #: The caret's place in the grid, when a cell is being typed into.
         self._caret: tuple[int, int, bool] | None = None
+        #: Whether the caret is in the visible half of its blink; the app turns this over while a
+        #: cell sits untouched, and nothing else does.
+        self.caret_visible: bool = True
         #: Every row of the window, drawn once for the frame this was drawn for.
         self._rows: list[tuple[list[int], list[tuple[str, str]]]] | None = None
         self._rows_for: tuple | None = None
@@ -472,7 +475,7 @@ class MindMapView(Widget, can_focus=True):
         self._settle()
         columns, cells = self._rows_frame()[y]
         caret = self._caret
-        if caret is not None and caret[1] - self._offset_y == y:
+        if caret is not None and self.caret_visible and caret[1] - self._offset_y == y:
             # by screen column, not by list position: a wide glyph is one cell on two columns
             at = bisect_left(columns, caret[0])
             if at < len(columns) and columns[at] == caret[0]:

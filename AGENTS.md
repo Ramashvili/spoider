@@ -293,7 +293,9 @@ choice and the key cycles between them, saving the choice in the file.
 
 **Every editor-facing choice is a setting, with the bindings beside it.** Nothing a person
 might want to change stays a constant in the code, because a constant is a choice they
-cannot reach: the page size inside a cell is `page_lines`, the tab stop is `tab_width`. What
+cannot reach: the page size inside a cell is `page_lines`, the tab stop is `tab_width`, and the
+caret's blink is `blink_cursor` (on by default, measured from the moment it last moved in
+`_caret_moved_at`, so a keypress puts it back solid without the timer keeping a phase). What
 is not a preference (a safety cap, the shape of the format) stays a constant.
 `examples/spoider.conf` is the template verbatim, and `test_docs.py` keeps the two
 identical, so a setting added in a release is visible to a reader whose own file predates it.

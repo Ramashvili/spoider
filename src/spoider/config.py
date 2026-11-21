@@ -90,6 +90,8 @@ class Config:
     justify_width_default: int = 40
     #: Hide the bar along the bottom. Drawers bring it back while they are open.
     hide_footer: bool = False
+    #: Blink the caret while it sits still in a cell, the way an editor does.
+    blink_cursor: bool = True
     #: How wide a tab is drawn in a cell: spaces up to the next stop, in cells.
     tab_width: int = 4
     #: How many lines PgUp and PgDn move inside a cell, when the cell is taller than
@@ -202,6 +204,8 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
             config.created_by = value if value and " " not in value else ""
         elif name == "hide_footer":
             config.hide_footer = value.lower() in TRUE_WORDS
+        elif name == "blink_cursor":
+            config.blink_cursor = value.lower() in TRUE_WORDS
         elif name == "marks_default":
             marks = marks_of(value.split())
             if marks:
@@ -259,6 +263,8 @@ def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -
         f"page_lines = {config.page_lines}",
         "# true or false: hide the bar of keys along the bottom",
         f"hide_footer = {'true' if config.hide_footer else 'false'}",
+        "# true or false: blink the caret once it has sat still in a cell for a moment",
+        f"blink_cursor = {'true' if config.blink_cursor else 'false'}",
         "# true or false: whether the first-run question about .spoider was answered",
         f"desktop_asked = {'true' if config.desktop_asked else 'false'}",
         "",

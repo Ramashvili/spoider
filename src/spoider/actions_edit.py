@@ -68,6 +68,7 @@ class EditActions:
         buffer.break_run()
         self._buffer = buffer
         self._buffer.PAGE_LINES = self.config.page_lines
+        self._caret_moved()  # a cell that has just opened starts solid, and blinks after a pause
         self._edit_before = buffer.stacks()
         self._edit_delta = None
         if fresh:
@@ -85,6 +86,7 @@ class EditActions:
             return
         if self._buffer is None:
             return
+        self._caret_moved()
         if not self._edit_pushed and self._buffer.text != self._edit_was:
             self._push_undo()
             self._edit_pushed = True
@@ -342,6 +344,7 @@ class EditActions:
                 self._forget_cell_steps(self._edit_delta)
         self._edit_delta = None
         self._buffer = None
+        self.view.caret_visible = True  # the next cell to open starts solid
         self._edit_was, self._edit_pushed = None, False
 
         if node is None or not commit:

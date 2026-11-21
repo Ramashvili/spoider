@@ -9,6 +9,7 @@ import os
 import shlex
 import subprocess
 import sys
+import time
 import zlib
 from collections.abc import Callable, Iterable
 from pathlib import Path
@@ -18,8 +19,10 @@ from zipimport import zipimporter
 from textual import events
 from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding, BindingType
+from textual.css.query import NoMatches
 from textual.notifications import SeverityLevel
 from textual.screen import Screen
+from textual.timer import Timer
 
 from . import __version__
 from .actions_edit import EditActions
@@ -65,6 +68,12 @@ from .nav import to_end, to_extreme_sibling, to_home
 from .screens import help_text
 from .text import clean, find_all, one_line, set_tab_width
 from .widgets import MindMapView, TopBar
+
+#: How long the caret stays solid after it moves, and how long each half of its blink lasts. An
+#: editor that blinks from the first keystroke is harder to find than one that waits: the eye reads a
+#: still block as "this is where you are", and a blinking one as "this is where typing goes".
+CARET_IDLE = 0.6
+CARET_BLINK = 0.5
 
 # No colours here on purpose: the app runs on Textual's ansi theme, so every
 # surface inherits the terminal's palette. `ansi_default` means "whatever the
@@ -332,6 +341,12 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
                 raise UnknownCell(f"{cell_id} is not a cell in this map")
         #: The properties overlay: off by default, a debugging aid rather than furniture.
         self.show_properties = False
+        #: When the caret last moved, on the monotonic clock: the blink is measured from here, so a
+        #: keypress puts it back solid without any timer state of its own.
+        self._caret_moved_at = 0.0
+        #: The blink's timer, so it can be stopped when the screen goes: a timer that outlives the
+        #: app reaches for a widget that is already gone.
+        self._blink_timer: Timer | None = None
         #: The last cell whose text or mark was changed, for the overlay to name.
         self.last_edited: str | None = None
         #: The far end of a run of selected siblings; None means one cell.
@@ -424,6 +439,9 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._place_bars()
 
     def on_mount(self) -> None:
+        # ten looks a second, and each one does nothing unless a cell is open and the caret is due to
+        # change: the blink is worked out from the clock rather than kept as a counter
+        self._blink_timer = self.set_interval(0.1, self._blink_caret)
         self.query_one(NoticeBar).on_change = self._place_bars
         self._place_bars()
         # A config is the reader's file: written once when it is missing, then only ever
@@ -1386,6 +1404,44 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
     @property
     def editing(self) -> bool:
         return self._edit_id is not None
+
+    def _caret_should_show(self, now: float) -> bool:
+        """Whether the caret is lit `now` seconds after it last moved.
+
+        Solid while the cell is being typed in, then one half-second on, one off, for as long as it
+        sits. Worked out from the clock rather than remembered as a phase, so a keypress restarts the
+        cycle exactly where the eye expects it: solid, immediately.
+        """
+        if not self.config.blink_cursor:
+            return True
+        still = now - self._caret_moved_at
+        if still < CARET_IDLE:
+            return True
+        return int((still - CARET_IDLE) // CARET_BLINK) % 2 == 0
+
+    def on_unmount(self) -> None:
+        if self._blink_timer is not None:
+            self._blink_timer.stop()
+
+    def _blink_caret(self) -> None:
+        """The timer's tick: turn the caret over if the half it is in has changed."""
+        if not self.editing or not self.is_mounted:
+            return
+        try:
+            view = self.view
+        except NoMatches:
+            return  # the screen is coming down under the timer
+        want = self._caret_should_show(time.monotonic())
+        if want != view.caret_visible:
+            view.caret_visible = want
+            view.refresh_caret()
+
+    def _caret_moved(self) -> None:
+        """A key moved the caret or typed into the cell: light it and start the wait again."""
+        self._caret_moved_at = time.monotonic()
+        if not self.view.caret_visible:
+            self.view.caret_visible = True
+            self.view.refresh_caret()
 
     def _live_node(self, node_id: str) -> Node | None:
         """A cell by id: from the map, or from the stack when that has the keys."""
