@@ -405,6 +405,45 @@ def test_a_pyramid_link_leaves_the_parent_edge_and_arrives_at_the_childs():
     assert "╰───┬" in drawn or "┬───╯" in drawn
 
 
+def test_a_column_hangs_every_child_off_one_trunk():
+    """The outline's link is `tree`'s: a trunk one column in from the parent's left edge, a stub
+    into every child's wall, and the last one turning a corner."""
+    mm = MindMap(Node("root"))
+    alpha = mm.add_child(mm.root.id, "alpha")
+    mm.add_child(alpha.id, "one")
+    mm.add_child(mm.root.id, "beta")
+    layout = compute(mm.root, 0, "column")
+    drawn = render_text(build_grid(layout, mm.root.id), 0, 0, layout.width, layout.height).plain
+    lines = drawn.splitlines()
+    root = layout.boxes[mm.root.id]
+
+    assert lines[root.bottom][root.x + 1] == "┬", "the trunk leaves the parent's own edge"
+    first, last = (layout.boxes[c.id] for c in mm.root.children)
+    assert lines[first.cy][first.x] == "┤", "the stub arrives at the child's left wall"
+    assert lines[last.cy][last.x] == "┤"
+    assert "╰" in lines[last.cy], "the last child turns the corner"
+    assert "├" in lines[first.cy], "and the ones above it carry the trunk on"
+    # the trunk stands in the parent's column, clear of every child and grandchild
+    trunk = root.x + 1
+    for box in layout.boxes.values():
+        if box.node is not mm.root:
+            assert box.x > trunk, box.node.text
+
+
+def test_a_folded_cell_in_a_column_hangs_no_trunk():
+    """A folded cell keeps its own box and nothing under it, so there is no line to draw: the
+    trunk belongs to a cell that has something hanging from it."""
+    mm = MindMap(Node("root"))
+    alpha = mm.add_child(mm.root.id, "alpha")
+    mm.add_child(alpha.id, "hidden")
+    mm.root.collapsed = True
+    layout = compute(mm.root, 0, "column")
+    drawn = render_text(build_grid(layout, mm.root.id), 0, 0, layout.width, layout.height).plain
+    assert "alpha" not in drawn and "hidden" not in drawn
+    assert len(layout.boxes) == 1 and layout.height == 3, "a folded root is one box"
+    assert "┬" not in drawn and "├" not in drawn, "and no line leaves it"
+
+
 def test_a_bush_link_points_upwards():
     layout = _shaped("bush")
     root_id = next(iter(layout.boxes))

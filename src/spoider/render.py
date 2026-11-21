@@ -14,6 +14,7 @@ from textual.strip import Strip
 
 from .chrome import CARET_STYLE
 from .layout import (
+    COLUMN,
     DOWN,
     PAD,
     RIGHT,
@@ -258,6 +259,12 @@ def build_grid(
     for box in layout.boxes.values():
         if box.node.collapsed:
             continue
+        if box.flow == COLUMN:
+            # an outline hangs every child off one trunk, so the fan is drawn once for the parent
+            # rather than a link at a time for each child
+            below = [layout.boxes[c.id] for c in box.node.children if c.id in layout.boxes]
+            _draw_column_links(grid, box, below, walls=layout.walls)
+            continue
         for child in box.node.children:
             child_box = layout.boxes.get(child.id)
             if child_box is not None:
@@ -471,6 +478,35 @@ def _draw_link(
     if walls:
         grid.add_edge(leave_from, parent.cy, leaves, LINK_COLOR)
         grid.add_edge(arrive_at, child.cy, arrives, LINK_COLOR)
+
+
+def _draw_column_links(
+    grid: Grid, parent: Placed, children: list[Placed], walls: bool = True
+) -> None:
+    """The link an outline draws: one trunk under the parent, a stub into every child.
+
+    This is the shape `tree` prints. The trunk stands one column in from the parent's left edge,
+    so it leaves the parent's own footprint and cannot wander over a cousin, and every child hangs
+    off it by a stub into its left wall. One vertical run serves all of them, so a child's stub is
+    the only cell its own row costs.
+
+    A link needs a row to travel in, which is why the layout keeps one blank row between a parent
+    and its children.
+    """
+    if not children:
+        return
+    trunk = parent.x + (1 if walls else 0)
+    bottom = max(child.cy for child in children)
+    for row in range(parent.bottom + 1, bottom + 1):
+        bits = (U if row > parent.bottom + 1 else 0) | (D if row < bottom else 0)
+        grid.add_link(trunk, row, bits)
+    for child in children:
+        if child.x - 1 > trunk:
+            _horizontal(grid, trunk, child.x - 1, child.cy)
+        if walls:
+            grid.add_edge(child.x, child.cy, L, LINK_COLOR)
+    if walls:
+        grid.add_edge(trunk, parent.bottom, D, LINK_COLOR)
 
 
 def _draw_stack_link(

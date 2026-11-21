@@ -179,7 +179,8 @@ Screen.roomy MindMapView {
 
 #: What ↑ and ↓ do in each shape. The siblings always sit side by side; it is the
 #: level that moves. A pyramid hangs its children below the parent, so down goes
-#: deeper; a bush hangs them above it, so up goes deeper and down goes home.
+#: deeper; a bush hangs them above it, so up goes deeper and down goes home. The
+#: column outline puts them below and to the right, so it reads like a pyramid.
 
 
 def editor_command() -> list[str]:

@@ -200,7 +200,7 @@
         "children": [
           {
             "id": "m026",
-            "text": "^L cycles four shapes",
+            "text": "^L cycles six shapes",
             "collapsed": false,
             "mark": "",
             "children": [
@@ -228,6 +228,20 @@
               {
                 "id": "m030",
                 "text": "branch",
+                "collapsed": false,
+                "mark": "",
+                "children": []
+              },
+              {
+                "id": "m031",
+                "text": "branch left",
+                "collapsed": false,
+                "mark": "",
+                "children": []
+              },
+              {
+                "id": "m032",
+                "text": "column",
                 "collapsed": false,
                 "mark": "",
                 "children": []

@@ -1,6 +1,6 @@
 """Tree layout: assign every node a box on a character grid.
 
-Four shapes, all of them a band-packing of the same tree:
+Six shapes, all of them a packing of the same tree:
 
 - `spider`  — the root's children fan out both sides: the first half down the
   right, the second half down the left, so reading the map top to bottom matches
@@ -10,6 +10,8 @@ Four shapes, all of them a band-packing of the same tree:
 - `pyramid` — the root sits at the top and children stack below it.
 - `bush`    — the same, upside down: the root is at the bottom and the branches
   grow upwards.
+- `column`  — the shape `tree(1)` prints: a cell's children stand below it, one
+  indent to the right, depth first, so the map reads as an indented outline.
 
 `side` is the left/right half a box lives on (only the spider uses both), and
 `flow` is the direction a box's children hang in, which is what the renderer
@@ -35,9 +37,14 @@ STACK_GAP_X = 2
 GAP_Y = 1
 PAD = 1
 BOX_H = 3
+#: Columns a column layout steps right per level at the default spacing.
+COLUMN_STEP = 3
 
 #: The direction a box's children hang in.
 RIGHT, LEFT, DOWN, UP = "right", "left", "down", "up"
+#: A column layout's children hang below and to the right, off one trunk: its own flow, because
+#: the renderer draws it as the outline `tree` prints rather than as a centred elbow.
+COLUMN = "column"
 
 # How far the spacing controls may push the gaps. The tight end has four steps, each
 # a picture of its own: -1 is the default look, -2 pulls the walls together, -3 drops
@@ -91,6 +98,18 @@ def gaps_for(spacing: int, layout: str = DEFAULT_LAYOUT) -> Gaps:
     # step keeps a blank row between levels: three rows of box become two lines of text
     # rather than one hard on top of the other.
     tight_y = {-1: 0, -2: 0, -3: 1, -4: 0, -5: 0}
+    if layout == "column":
+        # the indent, not a gap between two boxes: a step of one column reads as a staircase and
+        # a step of six as a different map, so it keeps its own scale
+        # one blank row is not negotiable: the trunk that joins a parent to its children needs a
+        # row of its own, and two boxes that touched would have no line between them
+        # Without walls the trunk stands in the parent's first column, so the indent has to clear
+        # it and the stub between them: two columns, or the child's text would touch the line.
+        return Gaps(
+            walls=spacing > BARE_SPACING,
+            x=max(2 if spacing <= BARE_SPACING else 1, COLUMN_STEP + spacing),
+            y=max(1, GAP_Y + spacing),
+        )
     if layout in ("spider", "branch", "branch-left"):
         x = tight.get(spacing, (max(1, GAP_X + spacing), 0))[0]
     elif spacing >= 0:
@@ -296,7 +315,9 @@ def compute_with(root: Node, gaps: Gaps, layout: str = DEFAULT_LAYOUT) -> Layout
         layout = DEFAULT_LAYOUT
     boxes: dict[str, Placed] = {}
 
-    if layout in ("pyramid", "bush"):
+    if layout == "column":
+        _place_column(boxes, root, gaps)
+    elif layout in ("pyramid", "bush"):
         flow = DOWN if layout == "pyramid" else UP
         _place_stack(boxes, root, gaps, flow)
     else:
@@ -408,6 +429,33 @@ def _walk(root: Node):
         node = stack.pop()
         yield node
         stack.extend(node.children)
+
+
+def _place_column(boxes: dict[str, Placed], root: Node, gaps: Gaps) -> None:
+    """Place an outline: every cell below its parent and one indent to the right.
+
+    Document order, depth first: a cell is followed by its own subtree and then by its next
+    sibling, the way `tree` prints a directory. Columns depend on depth alone, which is what
+    makes every cell of one level stand in the same column and lets a parent's children hang
+    from one trunk; rows are counted as the walk goes, so a cell is as tall as its own text.
+
+    The indent is fixed rather than measured from the parent's width. A wide parent simply has
+    its children under it, on their own rows, and the picture still reads as one branch; an
+    indent that grew with every wide cell would walk a deep map off the right of the screen.
+    """
+    row = 0
+    pending = [(root, 0, 0)]
+    while pending:
+        node, x, depth = pending.pop()
+        width = box_width(node, gaps.walls)
+        height = box_height(node, gaps.walls)
+        boxes[node.id] = Placed(node, x, row, width, height, depth, 1, COLUMN)
+        row += height + gaps.y
+        if node.children and not node.collapsed:
+            # reversed, because the children are taken off the end of one stack: the first child
+            # has to be the first one placed
+            for child in reversed(node.children):
+                pending.append((child, x + gaps.x, depth + 1))
 
 
 def _place_stack(boxes: dict[str, Placed], root: Node, gaps: Gaps, flow: str) -> None:

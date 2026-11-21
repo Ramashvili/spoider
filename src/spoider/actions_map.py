@@ -18,6 +18,7 @@ UP_MEANING: dict[str, str] = {
     "branch-left": "go_up",
     "pyramid": "parent",
     "bush": "child",
+    "column": "parent",
 }
 DOWN_MEANING: dict[str, str] = {
     "spider": "go_down",
@@ -25,6 +26,7 @@ DOWN_MEANING: dict[str, str] = {
     "branch-left": "go_down",
     "pyramid": "child",
     "bush": "parent",
+    "column": "child",
 }
 
 
@@ -180,7 +182,7 @@ class MapActions:
     def siblings_are_sideways(self) -> bool:
         """True when the levels are stacked, so ← / → walk the row of siblings
         and ↑ / ↓ are left to cross a level."""
-        return self.mm.layout in ("pyramid", "bush")
+        return self.mm.layout in ("pyramid", "bush", "column")
 
     def action_go_up(self) -> None:
         """^P / ↑ — whatever is above the selection in this shape."""
@@ -328,7 +330,7 @@ class MapActions:
         self._mark_dirty()
         self.notify(f"colours by {self.mm.colours}", timeout=QUICK)
     def action_layout(self) -> None:
-        """^L — cycle the shape: spider, branch right, branch left, pyramid, bush."""
+        """^L — cycle the shape: spider, branch right, branch left, pyramid, bush, column."""
         order = LAYOUTS
         self.mm.layout = order[(order.index(self.mm.layout) + 1) % len(order)]
         # like spacing, the shape is document state but not an edit worth undoing

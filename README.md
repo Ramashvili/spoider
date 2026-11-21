@@ -193,9 +193,9 @@ A cell grows to fit as many lines as you type. `Shift+Return` adds a new line,
 `Shift` with the arrow keys selects text, and `^J` wraps long notes into clean
 paragraphs at whatever width you prefer.
 
-### Five ways to draw the tree
+### Six ways to draw the tree
 
-Press `^L` to cycle through five shapes for the same map. The arrow keys adapt
+Press `^L` to cycle through six shapes for the same map. The arrow keys adapt
 automatically to match the drawing on screen:
 
 - **spider:** root in the centre, branches fanning out left and right.
@@ -203,6 +203,8 @@ automatically to match the drawing on screen:
 - **branch left:** the same outline from the other side, root on the right.
 - **pyramid:** root at the top, children stacked below.
 - **bush:** root at the bottom, growing upwards.
+- **column:** what `tree` prints in a shell: every cell below its parent and one
+  indent further right, so a deep map reads as an indented outline.
 
 Press `c` to colour either by family (one colour per main branch) or by depth
 (one colour per level).

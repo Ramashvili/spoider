@@ -1,4 +1,5 @@
 from spoider.layout import (
+    BARE_SPACING,
     BOX_H,
     MAX_SPACING,
     MIN_SPACING,
@@ -387,6 +388,40 @@ def test_bush_is_the_pyramid_upside_down():
         assert twin.x == box.x
         assert twin.y == pyramid.height - box.y - BOX_H
     assert bush.boxes[mm.root.id].y > bush.boxes[a1.id].y  # root at the bottom
+
+
+def test_a_column_outline_hangs_each_child_below_and_one_indent_right():
+    """The `tree` shape: a child stands below its parent, one indent further right, and the
+    walk is depth first, so a cell is followed by its own subtree and then by its next sibling."""
+    mm, alpha, beta, a1, a2 = _shaped()
+    depth = mm.add_child(a1.id, "deeper")
+    layout = compute(mm.root, 0, "column")
+    indent = gaps_for(0, "column").x
+
+    root = layout.boxes[mm.root.id]
+    assert (root.x, root.y) == (0, 0)
+    for node, parent in ((alpha, mm.root), (beta, mm.root), (a1, alpha), (a2, alpha), (depth, a1)):
+        box = layout.boxes[node.id]
+        above = layout.boxes[parent.id]
+        assert box.x == above.x + indent, f"{node.text} is not one indent right of {parent.text}"
+        assert box.y > above.bottom, f"{node.text} is not below {parent.text}"
+
+    # depth first: the grandchildren of alpha stand before its next sibling
+    assert layout.boxes[a1.id].y < layout.boxes[a2.id].y
+    assert layout.boxes[depth.id].y < layout.boxes[a2.id].y
+    assert layout.boxes[a2.id].y < layout.boxes[beta.id].y
+
+
+def test_a_column_keeps_a_row_between_levels_and_a_column_for_the_trunk():
+    """The link needs somewhere to travel: two boxes that touched would have no line between
+    them, and at the tight end the indent still has to clear the trunk."""
+    for spacing in range(MIN_SPACING, MAX_SPACING + 1):
+        gaps = gaps_for(spacing, "column")
+        assert gaps.y >= 1, spacing
+        assert gaps.x >= 1, spacing
+    # without walls the trunk stands in the parent's own column, so the indent clears it
+    bare = gaps_for(BARE_SPACING, "column")
+    assert bare.x >= 2 and not bare.walls
 
 
 def test_branch_hangs_every_child_to_the_right_of_its_parent():

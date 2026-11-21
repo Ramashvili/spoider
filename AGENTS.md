@@ -169,7 +169,7 @@ could not.
 | `render.py` | grid → styled cells (boxes, connectors, the two colourings) → `rich.Text` |
 | `nav.py` | selection movement rules |
 | `addressing.py` | reading `-p/--position`: a path of 1-based children, `s` for the stack |
-| `properties.py` | the `i` overlay: the file's own values, the cursor's address and id |
+| `properties.py` | the `,` info overlay: the file's own values, the cursor's address and id |
 | `widgets.py` | `MindMapView`: camera, hit-testing, the stack column, clicks |
 | `editing.py` | `Buffer`: the text inside a cell or a prompt, its caret, its selection,
   its undo runs, and the justify fill |
@@ -681,9 +681,16 @@ a tree is easiest to build:
   between nearest edges (a wide neighbour is near, however long), preferring our own
   level, then a cell whose parent sits beside our parent. That is what crossing a gap
   means, and `nav.towards` is the only place it is decided.
-- `^L` cycles the shape spider, branch right, branch left, pyramid, bush, spider. Build in
+- `^L` cycles the shape spider, branch right, branch left, pyramid, bush, column, spider. Build in
   branch right (stored as `branch`), show the
   others, and step back to branch to keep building.
+- **`column` is the shape `tree(1)` prints**: a cell's children stand below it, one indent right,
+  depth first. Its columns come from depth alone, which is what lets one trunk serve every child of
+  a cell: all the cells of a level stand in the same column, so a trunk one column in from a
+  parent's left edge cannot run over a cousin. Two consequences have to stay true. The indent is a
+  fixed step rather than something measured from the parent's width, or a deep map walks off the
+  right of the screen. And a blank row is always kept between levels, because the trunk needs a row
+  to stand in; a box that touched its parent would have no line between them.
 - While a cell is being typed into, `Home` puts the caret at column 0, so `Home` then
   `BackSpace` clears nothing; send forward-delete (`\x1b[3~`) instead.
 

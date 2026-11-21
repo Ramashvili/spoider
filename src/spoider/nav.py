@@ -50,8 +50,8 @@ def side(mm: MindMap, node_id: str, layout: str = "spider") -> int:
     split the layout makes — and a whole branch stays on its side, so the branch
     owner decides for the subtree.
     The spider splits the root's children between the two sides; the branch shapes are
-    single-sided, `branch-left` hanging everything off the left. The vertical shapes
-    stack, so their side does not decide an arrow.
+    single-sided, `branch-left` hanging everything off the left. The stacked shapes, and the
+    column outline, hang everything off the right, so their side does not decide an arrow.
     """
     if layout == "branch-left":
         return -1

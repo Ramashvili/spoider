@@ -55,7 +55,7 @@ def sheet_of(document, with_stack: bool = True, palette_name: str = "paper"):
 
 def test_every_cell_lands_inside_the_canvas(manual):
     """A layout may put a left branch at negative coordinates; the picture must not clip it."""
-    for shape in ("spider", "branch", "branch_left", "pyramid", "bush"):
+    for shape in ("spider", "branch", "branch-left", "pyramid", "bush", "column"):
         manual.layout = shape
         sheet = sheet_of(manual)
         xs = [x for x, _y in sheet.grid.cells]

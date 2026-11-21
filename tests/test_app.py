@@ -3057,8 +3057,26 @@ async def test_ctrl_l_cycles_the_shapes_and_marks_the_buffer_dirty(tmp_path: Pat
             await pilot.press("ctrl+l")
             await pilot.pause()
             seen.append(app.mm.layout)
-        assert seen == ["branch", "branch-left", "pyramid", "bush", "spider"]
+        assert seen == ["branch", "branch-left", "pyramid", "bush", "column", "spider"]
         assert app.dirty
+
+
+async def test_down_walks_into_a_column_and_up_comes_back(tmp_path: Path):
+    app = SpoiderApp(tmp_path / "map.json", demo=False)
+    async with app.run_test() as pilot:
+        app.mm.layout = "column"
+        parent = app.mm.add_child(app.mm.root.id, "parent")
+        child = app.mm.add_child(parent.id, "child")
+        app.select(parent.id)
+        await pilot.pause()
+
+        await pilot.press("down")
+        await pilot.pause()
+        assert app.selected == child.id, "the child hangs below its parent"
+
+        await pilot.press("up")
+        await pilot.pause()
+        assert app.selected == parent.id
 
 
 async def test_the_shape_is_written_into_the_map_file(tmp_path: Path):

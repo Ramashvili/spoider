@@ -54,7 +54,7 @@ MAX_PROMPT_CHARS = 512
 
 #: The shapes a map can be drawn in. The name is stored in the file, like the
 #: spacing, so a map opens looking the way it was left.
-LAYOUTS = ("spider", "branch", "branch-left", "pyramid", "bush")
+LAYOUTS = ("spider", "branch", "branch-left", "pyramid", "bush", "column")
 #: What each shape is called on screen. `branch` is the right-hand one; the stored name
 #: stays as it was so a map saved before there were two branches still opens on the same
 #: shape, which is what "the file looks the same everywhere" asks for.
@@ -64,6 +64,7 @@ LAYOUT_NAMES = {
     "branch-left": "branch left",
     "pyramid": "pyramid",
     "bush": "bush",
+    "column": "column",
 }
 
 
