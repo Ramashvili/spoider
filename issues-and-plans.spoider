@@ -12,7 +12,7 @@
     "💤"
   ],
   "justify": 50,
-  "cursor": "0756737968d6",
+  "cursor": "07f98fc96cb4",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -25,44 +25,6 @@
         "collapsed": false,
         "mark": null,
         "children": [
-          {
-            "id": "a720169c9876",
-            "text": "highlight cell better when in it",
-            "collapsed": false,
-            "mark": "📌",
-            "children": [
-              {
-                "id": "c796a0e94cbf",
-                "text": "current state:\ncell which we are editing will get its leftmost cell wall reversed",
-                "collapsed": false,
-                "mark": null,
-                "children": [
-                  {
-                    "id": "293310571da6",
-                    "text": "not the most beautiful",
-                    "collapsed": false,
-                    "mark": null,
-                    "children": []
-                  }
-                ]
-              },
-              {
-                "id": "99a92f75886e",
-                "text": "the problem is that sometimes it is not obvious\nthat we are inside a cell because the caret, which\nis small, is the only indicator - easily missed",
-                "collapsed": false,
-                "mark": "❓",
-                "children": [
-                  {
-                    "id": "a443cd79b1e0",
-                    "text": "maybe solved with blinking cursor?",
-                    "collapsed": false,
-                    "mark": "💡",
-                    "children": []
-                  }
-                ]
-              }
-            ]
-          },
           {
             "id": "6e129ecd5e24",
             "text": "make a better icon for installed spoider app",
@@ -80,7 +42,7 @@
           {
             "id": "f4b6d72700bc",
             "text": "show a little bit of LIFO stack even when we are not in it",
-            "collapsed": true,
+            "collapsed": false,
             "mark": "❓",
             "children": [
               {
@@ -138,7 +100,7 @@
         "children": [
           {
             "id": "6595b551ac7b",
-            "text": "check if we are rendering svgs in such a way,\nthat text of some lines gets centered on the\ncell. There seems do be a discrepancy. We\nwant the text aligned to the left of a cell - fill the\nrest with empty spaces if necessary. Glyph\ngrid shall reflect the original",
+            "text": "check if we are rendering svgs in such a way, that\ntext of some lines gets centered on the cell - it\nshould not. There seems do be a discrepancy. We\nwant the text aligned to the left of a cell - fill\nthe rest with empty spaces if necessary. Glyph\ngrid shall reflect the original",
             "collapsed": false,
             "mark": null,
             "children": [
@@ -192,7 +154,7 @@
             "id": "2b322eb5611d",
             "text": "add vertical layout",
             "collapsed": false,
-            "mark": null,
+            "mark": "📌",
             "children": [
               {
                 "id": "b6b6652cf65a",
@@ -1229,6 +1191,72 @@
           "collapsed": false,
           "mark": null,
           "children": []
+        }
+      ]
+    },
+    {
+      "id": "dbad2c3ee894",
+      "text": "when I select multiple cells with cousins among them (not only siblings), program crashes. Fix bug",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "5ecbc9230c62",
+      "text": "correct esc and enter items in footer bar in cell edit mode",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "bbf57cafb255",
+      "text": "rename `debug` widget to `info`",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "5078ee72d7e2",
+      "text": "fix: info widget not updating after save",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "a720169c9876",
+      "text": "highlight cell better when in it",
+      "collapsed": true,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "c796a0e94cbf",
+          "text": "current state:\ncell which we are editing will get its leftmost cell wall reversed",
+          "collapsed": false,
+          "mark": null,
+          "children": [
+            {
+              "id": "293310571da6",
+              "text": "not the most beautiful",
+              "collapsed": false,
+              "mark": null,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "99a92f75886e",
+          "text": "the problem is that sometimes it is not obvious\nthat we are inside a cell because the caret, which\nis small, is the only indicator - easily missed",
+          "collapsed": false,
+          "mark": "❓",
+          "children": [
+            {
+              "id": "a443cd79b1e0",
+              "text": "maybe solved with blinking cursor?",
+              "collapsed": false,
+              "mark": "💡",
+              "children": []
+            }
+          ]
         }
       ]
     }
