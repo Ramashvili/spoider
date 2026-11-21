@@ -124,7 +124,8 @@ HELP: tuple[HelpSection, ...] = (
     (
         "While typing",
         (
-            (Literal("⏎"), "done: keep the text and leave the cell"),
+            (Literal("⏎  esc"), "done: keep the text and leave the cell"),
+            (Literal("^C"), "cancel: leave the cell without the change"),
             (Literal("S-⏎"), "start a new line"),
             (Literal("^J"), "justify to a width you type; the width is remembered"),
             (Literal("^K  M-6  ^U"), "cut, copy and paste the text"),

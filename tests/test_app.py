@@ -5870,6 +5870,9 @@ async def test_undo_and_redo_work_inside_the_cell(tmp_path: Path):
 
 
 async def test_the_editor_bar_shows_its_own_keys(tmp_path: Path):
+    """Enter and esc both keep the text and leave the cell, so they share one entry; ^C is the key
+    that discards, and it stands alone. The bar once printed esc with ^C, which taught the opposite
+    of what the keys do."""
     app = SpoiderApp(tmp_path / "map.json", demo=False)
     async with app.run_test(size=(160, 30)) as pilot:
         node = app.mm.add_child(app.mm.root.id, "abc")
@@ -5877,7 +5880,9 @@ async def test_the_editor_bar_shows_its_own_keys(tmp_path: Path):
         await pilot.press("e")
         await pilot.pause()
         bar = app.query_one("#footer", FooterBar).render().plain
-        assert "⏎ done" in bar
+        assert "⏎/esc done" in bar
+        assert "^C cancel" in bar
+        assert "esc/^C" not in bar, "esc and ^C are not the same action in a cell"
         assert "S-⏎ new line" in bar
         assert "^J justify" in bar
         assert "^K cut" in bar and "^U paste" in bar
