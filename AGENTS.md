@@ -55,14 +55,18 @@ local label, and the top bar prints it without any other machinery.
 
 - `0.5.3` is the version: what would be published, numbered by the rule above — a minor only when
   something about files or config changes.
-- `0.5.3+redraw` is a candidate: the same version built from a branch that is not ready to publish.
-  Bump the label when you reinstall for a new round (`+redraw.2`), so a stale install cannot
-  pretend to be the build just made.
-- `main` carries no label; dropping it is the act of releasing, because the index refuses a local
-  version.
+- `0.5.13+3f2a1bc` is a build of that commit, and `+3f2a1bc.dirty` says the tree had changes no
+  commit holds. `version_string()` in `build.py` settles this once per process, and the top bar and
+  `--version` both print the result, so a reader has one string to quote in a bug report.
+- The commit is learned, in this order, from `_commit.py` (which `scripts/build-pyz` writes into the
+  archive), from `direct_url.json` (which uv and pip write for an install from a repository), and
+  from git itself when the module runs out of a working tree. A wheel with none of the three prints
+  the plain version, which is honest: it cannot name its commit.
+- A candidate that wants a label of its own (`+redraw`) keeps it, and the commit joins it with a dot,
+  because PEP 440 allows one local label: `0.5.13+redraw.3f2a1bc`.
 
-Do not derive the branch at runtime or bake a build file: a frozen install can do neither, and the
-version already says what is needed.
+The branch is never derived and never printed: a branch name is a claim about something that moves,
+and two different trees can carry the same one.
 
 
 A version marks a state whose checks passed here. Bump and tag in the same breath, once the

@@ -159,21 +159,21 @@ class TopBar(Widget):
     """Chrome above the map: identity, location, size."""
 
     def render(self) -> Text:
-        from . import __version__
+        from .build import version_string
 
         app = cast("SpoiderApp", self.app)
         height = self.size.width
         if height <= 0:
             return Text("")
         if app.load_error is not None:
-            return name_bar(height, __version__)
+            return name_bar(height, version_string())
         # The name, not the file: `spoider new.spoider` names where the first ^S goes, and
         # a file deleted mid-session is still where the next ^S goes. "New Buffer" is left
         # for a buffer with no name at all, which includes one whose file would not load.
         where = str(app.path) if app.path is not None else "New Buffer"
         return compose_top_bar(
             height,
-            __version__,
+            version_string(),
             where,
             app.stat_text(),
             app.dirty,

@@ -24,12 +24,12 @@ from textual.notifications import SeverityLevel
 from textual.screen import Screen
 from textual.timer import Timer
 
-from . import __version__
 from .actions_edit import EditActions
 from .actions_map import MapActions
 from .actions_stack import StackActions
 from .addressing import parse as parse_address
 from .addressing import resolve as resolve_address
+from .build import version_string
 from .chrome import (
     FAILURE,
     NOTE,
@@ -1802,7 +1802,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--version",
         action="version",
-        version=f"spoider {__version__}",
+        version=f"spoider {version_string()}",
         help="print the version and exit",
     )
     parser.add_argument(

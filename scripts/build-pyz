@@ -68,9 +68,11 @@ if [ "$tag" != "v$version" ]; then
     echo "build-pyz: warning: HEAD is not tagged v$version (it is ${tag:-untagged}); the archive" >&2
     echo "build-pyz:          is built from the working tree as it stands." >&2
 fi
-if [ -n "$(git status --porcelain)" ]; then
-    echo "build-pyz: warning: the working tree has changes:" >&2
-    git status --short >&2
+# Only the parts a build is made of. A map lying in the working directory is the user's work and
+# must not warn on every build, the same reason `build.py` leaves it out of the dirty mark.
+if [ -n "$(git status --porcelain -- src pyproject.toml uv.lock)" ]; then
+    echo "build-pyz: warning: the source the build is made of has changes:" >&2
+    git status --short -- src pyproject.toml uv.lock >&2
 fi
 
 mkdir -p "$out"
@@ -116,6 +118,14 @@ cp -r "$site" "$tmp/app"
 find "$tmp/app" -name __pycache__ -type d -prune -exec rm -rf {} +
 rm -rf "$tmp/app/bin"
 printf 'from spoider.app import main\n\nmain()\n' > "$tmp/app/__main__.py"
+# A reader who downloaded this archive has no git and no install record to ask, so the commit travels
+# inside it: the bar then prints the local version a bug report can quote back at us.
+commit=$(git rev-parse --short=7 HEAD)
+dirty=False
+if [ -n "$(git status --porcelain --untracked-files=no -- src pyproject.toml uv.lock)" ]; then
+    dirty=True
+fi
+printf 'COMMIT = "%s"\nDIRTY = %s\n' "$commit" "$dirty" > "$tmp/app/spoider/_commit.py"
 # A hash in the .pyc header rather than a file time, or two builds would differ in every header.
 step "compiling the modules" "$tmp/venv/bin/python" -c "import compileall, py_compile; compileall.compile_dir('$tmp/app', quiet=2, legacy=True, force=True, workers=8, stripdir='$tmp/app', invalidation_mode=py_compile.PycInvalidationMode.CHECKED_HASH)"
 find "$tmp/app" -exec touch -h -d "@$epoch" {} +
@@ -128,10 +138,13 @@ chmod 755 "$archive"
 
 # An archive that does not answer as the version it is named for is not shippable.
 said=$("$archive" --version)
-if [ "$said" != "spoider $version" ]; then
-    echo "build-pyz: $archive answered '$said', not 'spoider $version'" >&2
-    exit 1
-fi
+case "$said" in
+    "spoider $version+$commit" | "spoider $version+$commit.dirty") ;;
+    *)
+        echo "build-pyz: $archive answered '$said', not 'spoider $version+$commit'" >&2
+        exit 1
+        ;;
+esac
 
 echo
 du -h "$archive" | sed 's/\t/  /'

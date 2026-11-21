@@ -148,7 +148,7 @@ def test_an_empty_id_is_refused(capsys):
 
 
 def test_the_version_flag_names_the_build(capsys):
-    from spoider import __version__
+    from spoider.build import version_string
 
     try:
         module.main(["--version"])
@@ -156,7 +156,7 @@ def test_the_version_flag_names_the_build(capsys):
         assert exit_code.code == 0
     else:
         raise AssertionError("--version should print and leave")
-    assert capsys.readouterr().out.strip() == f"spoider {__version__}"
+    assert capsys.readouterr().out.strip() == f"spoider {version_string()}"
 
 
 def test_a_document_can_be_written_to_a_pipe(tmp_path, capsys):
