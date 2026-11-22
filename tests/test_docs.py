@@ -108,6 +108,20 @@ def test_the_example_config_is_the_template(tmp_path: Path):
     assert "created_by = " in shown
 
 
+def test_the_readme_names_the_release_that_is_published() -> None:
+    """Every step that names the download names it by version, so a bump that leaves the text
+    behind sends a reader to a file no release page offers. The version lives in one place,
+    `pyproject.toml`, and this is the second place a reader meets it."""
+    from spoider import __version__
+
+    text = README.read_text(encoding="utf-8")
+    named = set(re.findall(r"spoider-(\d+\.\d+\.\d+)-pyc\.pyz", text))
+    assert named, "the README should name the archive it tells a reader to download"
+    assert named == {__version__}, (
+        f"the README names {sorted(named)}, this build is {__version__}"
+    )
+
+
 def test_the_readme_shows_how_to_write_every_format() -> None:
     """A format a person cannot find in the README is one only its author knows about."""
     from spoider.formats import EXPORT_FORMATS
