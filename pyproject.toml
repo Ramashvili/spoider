@@ -29,11 +29,12 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/spoider"]
 
-# The 2048 px master the icon set is cut from is an authoring asset, not package data: every size a
-# theme asks for is already beside it in `data/icons/`, and shipping the master would put a quarter
-# of a megabyte in every download that no desktop ever reads.
+# The masters the icon set is cut from are authoring assets, not package data: every size a theme
+# asks for is already beside them in `data/icons/`, and shipping a master would put a quarter of a
+# megabyte in every download that no desktop ever reads. There are two: the full drawing, and the
+# borderless one the smallest sizes are cut from.
 [tool.hatch.build]
-exclude = ["src/spoider/data/spoider.png"]
+exclude = ["src/spoider/data/spoider*.png"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

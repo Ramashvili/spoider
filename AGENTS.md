@@ -360,9 +360,16 @@ PATH.
 - **`gtk-update-icon-cache -f -t`** finishes the job, and `-t` is what makes it work on a machine
   whose per-user theme directory has no `index.theme`, which is the state every fresh home is in.
   A machine without the tool is no worse off; the files are where the lookup looks.
-- **The 2048 px master does not ship.** `pyproject.toml` excludes it: it is the authoring asset the
-  set is cut from, and a quarter of a megabyte per download that no desktop reads is not artwork,
-  it is weight.
+- **Two masters, and which sizes come from which.** `data/spoider.png` is the full drawing and gives
+  32, 48, 64, 128 and 256; `data/spoider-borderless.png` is the same artwork without its border and
+  gives 16 and 24, where a border is a couple of pixels of nothing and the drawing needs the room.
+  Regenerating the two smallest is one command per size, from the repository root:
+  `~/…/linux-app-icons/scripts/make-icon-set.sh src/spoider/data/spoider-borderless.png /tmp 16 24`,
+  then the file renamed to `data/icons/spoider-<size>.png`, because the theme resolves the icon by
+  that name and not by the master's.
+- **The masters do not ship.** `pyproject.toml` excludes `src/spoider/data/spoider*.png`: they are
+  the authoring assets the set is cut from, and a quarter of a megabyte per download that no desktop
+  reads is not artwork, it is weight.
 
 ## Export
 
