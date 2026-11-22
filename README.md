@@ -83,14 +83,14 @@ your path, and it works offline once it is on your disk.
 
 Download from [the releases page](https://github.com/Ramashvili/spoider/releases).
 
-`spoider-0.5.13-pyc.pyz` holds the whole program and every dependency, with the compiled form of each
+`spoider-0.5.14-pyc.pyz` holds the whole program and every dependency, with the compiled form of each
 module inside, so it loads straight out of the file and leaves nothing behind on your disk. It is
 fastest on Python 3.14.
 
 #### 2. Verify the signature
 
 Each release signs the archive, so the signature sits beside it as
-`spoider-0.5.13-pyc.pyz.asc`. Fetch the public key and import to your keyring.
+`spoider-0.5.14-pyc.pyz.asc`. Fetch the public key and import to your keyring.
 
 ```bash
 curl -fsSL https://github.com/Ramashvili.gpg | gpg --import      # download with curl and import
@@ -99,7 +99,7 @@ curl -fsSL https://github.com/Ramashvili.gpg | gpg --import      # download with
 Check if the signature matches the file:
 
 ```bash
-gpg --verify spoider-0.5.13-pyc.pyz.asc spoider-0.5.13-pyc.pyz
+gpg --verify spoider-0.5.14-pyc.pyz.asc spoider-0.5.14-pyc.pyz
 ```
 That command will say `Good signature`.
 It must display the fingerprint `2C0C9D7EC16A50D0E2130654B3125E08B4EF2741`.
@@ -114,16 +114,20 @@ Note2: The archive build is reproducible: `scripts/build-pyz` in a clone of the 
 #### 3. Run it with python
 
 ```bash
-python3 spoider-0.5.13-pyc.pyz
+python3 spoider-0.5.14-pyc.pyz
 ```
 
 #### 4. (optional) Run it with `--install-desktop` flag
 
 To have `.spoider` files open by clicking in your file browser, the file first has to be reachable as a
-command named `spoider`; the flag then registers the MIME type and the launcher that starts it:
+command named `spoider`; the flag then registers the MIME type and the launcher that starts it.
+
+A file downloaded from a release page arrives without the execute bit, so give it one: without it
+the archive cannot be started by its name, and a symlink to it answers `Permission denied`.
 
 ```bash
-ln -s ~/Downloads/spoider-0.5.13-pyc.pyz ~/.local/bin/spoider
+chmod +x ~/Downloads/spoider-0.5.14-pyc.pyz
+ln -s ~/Downloads/spoider-0.5.14-pyc.pyz ~/.local/bin/spoider
 spoider --install-desktop
 ```
 
