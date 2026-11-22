@@ -120,7 +120,8 @@ python3 spoider-0.5.14-pyc.pyz
 #### 4. (optional) Run it with `--install-desktop` flag
 
 To have `.spoider` files open by clicking in your file browser, the file first has to be reachable as a
-command named `spoider`; the flag then registers the MIME type and the launcher that starts it.
+command named `spoider`; the flag then registers the MIME type, the launcher that starts it, and the
+icon they wear.
 
 ```bash
 chmod +x ~/Downloads/spoider-0.5.14-pyc.pyz                     # make archive executable

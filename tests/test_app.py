@@ -1948,17 +1948,34 @@ async def test_an_empty_stack_says_so_as_a_note(tmp_path: Path):
         assert app.stack_open is False, "the panel stays shut"
 
 
-def test_the_map_icon_is_a_drawing_not_a_text_note():
-    """The MIME type and the launcher name the same icon: a diagram, not a page."""
+def test_the_launcher_and_the_file_type_wear_the_apps_own_icon():
+    """One name resolved through the theme by both. A stock name is what an app wears when it ships
+    no icon of its own, which is what this had before there was artwork."""
     from importlib import resources
 
     data = resources.files("spoider").joinpath("data")
     xml = data.joinpath("x-spoider.xml").read_text(encoding="utf-8")
     entry = data.joinpath("spoider.desktop").read_text(encoding="utf-8")
 
-    assert '<icon name="x-office-drawing"/>' in xml
-    assert "accessories-text-editor" not in xml
-    assert "Icon=x-office-drawing" in entry
+    assert '<icon name="spoider"/>' in xml
+    assert "Icon=spoider" in entry
+    for stock in ("x-office-drawing", "accessories-text-editor"):
+        assert stock not in xml and stock not in entry, stock
+
+
+def test_every_size_of_the_icon_ships_in_the_package():
+    """A theme asks for a size, not for a scale: a missing one is a blur the desktop invents. The
+    width and height are read out of the PNG header, so the file has to be the size its name says."""
+    from struct import unpack
+
+    from spoider.desktop import ICON_SIZES
+
+    root = Path(__file__).resolve().parent.parent / "src" / "spoider" / "data" / "icons"
+    for size in ICON_SIZES:
+        data = (root / f"spoider-{size}.png").read_bytes()
+        assert data.startswith(b"\x89PNG\r\n\x1a\n"), size
+        width, height = unpack(">II", data[16:24])
+        assert (width, height) == (size, size), (size, width, height)
 
 
 def test_the_function_keys_are_ordinary_chords():
@@ -6629,8 +6646,58 @@ def test_install_desktop_writes_the_files_where_the_system_looks(tmp_path: Path,
     assert "Exec=" in entry.read_text() and "spoider --install-desktop" not in entry.read_text()
 
     commands = [call[0] for call in calls]
-    assert commands == ["update-mime-database", "update-desktop-database", "xdg-mime"]
+    assert commands == [
+        "update-mime-database",
+        "update-desktop-database",
+        "gtk-update-icon-cache",
+        "xdg-mime",
+    ]
     assert calls[-1][-2:] == ["spoider.desktop", "application/x-spoider"]
+
+
+def test_install_desktop_writes_the_icon_at_every_size(tmp_path: Path, monkeypatch, capsys):
+    """A theme resolves the icon by name from its own directories, one file per size. The sizes are
+    the ones a desktop asks for, and the bytes are the ones the package ships, so the copy is a copy
+    and not a rendering that could drift from the artwork."""
+    from spoider.desktop import ICON_SIZES, install_desktop
+
+    monkeypatch.setattr("spoider.desktop.desktop_available", lambda: True)
+    monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: True)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+
+    assert install_desktop() == 0
+
+    shipped = Path(__file__).resolve().parent.parent / "src" / "spoider" / "data" / "icons"
+    hicolor = tmp_path / "share" / "icons" / "hicolor"
+    for size in ICON_SIZES:
+        written = hicolor / f"{size}x{size}" / "apps" / "spoider.png"
+        assert written.read_bytes() == (shipped / f"spoider-{size}.png").read_bytes(), size
+
+    out = capsys.readouterr().out
+    for size in ICON_SIZES:
+        assert f"{size}x{size}/apps/spoider.png (the icon)" in out
+
+
+def test_the_icon_refreshes_the_theme_cache(tmp_path: Path, monkeypatch):
+    """The cache is what the desktop reads: without it a new icon can wait for a restart."""
+    from spoider.desktop import install_desktop
+
+    monkeypatch.setattr("spoider.desktop.desktop_available", lambda: True)
+    calls: list[list[str]] = []
+    monkeypatch.setattr("spoider.desktop._run_tool", lambda argv: calls.append(argv) or True)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+
+    assert install_desktop() == 0
+
+    icons = [call for call in calls if call[0] == "gtk-update-icon-cache"]
+    assert icons == [
+        [
+            "gtk-update-icon-cache",
+            "-f",
+            "-t",
+            str(tmp_path / "share" / "icons" / "hicolor"),
+        ]
+    ], icons
 
 
 def test_install_desktop_quotes_a_path_with_a_space(tmp_path: Path, monkeypatch):

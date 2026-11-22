@@ -18,6 +18,15 @@ from pathlib import Path
 
 from .files import write_atomic
 
+#: The sizes the icon ships in, in the columns a theme asks for them by. A desktop can scale any of
+#: them to fit, and scaling a 256 into a 16 px slot is the blur these sizes exist to avoid: menus and
+#: title bars take 16 and 24, toolbars 32, launchers 48, and the app grid 128 or 256.
+ICON_SIZES = (16, 24, 32, 48, 64, 128, 256)
+
+#: The name both the launcher and the file type wear. It is the icon's name in the theme, never a
+#: path: a path in `Icon=` is right until the file moves.
+ICON_NAME = "spoider"
+
 #: The line in the packaged entry that names the command; the launcher's path is
 #: substituted into it, and a template without it is a packaging mistake worth saying.
 EXEC_MARKER = "Exec=spoider "
@@ -84,6 +93,22 @@ def desktop_available() -> bool:
     return shutil.which("update-mime-database") is not None
 
 
+def _write_icons(source, icon_root: Path) -> list[Path]:
+    """Copy the icon into the theme, one file per size, and say where each landed.
+
+    `hicolor` is the theme every desktop falls back to, so a program that knows nothing about the
+    user's theme still has its icon found. The files are written the way the two entries are, so a
+    half-written icon is not something an interrupted run can leave behind.
+    """
+    written: list[Path] = []
+    for size in ICON_SIZES:
+        data = source.joinpath("icons").joinpath(f"{ICON_NAME}-{size}.png").read_bytes()
+        target = icon_root / f"{size}x{size}" / "apps" / f"{ICON_NAME}.png"
+        write_atomic(target, data)
+        written.append(target)
+    return written
+
+
 def install_desktop() -> int:
     """Register `.spoider` with the desktop: the MIME type, the entry, the default.
 
@@ -122,21 +147,28 @@ def install_desktop() -> int:
 
     entry = template.replace(EXEC_MARKER, f"Exec={_quoted(command or 'spoider')} ")
 
+    icon_root = home / "icons" / "hicolor"
     try:
         write_atomic(mime_dir / "x-spoider.xml", mime_xml)
         write_atomic(apps_dir / "spoider.desktop", entry)
+        icons = _write_icons(source, icon_root)
     except OSError as exc:
         # an unwritable home, a read-only mount, a full disk: say which, and stop
         print(f"spoider: cannot write to {home}: {exc}")
         return 1
 
     # name what was written: a reader who wants to remove it, or to see why the desktop
-    # still does not know the type, needs the two paths more than a summary sentence
+    # still does not know the type, needs the paths more than a summary sentence
     print(f"wrote {_shown(mime_dir / 'x-spoider.xml')} (the MIME type)")
     print(f"wrote {_shown(apps_dir / 'spoider.desktop')} (the launcher)")
+    for path in icons:
+        print(f"wrote {_shown(path)} (the icon)")
 
     _run_tool(["update-mime-database", str(home / "mime")])
     _run_tool(["update-desktop-database", str(apps_dir)])
+    # the theme's cache, so the desktop sees the icon without a restart; a machine without the tool
+    # is no worse off, because the files are where the lookup looks for them anyway
+    _run_tool(["gtk-update-icon-cache", "-f", "-t", str(icon_root)])
     if _run_tool(["xdg-mime", "default", "spoider.desktop", "application/x-spoider"]):
         print("Success! Mind maps with the .spoider extension now open with spoider.")
         return 0

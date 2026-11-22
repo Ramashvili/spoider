@@ -343,11 +343,26 @@ Content stays plain JSON — strict, round-trips exactly, one parser — and the
 only the label that says what the JSON is. The app never looks at an extension, so any
 path opens. Import and export in other formats are separate jobs from the file.
 
-`src/spoider/data/` holds the MIME type and the desktop entry, inside the package so a
-wheel carries them; `spoider --install-desktop` copies both into the XDG directories,
-runs the cache rebuilders and sets the default. It writes nothing unless asked, and it
-resolves the launcher's `Exec=` to the real binary path because a desktop session does
-not always have `~/.local/bin` on PATH.
+`src/spoider/data/` holds the MIME type, the desktop entry and the icon set, inside the package so a
+wheel carries them; `spoider --install-desktop` copies all three into the XDG directories, runs the
+cache rebuilders and sets the default. It writes nothing unless asked, and it resolves the launcher's
+`Exec=` to the real binary path because a desktop session does not always have `~/.local/bin` on
+PATH.
+
+- **An icon is a name the theme resolves**, never a path: `Icon=spoider` in the entry and
+  `<icon name="spoider"/>` on the MIME type, with `spoider.png` installed at each size in
+  `~/.local/share/icons/hicolor/<size>/apps/`. `ICON_SIZES` in `desktop.py` is the list, and the
+  files it copies come from `data/icons/`, byte for byte, so the artwork is cut once and shipped
+  rather than rendered at install time by a tool the reader may not have.
+- **The sizes are the theme's, not the artist's**: 16 and 24 for menus and title bars, 32 for
+  toolbars, 48 for launchers, 128 and 256 for the app grid. A desktop can scale, and a 256 scaled
+  into a 16 px slot is the blur the separate files exist to avoid.
+- **`gtk-update-icon-cache -f -t`** finishes the job, and `-t` is what makes it work on a machine
+  whose per-user theme directory has no `index.theme`, which is the state every fresh home is in.
+  A machine without the tool is no worse off; the files are where the lookup looks.
+- **The 2048 px master does not ship.** `pyproject.toml` excludes it: it is the authoring asset the
+  set is cut from, and a quarter of a megabyte per download that no desktop reads is not artwork,
+  it is weight.
 
 ## Export
 
