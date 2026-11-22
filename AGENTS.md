@@ -63,13 +63,18 @@ local label, and the top bar prints it without any other machinery.
 
 - `0.5.3` is the version: what would be published, numbered by the rule above — a minor only when
   something about files or config changes.
-- `0.5.13+3f2a1bc` is a build of that commit, and `+3f2a1bc.dirty` says the tree had changes no
-  commit holds. `version_string()` in `build.py` settles this once per process, and the top bar and
-  `--version` both print the result, so a reader has one string to quote in a bug report.
-- The commit is learned, in this order, from `_commit.py` (which `scripts/build-pyz` writes into the
-  archive), from `direct_url.json` (which uv and pip write for an install from a repository), and
-  from git itself when the module runs out of a working tree. A wheel with none of the three prints
-  the plain version, which is honest: it cannot name its commit.
+- **A local label appears when the copy is not the release the number names**, and not otherwise.
+  `0.5.14` from the tag's own clean tree is the release, and the tag already names its commit;
+  `0.5.15+2f1c9ab` is commits on top of the last release, and `+2f1c9ab.dirty` says the source holds
+  changes no commit has. A release that printed a commit would claim to be something beyond itself.
+  `version_string()` in `build.py` settles this once per process, and the top bar and `--version`
+  both print the result, so a reader has one string to quote in a bug report.
+- The commit and the tag are learned, in this order, from `_commit.py` (which `scripts/build-pyz`
+  writes into the archive, tag included), from `direct_url.json` (which uv and pip write for an
+  install from a repository; `requested_revision` is the revision asked for, so a tag install is the
+  release and a branch install never is), and from git itself when the module runs out of a working
+  tree (`describe --exact-match` prints nothing unless HEAD is the tagged commit). A wheel with none
+  of the three prints the plain version, which is honest: it cannot name its commit.
 - A candidate that wants a label of its own (`+redraw`) keeps it, and the commit joins it with a dot,
   because PEP 440 allows one local label: `0.5.13+redraw.3f2a1bc`.
 

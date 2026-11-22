@@ -125,7 +125,11 @@ dirty=False
 if [ -n "$(git status --porcelain --untracked-files=normal -- src pyproject.toml uv.lock)" ]; then
     dirty=True
 fi
-printf 'COMMIT = "%s"\nDIRTY = %s\n' "$commit" "$dirty" > "$tmp/app/spoider/_commit.py"
+# The tag HEAD carries, if it carries one: a build made from the tagged tree is the release and
+# prints the plain version, and one made past the tag says how far past it is.
+tagged=$(git describe --tags --exact-match HEAD 2>/dev/null || true)
+printf 'COMMIT = "%s"\nDIRTY = %s\nTAG = "%s"\n' "$commit" "$dirty" "$tagged" \
+    > "$tmp/app/spoider/_commit.py"
 # A hash in the .pyc header rather than a file time, or two builds would differ in every header.
 step "compiling the modules" "$tmp/venv/bin/python" -c "import compileall, py_compile; compileall.compile_dir('$tmp/app', quiet=2, legacy=True, force=True, workers=8, stripdir='$tmp/app', invalidation_mode=py_compile.PycInvalidationMode.CHECKED_HASH)"
 find "$tmp/app" -exec touch -h -d "@$epoch" {} +
@@ -136,12 +140,19 @@ archive="$out/spoider-$version-pyc.pyz"
 step "packing the archive" "$tmp/venv/bin/python" -m zipapp "$tmp/app" -p "/usr/bin/env python3" -c -o "$archive"
 chmod 755 "$archive"
 
-# An archive that does not answer as the version it is named for is not shippable.
+# An archive that does not answer as the version it is named for is not shippable. A build of the
+# tag itself answers with the plain version; anything else says what it is beyond the release.
 said=$("$archive" --version)
+if [ "$tagged" = "v$version" ] && [ "$dirty" = False ]; then
+    wanted="spoider $version"
+else
+    wanted="spoider $version+$commit"
+    [ "$dirty" = True ] && wanted="$wanted.dirty"
+fi
 case "$said" in
-    "spoider $version+$commit" | "spoider $version+$commit.dirty") ;;
+    "$wanted") ;;
     *)
-        echo "build-pyz: $archive answered '$said', not 'spoider $version+$commit'" >&2
+        echo "build-pyz: $archive answered '$said', not '$wanted'" >&2
         exit 1
         ;;
 esac
