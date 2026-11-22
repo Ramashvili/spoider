@@ -2222,7 +2222,7 @@ async def test_the_help_page_leaves_the_keys_on_the_last_row(tmp_path: Path, siz
         )
 
 
-def test_the_stack_column_may_take_62_in_a_hundred_of_the_screen():
+def test_the_stack_column_takes_sixty_two_in_a_hundred_of_the_screen():
     """The column is as wide as its widest entry needs, up to 62 in a hundred: the map keeps the
     rest, since the map is what is being worked on."""
     from spoider.layout import compute_stack
@@ -2232,10 +2232,26 @@ def test_the_stack_column_may_take_62_in_a_hundred_of_the_screen():
     wide = compute_stack([Node("wide " * 40)], 0)
 
     assert stack_column(narrow, 120) < 40, "a small entry takes its own width"
-    assert stack_column(wide, 120) == 74, "a wide one stops at 74 of 120"
-    for width in (40, 60, 80, 90, 100, 120, 160, 200):
-        assert stack_column(wide, width) < width * 0.62, f"stays under 62% at {width} columns"
-    assert 120 - stack_column(wide, 120) == 46, "the map keeps the rest"
+    for width in (131, 160, 200):
+        assert stack_column(wide, width) == (width * 62 - 1) // 100, f"62% at {width} columns"
+    assert 200 - stack_column(wide, 200) == 77, "the map keeps the rest"
+
+
+def test_a_narrow_window_gives_the_column_up_to_eighty_columns():
+    """Sixty-two in a hundred of a narrow screen is fewer columns than an entry needs to be read:
+    62% of 100 is 61, and an entry that wants 80 is cut for no reason a reader chose. Below 130
+    columns the column may take eighty; above it, the percentage is the stricter rule again."""
+    from spoider.layout import compute_stack
+    from spoider.model import Node
+
+    wide = compute_stack([Node("wide " * 40)], 0)  # wants more than eighty
+    for width in (100, 110, 120, 129):
+        assert stack_column(wide, width) == 80, width
+    assert stack_column(wide, 130) == 80, "62% of 130 is already 80"
+    assert stack_column(wide, 131) == 81, "and above it the share leads again"
+    # never more columns than the window has
+    for width in (40, 60, 80):
+        assert stack_column(wide, width) == width, width
 
 
 async def test_a_stack_entry_wider_than_its_column_shifts_into_view(tmp_path: Path):

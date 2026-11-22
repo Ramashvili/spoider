@@ -138,11 +138,21 @@ STACK_TITLE = "LIFO cut/paste stack"
 
 #: The most of the screen the stack column may take, in columns per hundred.
 STACK_SHARE = 62
+#: Below this window width a share of the screen is fewer columns than an entry needs to be read, so
+#: the column is allowed this many instead. Above it the share is already wider than this, and the
+#: percentage is the stricter rule.
+STACK_NARROW = 130
+STACK_COLUMNS = 80
 
 
 def stack_column(panel: Layout | None, width: int) -> int:
     """How many columns the stack takes: as many as its widest entry needs, up to 62 in a hundred of
     the screen, and never so few that the title does not fit.
+
+    A narrow window gets the worse of the two rules: 62 in a hundred of 100 columns is 61, and an
+    entry that needs 80 is cut for no reason a reader chose. So under `STACK_NARROW` columns the
+    column may take up to `STACK_COLUMNS`, never more than the window itself, which is what keeps a
+    very narrow window from asking for more columns than it has.
 
     The map keeps the rest: the column is a look at the stack, and the map it was cut from is still
     the thing being worked on.
@@ -152,6 +162,8 @@ def stack_column(panel: Layout | None, width: int) -> int:
     wanted = max(panel.width + 3, len(STACK_TITLE) + 3)
     # one column short of the share, so the column stays under it rather than sitting on it
     share = max(1, (width * STACK_SHARE - 1) // 100)
+    if width < STACK_NARROW:
+        share = min(width, max(share, STACK_COLUMNS))
     return min(wanted, share)
 
 

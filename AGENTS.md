@@ -298,6 +298,12 @@ spacing, help) means the same thing in both places. Keep the *actions* document-
 rather than the key routing, because `Tab` and `Return` reach the app bindings without
 passing through `MindMapView.on_key` at all.
 
+The column's width is `widgets.stack_column`: as wide as its widest entry needs, capped at 62 in a
+hundred of the window, and at 80 columns outright when the window is narrow enough that 62 in a
+hundred is fewer columns than an entry needs to be read (`STACK_NARROW`, below 130). Above that
+width the percentage is the stricter rule. The map keeps what is left, which in a very narrow window
+is nothing: the panel is a look at the stack, and the look is what opening it asked for.
+
 ## One cursor, one selection
 
 `selected`/`anchor` point into whichever document has the keys: opening the panel
