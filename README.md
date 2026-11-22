@@ -122,13 +122,10 @@ python3 spoider-0.5.14-pyc.pyz
 To have `.spoider` files open by clicking in your file browser, the file first has to be reachable as a
 command named `spoider`; the flag then registers the MIME type and the launcher that starts it.
 
-A file downloaded from a release page arrives without the execute bit, so give it one: without it
-the archive cannot be started by its name, and a symlink to it answers `Permission denied`.
-
 ```bash
-chmod +x ~/Downloads/spoider-0.5.14-pyc.pyz
-ln -s ~/Downloads/spoider-0.5.14-pyc.pyz ~/.local/bin/spoider
-spoider --install-desktop
+chmod +x ~/Downloads/spoider-0.5.14-pyc.pyz                     # make archive executable
+ln -s ~/Downloads/spoider-0.5.14-pyc.pyz ~/.local/bin/spoider   # create symlink in bin
+spoider --install-desktop               #install will register MIME type and create a .desktop file
 ```
 
 ## Run in the terminal
