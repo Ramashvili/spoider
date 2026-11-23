@@ -13,7 +13,7 @@ from .keys import (
     action_chords,
     action_for,
 )
-from .layout import compute_stack
+from .layout import Layout, compute_stack
 from .model import MindMap, Node
 from .nav import _standing_after
 
@@ -114,11 +114,21 @@ class StackActions:
     def _stack_entries(self) -> list[Node]:
         """The stack as the panel reads it: newest first."""
         return list(reversed(self.mm.cut_stack))
-    def stack_layout(self):
-        """The picture of the stack, or None when the panel is shut."""
+    def stack_layout(self) -> Layout | None:
+        """The picture of the stack, or None when the panel is shut.
+
+        Kept until the document changes. One arrow key in the panel asks for it three times — the
+        walk that picks the next cell, the framing of the map beside the column, and the rows
+        themselves — and rebuilding every entry three times to move a cursor is what made a long
+        stack cost a core for as long as the key was held.
+        """
         if not self.stack_open:
             return None
-        return compute_stack(self._stack_entries(), self.mm.spacing)
+        key = (self.revision, self.mm.spacing)
+        if self._stack_layout_key != key:
+            self._stack_layout = compute_stack(self._stack_entries(), self.mm.spacing)
+            self._stack_layout_key = key
+        return self._stack_layout
     def _stack_doc(self) -> MindMap:
         """The stack as a document, made of the same Node objects.
 

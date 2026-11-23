@@ -687,6 +687,41 @@ The picture is the part we can make smaller:
   caret leaves and reaches was tried and measured slower, because a repaint rebuilds the
   widget's whole content either way.
 
+The stack panel is a document of its own, and it used to be the worst place in the app: holding
+an arrow with a hundred and sixty entries in the stack cost 49.5 ms a key, a core per press at the
+rate a held key repeats. Three things were wrong, and all three were the map's rules not being
+applied to the panel:
+
+- **The arrangement was not kept.** `stack_layout()` was `compute_stack` over every entry, and one
+  arrow key asked for it four times — the walk that picks the next cell, the framing of the map
+  beside the column, `_touch`, and the rows themselves. It is memoised on `App.revision`, which
+  `_mark_dirty` bumps, so a key that changes nothing arranges nothing. A key that does change the
+  document is a reflow anyone would pay for.
+- **The picture was not cut to the column.** `_with_stack` built the whole stack and then copied
+  out the seventy-odd columns on screen. It now passes `cache_window` of the column, in the
+  panel's own coordinates: 26 ms becomes 1.6 on the same entries.
+- **The map paid for every box and every link.** `build_grid` tested the window per box *after*
+  sorting, and walked every edge in the document to have the window drop most of them. Boxes are
+  filtered before the sort now, and `_link_visible` drops an edge whose reach (`LINK_REACH_X/Y`,
+  because an elbow stands up to three columns outside the boxes it joins) misses the window.
+
+Measured afterwards at 200x50, an arrow key with the panel open:
+
+    panel, 160 entries    49.5 -> 12.0 ms      (5 entries: 3.0 -> 2.8)
+    map, 2401 cells       16.2 -> 12.3 ms
+    map, 641 cells        11.3 -> 10.3 ms
+
+At 80x24 the same big map is 9.0 ms and the same panel 7.3, so what is left is the screen being
+repainted, not the document being read: a five-cell map costs 3.8 ms a key at either size, which is
+the floor for a key that changes what is on the screen at all.
+
+Two tests hold the cutting to its promise: a picture built through a window has to say exactly what
+the whole picture says inside it, for every shape and spacing and for the panel. They caught two
+real bugs while this was built. A run clipped to a single cell walked nothing at all (a `╮` that
+should have been `┤` at the edge of the window), and a run clipped in the middle lost the direction
+it was still going in. Both are the same fix: a clipped run walks one step past each cut, and the
+picture drops the cell that lies outside.
+
 Two things were measured and deliberately not built. A layout that translates instead of
 recomputing (`compute()` is 9.2 ms on 500 cells, 1.7 on 100) and a patch that redraws one box
 inside the shared character grid (about 2 ms, and it has to re-merge the connectors that meet

@@ -230,14 +230,18 @@ def build_grid(
     # cursor is on go first: at the tight spacings their walls run through their neighbours', and a
     # highlighted cell has to carry its whole perimeter in its own colour rather than in whichever
     # box happened to be drawn before it.
+    # a box the window cannot reach is not drawn at all, and on a big map most of them cannot:
+    # filtering before the sort is what makes the pass cost the screen instead of the document,
+    # since the sort and the key function would otherwise be paid for every cell in the map
+    boxes = (
+        [box for box in layout.boxes.values() if _visible(box, window)]
+        if window is not None
+        else list(layout.boxes.values())
+    )
     for box in sorted(
-        layout.boxes.values(),
+        boxes,
         key=lambda placed: (placed.node.id not in chosen, placed.y, placed.x),
     ):
-        # a box the window cannot reach is not drawn at all: skipping its text is the whole
-        # saving, since a row is measured and cleaned character by character
-        if window is not None and not _visible(box, window):
-            continue
         # A cell being renamed drops its selection block: the caret is the highlight
         # there, and a reverse-on-reverse caret would be invisible.
         editing = box.node.preview is not None
@@ -270,14 +274,24 @@ def build_grid(
             # an outline hangs every child off one trunk, so the fan is drawn once for the parent
             # rather than a link at a time for each child
             below = [layout.boxes[c.id] for c in box.node.children if c.id in layout.boxes]
+            if window is not None and not any(
+                _link_visible(box, child, window) for child in below
+            ):
+                continue
             _draw_column_links(grid, box, below, walls=layout.walls)
             continue
         for child in box.node.children:
             child_box = layout.boxes.get(child.id)
-            if child_box is not None:
-                _draw_link(
-                    grid, box, child_box, walls=layout.walls, spines=spines, bands=layout.bands
-                )
+            if child_box is None:
+                continue
+            # A link is drawn between the two cells it joins and nowhere else, so a pair whose
+            # box misses the window draws nothing: testing the pair is a dozen comparisons
+            # against drawing every edge in the document to have the window drop it.
+            if window is not None and not _link_visible(box, child_box, window):
+                continue
+            _draw_link(
+                grid, box, child_box, walls=layout.walls, spines=spines, bands=layout.bands
+            )
     _draw_spines(grid, spines)
     return grid.finalize()
 
@@ -303,6 +317,30 @@ def cache_window(
     x1 = -(-(left + width) // BLOCK_X) * BLOCK_X
     y1 = -(-(top + height) // BLOCK_Y) * BLOCK_Y
     return x0, y0, x1, y1
+
+
+#: How far a link reaches outside the two boxes it joins: it leaves one wall and arrives at the
+#: other, and its elbow stands up to three columns past a wall. A pair's reach is the boxes plus
+#: this, which is what makes the test below safe rather than lucky.
+LINK_REACH_X = 3
+LINK_REACH_Y = 1
+
+
+def _link_visible(
+    parent: Placed, child: Placed, window: tuple[int, int, int, int]
+) -> bool:
+    """Whether anything drawn for a link between these two cells can fall inside the window.
+
+    The stem, the elbow and the spine all live in and around the box that holds both cells, so a
+    pair whose reach misses the window has nothing to say. A parent off the screen above with a
+    child on it still passes, which is the case that matters: the spine has to come in from above.
+    """
+    left, top, right, bottom = window
+    x0 = min(parent.x, child.x) - LINK_REACH_X
+    x1 = max(parent.x + parent.w, child.x + child.w) + LINK_REACH_X
+    y0 = min(parent.y, child.y) - LINK_REACH_Y
+    y1 = max(parent.y + parent.h, child.y + child.h) + LINK_REACH_Y
+    return x0 < right and x1 > left and y0 < bottom and y1 > top
 
 
 def _visible(box: Placed, window: tuple[int, int, int, int]) -> bool:
@@ -593,21 +631,26 @@ def _draw_stack_link(
 
 
 def _clip(first: int, second: int, low: int, high: int) -> tuple[int, int] | None:
-    """The part of a run from `first` towards `second` that lies in [low, high), or None.
+    """The cells of a run from `first` to `second` that lie in [low, high), as a span.
 
-    Clipping the run rather than each cell it writes is what makes an off-window connector
-    free: its loop is empty, so the characters it would have touched never enter the picture.
+    Both ends are cells, and both directions cover them: a run is drawn a pair at a time, each
+    step touching the cell it leaves and the one it arrives at. Clipping the run rather than each
+    cell it writes is what makes an off-window connector free: the span is empty and the loop
+    that would have touched those characters never runs.
+
+    The span comes back low end first whatever the direction, because the caller knows which way
+    it was walking and a span clipped to a single cell has no direction left.
     """
-    if second > first:
-        start, end = max(first, low), min(second, high)
-        return (start, end) if start < end else None
-    start, end = min(first, high - 1), max(second, low - 1)
-    return (start, end) if start > end else None
+    start, end = (first, second) if first <= second else (second, first)
+    start, end = max(start, low), min(end, high - 1)
+    return (start, end) if start <= end else None
 
 
 def _horizontal(grid: Grid, x1: int, x2: int, y: int) -> None:
     if x1 == x2:
         return
+    step = 1 if x2 > x1 else -1
+    low, high = min(x1, x2), max(x1, x2)
     window = grid.window
     if window is not None:
         if not window[1] <= y < window[3]:
@@ -615,8 +658,15 @@ def _horizontal(grid: Grid, x1: int, x2: int, y: int) -> None:
         clipped = _clip(x1, x2, window[0], window[2])
         if clipped is None:
             return
-        x1, x2 = clipped
-    step = 1 if x2 > x1 else -1
+        low, high = clipped
+        # A run the window cut short still leaves its line going, so the cell at the cut keeps
+        # that direction: one more step at each cut end writes it, and the picture drops the
+        # cell that lies outside.
+        if low > min(x1, x2):
+            low -= 1
+        if high < max(x1, x2):
+            high += 1
+    x1, x2 = (low, high) if step > 0 else (high, low)
     for x in range(x1, x2, step):
         grid.add_link(x, y, R if step > 0 else L)
         grid.add_link(x + step, y, L if step > 0 else R)
@@ -625,6 +675,8 @@ def _horizontal(grid: Grid, x1: int, x2: int, y: int) -> None:
 def _vertical(grid: Grid, y1: int, y2: int, x: int) -> None:
     if y1 == y2:
         return
+    step = 1 if y2 > y1 else -1
+    low, high = min(y1, y2), max(y1, y2)
     window = grid.window
     if window is not None:
         if not window[0] <= x < window[2]:
@@ -632,8 +684,12 @@ def _vertical(grid: Grid, y1: int, y2: int, x: int) -> None:
         clipped = _clip(y1, y2, window[1], window[3])
         if clipped is None:
             return
-        y1, y2 = clipped
-    step = 1 if y2 > y1 else -1
+        low, high = clipped
+        if low > min(y1, y2):
+            low -= 1
+        if high < max(y1, y2):
+            high += 1
+    y1, y2 = (low, high) if step > 0 else (high, low)
     for y in range(y1, y2, step):
         grid.add_link(x, y, D if step > 0 else U)
         grid.add_link(x, y + step, U if step > 0 else D)

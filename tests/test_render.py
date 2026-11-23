@@ -867,3 +867,61 @@ def test_a_fan_of_children_has_one_vertical_run():
     assert len(columns) == 2, f"expected one spine per side, got {sorted(columns)}"
     shortest = min(columns.values())
     assert shortest >= 3, f"a spine should span its children, got {shortest} rows"
+
+
+def test_a_windowed_picture_says_what_the_whole_one_says():
+    """The picture is cut down to the screen, so a map has to look the same through any window:
+    the cutting is an economy, never an opinion about what a cell says. Every glyph inside the
+    window has to match, including the links, which reach past the boxes they join."""
+    from spoider.layout import LAYOUTS
+    from spoider.render import cache_window
+
+    mm = MindMap(Node("root"))
+    for index in range(6):
+        branch = mm.add_child(mm.root.id, f"branch {index}")
+        for leaf in range(3):
+            mm.add_child(branch.id, f"leaf {index}.{leaf} " + "word " * (index + 1))
+    deeper = mm.add_child(mm.root.children[2].id, "deeper")
+    mm.add_child(deeper.id, "deepest")
+    mm.root.children[0].children[-1].collapsed = True
+
+    for shape in sorted(LAYOUTS):
+        for spacing in (-5, -2, 0):
+            layout = compute(mm.root, spacing, shape)
+            whole = build_grid(layout, mm.root.children[1].id)
+            for left, top, width, height in ((0, 0, 200, 50), (3, 2, 40, 12), (17, 9, 61, 7)):
+                window = cache_window(left, top, width, height)
+                cut = build_grid(layout, mm.root.children[1].id, window=window)
+                x0, y0, x1, y1 = window
+                inside = {
+                    at: cell
+                    for at, cell in whole.cells.items()
+                    if x0 <= at[0] < x1 and y0 <= at[1] < y1
+                }
+                assert inside == {
+                    at: cell for at, cell in cut.cells.items() if x0 <= at[0] < x1 and y0 <= at[1] < y1
+                }, f"{shape} at spacing {spacing} through {window}"
+
+
+def test_a_page_of_the_stack_says_what_the_whole_stack_says():
+    """The panel is drawn through the column's window for the same reason the map is: what the
+    window costs is the screen, and what it must never change is a glyph inside it."""
+    from spoider.render import cache_window
+
+    mm = MindMap(Node("root"))
+    entries = []
+    for index in range(6):
+        entry = mm.add_child(mm.root.id, f"entry {index} " + "with words " * (index + 1))
+        for leaf in range(2):
+            mm.add_child(entry.id, f"leaf {index}.{leaf}")
+        entries.append(entry)
+
+    panel = compute_stack(entries, 0)
+    whole = build_grid(panel, entries[3].id)
+    window = cache_window(2, 1, 70, 18)
+    cut = build_grid(panel, entries[3].id, window=window)
+    x0, y0, x1, y1 = window
+    inside = {at: cell for at, cell in whole.cells.items() if x0 <= at[0] < x1 and y0 <= at[1] < y1}
+    assert inside == {
+        at: cell for at, cell in cut.cells.items() if x0 <= at[0] < x1 and y0 <= at[1] < y1
+    }

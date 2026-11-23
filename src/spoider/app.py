@@ -62,7 +62,7 @@ from .keys import (
     build_keymap,
     resolve,
 )
-from .layout import label
+from .layout import Layout, label
 from .model import MapFileError, MindMap, Node, marks_of
 from .nav import to_end, to_extreme_sibling, to_home
 from .screens import help_text
@@ -366,6 +366,12 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         self._edit_pushed = False
         self._map_cursor: tuple[str | None, str | None] | None = None
         self.dirty = False
+        #: Bumped by every change to the document. Pictures worked out from it — the stack's
+        #: arrangement, above all — are kept until this moves, which is what makes a keystroke
+        #: that changes nothing cost the frame and not the document.
+        self.revision = 0
+        self._stack_layout_key: tuple[int, str] | None = None
+        self._stack_layout: Layout | None = None
         #: What was typed into the search prompt; empty means no search is on.
         self.search_query = ""
         #: Ids of the cells that contain it, in document order.
@@ -1200,6 +1206,7 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
 
     def _mark_dirty(self) -> None:
         self.dirty = True
+        self.revision += 1
         if self.search_query:
             self._refresh_matches()
         self._set_terminal_title()

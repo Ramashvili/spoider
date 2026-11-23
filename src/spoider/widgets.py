@@ -654,6 +654,12 @@ class MindMapView(Widget, can_focus=True):
 
         # The panel colours by level, never by family: its entries are separate
         # little trees, so "family" would give two children of one cut two colours.
+        left, top = self._panel_origin(panel, width, height)
+        shift = self._panel_shift(panel, width)
+        # The picture is the column, not the stack: every entry is placed either way, but the
+        # text of an entry paged off the screen is measured and cleaned for nobody. The window is
+        # in the panel's own coordinates, where the column runs from `shift` to `shift + inner`
+        # and the rows from one below the title to the last row of the screen.
         art = build_grid(
             panel,
             tuple(self.spoider.selected_ids),
@@ -661,9 +667,8 @@ class MindMapView(Widget, can_focus=True):
             lead=self.spoider.selected if len(self.spoider.selected_ids) > 1 else None,
             colours="depth",
             depth_shift=DEPTH_COLORS.index(STACK_START) + 1,
+            window=cache_window(shift, 1 - top, inner + 1, height - 2),
         )
-        left, top = self._panel_origin(panel, width, height)
-        shift = self._panel_shift(panel, width)
         for (x, y), cell in art.cells.items():
             row = top + y
             if shift <= x <= shift + inner and 0 < row < height:
