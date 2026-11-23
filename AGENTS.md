@@ -260,6 +260,10 @@ to help.
   `spoider.files.write_atomic`. A map that cannot be read is reported, never half
   loaded.
 - **Don't invent scope.** Build what was asked for; propose the rest and wait.
+- **The README is written by its maintainer, not by an agent.** Its prose, its structure and its
+  examples are his, and a change to it is a change he approves before it is committed, however
+  obviously it seems to follow from the code. Editing it to match a commit that was already agreed
+  is still editing it: propose the sentence, do not write the paragraph.
 - **Nothing is left behind.** A mechanism that is removed or renamed takes its name with
   it in the same change: the function, its import, the test that pinned it, the sentence
   in the docs that promised it, and the glyph table entry that only it used. This project

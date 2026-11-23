@@ -105,13 +105,11 @@ That command will say `Good signature`.
 It must display the fingerprint `2C0C9D7EC16A50D0E2130654B3125E08B4EF2741`.
 If both are true, then verification was successful.
 
-The signature is the thing to trust, and the only thing here which says who made the file. A sha256
-sum does not, because anyone can compute one, including whoever maliciously replaced the files, which
-is why the release page shows none.
+Note: The signature is the thing to trust, and it is the only thing here which says who made the file. A
+sha256 sum does not, because anyone can compute one, including whoever maliciously replaced the files.
 
-The build is reproducible, so a suspicious reader can still check the bytes: `scripts/build-pyz` in a
-clone of the tag writes an archive into `dist/`, and `cmp dist/spoider-0.6.0-pyc.pyz
-spoider-0.6.0-pyc.pyz` says whether it is the file that was signed.
+Note2: The archive build is reproducible: `scripts/build-pyz` in a clone of the tag, then
+`sha256sum` in `dist/`, should return the same sha256sum for the pyz archive.
 
 #### 3. Run it with python
 
