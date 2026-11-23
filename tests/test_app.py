@@ -8220,3 +8220,33 @@ def test_a_map_that_fell_back_to_the_built_in_marks_still_takes_the_config(tmp_p
     app = SpoiderApp(path, demo=False, config_path=config)
     assert app.config.marks_default == ("one", "two", "three")
     assert app.mm.marks == ("one", "two", "three")
+
+
+async def test_clearing_every_mark_in_the_prompt_asks_for_the_configured_ones(tmp_path: Path):
+    """An emptied prompt is a reader saying "the ones I set up", not "the emoji this build ships".
+    The map keeps a palette of its own first, so what comes back can only be the config's."""
+    config = tmp_path / "spoider.conf"
+    config.write_text("marks_default = one two three\n")
+    app = SpoiderApp(tmp_path / "map.spoider", demo=False, config_path=config)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.set_marks(["x", "y"])
+        await pilot.pause()
+        assert app.mm.marks == ("x", "y")
+
+        await pilot.press("ctrl+w")
+        await pilot.pause()
+        field = app.query_one(PromptBar)
+        for _ in range(len(field.value)):
+            await pilot.press("backspace")
+        await pilot.pause()
+        assert field.value == "", "the prompt is empty"
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert app.mm.marks == ("one", "two", "three"), "an emptied prompt is the config's palette"
+        assert app.mode == "keys", "and the map has the keys back"
+
+        # the same answer when the list arrives with nothing usable in it
+        app.set_marks(["   ", ""])
+        await pilot.pause()
+        assert app.mm.marks == ("one", "two", "three")

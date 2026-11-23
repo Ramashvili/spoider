@@ -852,8 +852,13 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         return self.mm.marks
 
     def set_marks(self, marks: Iterable[object]) -> None:
-        """The palette is the map's, so it goes into the map rather than the rc."""
-        cleaned = marks_of(marks)
+        """The palette is the map's, so it goes into the map rather than the rc.
+
+        A prompt cleared of every mark asks for the palette the editor was started with, the same
+        way a file that records none does: the built-in emoji is the floor under both, not a
+        preference anyone chose.
+        """
+        cleaned = marks_of(marks, fallback=self.config.marks_default)
         if cleaned == self.mm.marks:
             return
         self.mm.marks = cleaned
