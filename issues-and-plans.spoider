@@ -12,7 +12,7 @@
     "💤"
   ],
   "justify": 50,
-  "cursor": "aca0b7de39d5",
+  "cursor": "12a106e7c43e",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -31,42 +31,6 @@
             "collapsed": false,
             "mark": null,
             "children": []
-          },
-          {
-            "id": "f4b6d72700bc",
-            "text": "show a little bit of LIFO stack even when we are not in it",
-            "collapsed": false,
-            "mark": "❓",
-            "children": [
-              {
-                "id": "9275bddad6f7",
-                "text": "only when there is enough space on the screen",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "0e94dd9354a1",
-                "text": "maximum characters = about 30",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "07f98fc96cb4",
-                "text": "gray color only",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "bb5093cd7594",
-                "text": "option to turn that off in conf",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
           }
         ]
       },
@@ -144,28 +108,6 @@
         "mark": null,
         "children": [
           {
-            "id": "2b322eb5611d",
-            "text": "add vertical layout",
-            "collapsed": false,
-            "mark": "📌",
-            "children": [
-              {
-                "id": "b6b6652cf65a",
-                "text": "rule: children are always bellow and a little to the right from their parent",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              },
-              {
-                "id": "ba6be234566e",
-                "text": "this will end up looking like a output of `tree` command",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
-          },
-          {
             "id": "0b5865bb809a",
             "text": "export as characters",
             "collapsed": true,
@@ -197,7 +139,7 @@
           {
             "id": "7b2d92fa3776",
             "text": "ability to have links in cells",
-            "collapsed": false,
+            "collapsed": true,
             "mark": null,
             "children": [
               {
@@ -1273,6 +1215,64 @@
       "collapsed": false,
       "mark": "✅",
       "children": []
+    },
+    {
+      "id": "2b322eb5611d",
+      "text": "add vertical layout",
+      "collapsed": true,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "b6b6652cf65a",
+          "text": "rule: children are always bellow and a little to the right from their parent",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "ba6be234566e",
+          "text": "this will end up looking like a output of `tree` command",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "f4b6d72700bc",
+      "text": "show a little bit of LIFO stack even when we are not in it",
+      "collapsed": true,
+      "mark": "❌",
+      "children": [
+        {
+          "id": "9275bddad6f7",
+          "text": "only when there is enough space on the screen",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "0e94dd9354a1",
+          "text": "maximum characters = about 30",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "07f98fc96cb4",
+          "text": "gray color only",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        },
+        {
+          "id": "bb5093cd7594",
+          "text": "option to turn that off in conf",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
     }
   ]
 }
