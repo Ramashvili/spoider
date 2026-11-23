@@ -72,27 +72,16 @@ jobs:
           name: archive
           path: dist
 
-      # The body is the tag's own annotation, so what a reader sees on the release page is what the
-      # person who signed the tag wrote there, once, instead of a second telling that can disagree
-      # with it. The hash follows it: that is what a build of the same tag elsewhere is compared
-      # against, and the archive gains its detached signature before the draft is published. The
-      # signature, not the hash, is what a reader is meant to trust.
-      - name: draft release with the tag's notes, the archive and its hash
+      # The body is the tag's own annotation and nothing else: what a reader sees on the release
+      # page is what the person who signed the tag wrote there. The archive carries a detached
+      # signature beside it, and the signature is the claim. A hash and a paragraph about which
+      # commit and which workflow produced the bytes say nothing the tag does not already say, and
+      # a second telling is a second thing that can disagree with the first.
+      - name: draft release with the tag's notes and the archive
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          {
-              git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME"
-              echo
-              echo "Built from \`$GITHUB_SHA\` by the release workflow."
-              echo
-              echo "The signature over this file is the claim. The hash below is for comparing with a"
-              echo "build of your own, and anyone can compute one."
-              echo
-              echo '```'
-              (cd dist && sha256sum spoider-*-pyc.pyz)
-              echo '```'
-          } > "$RUNNER_TEMP/notes.md"
+          git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
           # a signed tag carries its signature after the message; the body should not include it, and
           # a release page full of ASCII armour would say so loudly, so check rather than assume
           if grep -q "BEGIN PGP SIGNATURE" "$RUNNER_TEMP/notes.md"; then

@@ -114,10 +114,12 @@ not by holding the tag back.
   the docs, a test repaired to match the code. When such a change does need a number, it is a
   patch. While the major number is 0 the distinction promises nothing to anyone, so keep it
   simple and consistent rather than clever.
-- **The tag message is the release notes.** The workflow reads the annotation
-  (`git tag -l --format='%(contents:body)'`, which leaves the signature out) and puts it
-  above the hash, so the page a reader lands on says exactly what the tagger wrote there,
-  once. That makes the message a published document: a first line naming the version, then
+- **The tag message is the release notes, and the whole of them.** The workflow reads the
+  annotation (`git tag -l --format='%(contents:body)'`, which leaves the signature out) and
+  puts it in the release body with nothing added: no hash block, no line saying which commit or
+  which workflow produced the bytes, no paragraph about what to trust. The page a reader lands
+  on says exactly what the tagger wrote there, once. A second telling is a second thing that
+  can disagree with the first, and the hash was being read as a promise it never was. That makes the message a published document: a first line naming the version, then
   bullet points under headings (`Bug fixes`, `UI`, `Behavior`, and a heading of its own when
   a batch wants one), written from what a user would notice rather than from commit
   subjects. Never a date: the date is already on the commit below it, and a tag that reads
@@ -130,14 +132,15 @@ A tag push runs `.github/workflows/release.yml`, in two jobs. The first holds `c
 `id-token: write` and `attestations: write`: it checks out the tag without persisting the token, builds
 the archive, attests it, and uploads it as an artifact, so the repository's own build script never runs
 next to a token that could write. The second holds `contents: write`, downloads the artifact and
-creates a **draft** release whose body is the tag's annotation followed by the hash. Nothing publishes itself. Actions are pinned to
-commit hashes, not tags.
+creates a **draft** release whose body is the tag's annotation, and nothing else. Nothing
+publishes itself. Actions are pinned to commit hashes, not tags.
 
-A draft is the handover point: a build of the same tag on another machine is compared against that
-hash, and the archive gains its detached signature before a person publishes. The signature, not the
-hash, is what a reader is meant to trust: a checksum proves a download is intact and nothing about who
-made it. `gh attestation verify <file> --repo Ramashvili/spoider` checks the attestation without a
-key.
+A draft is the handover point: the archive gains its detached signature before a person publishes,
+and a build of the same tag on another machine is compared with it (`cmp`, since the build is
+reproducible) rather than with a hash printed on the page. The signature is what a reader is meant to
+trust: a checksum proves a download is intact and nothing about who made it, which is why the page
+carries neither. `gh attestation verify <file> --repo Ramashvili/spoider` checks the build's
+provenance without a key.
 
 That makes a tag placed before the checks agreed the one mistake that costs something, since it now
 also builds and attests: `v0.4.7` went out red on the runner, and `0.4.8` was spent repairing it
@@ -836,16 +839,17 @@ its history still filed under the id: ids are random and never reused.
 2. Tag it signed and push it: `git tag -s vX.Y.Z -m "spoider X.Y.Z"`, then `git push
    --follow-tags`. No assistant pushes, and a tag that was pushed is not moved onto later work.
 3. The tag push runs `release.yml`: it builds the archive from the tag, attests it and puts it in a
-   **draft** release with its sha256 in the notes. Nothing publishes itself.
+   **draft** release whose notes are the tag's annotation and nothing else. Nothing publishes itself.
 4. The draft is the handover. A build of the same tag elsewhere has to produce the same hash (that
    is what the reproducibility work is for), and the archive is then signed, the detached signature
    uploaded as `spoider-X.Y.Z-pyc.pyz.asc`. Publishing is `gh release edit vX.Y.Z --draft=false`,
    done by the maintainer.
 5. A reader verifies with `curl -fsSL https://github.com/Ramashvili.gpg | gpg --import`, then
    `gpg --fingerprint 2C0C9D7EC16A50D0E2130654B3125E08B4EF2741`, `gpg --verify
-   spoider-X.Y.Z-pyc.pyz.asc spoider-X.Y.Z-pyc.pyz` and `git tag -v vX.Y.Z`. The `sha256sum` in the
-   docs is for comparing with a build of one's own and is not part of the trust argument. The README
-   carries those commands and the fingerprint, so they do not live only here.
+   spoider-X.Y.Z-pyc.pyz.asc spoider-X.Y.Z-pyc.pyz` and `git tag -v vX.Y.Z`. Nothing on the release
+   page is a hash: a build of one's own is compared with `cmp` against the signed archive, and the
+   signature is the trust argument. The README carries those commands and the fingerprint, so they do
+   not live only here.
 
 A copy running out of a `.pyz` is not an installation: `from_archive()` in `app.py` reads the loader
 that imported the module, and `ask_desktop` asks such a copy nothing, since a launcher would name a
