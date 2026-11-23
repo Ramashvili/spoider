@@ -12,7 +12,7 @@
     "💤"
   ],
   "justify": 50,
-  "cursor": "07f98fc96cb4",
+  "cursor": "aca0b7de39d5",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
@@ -25,13 +25,6 @@
         "collapsed": false,
         "mark": null,
         "children": [
-          {
-            "id": "6e129ecd5e24",
-            "text": "make a better icon for installed spoider app",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          },
           {
             "id": "aca0b7de39d5",
             "text": "resolve dependabot's pull request to allow new version of textual",
@@ -204,7 +197,7 @@
           {
             "id": "7b2d92fa3776",
             "text": "ability to have links in cells",
-            "collapsed": true,
+            "collapsed": false,
             "mark": null,
             "children": [
               {
@@ -292,6 +285,13 @@
         ]
       },
       {
+        "id": "cc3cf4dce67c",
+        "text": "performance",
+        "collapsed": false,
+        "mark": null,
+        "children": []
+      },
+      {
         "id": "c7fada474760",
         "text": "behavior improvements",
         "collapsed": false,
@@ -308,13 +308,6 @@
       {
         "id": "8a49611a965a",
         "text": "tangential",
-        "collapsed": false,
-        "mark": null,
-        "children": []
-      },
-      {
-        "id": "cc3cf4dce67c",
-        "text": "performance",
         "collapsed": false,
         "mark": null,
         "children": []
@@ -1259,6 +1252,27 @@
           ]
         }
       ]
+    },
+    {
+      "id": "6e129ecd5e24",
+      "text": "make a better icon for installed spoider app",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "8ac426ddbcb9",
+      "text": "allow up to 80 width of lifo stack when termianl is narrow",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "883c7edb38ca",
+      "text": "improve algo for drawing cells",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
     }
   ]
 }
