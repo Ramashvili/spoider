@@ -15,7 +15,8 @@ DEFAULT_ROOT_TEXT = "Mind map"
 
 #: The marks a map cycles through, in press order, before anyone changes them. A
 #: map carries its own list; `marks_default` in the config is what a new one starts
-#: from. "None" always comes first in the cycle, so a press can end it.
+#: from, and also what a file that records no usable marks starts from. "None"
+#: always comes first in the cycle, so a press can end it.
 MARKS = ('⭐', '💡', '❓', '⚠️', '✅', '📌', '⌛', '🤡')
 
 #: A guard against a runaway list, not a design limit: nobody cycles sixty-four
@@ -27,12 +28,23 @@ MAX_MARKS = 64
 DEMO_MARKS = ("👀", "🧪", "🎯", "🚀", "💡")
 
 
-def marks_of(tokens: Iterable[object]) -> tuple[str, ...]:
-    """A palette from whatever was typed or read: cleaned, capped, never empty."""
+def marks_of(tokens: Iterable[object], fallback: Sequence[str] | None = MARKS) -> tuple[str, ...]:
+    """A palette from whatever was typed or read: cleaned, capped, never empty.
+
+    `fallback` is what a list that cleans to nothing becomes: the built-in palette by default, and
+    None for a caller that has a better answer behind it. A file recording no usable marks is such a
+    caller — what the reader configured is a better answer than what this module ships.
+    """
+    # a token that is not a string is not a mark: `clean` would have turned a `42` in the file into
+    # the mark "42" and a null into the mark "None", which is noise wearing a palette's clothes
     cleaned = tuple(
-        seen for token in tokens if (seen := clean(token).strip()[:MAX_MARK_CHARS])
+        seen
+        for token in tokens
+        if isinstance(token, str) and (seen := clean(token).strip()[:MAX_MARK_CHARS])
     )
-    return cleaned[:MAX_MARKS] or MARKS
+    if cleaned:
+        return cleaned[:MAX_MARKS]
+    return tuple(fallback) if fallback is not None else ()
 
 #: A map nested deeper than this is either a mistake or an attack: the loader is
 #: recursive, so an unbounded document would exhaust the stack (RecursionError).
@@ -558,6 +570,10 @@ class MindMap:
         justify = data.get("justify")
         if not isinstance(justify, int) or isinstance(justify, bool) or not 1 <= justify <= 4000:
             justify = None
+        # a file whose marks clean to nothing has said nothing about them: the editor's own palette
+        # is then the answer, and only when there is none does the built-in one stand in
+        recorded = data.get("marks")
+        marks = (marks_of(recorded, fallback=None) if isinstance(recorded, list) else ()) or marks
         mm = cls(
             root,
             spacing,
@@ -565,7 +581,7 @@ class MindMap:
             cut,
             colours if isinstance(colours, str) else DEFAULT_COLOURS,
             justify,
-            data.get("marks") if isinstance(data.get("marks"), list) else marks,
+            marks,
         )
         cursor = data.get("cursor")
         mm.cursor = clean(cursor) if isinstance(cursor, str) and cursor else None

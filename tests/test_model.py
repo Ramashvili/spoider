@@ -366,3 +366,23 @@ def test_a_document_that_says_the_same_thing_moves_nothing():
     after = MindMap.from_dict(before.to_dict())
 
     assert after.landing_from(before) is None
+
+
+def test_a_file_with_no_usable_marks_takes_the_ones_behind_it(tmp_path: Path):
+    """A map that records an empty palette has said nothing about marks, so what the reader
+    configured is the better answer than what this module ships, and the built-in palette is only
+    for a caller with nothing to offer."""
+    from spoider.model import MARKS, marks_of
+
+    root = {"id": "r", "text": "root", "children": []}
+    for recorded in ([], ["", "   "], [None], [42], [{"a": 1}]):
+        path = tmp_path / "map.spoider"
+        path.write_text(json.dumps({"version": 1, "root": root, "marks": recorded}))
+        assert MindMap.load(path, marks=["*", "!"]).marks == ("*", "!")
+        assert MindMap.load(path).marks == MARKS, recorded
+        assert marks_of(recorded) == MARKS, recorded
+        assert marks_of(recorded, fallback=None) == ()
+
+    path = tmp_path / "map.spoider"
+    path.write_text(json.dumps({"version": 1, "root": root, "marks": ["x"]}))
+    assert MindMap.load(path, marks=["*", "!"]).marks == ("x",), "what the file says wins"

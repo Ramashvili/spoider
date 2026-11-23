@@ -8203,3 +8203,20 @@ async def test_a_search_highlights_hits_on_the_stack_too(tmp_path: Path, monkeyp
 
         assert "alpha" in asked, asked
         assert all(q == "alpha" for q in asked), asked
+
+
+def test_a_map_that_fell_back_to_the_built_in_marks_still_takes_the_config(tmp_path: Path):
+    """The reported bug: a file recording an empty palette opened wearing the built-in emoji,
+    whatever the config said. The editor's marks are the answer a reader chose."""
+    config = tmp_path / "spoider.conf"
+    config.write_text("marks_default = one two three\n")
+    path = tmp_path / "map.spoider"
+    path.write_text(json.dumps({
+        "version": 1,
+        "marks": [],
+        "root": {"id": "r", "text": "root", "children": []},
+    }))
+
+    app = SpoiderApp(path, demo=False, config_path=config)
+    assert app.config.marks_default == ("one", "two", "three")
+    assert app.mm.marks == ("one", "two", "three")
