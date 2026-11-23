@@ -356,7 +356,7 @@ class MapActions:
         self._mark_dirty()
         self.notify(f"colours by {self.mm.colours}", timeout=QUICK)
     def action_layout(self) -> None:
-        """^L — cycle the shape: spider, branch right, branch left, pyramid, bush, column."""
+        """^L — cycle the shape: spider, branch right, branch left, column, pyramid, bush."""
         order = LAYOUTS
         self.mm.layout = order[(order.index(self.mm.layout) + 1) % len(order)]
         # like spacing, the shape is document state but not an edit worth undoing

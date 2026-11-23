@@ -757,7 +757,7 @@ a tree is easiest to build:
   between nearest edges (a wide neighbour is near, however long), preferring our own
   level, then a cell whose parent sits beside our parent. That is what crossing a gap
   means, and `nav.towards` is the only place it is decided.
-- `^L` cycles the shape spider, branch right, branch left, pyramid, bush, column, spider. Build in
+- `^L` cycles the shape spider, branch right, branch left, column, pyramid, bush, spider. Build in
   branch right (stored as `branch`), show the
   others, and step back to branch to keep building.
 - **`column` is the shape `tree(1)` prints**: a cell's children stand below it, one indent right,

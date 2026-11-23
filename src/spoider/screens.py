@@ -89,7 +89,7 @@ HELP: tuple[HelpSection, ...] = (
     (
         "Arrangement",
         (
-            (("layout",), "cycle the shape: spider, branch right, branch left, pyramid, bush, column"),
+            (("layout",), "cycle the shape: spider, branch right, branch left, column, pyramid, bush"),
             (("colours",), "colour by depth, or by family, one colour per branch"),
             (("spacing_more",), "more air between cells, saved with the map"),
             (("spacing_less",), "less air, down to cells sharing a border row"),

@@ -203,12 +203,12 @@ automatically to match the drawing on screen:
 - **spider:** root in the centre, branches fanning out left and right.
 - **branch right:** root on the left, unfolding to the right like an outline.
 - **branch left:** the same outline from the other side, root on the right.
-- **pyramid:** root at the top, children stacked below.
-- **bush:** root at the bottom, growing upwards.
 - **column:** what `tree` prints in a shell: every cell below its parent and one
   indent further right, so a deep map reads as an indented outline. Its arrows are
   positional rather than structural: `↓` and `↑` step through the cells in the order
   they are drawn, `→` enters the first child, and `←` comes back out to the parent.
+- **pyramid:** root at the top, children stacked below.
+- **bush:** root at the bottom, growing upwards.
 
 Press `c` to colour either by family (one colour per main branch) or by depth
 (one colour per level).

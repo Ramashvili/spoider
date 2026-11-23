@@ -3090,7 +3090,7 @@ async def test_ctrl_l_cycles_the_shapes_and_marks_the_buffer_dirty(tmp_path: Pat
             await pilot.press("ctrl+l")
             await pilot.pause()
             seen.append(app.mm.layout)
-        assert seen == ["branch", "branch-left", "pyramid", "bush", "column", "spider"]
+        assert seen == ["branch", "branch-left", "column", "pyramid", "bush", "spider"]
         assert app.dirty
 
 
@@ -3175,7 +3175,7 @@ async def test_the_shape_is_written_into_the_map_file(tmp_path: Path):
     path = tmp_path / "map.json"
     app = SpoiderApp(path, demo=False)
     async with app.run_test() as pilot:
-        for _ in range(3):  # spider > branch right > branch left > pyramid
+        for _ in range(4):  # spider > branch right > branch left > column > pyramid
             await pilot.press("ctrl+l")
             await pilot.pause()
         await pilot.press("ctrl+s")
