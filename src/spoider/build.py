@@ -3,11 +3,11 @@
 The version is what a build *is*. A local label says the thing on disk is **not** the release the
 number names, so it appears exactly then::
 
-    spoider 0.5.14                  the tag's own tree, clean: this is the release, and the tag names
+    spoider 0.6.0                  the tag's own tree, clean: this is the release, and the tag names
                                     the commit for anyone who wants it
     spoider 0.5.15+2f1c9ab          commits have landed on top of the last release
     spoider 0.5.15+2f1c9ab.dirty    and the source holds changes no commit has
-    spoider 0.5.14                  a wheel from an index: no commit to name, and nothing claims one
+    spoider 0.6.0                  a wheel from an index: no commit to name, and nothing claims one
 
 Three places can answer, and they are tried in this order:
 
