@@ -21,7 +21,7 @@ jobs:
       # pinned: setup-uv publishes no floating v10 tag, so both are pinned to the
       # version they were tested with and dependabot moves them
       - uses: actions/checkout@v7.0.1
-      - uses: astral-sh/setup-uv@v10.3.3
+      - uses: astral-sh/setup-uv@v10.4.0
       - run: uv python install ${{ matrix.python-version }}
       - run: uv sync --dev
       - run: uv run ruff check src tests
