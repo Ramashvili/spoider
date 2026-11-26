@@ -12,43 +12,13 @@
     "💤"
   ],
   "justify": 50,
-  "cursor": "12a106e7c43e",
+  "cursor": "3f7692c35d74",
   "root": {
     "id": "08048bdbb41d",
     "text": "spoider development",
     "collapsed": false,
     "mark": null,
     "children": [
-      {
-        "id": "0756737968d6",
-        "text": "improve UI",
-        "collapsed": false,
-        "mark": null,
-        "children": [
-          {
-            "id": "aca0b7de39d5",
-            "text": "resolve dependabot's pull request to allow new version of textual",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          }
-        ]
-      },
-      {
-        "id": "12a106e7c43e",
-        "text": "README",
-        "collapsed": false,
-        "mark": null,
-        "children": [
-          {
-            "id": "7a902a791464",
-            "text": "mention the specifying font embeds it in svg.\nElse there is a risk that it will not be\ndrawn nicely",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          }
-        ]
-      },
       {
         "id": "e58cc8120b6d",
         "text": "fix bugs",
@@ -107,6 +77,43 @@
         "collapsed": false,
         "mark": null,
         "children": [
+          {
+            "id": "6863a86e73b3",
+            "text": "add hot reload option. Editor monitors the\nfile and reloads changes on the fly.",
+            "collapsed": true,
+            "mark": "📌",
+            "children": [
+              {
+                "id": "37241d55c572",
+                "text": "It implies autosave.",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              },
+              {
+                "id": "35a1cd8ead35",
+                "text": "two editor instances will\nstay synchronised",
+                "collapsed": false,
+                "mark": null,
+                "children": [
+                  {
+                    "id": "900f64b35947",
+                    "text": "each can claim a cell and that becomes locked\nuntill editing is finished",
+                    "collapsed": false,
+                    "mark": null,
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "880c807e85e4",
+                "text": "this is potentially useful if I want to\nallow clanker to write into my file\nwhile I have it opened",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          },
           {
             "id": "0b5865bb809a",
             "text": "export as characters",
@@ -205,6 +212,51 @@
           {
             "id": "46c37f6d66f2",
             "text": "allow to export svg with transparent background",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
+          {
+            "id": "3f7692c35d74",
+            "text": "make a way to import from other common mindmap formats",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "12a106e7c43e",
+        "text": "README",
+        "collapsed": false,
+        "mark": null,
+        "children": [
+          {
+            "id": "7a902a791464",
+            "text": "mention the specifying font embeds it in svg.\nElse there is a risk that it will not be\ndrawn nicely",
+            "collapsed": false,
+            "mark": null,
+            "children": [
+              {
+                "id": "89b4a6169833",
+                "text": "maybe make it so that user must specify font?\nbecause not specifying makes it look ugly",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "0756737968d6",
+        "text": "improve UI",
+        "collapsed": false,
+        "mark": null,
+        "children": [
+          {
+            "id": "aca0b7de39d5",
+            "text": "resolve dependabot's pull request to allow new version of textual",
             "collapsed": false,
             "mark": null,
             "children": []
@@ -1273,6 +1325,13 @@
           "children": []
         }
       ]
+    },
+    {
+      "id": "88d92c39e2dc",
+      "text": "editing cells in stack no longer resizes cell. Fix it",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
     }
   ]
 }
