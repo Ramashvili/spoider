@@ -8329,3 +8329,41 @@ async def test_typing_into_a_cut_stack_entry_widens_it(tmp_path: Path):
 
         after = app.stack_layout().box(entry.id).w
         assert after > before, f"the entry stayed {after} wide while being typed into"
+
+
+async def test_a_new_empty_cell_in_the_panel_is_as_wide_as_the_word_it_shows(tmp_path: Path):
+    """An empty cell draws `(empty)`, and the panel is arranged before that word is drawn: an entry
+    made and committed without typing kept the width of the caret it was opened with, so its border
+    ran through the middle of the placeholder."""
+    path = tmp_path / "map.spoider"
+    mm = MindMap(Node("root"))
+    mm.add_child(mm.root.id, "keep")
+    entry = mm.add_child(mm.root.id, "cut")
+    mm.cut_stack.append(entry)
+    mm.save(path)
+
+    app = SpoiderApp(path, demo=False, config_path=tmp_path / "c.conf")
+    async with app.run_test(size=(110, 24)) as pilot:
+        await pilot.pause()
+        await pilot.press("p")
+        await pilot.pause()
+
+        # enter is add_sibling here, in the panel as on the map: a new entry, empty, opened
+        await pilot.press("enter")
+        await pilot.pause()
+        made = app.selected
+        assert app.editing, "the new entry opens for typing"
+        assert app.document.find(made).text == ""
+
+        # finish it without typing: an empty cell is a cell, and it is kept
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.document.find(made) is not None
+
+        panel = app.stack_layout()
+        assert panel is not None
+        box = panel.box(made)
+        assert box is not None
+        assert box.w >= len("(empty)") + 2, f"the border is {box.w} wide around `(empty)`"
+        drawn = "".join(glyph for row in app.view.screen_cells() for glyph, _ in row)
+        assert "(empty)" in drawn

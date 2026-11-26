@@ -114,6 +114,15 @@ class StackActions:
     def _stack_entries(self) -> list[Node]:
         """The stack as the panel reads it: newest first."""
         return list(reversed(self.mm.cut_stack))
+    def forget_stack_layout(self) -> None:
+        """The panel's arrangement is worked out again: something it was measured from moved.
+
+        The panel is kept until the document changes, and a cell committed empty is a change the
+        document does not record (its text went from nothing to nothing), so a picture of the
+        placeholder it now draws has to be asked for rather than waited for.
+        """
+        self._stack_layout_key = None
+
     def stack_layout(self) -> Layout | None:
         """The picture of the stack, or None when the panel is shut.
 

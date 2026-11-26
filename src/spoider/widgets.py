@@ -242,6 +242,8 @@ class MindMapView(Widget, can_focus=True):
         previous = self._layout
         camera = (self._offset_x, self._offset_y)
         self._layout = None
+        # the panel is arranged from the same document, so its picture is stale for the same reasons
+        self.spoider.forget_stack_layout()
         self._forget()
         self._settle()
         if camera != (self._offset_x, self._offset_y) or previous is None:
