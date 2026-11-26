@@ -119,11 +119,29 @@ class EditActions:
             self.view.refresh_map()
 
     def _kept_its_size(self, node) -> bool:
-        """Whether a cell's box is still the size the layout gave it.
+        """Whether a cell's box is still the size the arrangement gave it.
 
-        A wider box moves its children and its siblings, so the arrangement is redone; a
-        box that stayed the same size moves nothing and only its own cells change.
+        A wider box moves its children and its siblings, so the arrangement is redone; a box that
+        stayed the same size moves nothing and only its own cells change.
+
+        A cell in the panel is measured against the panel's arrangement, which is the one that holds
+        it. The panel's arrangement is kept until the document changes, and a preview is not a
+        document change, so a growing entry keeps the boxes it was drawn with and never widens: the
+        memo is dropped here when the size moved, which is what makes the panel behave like the map.
         """
+        if self.stack_open and self._stack_doc().find(node.id) is not None:
+            panel = self.stack_layout()
+            if panel is None:
+                return False
+            placed = panel.box(node.id)
+            if placed is None:
+                return False
+            kept = placed.w == box_width(node, panel.walls) and placed.h == box_height(
+                node, panel.walls
+            )
+            if not kept:
+                self._stack_layout_key = None  # the arrangement is worked out again with the text
+            return kept
         layout = self.view.layout_
         placed = layout.box(node.id)
         if placed is None:

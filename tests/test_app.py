@@ -8299,3 +8299,33 @@ async def test_clearing_every_mark_in_the_prompt_asks_for_the_configured_ones(tm
         app.set_marks(["   ", ""])
         await pilot.pause()
         assert app.mm.marks == ("one", "two", "three")
+
+
+async def test_typing_into_a_cut_stack_entry_widens_it(tmp_path: Path):
+    """The panel is drawn by its own arrangement, and a preview is not a document change: the entry
+    kept the width it was drawn with, so it never grew under the caret. The map has always widened
+    as it is typed into, and the panel does now too."""
+    path = tmp_path / "map.spoider"
+    mm = MindMap(Node("root"))
+    mm.add_child(mm.root.id, "keep")
+    entry = mm.add_child(mm.root.id, "cut")
+    mm.cut_stack.append(entry)
+    mm.save(path)
+
+    app = SpoiderApp(path, demo=False, config_path=tmp_path / "c.conf")
+    async with app.run_test(size=(100, 24)) as pilot:
+        await pilot.pause()
+        await pilot.press("p")
+        await pilot.pause()
+        app.select(entry.id)
+        panel = app.stack_layout()
+        assert panel is not None
+        before = panel.box(entry.id).w
+
+        app.begin_edit(entry.id)
+        app._buffer.text = "a much longer entry than before"
+        app._sync_preview()
+        await pilot.pause()
+
+        after = app.stack_layout().box(entry.id).w
+        assert after > before, f"the entry stayed {after} wide while being typed into"
