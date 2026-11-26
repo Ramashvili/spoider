@@ -454,6 +454,24 @@ would have to be swept at once to clear them, so the choice is to keep the gate 
 from that list: `BINDINGS` is `list[Binding]`, not Textual's union with the tuple form,
 so `binding.id` and `binding.action` are strings everywhere in our code.
 
+## The dependency window
+
+`pyproject.toml` says `textual>=2,<8.2.5`, and that is a measurement rather than a preference: run
+against this code, textual 1.0.0 fails 329 tests, every major from 2 to 8 passes all 742 on both
+Python 3.11 and 3.14, and 8.2.5 is the release that replaced the `textual-ansi` theme `SpoiderApp`
+starts with, so anything from there on fails on the app's first line with `InvalidThemeError`.
+
+A new end means running the suite at that end first:
+
+    uv venv /tmp/vt --python 3.14
+    uv pip install --python /tmp/vt/bin/python --no-deps -e . pytest pytest-asyncio pytest-xdist
+    uv pip install --python /tmp/vt/bin/python textual==8.2.4
+    PYTHONPATH=src /tmp/vt/bin/python -m pytest -q
+
+The lock stays at 6.12.0, the version the archive ships and the one the pictures were judged on. The
+window is wider than the archive on purpose: 6.12.0 and 8.2.4 draw the same screen cell for cell, so a
+reader whose environment already holds another version in the window keeps the app they expect.
+
 ## Tests
 
 `uv run pytest` runs twelve at a time (pytest-xdist): one test drives one app through

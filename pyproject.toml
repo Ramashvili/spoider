@@ -6,7 +6,11 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
-dependencies = ["textual>=1.0,<7"]
+# The window this code has been run in, measured rather than guessed: textual 1.0.0 fails 329 of the
+# tests, 2.0.0 through 8.2.4 pass all 742 on both Python 3.11 and 3.14, and 8.2.5 removed the
+# `textual-ansi` theme the app starts with. Moving either end means running the suite at the new end
+# first; the ends of every major were sampled, not every patch.
+dependencies = ["textual>=2,<8.2.5"]
 
 [project.scripts]
 spoider = "spoider.app:main"
