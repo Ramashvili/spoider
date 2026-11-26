@@ -468,9 +468,10 @@ A new end means running the suite at that end first:
     uv pip install --python /tmp/vt/bin/python textual==8.2.4
     PYTHONPATH=src /tmp/vt/bin/python -m pytest -q
 
-The lock stays at 6.12.0, the version the archive ships and the one the pictures were judged on. The
-window is wider than the archive on purpose: 6.12.0 and 8.2.4 draw the same screen cell for cell, so a
-reader whose environment already holds another version in the window keeps the app they expect.
+The lock carries 8.2.4, so that is the version the next archive ships. The pictures were judged on
+6.12.0 and the two draw the same screen cell for cell, which is what makes it safe to build on one and
+have been looking at the other. A tool install resolves the range rather than the lock, so a reader
+gets 8.2.4 as well: what is built here and what somebody installs are the same version.
 
 ## Tests
 
