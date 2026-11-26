@@ -113,6 +113,11 @@ class Config:
     #: (action, chord) pairs whose chord could never be pressed, so the line lost it.
     #: Kept so the app can say so instead of dropping a key in silence.
     bad: tuple[tuple[str, str], ...] = ()
+    #: What is wrong with the file itself when it could not be read at all, phrased to follow its
+    #: path. A file full of typos still says what it can; a file that cannot be read says nothing,
+    #: and every setting quietly going back to its default is the one failure a reader cannot see
+    #: in the file, because the file is the thing that stopped them.
+    unreadable: str | None = None
 
 
 def config_dir() -> Path:
@@ -227,12 +232,26 @@ def parse(text: str, known: Collection[str] | None = None) -> Config:
 
 
 def load_config(path: Path | None = None, known: Collection[str] | None = None) -> Config:
-    """The flat rc file, or the defaults when there is none to read."""
+    """The flat rc file, or the defaults when there is none to read.
+
+    A file that exists and cannot be read is not the same as no file: the settings are gone from the
+    screen for a reason the reader cannot see by looking at their config, so the reason comes back
+    with the defaults.
+    """
     path = Path(path) if path is not None else default_config_path()
+    text: str
     try:
-        return parse(path.read_text(), known)
-    except (OSError, UnicodeDecodeError):
-        return Config()
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        config = Config()
+        reason = exc.strerror or str(exc)
+        config.unreadable = f"the config cannot be read: {reason}"
+        return config
+    except UnicodeDecodeError:
+        config = Config()
+        config.unreadable = "the config is not UTF-8 text"
+        return config
+    return parse(text, known)
 
 
 def render_config(config: Config, key_entries: Sequence[tuple[str, str, str]]) -> str:
@@ -303,6 +322,10 @@ def update_config(path: Path, changes: dict[str, str]) -> None:
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except (OSError, UnicodeDecodeError):
+        # a file that is there but not readable text is the reader's file, not ours to replace: the
+        # app has already said it is unreadable, and one setting is not worth the rest of it
+        if path.exists():
+            return
         lines = []
     pending = dict(changes)
     for index, line in enumerate(lines):

@@ -342,6 +342,14 @@ is not a preference (a safety cap, the shape of the format) stays a constant.
 `examples/spoider.conf` is the template verbatim, and `test_docs.py` keeps the two
 identical, so a setting added in a release is visible to a reader whose own file predates it.
 
+**A config that cannot be read says so, and is never rewritten.** `load_config` keeps the reason in
+`Config.unreadable` (not UTF-8, or the errno's own words) and the app puts it first in the red line,
+because every setting quietly back at its default is the one failure the reader cannot see in the
+file: the file is the thing that stopped them. The reason leads and the path follows, since the
+notice is one line that a narrow screen truncates. `update_config` refuses to line-edit a file it
+could not read — one setting is not worth the rest of what is in there — so an unreadable config
+stays exactly as it was rather than being replaced by the one line that was about to be written.
+
 Anything that decides how a map *looks* goes in the map file: tree, text, marks,
 folds, spacing, layout, colouring, the cut stack, and the width the map was last
 justified to (`justify`). Anything about how the *editor* behaves goes in the rc file

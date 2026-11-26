@@ -10,7 +10,7 @@ from textual import events
 
 from spoider.app import BINDINGS, SpoiderApp
 from spoider.chrome import DIVIDER, FooterBar, compose_footer, hint_chunks
-from spoider.config import load_config
+from spoider.config import load_config, update_config
 from spoider.drawers import AskBar, ErrorBar, NoticeBar, PanelBar, PromptBar
 from spoider.editing import MAX_UNDO
 from spoider.history import Step
@@ -1313,6 +1313,55 @@ def test_comments_and_loose_spacing_are_tolerated(tmp_path: Path):
     assert config.autosave is True
     assert config.marks_default == ("✅", "❌")
     assert config.keys == {"save": "ctrl+w"}
+
+
+async def test_a_config_that_is_not_utf8_says_so_and_the_defaults_are_used(tmp_path: Path):
+    """Every setting going back to its default is invisible in a file nobody can open: the reason
+    comes with them, or a reader spends an evening wondering where their settings went."""
+    config = tmp_path / "spoider.conf"
+    config.write_bytes(b"tab_width = 12\n\xff\xfe\n")
+    app = SpoiderApp(tmp_path / "map.spoider", demo=False, config_path=config)
+    async with app.run_test(size=(140, 30)) as pilot:
+        await pilot.pause()
+        band = app.query_one(NoticeBar).render()
+        text = band.plain if hasattr(band, "plain") else str(band)
+        assert "the config is not UTF-8 text" in text
+        assert "the defaults are in use" in text
+        assert app.config.tab_width == 4
+
+
+async def test_a_config_that_cannot_be_read_says_why(tmp_path: Path, monkeypatch):
+    """Permission denied, or a file that went away between the check and the read: the sentence
+    says which, because the answer is different depending on it."""
+    config = tmp_path / "locked.conf"
+    config.write_text("tab_width = 12\n")
+    original = Path.read_text
+
+    def refuse(self, *args, **kwargs):
+        if self == config:
+            raise PermissionError(13, "Permission denied")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", refuse)
+    app = SpoiderApp(tmp_path / "map.spoider", demo=False, config_path=config)
+    async with app.run_test(size=(140, 30)) as pilot:
+        await pilot.pause()
+        band = app.query_one(NoticeBar).render()
+        text = band.plain if hasattr(band, "plain") else str(band)
+        assert "cannot be read: Permission denied" in text
+        assert app.config.tab_width == 4
+
+
+def test_an_unreadable_config_is_never_rewritten(tmp_path: Path):
+    """`update_config` line-edits the reader's file, so a file it could not read is not its to
+    write: one setting is not worth the rest of what is in there."""
+    config = tmp_path / "spoider.conf"
+    original = b"tab_width = 12\n\xff\xfe\n"
+    config.write_bytes(original)
+
+    update_config(config, {"desktop_asked": "true"})
+
+    assert config.read_bytes() == original, "the file is untouched"
 
 
 async def test_ctrl_w_sets_the_marks_of_the_map(tmp_path: Path):

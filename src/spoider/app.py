@@ -668,7 +668,14 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
         both are reported here, in red, once per reading of the file.
         """
         chords, clashes = resolve(self.config.keys)
-        said: list[str] = [f"{WARNING}collision in config. {text}." for _chord, text in clashes]
+        # a config that could not be read is said first: every setting is at its default, and the
+        # file looks fine to whoever opens it
+        said: list[str] = (
+            [f"{WARNING}{self.config.unreadable}, so the defaults are in use ({self.config_path})."]
+            if self.config.unreadable
+            else []
+        )
+        said += [f"{WARNING}collision in config. {text}." for _chord, text in clashes]
         said += [
             f"{WARNING}{name} is set twice, the first line is ignored."
             for name in self.config.repeated
