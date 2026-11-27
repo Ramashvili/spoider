@@ -1390,12 +1390,35 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self.exit()
 
     def _drawn(self, node_id: str) -> bool:
-        """Whether a pane draws this cell: the map always does, the cut stack while it is open.
+        """Whether the pane in front draws this cell.
 
-        An undo that leaves the cursor on a stack entry with the panel shut hides the cursor: no
-        pane draws it, and every key after that acts on something the reader cannot see.
+        With the panel open that pane is the stack, so a map cell is not where the cursor can be
+        seen; with it shut the map is, and a cell that only the stack holds is invisible there. An
+        undo that leaves the cursor on a cell no pane draws hides it, and every key after that acts
+        on something the reader cannot see.
         """
-        return self.mm.find(node_id) is not None or self.stack_open
+        if self.stack_open:
+            return any(node.id == node_id for entry in self.mm.cut_stack for node in entry.walk())
+        return self.mm.find(node_id) is not None
+
+    def _cursor_home(self) -> None:
+        """Put the cursor on a cell the pane in front holds, whatever just happened.
+
+        One cursor serves two documents, and undo, a reload, a cut, a paste or a delete can move or
+        remove the cell it stands on. So every path that changes either document ends here: the
+        panel closes itself when its stack is empty, the cursor is taken when it has none, and it is
+        the map's root when even that is gone. Nothing leaves without the cursor somewhere real.
+        """
+        if self.stack_open:
+            if not self._stack_entries():
+                self._close_stack()  # nothing left to show: the map, and its cursor
+                return
+            held = {node.id for entry in self.mm.cut_stack for node in entry.walk()}
+            if self.selected not in held:
+                self.selected, self.anchor = self._stack_entries()[0].id, None
+            return
+        if self.selected is None or self.mm.find(self.selected) is None:
+            self.selected, self.anchor = self.mm.root.id, None
 
     def _restore(self, step: Step, *, forward: bool) -> None:
         was = self.mm
@@ -1416,6 +1439,8 @@ class SpoiderApp(MapActions, StackActions, EditActions, App[None]):
             self.selected = self.mm.root.id
         # the anchor belongs to the document we just replaced
         self.anchor = None
+        # and the cell it stands on has to survive somewhere, in whichever document is in front
+        self._cursor_home()
         self._move_cell_histories(step.cells, forward=forward)
         self._mark_dirty()
 

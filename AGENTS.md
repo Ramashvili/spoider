@@ -319,6 +319,19 @@ stashes the map's pair and closing puts it back. `selected_ids` reads the run fr
 the map and inside a cut, and the panel draws the run through the same `build_grid`.
 Anything that reaches for `self.mm` instead of `self.document` is a bug in the panel.
 
+That pair is also a promise: **the cursor is always on a cell the pane in front draws**. Undo, a
+reload, a cut, a paste and a delete all move or remove cells, and a cursor left on a cell no pane
+holds is invisible while every key after it still acts on something the reader cannot see. So
+`_cursor_home` is asked at the end of every path that changes either document, and it never leaves
+without the cursor somewhere real: the panel closes itself when its stack is empty, the cursor takes
+the first entry when the entry under it went, and the map's root stands in when even the cell it had
+is gone. `_drawn` means "the pane in front draws it", not "the map holds it", and the panel has one
+way out, `_close_stack`, which is where a parked map cursor that no longer names a cell gets replaced.
+
+`tests/test_cursor.py` holds the guarantee rather than a list of paths: fixed-seed key sequences over
+the map and over the panel assert after every keystroke that the cursor is somewhere the pane in front
+draws it. A path nobody thought of shows up there.
+
 `_drawer_owner` answers "who holds the keys" by asking which drawer is *displayed*,
 never by matching mode names: a new prompt mode keeps the keys on return without anyone
 remembering to list it, which is how `justify` came to be left open with the map taking

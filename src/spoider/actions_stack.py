@@ -89,12 +89,7 @@ class StackActions:
         into the map first.
         """
         if self.stack_open:
-            self._stack_open = False
-            if self._map_cursor is not None:
-                selected, anchor = self._map_cursor
-                if selected is not None and self.mm.find(selected) is not None:
-                    self.selected, self.anchor = selected, anchor
-                self._map_cursor = None
+            self._close_stack()
             self.view.refresh()
             self._sync_footer()
             self._refresh_chrome()
@@ -346,14 +341,26 @@ class StackActions:
         parent.children.insert(target, node)
         self.mm.cut_stack = list(reversed(doc.root.children))
         self._stack_changed()
-    def stack_open_or_close_after_undo(self) -> None:
-        """Undo can empty the stack a panel is showing; the panel goes with it."""
+    def _close_stack(self) -> None:
+        """The panel goes, and the cursor comes back to a cell the map really holds.
+
+        It returns to the cell it left, which is what a reader expects; when that cell is not in the
+        document any more, unmoved by an undo it did not follow, the cursor still cannot be allowed
+        to point at nothing: the map's root is always drawn.
+        """
         self._stack_open = False
-        if self._map_cursor is not None:
-            selected, anchor = self._map_cursor
+        parked, self._map_cursor = self._map_cursor, None
+        if parked is not None:
+            selected, anchor = parked
             if selected is not None and self.mm.find(selected) is not None:
                 self.selected, self.anchor = selected, anchor
-            self._map_cursor = None
+                return
+        if self.selected is None or self.mm.find(self.selected) is None:
+            self.selected, self.anchor = self.mm.root.id, None
+
+    def stack_open_or_close_after_undo(self) -> None:
+        """Undo can empty the stack a panel is showing; the panel goes with it."""
+        self._close_stack()
         self._sync_footer()
         self._refresh_chrome()
         self.view.refresh()
