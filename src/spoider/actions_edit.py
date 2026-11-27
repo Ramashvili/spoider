@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from textual import events
 
-from .chrome import FAILURE, QUICK
+from .chrome import FAILURE, NOTE, QUICK
 from .editing import Buffer, reflow
 from .layout import box_height, box_width
 from .model import MAX_CELL_CHARS
@@ -218,7 +218,11 @@ class EditActions:
         elif self._action_for(key) == "copy":
             self._cut_or_copy(cut=False)
         elif self._action_for(key) == "paste":
-            self._insert_and_warn(buffer, self._text_clip)
+            if not self._text_clip:
+                # a key that would do nothing says it did nothing: silence reads as a lost key
+                self.notify("nothing to paste", severity="warning", timeout=NOTE)
+            else:
+                self._insert_and_warn(buffer, self._text_clip)
         elif self._action_for(key) == "justify":
             self.action_justify()
         elif self._action_for(key) == "undo":
@@ -265,9 +269,13 @@ class EditActions:
     def on_paste(self, event: events.Paste) -> None:
         """Text the terminal pasted (ctrl+shift+v) lands at the caret."""
         if self.editing and self._buffer is not None:
+            event.stop()
+            if not clean_text(event.text):
+                # a paste of nothing is still a key the reader pressed: say it landed nowhere
+                self.notify("nothing to paste", severity="warning", timeout=NOTE)
+                return
             self._insert_and_warn(self._buffer, event.text)
             self._sync_preview()
-            event.stop()
     def action_justify(self) -> None:
         """^J — reflow a cell's text to a width you give, the way nano justifies."""
         node_id = self._edit_id if self.editing else self.focus

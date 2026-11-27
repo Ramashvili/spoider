@@ -8367,3 +8367,25 @@ async def test_a_new_empty_cell_in_the_panel_is_as_wide_as_the_word_it_shows(tmp
         assert box.w >= len("(empty)") + 2, f"the border is {box.w} wide around `(empty)`"
         drawn = "".join(glyph for row in app.view.screen_cells() for glyph, _ in row)
         assert "(empty)" in drawn
+
+
+async def test_pasting_into_a_cell_with_nothing_to_paste_says_so(tmp_path: Path):
+    """A key that would do nothing says it did nothing: silence reads as a key that was lost."""
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "p.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        await pilot.press("e")          # open the root cell for typing
+        await pilot.pause()
+        assert app.editing
+
+        await pilot.press("ctrl+u")     # nothing has been copied or cut yet
+        await pilot.pause()
+        assert _notice(app).message == "nothing to paste"
+
+        app.on_paste(events.Paste(""))  # the terminal pasting an empty clipboard
+        await pilot.pause()
+        assert _notice(app).message == "nothing to paste"
+
+        app.on_paste(events.Paste("   "))   # nothing but space is nothing worth pasting
+        await pilot.pause()
+        assert _notice(app).message == "nothing to paste"
