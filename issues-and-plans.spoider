@@ -11,7 +11,7 @@
     "❌",
     "💤"
   ],
-  "justify": 50,
+  "justify": 10,
   "cursor": "3f7692c35d74",
   "root": {
     "id": "08048bdbb41d",
@@ -19,58 +19,6 @@
     "collapsed": false,
     "mark": null,
     "children": [
-      {
-        "id": "e58cc8120b6d",
-        "text": "fix bugs",
-        "collapsed": false,
-        "mark": null,
-        "children": [
-          {
-            "id": "6595b551ac7b",
-            "text": "check if we are rendering svgs in such a way, that\ntext of some lines gets centered on the cell - it\nshould not. There seems do be a discrepancy. We\nwant the text aligned to the left of a cell - fill\nthe rest with empty spaces if necessary. Glyph\ngrid shall reflect the original",
-            "collapsed": false,
-            "mark": null,
-            "children": [
-              {
-                "id": "7c21e36aa250",
-                "text": "this is only aparent in some svg viewers",
-                "collapsed": false,
-                "mark": null,
-                "children": []
-              }
-            ]
-          },
-          {
-            "id": "a72f659b6e4e",
-            "text": "app opened from desktop launcher\nautomatically saves files directly to home\nfolder without saying it",
-            "collapsed": true,
-            "mark": "❓",
-            "children": [
-              {
-                "id": "3118ae02735e",
-                "text": "some minimal file manager-like function for\nthose who launch it as an app from desktop\nlauncher",
-                "collapsed": false,
-                "mark": "❌",
-                "children": []
-              },
-              {
-                "id": "f3b3a36e2071",
-                "text": "or make it spawn systems file browser",
-                "collapsed": false,
-                "mark": "❌",
-                "children": []
-              },
-              {
-                "id": "9b55dd70956b",
-                "text": "or just have the full path prefilled in save prompt",
-                "collapsed": false,
-                "mark": "❓",
-                "children": []
-              }
-            ]
-          }
-        ]
-      },
       {
         "id": "f5103208ce96",
         "text": "add features",
@@ -115,6 +63,20 @@
             ]
           },
           {
+            "id": "0d9f355649a8",
+            "text": "bring back mouse support",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
+          {
+            "id": "8cd6f26420fe",
+            "text": "implement export options into UI",
+            "collapsed": false,
+            "mark": null,
+            "children": []
+          },
+          {
             "id": "0b5865bb809a",
             "text": "export as characters",
             "collapsed": true,
@@ -135,13 +97,6 @@
                 "children": []
               }
             ]
-          },
-          {
-            "id": "8cd6f26420fe",
-            "text": "implement export options into UI",
-            "collapsed": false,
-            "mark": null,
-            "children": []
           },
           {
             "id": "7b2d92fa3776",
@@ -188,13 +143,6 @@
             ]
           },
           {
-            "id": "0d9f355649a8",
-            "text": "bring back mouse support",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          },
-          {
             "id": "28bd4c40fe32",
             "text": "allow to pipe svgs into other linux commands",
             "collapsed": false,
@@ -226,6 +174,58 @@
         ]
       },
       {
+        "id": "e58cc8120b6d",
+        "text": "fix bugs",
+        "collapsed": false,
+        "mark": null,
+        "children": [
+          {
+            "id": "6595b551ac7b",
+            "text": "check if we are rendering svgs in such a way, that\ntext of some lines gets centered on the cell - it\nshould not. There seems do be a discrepancy. We\nwant the text aligned to the left of a cell - fill\nthe rest with empty spaces if necessary. Glyph\ngrid shall reflect the original",
+            "collapsed": false,
+            "mark": null,
+            "children": [
+              {
+                "id": "7c21e36aa250",
+                "text": "this is only aparent in some svg viewers",
+                "collapsed": false,
+                "mark": null,
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "a72f659b6e4e",
+            "text": "app opened from desktop launcher\nautomatically saves files directly to home\nfolder without saying it",
+            "collapsed": false,
+            "mark": "❓",
+            "children": [
+              {
+                "id": "3118ae02735e",
+                "text": "some minimal file manager-like function for\nthose who launch it as an app from desktop\nlauncher",
+                "collapsed": false,
+                "mark": "❌",
+                "children": []
+              },
+              {
+                "id": "f3b3a36e2071",
+                "text": "or make it spawn systems file browser",
+                "collapsed": false,
+                "mark": "❌",
+                "children": []
+              },
+              {
+                "id": "9b55dd70956b",
+                "text": "or just have the full path prefilled in save prompt",
+                "collapsed": false,
+                "mark": "❓",
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      {
         "id": "12a106e7c43e",
         "text": "README",
         "collapsed": false,
@@ -253,15 +253,7 @@
         "text": "improve UI",
         "collapsed": false,
         "mark": null,
-        "children": [
-          {
-            "id": "aca0b7de39d5",
-            "text": "resolve dependabot's pull request to allow new version of textual",
-            "collapsed": false,
-            "mark": null,
-            "children": []
-          }
-        ]
+        "children": []
       },
       {
         "id": "720dbd712035",
@@ -1292,7 +1284,7 @@
     },
     {
       "id": "f4b6d72700bc",
-      "text": "show a little bit of LIFO stack even when we are not in it",
+      "text": "show a little bit of LIFO stack even\nwhen we are not in it",
       "collapsed": true,
       "mark": "❌",
       "children": [
@@ -1328,7 +1320,51 @@
     },
     {
       "id": "88d92c39e2dc",
-      "text": "editing cells in stack no longer resizes cell. Fix it",
+      "text": "editing cells in stack no longer resizes\ncell. Fix it",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "aca0b7de39d5",
+      "text": "resolve dependabot's pull requestd to\nallow new version of textual",
+      "collapsed": true,
+      "mark": "✅",
+      "children": [
+        {
+          "id": "d417da1c065d",
+          "text": "we go up to 8.2.4, but not higher as dependabot\nwanted - ansi-themes changed which would require\nrewriting a little bit",
+          "collapsed": false,
+          "mark": null,
+          "children": [
+            {
+              "id": "beca76ebb089",
+              "text": "no consequences",
+              "collapsed": false,
+              "mark": null,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "6750bce8a4a7",
+          "text": "we stay bellow textual 8.2.4, all is noted",
+          "collapsed": false,
+          "mark": null,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "b3217730fbec",
+      "text": "fix situation where user is left on a pane without cursor",
+      "collapsed": false,
+      "mark": "✅",
+      "children": []
+    },
+    {
+      "id": "20360dc6418a",
+      "text": "anounce that there is nothing to paste when inside a cell when that is the case",
       "collapsed": false,
       "mark": "✅",
       "children": []
