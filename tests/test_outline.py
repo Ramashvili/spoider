@@ -334,3 +334,14 @@ def test_a_document_refuses_a_palette_and_a_face(tmp_path: Path, capsys):
             main([str(source), "--export", "markdown", "-o", str(tmp_path / "x.md"), flag, value])
         assert done.value.code == 2
         assert "no --palette and no --font" in capsys.readouterr().err
+
+
+def test_a_document_export_refuses_a_directory_and_does_not_offer_force(tmp_path: Path):
+    folder = tmp_path / "notes"
+    folder.mkdir()
+    with pytest.raises(ExportError) as refused:
+        export_document(_saved(tmp_path), form="markdown", output=folder)
+    said = str(refused.value)
+    assert f"{folder} is a directory" in said
+    assert "--force" not in said, "a flag that cannot work is not offered"
+    assert folder.is_dir()

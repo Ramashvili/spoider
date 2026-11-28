@@ -260,6 +260,9 @@ def write_svg(sheet: Sheet, path: Path, *, overwrite: bool = False) -> Path:
     if not Path(path).expanduser().parent.is_dir():
         # the atomic writer would build the road; an export writes the file and no more
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(path))
+    if Path(path).expanduser().is_dir():
+        # a folder is never a thing to replace, so --force is not the answer and is not offered
+        raise ExportError(f"{path} is a directory: -o names the file to write, not the folder to put it in")
     if path.exists() and not overwrite:
         raise ExportError(f"{path} already exists; use --force to allow replace")
     written = Path(path).expanduser()

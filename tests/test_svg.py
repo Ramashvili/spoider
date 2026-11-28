@@ -239,3 +239,15 @@ def test_the_write_is_atomic(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(module, "write_atomic", spy)
     export_map(MANUAL, output=tmp_path / "atomic.svg")
     assert called == [tmp_path / "atomic.svg"], "written through the atomic writer"
+
+
+def test_an_export_refuses_a_directory_and_does_not_offer_force(tmp_path: Path):
+    """A folder is not a thing to replace, so the overwrite question does not apply to it."""
+    folder = tmp_path / "pictures"
+    folder.mkdir()
+    with pytest.raises(ExportError) as refused:
+        export_map(MANUAL, output=folder)
+    said = str(refused.value)
+    assert f"{folder} is a directory" in said
+    assert "--force" not in said, "a flag that cannot work is not offered"
+    assert folder.is_dir()

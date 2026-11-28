@@ -203,6 +203,9 @@ def _not_a_map(path: Path) -> str | None:
     theirs to replace, not what the JSON reader made of its first line.
     """
     try:
+        if path.is_dir():
+            # a folder is not a file, and saving into one is not a thing this does
+            return "is a directory"
         if path.stat().st_size > _NOT_A_MAP_LIMIT:
             return "already exists and is too large to read"
         MindMap.load(path)

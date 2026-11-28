@@ -8,7 +8,7 @@ import pytest
 from rich.cells import cell_len
 from textual import events
 
-from spoider.app import BINDINGS, SpoiderApp
+from spoider.app import BINDINGS, SpoiderApp, _not_a_map
 from spoider.chrome import DIVIDER, FooterBar, compose_footer, hint_chunks
 from spoider.config import load_config, update_config
 from spoider.drawers import AskBar, ErrorBar, NoticeBar, PanelBar, PromptBar
@@ -8389,3 +8389,33 @@ async def test_pasting_into_a_cell_with_nothing_to_paste_says_so(tmp_path: Path)
         app.on_paste(events.Paste("   "))   # nothing but space is nothing worth pasting
         await pilot.pause()
         assert _notice(app).message == "nothing to paste"
+
+
+def test_a_map_will_not_be_written_onto_a_folder(tmp_path: Path):
+    """The name says what it is: a folder is a directory, not a map that failed to parse."""
+    folder = tmp_path / "somewhere"
+    folder.mkdir()
+    assert _not_a_map(folder) == "is a directory"
+
+
+async def test_writing_a_map_to_a_folder_says_so(tmp_path: Path):
+    folder = tmp_path / "somewhere"
+    folder.mkdir()
+    app = SpoiderApp(tmp_path / "map.spoider", config_path=tmp_path / "d.conf", demo=False)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        await pilot.press("tab")
+        await pilot.press(*"mine")
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.press("ctrl+o")
+        await pilot.pause()
+        app.query_one(PromptBar).value = str(folder)
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert not app.query_one(AskBar).display, "a folder is never a question to replace"
+        said = app.query_one(NoticeBar).message
+        assert said.endswith("is a directory"), said
+        assert "force" not in said, "a flag that cannot work is not offered"
+        assert folder.is_dir()

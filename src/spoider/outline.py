@@ -242,6 +242,9 @@ def export_document(
     if not target.parent.is_dir():
         # the atomic writer would build the road; an export writes the file and no more
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(target))
+    if target.is_dir():
+        # a folder is never a thing to replace, so --force is not the answer and is not offered
+        raise ExportError(f"{target} is a directory: -o names the file to write, not the folder to put it in")
     if target.exists() and not overwrite:
         raise ExportError(f"{target} already exists; use --force to allow replace")
     write_atomic(target, body)
